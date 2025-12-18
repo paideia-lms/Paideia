@@ -111,7 +111,10 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(QuizActions.SUBMIT_QUIZ, String(moduleLinkId)),
+			action: getActionUrl(
+				QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE,
+				String(moduleLinkId),
+			),
 		});
 	};
 

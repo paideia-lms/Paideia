@@ -1,7 +1,7 @@
 import type { Payload } from "payload";
 import { QuizSubmissions } from "server/collections";
 import type { LatestQuizSettings } from "server/json";
-import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { JobQueue } from "server/payload.config";
 import type { QuizSubmission } from "server/payload-types";
 import { Result } from "typescript-result";
@@ -186,7 +186,8 @@ export interface GetNextAttemptNumberArgs extends BaseInternalFunctionArgs {
 	studentId: number;
 }
 
-export interface SubmitQuizArgs extends BaseInternalFunctionArgs {
+export interface MarkQuizAttemptAsCompleteArgs
+	extends BaseInternalFunctionArgs {
 	submissionId: number;
 	answers?: Array<{
 		questionId: string;
@@ -684,7 +685,8 @@ export const tryStartQuizAttempt = Result.wrap(
 
 		// Schedule auto-submit job if quiz has a time limit
 		if (quiz) {
-			const rawConfig = quiz.rawQuizConfig as unknown as QuizConfig | null;
+			const rawConfig =
+				quiz.rawQuizConfig as unknown as LatestQuizConfig | null;
 			const globalTimer = rawConfig?.globalTimer;
 
 			if (globalTimer && globalTimer > 0) {
@@ -958,12 +960,11 @@ export const tryGetQuizSubmissionById = Result.wrap(
 /**
  * Submits a quiz (marks as completed)
  */
-export const trySubmitQuiz = Result.wrap(
-	async (args: SubmitQuizArgs) => {
+export const tryMarkQuizAttemptAsComplete = Result.wrap(
+	async (args: MarkQuizAttemptAsCompleteArgs) => {
 		const {
 			payload,
 			submissionId,
-
 			req,
 			overrideAccess = false,
 			bypassTimeLimit = false,
@@ -975,12 +976,15 @@ export const trySubmitQuiz = Result.wrap(
 		}
 
 		// Get the current submission
-		const currentSubmission = await payload.findByID({
-			collection: "quiz-submissions",
-			id: submissionId,
-			req,
-			overrideAccess,
-		});
+		const currentSubmission = await payload
+			.findByID({
+				collection: "quiz-submissions",
+				id: submissionId,
+				req,
+				depth: 1,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		if (!currentSubmission) {
 			throw new NonExistingQuizSubmissionError(
@@ -997,46 +1001,36 @@ export const trySubmitQuiz = Result.wrap(
 		// Check time limit if quiz has one (unless bypassed for auto-submit)
 		if (currentSubmission.startedAt && !bypassTimeLimit) {
 			// Get course module link to access quiz time limit
-			const courseModuleLink = await payload.findByID({
-				collection: "course-activity-module-links",
-				id:
-					typeof currentSubmission.courseModuleLink === "object" &&
-					"id" in currentSubmission.courseModuleLink
-						? currentSubmission.courseModuleLink.id
-						: (currentSubmission.courseModuleLink as number),
-				depth: 2,
+			const courseModuleLink = await payload
+				.findByID({
+					collection: "course-activity-module-links",
+					id: currentSubmission.courseModuleLink.id,
+					depth: 2,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<2, "findByID">());
 
-				req,
-				overrideAccess,
-			});
+			const activityModule = courseModuleLink.activityModule;
+			const quiz = activityModule.quiz ?? null;
 
-			if (courseModuleLink) {
-				const activityModule =
-					typeof courseModuleLink.activityModule === "object"
-						? courseModuleLink.activityModule
-						: null;
-				const quiz =
-					activityModule && typeof activityModule.quiz === "object"
-						? activityModule.quiz
-						: null;
+			// Get globalTimer from rawQuizConfig (in seconds) and convert to minutes
+			const rawConfig = (quiz?.rawQuizConfig ??
+				null) as unknown as LatestQuizConfig | null;
+			const timeLimitMinutes = rawConfig?.globalTimer
+				? rawConfig.globalTimer / 60
+				: null;
 
-				// Get globalTimer from rawQuizConfig (in seconds) and convert to minutes
-				const rawConfig = quiz?.rawQuizConfig as unknown as QuizConfig | null;
-				const timeLimitMinutes = rawConfig?.globalTimer
-					? rawConfig.globalTimer / 60
-					: null;
+			if (timeLimitMinutes) {
+				const startedAt = new Date(currentSubmission.startedAt);
+				const now = new Date();
+				const timeElapsedMinutes =
+					(now.getTime() - startedAt.getTime()) / (1000 * 60);
 
-				if (timeLimitMinutes) {
-					const startedAt = new Date(currentSubmission.startedAt);
-					const now = new Date();
-					const timeElapsedMinutes =
-						(now.getTime() - startedAt.getTime()) / (1000 * 60);
-
-					if (timeElapsedMinutes > timeLimitMinutes) {
-						throw new QuizTimeLimitExceededError(
-							`Quiz time limit of ${timeLimitMinutes} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
-						);
-					}
+				if (timeElapsedMinutes > timeLimitMinutes) {
+					throw new QuizTimeLimitExceededError(
+						`Quiz time limit of ${timeLimitMinutes} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
+					);
 				}
 			}
 		}

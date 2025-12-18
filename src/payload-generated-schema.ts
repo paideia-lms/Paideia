@@ -67,7 +67,7 @@ export const enum_activity_modules_type = pgEnum("enum_activity_modules_type", [
 export const enum_activity_modules_status = pgEnum(
   "enum_activity_modules_status",
   ["draft", "published", "archived"],
-);
+)
 export const enum_quizzes_questions_question_type = pgEnum(
   "enum_quizzes_questions_question_type",
   [

@@ -22,25 +22,19 @@ import { handleTransactionId } from "server/internal/utils/handle-transaction-id
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
-	AssignmentForm,
 	DiscussionForm,
 	FileForm,
 	PageForm,
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
+import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
 import { DeleteActivityModule } from "~/components/delete-activity-module";
 import {
-	type ActivityModuleFormValues,
-	activityModuleSchema,
-	transformFormValues,
-	transformToActivityData,
-} from "~/utils/activity-module-schema";
-import { fileTypesToPresetValues } from "~/utils/file-types";
-import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
+	fileTypesToPresetValues,
+	presetValuesToFileTypes,
+} from "~/utils/file-types";
+import { ContentType } from "~/utils/get-content-type";
 import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
@@ -51,6 +45,9 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
+import { z } from "zod";
+import { convertMyFormDataToObject, MyFormData } from "app/utils/action-utils";
+import { enum_activity_modules_status } from "src/payload-generated-schema";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -93,6 +90,63 @@ export const moduleUpdateSearchParams = {
 
 export const loadSearchParams = createLoader(moduleUpdateSearchParams);
 
+export const updatePageActionSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().min(1),
+	status: z.enum(enum_activity_modules_status.enumValues),
+	content: z.string().min(1),
+});
+
+const updateWhiteboardActionSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().optional(),
+	status: z.enum(enum_activity_modules_status.enumValues),
+	whiteboardContent: z.string().optional(),
+});
+
+const updateFileActionSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().optional(),
+	status: z.enum(enum_activity_modules_status.enumValues),
+	fileMedia: z.array(z.coerce.number()).optional(),
+	files: z.array(z.file()).optional(),
+});
+
+const updateAssignmentActionSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().optional(),
+	status: z.enum(enum_activity_modules_status.enumValues),
+	assignmentInstructions: z.string().optional(),
+	assignmentRequireTextSubmission: z.coerce.boolean().optional(),
+	assignmentRequireFileSubmission: z.coerce.boolean().optional(),
+	assignmentAllowedFileTypes: z.array(z.string()).optional(),
+	assignmentMaxFileSize: z.coerce.number().optional(),
+	assignmentMaxFiles: z.coerce.number().optional(),
+});
+
+const updateQuizActionSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().optional(),
+	status: z.enum(enum_activity_modules_status.enumValues),
+	quizInstructions: z.string().optional(),
+	quizPoints: z.coerce.number().optional(),
+	quizTimeLimit: z.coerce.number().optional(),
+	quizGradingType: z.enum(["automatic", "manual"]).optional(),
+	rawQuizConfig: z.custom<QuizConfig>().optional(),
+});
+
+const updateDiscussionActionSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().optional(),
+	status: z.enum(enum_activity_modules_status.enumValues),
+	discussionInstructions: z.string().optional(),
+	discussionDueDate: z.string().nullable().optional(),
+	discussionRequireThread: z.coerce.boolean().optional(),
+	discussionRequireReplies: z.coerce.boolean().optional(),
+	discussionMinReplies: z.coerce.number().optional(),
+});
+
+
 const updatePageAction = serverOnly$(
 	async ({
 		request,
@@ -100,30 +154,23 @@ const updatePageAction = serverOnly$(
 		params,
 	}: Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
+		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+
+		if (!moduleIdResult.success)
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
+				error: moduleIdResult.error.message,
 			});
-		}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+		const moduleId = moduleIdResult.data;
 
-		if (!currentUser) {
+		const parsed = await request.formData().then(convertMyFormDataToObject).then(updatePageActionSchema.safeParse);
+
+		if (!parsed.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
-
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
+				error: z.prettifyError(parsed.error),
 			});
 		}
 
@@ -131,35 +178,15 @@ const updatePageAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Handle JSON request
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			const parsedData = activityModuleSchema.parse(data);
-
-			if (parsedData.type !== "page") {
-				return badRequest({
-					success: false,
-					error: "Invalid module type for page action",
-				});
-			}
-
-			const { pageData } = transformToActivityData(parsedData);
-
-			if (!pageData) {
-				return badRequest({
-					success: false,
-					error: "Missing page data",
-				});
-			}
 
 			const updateResult = await tryUpdatePageModule({
 				payload,
 				id: Number(moduleId),
-				title: parsedData.title,
-				description: parsedData.description,
-				status: parsedData.status,
-				content: pageData.content,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				content: parsed.data.content,
 				req: reqWithTransaction,
-				overrideAccess: false,
 			});
 
 			if (!updateResult.ok) {
@@ -173,6 +200,8 @@ const updatePageAction = serverOnly$(
 				success: true,
 				message: "Module updated successfully",
 			});
+		}, (errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
 		});
 	},
 )!;
@@ -186,30 +215,27 @@ const updateWhiteboardAction = serverOnly$(
 		searchParams: { action: Action.UpdateWhiteboard };
 	}) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
+		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+
+		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
+				error: moduleIdResult.error.message,
 			});
 		}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+		const moduleId = moduleIdResult.data;
 
-		if (!currentUser) {
+		const parsed = await request
+			.formData()
+			.then(convertMyFormDataToObject)
+			.then(updateWhiteboardActionSchema.safeParse);
+
+		if (!parsed.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
-
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
+				error: z.prettifyError(parsed.error),
 			});
 		}
 
@@ -217,33 +243,13 @@ const updateWhiteboardAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Handle JSON request
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			const parsedData = activityModuleSchema.parse(data);
-
-			if (parsedData.type !== "whiteboard") {
-				return badRequest({
-					success: false,
-					error: "Invalid module type for whiteboard action",
-				});
-			}
-
-			const { whiteboardData } = transformToActivityData(parsedData);
-
-			if (!whiteboardData) {
-				return badRequest({
-					success: false,
-					error: "Missing whiteboard data",
-				});
-			}
-
 			const updateResult = await tryUpdateWhiteboardModule({
 				payload,
-				id: Number(moduleId),
-				title: parsedData.title,
-				description: parsedData.description,
-				status: parsedData.status,
-				content: whiteboardData.content,
+				id: moduleId,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				content: parsed.data.whiteboardContent,
 				req: reqWithTransaction,
 				overrideAccess: false,
 			});
@@ -259,6 +265,8 @@ const updateWhiteboardAction = serverOnly$(
 				success: true,
 				message: "Module updated successfully",
 			});
+		}, (errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
 		});
 	},
 )!;
@@ -290,14 +298,16 @@ const updateFileAction = serverOnly$(
 			});
 		}
 
-		const moduleId = params.moduleId;
-		if (!moduleId) {
+		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+
+		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: "Module ID is required",
+				error: moduleIdResult.error.message,
 			});
 		}
 
+		const moduleId = moduleIdResult.data;
 		const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 		// Handle transaction ID
@@ -330,41 +340,27 @@ const updateFileAction = serverOnly$(
 
 			const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
 
-			// Extract form data (excluding files) and parse values
-			const formDataObj: Record<string, unknown> = {};
-			for (const [key, value] of formData.entries()) {
-				if (key !== "files") {
-					const stringValue = value.toString();
-					// Try to parse JSON values (arrays, objects, booleans, numbers)
-					try {
-						formDataObj[key] = JSON.parse(stringValue);
-					} catch {
-						// If not JSON, keep as string
-						formDataObj[key] = stringValue;
-					}
-				}
-			}
+			// Convert formData to object and parse with schema
+			const formDataObj = convertMyFormDataToObject(formData);
+			const parsed = updateFileActionSchema.safeParse(formDataObj);
 
-			// Parse the form data
-			const parsedData = activityModuleSchema.parse(formDataObj);
-
-			if (parsedData.type !== "file") {
+			if (!parsed.success) {
 				return badRequest({
 					success: false,
-					error: "Invalid module type for file action",
+					error: z.prettifyError(parsed.error),
 				});
 			}
 
 			// For file type, combine existing media IDs with newly uploaded media IDs
-			const existingMediaIds = parsedData.fileMedia ?? [];
+			const existingMediaIds = parsed.data.fileMedia ?? [];
 			const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
 
 			const updateResult = await tryUpdateFileModule({
 				payload,
-				id: Number(moduleId),
-				title: parsedData.title,
-				description: parsedData.description,
-				status: parsedData.status,
+				id: moduleId,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
 				media: allMediaIds.length > 0 ? allMediaIds : undefined,
 				req: reqWithTransaction,
 				overrideAccess: false,
@@ -381,6 +377,8 @@ const updateFileAction = serverOnly$(
 				success: true,
 				message: "Module updated successfully",
 			});
+		}, (errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
 		});
 	},
 )!;
@@ -394,30 +392,27 @@ const updateAssignmentAction = serverOnly$(
 		searchParams: { action: Action.UpdateAssignment };
 	}) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
+		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+
+		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
+				error: moduleIdResult.error.message,
 			});
 		}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+		const moduleId = moduleIdResult.data;
 
-		if (!currentUser) {
+		const parsed = await request
+			.formData()
+			.then(convertMyFormDataToObject)
+			.then(updateAssignmentActionSchema.safeParse);
+
+		if (!parsed.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
-
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
+				error: z.prettifyError(parsed.error),
 			});
 		}
 
@@ -425,38 +420,24 @@ const updateAssignmentAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Handle JSON request
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			const parsedData = activityModuleSchema.parse(data);
-
-			if (parsedData.type !== "assignment") {
-				return badRequest({
-					success: false,
-					error: "Invalid module type for assignment action",
-				});
-			}
-
-			const { assignmentData } = transformToActivityData(parsedData);
-
-			if (!assignmentData) {
-				return badRequest({
-					success: false,
-					error: "Missing assignment data",
-				});
-			}
+			const allowedFileTypes =
+				parsed.data.assignmentAllowedFileTypes &&
+					parsed.data.assignmentAllowedFileTypes.length > 0
+					? presetValuesToFileTypes(parsed.data.assignmentAllowedFileTypes)
+					: undefined;
 
 			const updateResult = await tryUpdateAssignmentModule({
 				payload,
-				id: Number(moduleId),
-				title: parsedData.title,
-				description: parsedData.description,
-				status: parsedData.status,
-				instructions: assignmentData.instructions,
-				requireTextSubmission: assignmentData.requireTextSubmission,
-				requireFileSubmission: assignmentData.requireFileSubmission,
-				allowedFileTypes: assignmentData.allowedFileTypes,
-				maxFileSize: assignmentData.maxFileSize,
-				maxFiles: assignmentData.maxFiles,
+				id: moduleId,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				instructions: parsed.data.assignmentInstructions,
+				requireTextSubmission: parsed.data.assignmentRequireTextSubmission,
+				requireFileSubmission: parsed.data.assignmentRequireFileSubmission,
+				allowedFileTypes,
+				maxFileSize: parsed.data.assignmentMaxFileSize,
+				maxFiles: parsed.data.assignmentMaxFiles,
 				req: reqWithTransaction,
 			});
 
@@ -471,6 +452,8 @@ const updateAssignmentAction = serverOnly$(
 				success: true,
 				message: "Module updated successfully",
 			});
+		}, (errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
 		});
 	},
 )!;
@@ -482,30 +465,27 @@ const updateQuizAction = serverOnly$(
 		params,
 	}: Route.ActionArgs & { searchParams: { action: Action.UpdateQuiz } }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
+		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+
+		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
+				error: moduleIdResult.error.message,
 			});
 		}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+		const moduleId = moduleIdResult.data;
 
-		if (!currentUser) {
+		const parsed = await request
+			.formData()
+			.then(convertMyFormDataToObject)
+			.then(updateQuizActionSchema.safeParse);
+
+		if (!parsed.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
-
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
+				error: z.prettifyError(parsed.error),
 			});
 		}
 
@@ -513,37 +493,17 @@ const updateQuizAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Handle JSON request
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			const parsedData = activityModuleSchema.parse(data);
-
-			if (parsedData.type !== "quiz") {
-				return badRequest({
-					success: false,
-					error: "Invalid module type for quiz action",
-				});
-			}
-
-			const { quizData } = transformToActivityData(parsedData);
-
-			if (!quizData) {
-				return badRequest({
-					success: false,
-					error: "Missing quiz data",
-				});
-			}
-
 			const updateResult = await tryUpdateQuizModule({
 				payload,
-				id: Number(moduleId),
-				title: parsedData.title,
-				description: parsedData.description,
-				status: parsedData.status,
-				instructions: quizData.instructions,
-				points: quizData.points,
-				timeLimit: quizData.timeLimit,
-				gradingType: quizData.gradingType,
-				rawQuizConfig: quizData.rawQuizConfig,
+				id: moduleId,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				instructions: parsed.data.quizInstructions,
+				points: parsed.data.quizPoints,
+				timeLimit: parsed.data.quizTimeLimit,
+				gradingType: parsed.data.quizGradingType,
+				rawQuizConfig: parsed.data.rawQuizConfig,
 				req: reqWithTransaction,
 				overrideAccess: false,
 			});
@@ -559,6 +519,8 @@ const updateQuizAction = serverOnly$(
 				success: true,
 				message: "Module updated successfully",
 			});
+		}, (errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
 		});
 	},
 )!;
@@ -572,30 +534,27 @@ const updateDiscussionAction = serverOnly$(
 		searchParams: { action: Action.UpdateDiscussion };
 	}) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
+		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+
+		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
+				error: moduleIdResult.error.message,
 			});
 		}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+		const moduleId = moduleIdResult.data;
 
-		if (!currentUser) {
+		const parsed = await request
+			.formData()
+			.then(convertMyFormDataToObject)
+			.then(updateDiscussionActionSchema.safeParse);
+
+		if (!parsed.success) {
 			return badRequest({
 				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
-
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
+				error: z.prettifyError(parsed.error),
 			});
 		}
 
@@ -603,37 +562,17 @@ const updateDiscussionAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Handle JSON request
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			const parsedData = activityModuleSchema.parse(data);
-
-			if (parsedData.type !== "discussion") {
-				return badRequest({
-					success: false,
-					error: "Invalid module type for discussion action",
-				});
-			}
-
-			const { discussionData } = transformToActivityData(parsedData);
-
-			if (!discussionData) {
-				return badRequest({
-					success: false,
-					error: "Missing discussion data",
-				});
-			}
-
 			const updateResult = await tryUpdateDiscussionModule({
 				payload,
-				id: Number(moduleId),
-				title: parsedData.title,
-				description: parsedData.description,
-				status: parsedData.status,
-				instructions: discussionData.instructions,
-				dueDate: discussionData.dueDate,
-				requireThread: discussionData.requireThread,
-				requireReplies: discussionData.requireReplies,
-				minReplies: discussionData.minReplies,
+				id: moduleId,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				instructions: parsed.data.discussionInstructions,
+				dueDate: parsed.data.discussionDueDate ?? undefined,
+				requireThread: parsed.data.discussionRequireThread,
+				requireReplies: parsed.data.discussionRequireReplies,
+				minReplies: parsed.data.discussionMinReplies,
 				req: reqWithTransaction,
 			});
 
@@ -648,6 +587,8 @@ const updateDiscussionAction = serverOnly$(
 				success: true,
 				message: "Module updated successfully",
 			});
+		}, (errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
 		});
 	},
 )!;
@@ -746,13 +687,13 @@ export const clientAction = async ({
 	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
-			message: actionData.message || "Module updated successfully",
+			message: actionData.message,
 			color: "green",
 		});
 	} else if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
-			message: actionData.error || "Failed to update module",
+			message: actionData.error,
 			color: "red",
 		});
 	}
@@ -766,14 +707,12 @@ export function useUpdatePage() {
 
 	const updatePage = (
 		moduleId: string,
-		values: Extract<ActivityModuleFormValues, { type: "page" }>,
+		values: z.infer<typeof updatePageActionSchema>,
 	) => {
-		const submissionData = transformFormValues(values);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		fetcher.submit(submissionData as any, {
+		fetcher.submit(new MyFormData<z.infer<typeof updatePageActionSchema>>(values), {
 			method: "POST",
 			action: getActionUrl(Action.UpdatePage, moduleId),
-			encType: ContentType.JSON,
+			encType: ContentType.MULTIPART,
 		});
 	};
 
@@ -789,15 +728,16 @@ export function useUpdateWhiteboard() {
 
 	const updateWhiteboard = (
 		moduleId: string,
-		values: Extract<ActivityModuleFormValues, { type: "whiteboard" }>,
+		values: z.infer<typeof updateWhiteboardActionSchema>,
 	) => {
-		const submissionData = transformFormValues(values);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		fetcher.submit(submissionData as any, {
-			method: "POST",
-			action: getActionUrl(Action.UpdateWhiteboard, moduleId),
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			new MyFormData<z.infer<typeof updateWhiteboardActionSchema>>(values),
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateWhiteboard, moduleId),
+				encType: ContentType.MULTIPART,
+			},
+		);
 	};
 
 	return {
@@ -812,34 +752,11 @@ export function useUpdateFile() {
 
 	const updateFile = (
 		moduleId: string,
-		values: Extract<ActivityModuleFormValues, { type: "file" }>,
+		values: z.infer<typeof updateFileActionSchema>,
 	) => {
-		const files = values.fileFiles;
-		const formData = new FormData();
 
-		// Add form fields
-		const submissionData = transformFormValues(values);
-		for (const [key, value] of Object.entries(submissionData)) {
-			if (value !== undefined && value !== null) {
-				// JSON.stringify arrays, objects, booleans, and numbers so they can be parsed back
-				if (
-					typeof value === "object" ||
-					typeof value === "boolean" ||
-					typeof value === "number"
-				) {
-					formData.append(key, JSON.stringify(value));
-				} else {
-					formData.append(key, String(value));
-				}
-			}
-		}
 
-		// Add files
-		for (const file of files) {
-			formData.append("files", file);
-		}
-
-		fetcher.submit(formData, {
+		fetcher.submit(new MyFormData<z.infer<typeof updateFileActionSchema>>(values), {
 			method: "POST",
 			action: getActionUrl(Action.UpdateFile, moduleId),
 			encType: ContentType.MULTIPART,
@@ -858,15 +775,16 @@ export function useUpdateAssignment() {
 
 	const updateAssignment = (
 		moduleId: string,
-		values: Extract<ActivityModuleFormValues, { type: "assignment" }>,
+		values: z.infer<typeof updateAssignmentActionSchema>,
 	) => {
-		const submissionData = transformFormValues(values);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		fetcher.submit(submissionData as any, {
-			method: "POST",
-			action: getActionUrl(Action.UpdateAssignment, moduleId),
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			new MyFormData<z.infer<typeof updateAssignmentActionSchema>>(values),
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateAssignment, moduleId),
+				encType: ContentType.MULTIPART,
+			},
+		);
 	};
 
 	return {
@@ -881,15 +799,16 @@ export function useUpdateQuiz() {
 
 	const updateQuiz = (
 		moduleId: string,
-		values: Extract<ActivityModuleFormValues, { type: "quiz" }>,
+		values: z.infer<typeof updateQuizActionSchema>,
 	) => {
-		const submissionData = transformFormValues(values);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		fetcher.submit(submissionData as any, {
-			method: "POST",
-			action: getActionUrl(Action.UpdateQuiz, moduleId),
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			new MyFormData<z.infer<typeof updateQuizActionSchema>>(values),
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateQuiz, moduleId),
+				encType: ContentType.MULTIPART,
+			},
+		);
 	};
 
 	return {
@@ -904,15 +823,16 @@ export function useUpdateDiscussion() {
 
 	const updateDiscussion = (
 		moduleId: string,
-		values: Extract<ActivityModuleFormValues, { type: "discussion" }>,
+		values: z.infer<typeof updateDiscussionActionSchema>,
 	) => {
-		const submissionData = transformFormValues(values);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		fetcher.submit(submissionData as any, {
-			method: "POST",
-			action: getActionUrl(Action.UpdateDiscussion, moduleId),
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			new MyFormData<z.infer<typeof updateDiscussionActionSchema>>(values),
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateDiscussion, moduleId),
+				encType: ContentType.MULTIPART,
+			},
+		);
 	};
 
 	return {
@@ -922,27 +842,49 @@ export function useUpdateDiscussion() {
 	};
 }
 
+function getPageFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "page" }>) {
+	return {
+		title: module.title,
+		description: module.description || "",
+		status: module.status,
+		content: module.content || "",
+	}
+}
+
+export type PageFormInitialValues = ReturnType<typeof getPageFormInitialValues>;
+
 // Form wrappers that use their respective hooks
 function PageFormWrapper({
 	module,
 }: {
-	module: Extract<ActivityModuleResult, { type: "page" }>;
+	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "page" }>;
 }) {
 	const { updatePage, isLoading } = useUpdatePage();
+	const initialValues = getPageFormInitialValues(module);
 	return (
 		<PageForm
-			initialValues={{
-				title: module.title,
-				description: module.description || "",
-				status: module.status,
-				type: "page",
-				pageContent: module.content || "",
-			}}
-			onSubmit={(values) => updatePage(String(module.id), values)}
+			initialValues={initialValues}
+			onSubmit={(values) => updatePage(String(module.id), {
+				title: values.title,
+				description: values.description,
+				status: values.status,
+				content: values.content,
+			})}
 			isLoading={isLoading}
 		/>
 	);
 }
+
+function getWhiteboardFormInitialValues(module: Extract<ActivityModuleResult, { type: "whiteboard" }>) {
+	return {
+		title: module.title,
+		description: module.description || "",
+		status: module.status,
+		whiteboardContent: module.content || "",
+	}
+}
+
+export type WhiteboardFormInitialValues = ReturnType<typeof getWhiteboardFormInitialValues>;
 
 function WhiteboardFormWrapper({
 	module,
@@ -950,39 +892,58 @@ function WhiteboardFormWrapper({
 	module: Extract<ActivityModuleResult, { type: "whiteboard" }>;
 }) {
 	const { updateWhiteboard, isLoading } = useUpdateWhiteboard();
+	const initialValues = getWhiteboardFormInitialValues(module);
 	return (
 		<WhiteboardForm
-			initialValues={{
-				title: module.title,
-				description: module.description || "",
-				status: module.status,
-				type: "whiteboard",
-				whiteboardContent: module.content || "",
-			}}
-			onSubmit={(values) => updateWhiteboard(String(module.id), values)}
+			initialValues={initialValues}
+			onSubmit={(values) =>
+				updateWhiteboard(String(module.id), {
+					title: values.title,
+					description: values.description,
+					status: values.status,
+					whiteboardContent: values.whiteboardContent,
+				})
+			}
 			isLoading={isLoading}
 		/>
 	);
 }
 
+function getFileFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "file" }>) {
+	return {
+		title: module.title,
+		description: module.description || "",
+		status: module.status,
+		fileMedia: module.media?.map((m) => m.id) ?? [],
+		fileFiles: [] as File[],
+	}
+}
+
+export type FileFormInitialValues = ReturnType<typeof getFileFormInitialValues>;
+
 function FileFormWrapper({
 	module,
 	uploadLimit,
 }: {
-	module: Extract<ActivityModuleResult, { type: "file" }>;
+	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "file" }>;
 	uploadLimit?: number;
 }) {
 	const { updateFile, isLoading } = useUpdateFile();
+	const initialValues = getFileFormInitialValues(module);
 	return (
 		<FileForm
-			initialValues={{
-				title: module.title,
-				description: module.description || "",
-				status: module.status,
-				fileMedia: module.media?.map((m) => m.id) ?? [],
-				fileFiles: [],
-			}}
-			onSubmit={(values) => updateFile(String(module.id), values)}
+			initialValues={initialValues}
+			onSubmit={(values) =>
+				updateFile(
+					String(module.id),
+					{
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						fileMedia: values.fileMedia,
+						files: values.fileFiles,
+					})
+			}
 			uploadLimit={uploadLimit}
 			existingMedia={module.media ?? []}
 			isLoading={isLoading}
@@ -990,79 +951,138 @@ function FileFormWrapper({
 	);
 }
 
+const getAssignmentFormInitialValues = (module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "assignment" }>) => {
+	return {
+		title: module.title,
+		description: module.description || "",
+		status: module.status,
+		assignmentInstructions: module.instructions || "",
+		assignmentRequireTextSubmission: module.requireTextSubmission ?? false,
+		assignmentRequireFileSubmission: module.requireFileSubmission ?? false,
+		assignmentAllowedFileTypes: fileTypesToPresetValues(
+			module.allowedFileTypes,
+		),
+		assignmentMaxFileSize: module.maxFileSize ?? 10,
+		assignmentMaxFiles: module.maxFiles ?? 5,
+	}
+};
+
+export type AssignmentFormInitialValues = ReturnType<typeof getAssignmentFormInitialValues>;
+
 function AssignmentFormWrapper({
 	module,
 }: {
-	module: Extract<ActivityModuleResult, { type: "assignment" }>;
+	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "assignment" }>;
 }) {
 	const { updateAssignment, isLoading } = useUpdateAssignment();
+	const initialValues = getAssignmentFormInitialValues(module);
 	return (
 		<AssignmentForm
-			initialValues={{
-				title: module.title,
-				description: module.description || "",
-				status: module.status,
-				type: "assignment",
-				assignmentInstructions: module.instructions || "",
-				assignmentRequireTextSubmission: module.requireTextSubmission ?? false,
-				assignmentRequireFileSubmission: module.requireFileSubmission ?? false,
-				assignmentAllowedFileTypes: fileTypesToPresetValues(
-					module.allowedFileTypes,
-				),
-				assignmentMaxFileSize: module.maxFileSize ?? 10,
-				assignmentMaxFiles: module.maxFiles ?? 5,
-			}}
-			onSubmit={(values) => updateAssignment(String(module.id), values)}
+			initialValues={initialValues}
+			onSubmit={(values) =>
+				updateAssignment(String(module.id), {
+					title: values.title,
+					description: values.description,
+					status: values.status,
+					assignmentInstructions: values.assignmentInstructions,
+					assignmentRequireTextSubmission:
+						values.assignmentRequireTextSubmission,
+					assignmentRequireFileSubmission: values.assignmentRequireFileSubmission,
+					assignmentAllowedFileTypes: values.assignmentAllowedFileTypes,
+					assignmentMaxFileSize: values.assignmentMaxFileSize,
+					assignmentMaxFiles: values.assignmentMaxFiles,
+				})
+			}
 			isLoading={isLoading}
 		/>
 	);
 }
+
+function getQuizFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "quiz" }>) {
+	return {
+		title: module.title,
+		description: module.description || "",
+		status: module.status,
+		quizInstructions: module.instructions || "",
+		quizPoints: module.points ?? 100,
+		quizTimeLimit: module.timeLimit ?? 60,
+		// ! we force it to be automatic for now
+		quizGradingType: "automatic" as const,
+		rawQuizConfig: (module.rawQuizConfig as QuizConfig | null) ?? null,
+	}
+}
+
+export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
 
 function QuizFormWrapper({
 	module,
 }: {
-	module: Extract<ActivityModuleResult, { type: "quiz" }>;
+	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "quiz" }>;
 }) {
 	const { updateQuiz, isLoading } = useUpdateQuiz();
+	const initialValues = getQuizFormInitialValues(module);
 	return (
 		<QuizForm
-			initialValues={{
-				title: module.title,
-				description: module.description || "",
-				status: module.status,
-				type: "quiz",
-				quizInstructions: module.instructions || "",
-				quizPoints: module.points ?? 100,
-				quizTimeLimit: module.timeLimit ?? 60,
-				quizGradingType: module.gradingType || "automatic",
-				rawQuizConfig: (module.rawQuizConfig as QuizConfig | null) ?? null,
-			}}
-			onSubmit={(values) => updateQuiz(String(module.id), values)}
+			initialValues={initialValues}
+			onSubmit={(values) =>
+				updateQuiz(String(module.id), {
+					title: values.title,
+					description: values.description,
+					status: values.status,
+					quizInstructions: values.quizInstructions,
+					quizPoints: values.quizPoints,
+					quizTimeLimit: values.quizTimeLimit,
+					quizGradingType: values.quizGradingType,
+					rawQuizConfig:
+						values.rawQuizConfig === null
+							? undefined
+							: values.rawQuizConfig,
+				})
+			}
 			isLoading={isLoading}
 		/>
 	);
 }
 
+function getDiscussionFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "discussion" }>) {
+	return {
+		title: module.title,
+		description: module.description || "",
+		status: module.status,
+		discussionInstructions: module.instructions || "",
+		discussionDueDate: module.dueDate ? new Date(module.dueDate) : null,
+		discussionRequireThread: module.requireThread ?? false,
+		discussionRequireReplies: module.requireReplies ?? false,
+		discussionMinReplies: module.minReplies ?? 1,
+	}
+}
+
+export type DiscussionFormInitialValues = ReturnType<typeof getDiscussionFormInitialValues>;
+
 function DiscussionFormWrapper({
 	module,
 }: {
-	module: Extract<ActivityModuleResult, { type: "discussion" }>;
+	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "discussion" }>;
 }) {
 	const { updateDiscussion, isLoading } = useUpdateDiscussion();
+	const initialValues = getDiscussionFormInitialValues(module);
 	return (
 		<DiscussionForm
-			initialValues={{
-				title: module.title,
-				description: module.description || "",
-				status: module.status,
-				type: "discussion",
-				discussionInstructions: module.instructions || "",
-				discussionDueDate: module.dueDate ? new Date(module.dueDate) : null,
-				discussionRequireThread: module.requireThread ?? false,
-				discussionRequireReplies: module.requireReplies ?? false,
-				discussionMinReplies: module.minReplies ?? 1,
-			}}
-			onSubmit={(values) => updateDiscussion(String(module.id), values)}
+			initialValues={initialValues}
+			onSubmit={(values) =>
+				updateDiscussion(String(module.id), {
+					title: values.title,
+					description: values.description,
+					status: values.status,
+					discussionInstructions: values.discussionInstructions,
+					discussionDueDate: values.discussionDueDate
+						? values.discussionDueDate.toISOString()
+						: null,
+					discussionRequireThread: values.discussionRequireThread,
+					discussionRequireReplies: values.discussionRequireReplies,
+					discussionMinReplies: values.discussionMinReplies,
+				})
+			}
 			isLoading={isLoading}
 		/>
 	);

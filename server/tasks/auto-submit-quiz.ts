@@ -1,5 +1,5 @@
 import type { TaskConfig } from "payload";
-import { trySubmitQuiz } from "../internal/quiz-submission-management";
+import { tryMarkQuizAttemptAsComplete } from "../internal/quiz-submission-management";
 
 /**
  * Payload task that auto-submits a quiz when the time limit expires
@@ -62,7 +62,7 @@ export const autoSubmitQuiz: TaskConfig<"autoSubmitQuiz"> = {
 		}
 
 		// Auto-submit the quiz (bypass time limit check since timer has expired)
-		const submitResult = await trySubmitQuiz({
+		const submitResult = await tryMarkQuizAttemptAsComplete({
 			payload: req.payload,
 			submissionId,
 			// ! we can override access because this is a system request

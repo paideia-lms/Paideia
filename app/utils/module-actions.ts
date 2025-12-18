@@ -21,7 +21,7 @@ export const DiscussionActions = {
 
 export const QuizActions = {
 	START_ATTEMPT: "startattempt",
-	SUBMIT_QUIZ: "submitquiz",
+	MARK_QUIZ_ATTEMPT_AS_COMPLETE: "markquizattemptascomplete",
 	GRADE_SUBMISSION: "gradesubmission",
 } as const;
 

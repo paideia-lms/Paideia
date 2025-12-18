@@ -21,7 +21,7 @@ import {
 	tryCheckInProgressSubmission,
 	tryGetNextAttemptNumber,
 	tryStartQuizAttempt,
-	trySubmitQuiz,
+	tryMarkQuizAttemptAsComplete,
 } from "server/internal/quiz-submission-management";
 import {
 	commitTransactionIfCreated,
@@ -35,11 +35,7 @@ import {
 import z from "zod";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { handleUploadError } from "~/utils/handle-upload-errors";
-import {
-	AssignmentActions,
-	DiscussionActions,
-	QuizActions,
-} from "~/utils/module-actions";
+
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -69,7 +65,7 @@ import { QuizInstructionsView } from "app/components/activity-modules-preview/qu
 import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsString, useQueryState } from "nuqs";
 import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
-
+import { AssignmentActions, DiscussionActions, QuizActions } from "~/utils/module-actions";
 export const loader = async ({
 	context,
 	params,
@@ -468,7 +464,7 @@ const createReplyAction = async ({
 	});
 };
 
-const submitQuizAction = async ({
+const markQuizAttemptAsCompleteAction = async ({
 	request,
 	context,
 	params,
@@ -518,20 +514,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-		  }>
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		}>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -553,7 +549,7 @@ const submitQuizAction = async ({
 		}
 	}
 
-	const submitResult = await trySubmitQuiz({
+	const submitResult = await tryMarkQuizAttemptAsComplete({
 		payload,
 		submissionId,
 		answers,
@@ -916,8 +912,8 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionParam === QuizActions.SUBMIT_QUIZ) {
-		return submitQuizAction({
+	if (actionParam === QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE) {
+		return markQuizAttemptAsCompleteAction({
 			...args,
 			searchParams: {
 				action: actionParam,
@@ -1082,8 +1078,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-			"status" in loaderData.userSubmission &&
-			loaderData.userSubmission.status === "in_progress"
+				"status" in loaderData.userSubmission &&
+				loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 

@@ -1,39 +1,39 @@
-import { Button, Select, Stack, Textarea, Title } from "@mantine/core";
+import { Button, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
-import type {
-	ActivityModuleFormValues,
-	QuizModuleFormValues,
-} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
 import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
+import type { QuizFormInitialValues as EditQuizFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { QuizFormInitialValues as NewQuizFormInitialValues } from "app/routes/user/module/new";
+import type { Simplify, UnionToIntersection } from "type-fest";
+
+type QuizFormData = Simplify<
+	UnionToIntersection<
+		NewQuizFormInitialValues | EditQuizFormInitialValues
+	>
+>;
 
 interface QuizFormProps {
-	initialValues?: Partial<QuizModuleFormValues>;
-	onSubmit: (values: QuizModuleFormValues) => void;
+	initialValues?: Partial<QuizFormData>;
+	onSubmit: (values: QuizFormData) => void;
 	isLoading?: boolean;
 }
 
-export function QuizForm({
-	initialValues,
-	onSubmit,
-	isLoading,
-}: QuizFormProps) {
-	const form = useForm<QuizModuleFormValues>({
+const useQuizForm = (initialValues: Partial<QuizFormData> | undefined) => {
+	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
-			title: initialValues?.title || "",
-			description: initialValues?.description || "",
-			type: "quiz" as const,
-			status: initialValues?.status || "draft",
-			quizInstructions: initialValues?.quizInstructions || "",
-			quizPoints: initialValues?.quizPoints || 100,
-			quizTimeLimit: initialValues?.quizTimeLimit || 60,
-			quizGradingType: initialValues?.quizGradingType || "automatic",
-			rawQuizConfig: initialValues?.rawQuizConfig || null,
+			title: initialValues?.title ?? "",
+			description: initialValues?.description ?? "",
+			status: initialValues?.status ?? "draft",
+			quizInstructions: initialValues?.quizInstructions ?? "",
+			quizPoints: initialValues?.quizPoints ?? 100,
+			quizTimeLimit: initialValues?.quizTimeLimit ?? 60,
+			quizGradingType: initialValues?.quizGradingType ?? "automatic",
+			rawQuizConfig: initialValues?.rawQuizConfig ?? null,
 		},
 		validate: {
 			title: (value) =>
@@ -41,13 +41,41 @@ export function QuizForm({
 		},
 	});
 
+	return form
+}
+
+export type UseQuizFormReturnType = ReturnType<typeof useQuizForm>;
+
+export function QuizForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: QuizFormProps) {
+	const form = useQuizForm(initialValues);
+
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields
-					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
 				/>
 
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
+				/>
 				<Textarea
 					{...form.getInputProps("description")}
 					key={form.key("description")}
@@ -56,61 +84,6 @@ export function QuizForm({
 					minRows={3}
 					autosize
 				/>
-				{/* 
-			<Title order={4} mt="md">
-				Legacy Quiz Settings (Optional)
-			</Title>
-
-			<Textarea
-				{...form.getInputProps("quizInstructions")}
-				key={form.key("quizInstructions")}
-				label="Instructions"
-				placeholder="Enter quiz instructions"
-				minRows={3}
-			/>
-
-			<DateTimePicker
-				{...form.getInputProps("quizDueDate")}
-				key={form.key("quizDueDate")}
-				label="Due Date"
-				placeholder="Select due date"
-			/>
-
-			<NumberInput
-				{...form.getInputProps("quizMaxAttempts")}
-				key={form.key("quizMaxAttempts")}
-				label="Max Attempts"
-				placeholder="Enter max attempts"
-				min={1}
-			/>
-
-			<NumberInput
-				{...form.getInputProps("quizPoints")}
-				key={form.key("quizPoints")}
-				label="Total Points"
-				placeholder="Enter total points"
-				min={0}
-			/>
-
-			<NumberInput
-				{...form.getInputProps("quizTimeLimit")}
-				key={form.key("quizTimeLimit")}
-				label="Time Limit (minutes)"
-				placeholder="Enter time limit in minutes"
-				min={1}
-			/>
-
-			<Select
-				{...form.getInputProps("quizGradingType")}
-				key={form.key("quizGradingType")}
-				label="Grading Type"
-				data={[
-					{ value: "automatic", label: "Automatic" },
-					{ value: "manual", label: "Manual" },
-				]}
-			/>
-
-			<Divider my="xl" /> */}
 
 				<QuizBuilder form={form} />
 
@@ -125,7 +98,7 @@ export function QuizForm({
 function QuizBuilder({
 	form,
 }: {
-	form: UseFormReturnType<QuizModuleFormValues>;
+	form: UseFormReturnType<QuizFormData>;
 }) {
 	// Watch the quiz type from form
 	const quizType = useFormWatchForceUpdate(form, "rawQuizConfig.type");

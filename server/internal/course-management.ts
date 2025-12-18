@@ -303,23 +303,25 @@ export const tryFindCourseById = Result.wrap(
 					sections: false,
 				},
 				populate: {
+					// ! we don't care about performance for now so we populate all data
 					// ! we don't want to populate the course in the enrollments and groups
-					enrollments: {
-						course: false,
-					},
-					groups: {
-						course: false,
-					},
+					// enrollments: {
+					// 	course: false,
+					// },
+					// groups: {
+					// 	course: false,
+					// },
 					// ! we don't need the subcategories and courses in the category
-					"course-categories": {
-						courses: false,
-						subcategories: false,
-					},
+					// "course-categories": {
+					// 	courses: false,
+					// 	subcategories: false,
+					// },
 				},
 				depth: 2,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<2, "find">())
 			.then((r) => {
 				////////////////////////////////////////////////////////
 				// complex type narrowing
@@ -338,15 +340,7 @@ export const tryFindCourseById = Result.wrap(
 								(c.enrollments as Depth<Course["enrollments"], 2>)?.docs ?? []
 							).map((c) => omitType(c, ["course"])),
 							// ! populate, this will have depth 2
-							category: c.category as OmitDeep<
-								Depth<CourseCategory, 1>,
-								| "courses"
-								| "subcategories"
-								| "parent.courses"
-								| "parent.subcategories"
-								| "parent.parent.courses"
-								| "parent.parent.subcategories"
-							>,
+							category: c.category,
 						};
 					}),
 				};

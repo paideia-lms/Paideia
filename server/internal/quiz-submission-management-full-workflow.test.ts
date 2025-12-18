@@ -27,7 +27,7 @@ import {
 	tryGradeQuizSubmission,
 	tryListQuizSubmissions,
 	tryStartQuizAttempt,
-	trySubmitQuiz,
+	tryMarkQuizAttemptAsComplete,
 	tryUpdateQuizSubmission,
 	type UpdateQuizSubmissionArgs,
 } from "./quiz-submission-management";
@@ -547,7 +547,7 @@ describe("Quiz Management - Full Workflow", () => {
 		const submissionId = createResult.value.id;
 
 		// Submit the quiz
-		const submitResult = await trySubmitQuiz({
+		const submitResult = await tryMarkQuizAttemptAsComplete({
 			payload,
 			req: createLocalReq({
 				request: mockRequest,
@@ -1327,7 +1327,7 @@ describe("Quiz Management - Full Workflow", () => {
 		});
 
 		// Try to submit - should fail due to time limit
-		const submitResult = await trySubmitQuiz({
+		const submitResult = await tryMarkQuizAttemptAsComplete({
 			payload,
 			submissionId: quickSubmissionId,
 			overrideAccess: true,

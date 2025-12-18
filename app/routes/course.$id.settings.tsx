@@ -44,7 +44,7 @@ import { convertMyFormDataToObject, MyFormData } from "~/utils/action-utils";
 import { isUndefined, omitBy } from "es-toolkit";
 import { z } from "zod";
 
-export const actionInputSchema = z.looseObject({
+export const actionInputSchema = z.object({
 	title: z.string().min(1, "Title is required").optional(),
 	slug: z
 		.string()
@@ -140,8 +140,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -203,11 +203,10 @@ export const action = async ({
 	}
 
 	// Get form data and convert to object
-	const formDataObj = await request
+	const parse = await request
 		.formData()
-		.then(convertMyFormDataToObject<ActionData>);
-
-	const parse = actionInputSchema.safeParse(formDataObj);
+		.then(convertMyFormDataToObject)
+		.then(actionInputSchema.safeParse);
 
 	if (!parse.success) {
 		return badRequest({
@@ -268,29 +267,14 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-type ActionData = {
-	title?: string;
-	slug?: string;
-	description?: string;
-	status?: "draft" | "published" | "archived" | undefined;
-	category?: string | null;
-	thumbnail?: File | null;
-	redirectTo?: string;
-};
+type ActionData = z.infer<typeof actionInputSchema>;
 
 // ============================================================================
 // THUMBNAIL DROPZONE COMPONENT
 // ============================================================================
 
 export interface ThumbnailDropzoneProps {
-	form: UseFormReturnType<{
-		title: string;
-		slug: string;
-		status: Course["status"];
-		category: string;
-		description: string;
-		thumbnail: File | null;
-	}>;
+	form: EditCourseForm;
 	initialPreviewUrl?: string | null;
 }
 
@@ -405,10 +389,7 @@ export function ThumbnailDropzone({
 export function useEditCourse() {
 	const fetcher = useFetcher<typeof action>();
 	const editCourse = async (courseId: number, data: ActionData) => {
-		const finalData = omitBy(data, isUndefined);
-		const formData = new MyFormData(finalData);
-
-		fetcher.submit(formData, {
+		fetcher.submit(new MyFormData<ActionData>(data), {
 			method: "POST",
 			action: href("/course/:courseId/settings", {
 				courseId: String(courseId),
@@ -419,12 +400,7 @@ export function useEditCourse() {
 	return { editCourse, isLoading: fetcher.state !== "idle", fetcher };
 }
 
-export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
-	const { course, categories } = loaderData;
-	const { editCourse, isLoading, fetcher } = useEditCourse();
-	const descriptionId = useId();
-	const richTextEditorRef = useRef<RichTextEditorRef>(null);
-
+const useEditCourseForm = (course: Route.ComponentProps["loaderData"]["course"]) => {
 	// Initialize form with default values (hooks must be called unconditionally)
 	const form = useForm({
 		mode: "uncontrolled",
@@ -433,7 +409,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			title: course.title,
 			slug: course.slug,
 			status: course.status as Course["status"],
-			category: course.category?.id?.toString() ?? "",
+			category: course.category?.id ?? null,
 			description: course.description,
 			thumbnail: null as File | null,
 		},
@@ -451,6 +427,19 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
+	return form;
+};
+
+type EditCourseForm = ReturnType<typeof useEditCourseForm>;
+
+export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
+	const { course, categories } = loaderData;
+	const { editCourse, isLoading, fetcher } = useEditCourse();
+	const descriptionId = useId();
+	const richTextEditorRef = useRef<RichTextEditorRef>(null);
+
+	const form = useEditCourseForm(course);
+
 	const handleSubmit = async (values: typeof form.values) => {
 		if (!form.isDirty()) {
 			notifications.show({
@@ -461,8 +450,8 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		// Build the data object
-		const data: ActionData = omitBy(
+		// we only want the changed values 
+		const data = omitBy(
 			values,
 			(value, key) => form.getInitialValues()[key] === value,
 		);

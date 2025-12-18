@@ -62,7 +62,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const parsed = await request
 		.formData()
-		.then(convertMyFormDataToObject<typeof inputSchema.shape>)
+		.then(convertMyFormDataToObject)
 		.then(inputSchema.safeParse);
 
 	if (!parsed.success) {
@@ -109,7 +109,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useUpdateMaintenanceConfig() {
 	const fetcher = useFetcher<typeof clientAction>();
 	const update = (data: { maintenanceMode: boolean }) => {
-		fetcher.submit(new MyFormData(data), {
+		fetcher.submit(new MyFormData<z.infer<typeof inputSchema>>(data), {
 			method: "post",
 			action: href("/admin/maintenance"),
 			encType: ContentType.MULTIPART,

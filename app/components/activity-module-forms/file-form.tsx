@@ -1,14 +1,13 @@
-import { Button, Stack, Textarea, Title } from "@mantine/core";
+import { Button, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useRef } from "react";
 import { FileUploader } from "~/components/file-uploader";
-import type {
-	ActivityModuleFormValues,
-	FileModuleFormValues,
-} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
+import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { FileFormInitialValues as NewFileFormInitialValues } from "app/routes/user/module/new";
+import type { Simplify, UnionToIntersection } from "type-fest";
 
 /**
  * Generic hook to sync form fields with initialValues when they change.
@@ -61,9 +60,15 @@ function useSyncFormWithInitialValues<T extends Record<string, unknown>>(
 	}
 }
 
+type FileFormData = Simplify<
+	UnionToIntersection<
+		NewFileFormInitialValues | EditFileFormInitialValues
+	>
+>;
+
 interface FileFormProps {
-	initialValues?: Partial<FileModuleFormValues>;
-	onSubmit: (values: FileModuleFormValues) => void;
+	initialValues?: Partial<FileFormData>;
+	onSubmit: (values: FileFormData) => void;
 	uploadLimit?: number;
 	existingMedia?: Array<{
 		id: number;
@@ -81,16 +86,15 @@ export function FileForm({
 	existingMedia = [],
 	isLoading,
 }: FileFormProps) {
-	const form = useForm<FileModuleFormValues>({
+	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
-			title: initialValues?.title || "",
-			description: initialValues?.description || "",
-			type: "file" as const,
-			status: initialValues?.status || "draft",
-			fileMedia: initialValues?.fileMedia || [],
-			fileFiles: initialValues?.fileFiles || [],
+			title: initialValues?.title ?? "",
+			description: initialValues?.description ?? "",
+			status: initialValues?.status ?? "draft",
+			fileMedia: initialValues?.fileMedia ?? [],
+			fileFiles: initialValues?.fileFiles ?? [],
 		},
 		validate: {
 			title: (value) =>
@@ -131,8 +135,25 @@ export function FileForm({
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields
-					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
+				/>
+
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
 				/>
 
 				<Textarea

@@ -158,18 +158,18 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
-					baseGrade: submission.grade,
-					maxGrade,
-					feedback: submission.feedback || null,
-				}
+				baseGrade: submission.grade,
+				maxGrade,
+				feedback: submission.feedback || null,
+			}
 			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -214,20 +214,20 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -274,7 +274,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -285,12 +285,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const author =
 					typeof student === "object" && student !== null
 						? {
-								id: student.id,
-								firstName: student.firstName ?? null,
-								lastName: student.lastName ?? null,
-								email: student.email ?? null,
-								avatar: student.avatar ?? null,
-							}
+							id: student.id,
+							firstName: student.firstName ?? null,
+							lastName: student.lastName ?? null,
+							email: student.email ?? null,
+							avatar: student.avatar ?? null,
+						}
 						: null;
 
 				return [
@@ -327,7 +327,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -390,12 +390,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Add student submissions to gradingSubmission for display
@@ -413,9 +413,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -437,8 +437,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Not in grading mode - return list view data
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-		courseModuleContext.type === "quiz" ||
-		courseModuleContext.type === "discussion"
+			courseModuleContext.type === "quiz" ||
+			courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -453,13 +453,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
@@ -468,9 +468,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -491,9 +491,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -514,9 +514,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -772,7 +772,7 @@ const gradeSubmissionAction = serverOnly$(
 			} else {
 				return badRequest({ error: "Unsupported module type for grading" });
 			}
-		});
+		}, (errorResponse) => errorResponse.data.status === StatusCode.BadRequest);
 	},
 )!;
 
