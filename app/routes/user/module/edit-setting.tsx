@@ -5,7 +5,7 @@ import {
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { stringify } from "qs";
-import { href, useFetcher } from "react-router";
+import { type ActionFunction, type ActionFunctionArgs, href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -35,7 +35,6 @@ import {
 	presetValuesToFileTypes,
 } from "~/utils/file-types";
 import { ContentType } from "~/utils/get-content-type";
-import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -43,13 +42,16 @@ import {
 	ok,
 	StatusCode,
 } from "~/utils/responses";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
 import { convertMyFormDataToObject, MyFormData } from "app/utils/action-utils";
 import { enum_activity_modules_status } from "src/payload-generated-schema";
+import { paramsSchema, ParamsType } from "app/routes";
+import type { Simplify } from "type-fest";
+import type { KeysOfUnion, OmitIndexSignature } from "type-fest";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
 
@@ -146,70 +148,91 @@ const updateDiscussionActionSchema = z.object({
 	discussionMinReplies: z.coerce.number().optional(),
 });
 
-const updatePageAction = serverOnly$(
-	async ({
-		request,
-		context,
-		params,
-	}: Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+type PreserveOptionalParams<T extends ActionFunctionArgs> = {
+	params: Simplify<{
+		[K in Extract<keyof T["params"], keyof ParamsType> as
+		undefined extends T["params"][K] ? K : never
+		]?: ParamsType[K];
+	} & {
+		[K in Extract<keyof T["params"], keyof ParamsType> as
+		undefined extends T["params"][K] ? never : K
+		]: ParamsType[K];
+	}>;
+};
 
-		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
-
-		if (!moduleIdResult.success)
-			return badRequest({
-				success: false,
-				error: moduleIdResult.error.message,
-			});
-
-		const moduleId = moduleIdResult.data;
-
-		const parsed = await request
-			.formData()
-			.then(convertMyFormDataToObject)
-			.then(updatePageActionSchema.safeParse);
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(parsed.error),
-			});
-		}
-
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
-
-		return transactionInfo.tx(
-			async ({ reqWithTransaction }) => {
-				const updateResult = await tryUpdatePageModule({
-					payload,
-					id: Number(moduleId),
-					title: parsed.data.title,
-					description: parsed.data.description,
-					status: parsed.data.status,
-					content: parsed.data.content,
-					req: reqWithTransaction,
-				});
-
-				if (!updateResult.ok) {
+function parseParamsBeforeAction<T extends ActionFunctionArgs>(
+) {
+	return <A extends (args: Simplify<Omit<T, "params"> & PreserveOptionalParams<T>>) => ReturnType<A>>(a: A) => {
+		return serverOnly$(async (args: T) => {
+			const { params } = args;
+			// check every params in the schema
+			for (const [key, value] of Object.entries(params)) {
+				const result = paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+				if (!result.success) {
 					return badRequest({
 						success: false,
-						error: updateResult.error.message,
+						error: z.prettifyError(result.error),
 					});
 				}
+			}
+			return a(args as unknown as Simplify<Omit<T, "params"> & PreserveOptionalParams<T>>)
+		})!
+	}
+}
 
-				return ok({
-					success: true,
-					message: "Module updated successfully",
+
+
+const updatePageAction = parseParamsBeforeAction<Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }>()(async ({
+	request,
+	context,
+	params,
+}) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+
+	const parsed = await request
+		.formData()
+		.then(convertMyFormDataToObject)
+		.then(updatePageActionSchema.safeParse);
+
+	if (!parsed.success) {
+		return badRequest({
+			success: false,
+			error: z.prettifyError(parsed.error),
+		});
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
+
+	return transactionInfo.tx(
+		async ({ reqWithTransaction }) => {
+			const updateResult = await tryUpdatePageModule({
+				payload,
+				id: params.moduleId,
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				content: parsed.data.content,
+				req: reqWithTransaction,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
 				});
-			},
-			(errorResponse) => {
-				return errorResponse.data.status === StatusCode.BadRequest;
-			},
-		);
-	},
-)!;
+			}
 
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		},
+		(errorResponse) => {
+			return errorResponse.data.status === StatusCode.BadRequest;
+		},
+	);
+})
 const updateWhiteboardAction = serverOnly$(
 	async ({
 		request,
@@ -225,7 +248,7 @@ const updateWhiteboardAction = serverOnly$(
 		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: moduleIdResult.error.message,
+				error: z.prettifyError(moduleIdResult.error),
 			});
 		}
 
@@ -310,7 +333,7 @@ const updateFileAction = serverOnly$(
 		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: moduleIdResult.error.message,
+				error: z.prettifyError(moduleIdResult.error),
 			});
 		}
 
@@ -379,7 +402,7 @@ const updateAssignmentAction = serverOnly$(
 		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: moduleIdResult.error.message,
+				error: z.prettifyError(moduleIdResult.error),
 			});
 		}
 
@@ -405,7 +428,7 @@ const updateAssignmentAction = serverOnly$(
 			async ({ reqWithTransaction }) => {
 				const allowedFileTypes =
 					parsed.data.assignmentAllowedFileTypes &&
-					parsed.data.assignmentAllowedFileTypes.length > 0
+						parsed.data.assignmentAllowedFileTypes.length > 0
 						? presetValuesToFileTypes(parsed.data.assignmentAllowedFileTypes)
 						: undefined;
 
@@ -454,7 +477,7 @@ const updateQuizAction = serverOnly$(
 		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: moduleIdResult.error.message,
+				error: z.prettifyError(moduleIdResult.error),
 			});
 		}
 
@@ -527,7 +550,7 @@ const updateDiscussionAction = serverOnly$(
 		if (!moduleIdResult.success) {
 			return badRequest({
 				success: false,
-				error: moduleIdResult.error.message,
+				error: z.prettifyError(moduleIdResult.error),
 			});
 		}
 
@@ -591,6 +614,7 @@ const getActionUrl = (action: Action, moduleId: string) => {
 	);
 };
 
+
 export const action = async (args: Route.ActionArgs) => {
 	const { request, params } = args;
 	const { action: actionType } = loadSearchParams(request);
@@ -602,12 +626,15 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (!params.moduleId) {
+	const paramsResult = paramsSchema.moduleId.safeParse(params.moduleId);
+
+	if (!paramsResult.success) {
 		return badRequest({
 			success: false,
-			error: "Module ID is required",
+			error: z.prettifyError(paramsResult.error),
 		});
 	}
+
 
 	if (actionType === Action.UpdatePage) {
 		return updatePageAction({
