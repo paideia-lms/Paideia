@@ -22,7 +22,6 @@ import {
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
 import { tryCreateMedia } from "./media-management";
-import { m } from "node_modules/nuqs/dist/parsers-U3P6hK0x";
 
 // Base args that are common to all module types
 interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
@@ -252,7 +251,7 @@ interface FileRaw {
  * File type for ActivityModuleResult - excludes createdBy as it's handled by BaseActivityModuleResult
  * Media is enriched with full media objects (id, filename, mimeType, filesize)
  */
-interface File {
+interface MyFile {
 	id: number;
 	media?: Array<{
 		id: number;
@@ -421,7 +420,7 @@ interface WhiteboardModuleResult extends BaseActivityModuleResult, Whiteboard {
 /**
  * File module result
  */
-interface FileModuleResult extends BaseActivityModuleResult, File {
+interface FileModuleResult extends BaseActivityModuleResult, MyFile {
 	type: "file";
 }
 

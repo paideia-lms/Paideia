@@ -2,13 +2,11 @@ import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
 	createLoader,
-	parseAsString,
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { stringify } from "qs";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import type { ActivityModuleResult } from "server/internal/activity-module-management";
 import {
@@ -19,7 +17,6 @@ import {
 	tryUpdateQuizModule,
 	tryUpdateWhiteboardModule,
 } from "server/internal/activity-module-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
@@ -35,7 +32,6 @@ import {
 	fileTypesToPresetValues,
 	presetValuesToFileTypes,
 } from "~/utils/file-types";
-import { ContentType } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -45,14 +41,12 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
-import { convertMyFormDataToObject, MyFormData, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/action-utils";
 import { enum_activity_modules_status } from "src/payload-generated-schema";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
-
-	console.log("test")
 
 	if (!userModuleContext) {
 		throw new NotFoundResponse("Module context not found");
@@ -91,96 +85,93 @@ export const moduleUpdateSearchParams = {
 
 export const loadSearchParams = createLoader(moduleUpdateSearchParams);
 
-export const updatePageActionSchema = z.object({
-	title: z.string().min(1),
-	description: z.string().min(1),
-	status: z.enum(enum_activity_modules_status.enumValues),
-	content: z.string().min(1),
-});
-
-const updateWhiteboardActionSchema = z.object({
-	title: z.string().min(1),
-	description: z.string().optional(),
-	status: z.enum(enum_activity_modules_status.enumValues),
-	whiteboardContent: z.string().optional(),
-});
-
-const updateFileActionSchema = z.object({
-	title: z.string().min(1),
-	description: z.string().optional(),
-	status: z.enum(enum_activity_modules_status.enumValues),
-	fileMedia: z.array(z.coerce.number()).optional(),
-	files: z.array(z.file()).optional(),
-});
-
-const updateAssignmentActionSchema = z.object({
-	title: z.string().min(1),
-	description: z.string().optional(),
-	status: z.enum(enum_activity_modules_status.enumValues),
-	assignmentInstructions: z.string().optional(),
-	assignmentRequireTextSubmission: z.coerce.boolean().optional(),
-	assignmentRequireFileSubmission: z.coerce.boolean().optional(),
-	assignmentAllowedFileTypes: z.array(z.string()).optional(),
-	assignmentMaxFileSize: z.coerce.number().optional(),
-	assignmentMaxFiles: z.coerce.number().optional(),
-});
-
-const updateQuizActionSchema = z.object({
-	title: z.string().min(1),
-	description: z.string().optional(),
-	status: z.enum(enum_activity_modules_status.enumValues),
-	quizInstructions: z.string().optional(),
-	quizPoints: z.coerce.number().optional(),
-	quizTimeLimit: z.coerce.number().optional(),
-	quizGradingType: z.enum(["automatic", "manual"]).optional(),
-	rawQuizConfig: z.custom<QuizConfig>().optional(),
-});
-
-const updateDiscussionActionSchema = z.object({
-	title: z.string().min(1),
-	description: z.string().optional(),
-	status: z.enum(enum_activity_modules_status.enumValues),
-	discussionInstructions: z.string().optional(),
-	discussionDueDate: z.string().nullable().optional(),
-	discussionRequireThread: z.coerce.boolean().optional(),
-	discussionRequireReplies: z.coerce.boolean().optional(),
-	discussionMinReplies: z.coerce.number().optional(),
-});
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 const createUpdatePageActionRpc = createActionRpc({
-	formDataSchema: updatePageActionSchema, method: "POST", action: Action.UpdatePage
+	formDataSchema: z.object({
+		title: z.string().min(1),
+		description: z.string().min(1),
+		status: z.enum(enum_activity_modules_status.enumValues),
+		content: z.string().min(1),
+	}), method: "POST", action: Action.UpdatePage
 });
 const createUpdateWhiteboardActionRpc = createActionRpc({
-	formDataSchema: updateWhiteboardActionSchema, method: "POST",
+	formDataSchema: z.object({
+		title: z.string().min(1),
+		description: z.string().optional(),
+		status: z.enum(enum_activity_modules_status.enumValues),
+		whiteboardContent: z.string().optional(),
+	}), method: "POST",
+	action: Action.UpdateWhiteboard
 });
 const createUpdateFileActionRpc = createActionRpc({
-	formDataSchema: updateFileActionSchema, method: "POST",
+	formDataSchema: z.object({
+		title: z.string().min(1),
+		description: z.string().optional(),
+		status: z.enum(enum_activity_modules_status.enumValues),
+		fileMedia: z.array(z.coerce.number().or(z.file())).optional(),
+	}),
+	method: "POST",
 	action: Action.UpdateFile
 });
 const createUpdateAssignmentActionRpc = createActionRpc({
-	formDataSchema: updateAssignmentActionSchema, method: "POST",
+	formDataSchema: z.object({
+		title: z.string().min(1),
+		description: z.string().optional(),
+		status: z.enum(enum_activity_modules_status.enumValues),
+		assignmentInstructions: z.string().optional(),
+		assignmentRequireTextSubmission: z.coerce.boolean().optional(),
+		assignmentRequireFileSubmission: z.coerce.boolean().optional(),
+		assignmentAllowedFileTypes: z.array(z.string()).optional(),
+		assignmentMaxFileSize: z.coerce.number().optional(),
+		assignmentMaxFiles: z.coerce.number().optional(),
+	}),
+	method: "POST",
 	action: Action.UpdateAssignment
 });
 const createUpdateQuizActionRpc = createActionRpc({
-	formDataSchema: updateQuizActionSchema, method: "POST",
+	formDataSchema: z.object({
+		title: z.string().min(1),
+		description: z.string().optional(),
+		status: z.enum(enum_activity_modules_status.enumValues),
+		quizInstructions: z.string().optional(),
+		quizPoints: z.coerce.number().optional(),
+		quizTimeLimit: z.coerce.number().optional(),
+		quizGradingType: z.enum(["automatic", "manual"]).optional(),
+		rawQuizConfig: z.custom<QuizConfig>().optional(),
+	}),
+	method: "POST",
 	action: Action.UpdateQuiz
 });
 const createUpdateDiscussionActionRpc = createActionRpc({
-	formDataSchema: updateDiscussionActionSchema, method: "POST",
+	formDataSchema: z.object({
+		title: z.string().min(1),
+		description: z.string().optional(),
+		status: z.enum(enum_activity_modules_status.enumValues),
+		discussionInstructions: z.string().optional(),
+		discussionDueDate: z.string().nullable().optional(),
+		discussionRequireThread: z.coerce.boolean().optional(),
+		discussionRequireReplies: z.coerce.boolean().optional(),
+		discussionMinReplies: z.coerce.number().optional(),
+	}),
+	method: "POST",
 	action: Action.UpdateDiscussion
 });
 
-const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(async ({
-	request,
+const getActionUrl = (action: Action, moduleId: string) => {
+	return (
+		href("/user/module/edit/:moduleId/setting", { moduleId }) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(serverOnly$(async ({
 	context,
 	params,
 	formData,
-	searchParams,
 }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	console.log("test 2")
 
 	const updateResult = await tryUpdatePageModule({
 		payload,
@@ -203,416 +194,194 @@ const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(async ({
 		success: true,
 		message: "Module updated successfully",
 	});
-}, {
-	action: (params, searchParams) => {
-		return href("/user/module/edit/:moduleId/setting", { moduleId: String(params.moduleId) }) + "?" + stringify({ action: searchParams.action });
-	}
+})!, {
+	action: (params, searchParams) => getActionUrl(searchParams.action, String(params.moduleId)),
 });
 
+const [updateWhiteboardAction, useUpdateWhiteboard] = createUpdateWhiteboardActionRpc(serverOnly$(async ({
+	context,
+	params,
+	formData,
+}) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
+	const updateResult = await tryUpdateWhiteboardModule({
+		payload,
+		id: params.moduleId,
+		title: formData.title,
+		description: formData.description,
+		status: formData.status,
+		content: formData.whiteboardContent,
+		req: payloadRequest,
+		overrideAccess: false,
+	});
 
-// Custom hooks for updating modules
-// export function useUpdatePage() {
-// 	const fetcher = useFetcher<typeof updatePageAction>();
+	if (!updateResult.ok) {
+		return badRequest({
+			success: false,
+			error: updateResult.error.message,
+		});
+	}
 
-// 	const updatePage = async (
-// 		moduleId: string,
-// 		values: z.infer<typeof updatePageActionSchema>,
-// 	) => {
-// 		await fetcher.submit(
-// 			new MyFormData<z.infer<typeof updatePageActionSchema>>(values),
-// 			{
-// 				method: "POST",
-// 				action: getActionUrl(Action.UpdatePage, moduleId),
-// 				encType: ContentType.MULTIPART,
-// 			},
-// 		);
-// 	};
+	return ok({
+		success: true,
+		message: "Module updated successfully",
+	});
+})!, {
+	action: (params, searchParams) => getActionUrl(searchParams.action, String(params.moduleId)),
+});
 
-// 	return {
-// 		updatePage,
-// 		isLoading: fetcher.state !== "idle",
-// 		data: fetcher.data,
-// 		fetcher
-// 	};
-// }
+const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(serverOnly$(async ({
+	context,
+	params,
+	formData,
+}) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
-const getActionUrl = (action: Action, moduleId: string) => {
-	return (
-		href("/user/module/edit/:moduleId/setting", { moduleId }) +
-		"?" +
-		stringify({ action })
-	);
-};
+	// For file type, combine existing media IDs with newly uploaded media IDs
+	const existingMediaIds = formData.fileMedia ?? [];
 
+	const updateResult = await tryUpdateFileModule({
+		payload,
+		id: params.moduleId,
+		title: formData.title,
+		description: formData.description,
+		status: formData.status,
+		media: existingMediaIds,
+		req: payloadRequest,
+		overrideAccess: false,
+	});
 
+	if (!updateResult.ok) {
+		return badRequest({
+			success: false,
+			error: updateResult.error.message,
+		});
+	}
 
-const updateWhiteboardAction = serverOnly$(
-	async ({
-		request,
-		context,
-		params,
-	}: Route.ActionArgs) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+	return ok({
+		success: true,
+		message: "Module updated successfully",
+	});
+})!, {
+	action: (params, searchParams) => getActionUrl(searchParams.action, String(params.moduleId)),
+});
 
-		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
+const [updateAssignmentAction, useUpdateAssignment] = createUpdateAssignmentActionRpc(serverOnly$(async ({
+	context,
+	params,
+	formData,
+}) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
-		if (!moduleIdResult.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(moduleIdResult.error),
-			});
-		}
+	const allowedFileTypes =
+		formData.assignmentAllowedFileTypes &&
+			formData.assignmentAllowedFileTypes.length > 0
+			? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
+			: undefined;
 
-		const moduleId = moduleIdResult.data;
+	const updateResult = await tryUpdateAssignmentModule({
+		payload,
+		id: params.moduleId,
+		title: formData.title,
+		description: formData.description,
+		status: formData.status,
+		instructions: formData.assignmentInstructions,
+		requireTextSubmission: formData.assignmentRequireTextSubmission,
+		requireFileSubmission: formData.assignmentRequireFileSubmission,
+		allowedFileTypes,
+		maxFileSize: formData.assignmentMaxFileSize,
+		maxFiles: formData.assignmentMaxFiles,
+		req: payloadRequest,
+	});
 
-		const parsed = await request
-			.formData()
-			.then(convertMyFormDataToObject)
-			.then(updateWhiteboardActionSchema.safeParse);
+	if (!updateResult.ok) {
+		return badRequest({
+			success: false,
+			error: updateResult.error.message,
+		});
+	}
 
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(parsed.error),
-			});
-		}
+	return ok({
+		success: true,
+		message: "Module updated successfully",
+	});
+})!, {
+	action: (params, searchParams) => getActionUrl(searchParams.action, String(params.moduleId)),
+});
 
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(serverOnly$(async ({
+	context,
+	params,
+	formData,
+}) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
-		return transactionInfo.tx(
-			async ({ reqWithTransaction }) => {
-				const updateResult = await tryUpdateWhiteboardModule({
-					payload,
-					id: moduleId,
-					title: parsed.data.title,
-					description: parsed.data.description,
-					status: parsed.data.status,
-					content: parsed.data.whiteboardContent,
-					req: reqWithTransaction,
-					overrideAccess: false,
-				});
+	const updateResult = await tryUpdateQuizModule({
+		payload,
+		id: params.moduleId,
+		title: formData.title,
+		description: formData.description,
+		status: formData.status,
+		instructions: formData.quizInstructions,
+		points: formData.quizPoints,
+		timeLimit: formData.quizTimeLimit,
+		gradingType: formData.quizGradingType,
+		rawQuizConfig: formData.rawQuizConfig,
+		req: payloadRequest,
+		overrideAccess: false,
+	});
 
-				if (!updateResult.ok) {
-					return badRequest({
-						success: false,
-						error: updateResult.error.message,
-					});
-				}
+	if (!updateResult.ok) {
+		return badRequest({
+			success: false,
+			error: updateResult.error.message,
+		});
+	}
 
-				return ok({
-					success: true,
-					message: "Module updated successfully",
-				});
-			},
-			(errorResponse) => {
-				return errorResponse.data.status === StatusCode.BadRequest;
-			},
-		);
-	},
-)!;
+	return ok({
+		success: true,
+		message: "Module updated successfully",
+	});
+})!, {
+	action: (params, searchParams) => getActionUrl(searchParams.action, String(params.moduleId)),
+});
 
-const updateFileAction = serverOnly$(
-	async ({
-		request,
-		context,
-		params,
-	}: Route.ActionArgs) => {
-		const { payload, payloadRequest, systemGlobals } =
-			context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+const [updateDiscussionAction, useUpdateDiscussion] = createUpdateDiscussionActionRpc(serverOnly$(async ({
+	context,
+	params,
+	formData,
+}) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			return badRequest({
-				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
+	const updateResult = await tryUpdateDiscussionModule({
+		payload,
+		id: params.moduleId,
+		title: formData.title,
+		description: formData.description,
+		status: formData.status,
+		instructions: formData.discussionInstructions,
+		dueDate: formData.discussionDueDate,
+		requireThread: formData.discussionRequireThread,
+		requireReplies: formData.discussionRequireReplies,
+		minReplies: formData.discussionMinReplies,
+		req: payloadRequest,
+	});
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+	if (!updateResult.ok) {
+		return badRequest({
+			success: false,
+			error: updateResult.error.message,
+		});
+	}
 
-		if (!currentUser) {
-			return badRequest({
-				success: false,
-				error: "You must be logged in to edit modules",
-			});
-		}
-
-		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
-
-		if (!moduleIdResult.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(moduleIdResult.error),
-			});
-		}
-
-		const moduleId = moduleIdResult.data;
-		// Convert formData to object and parse with schema
-		const parsed = await request
-			.formData()
-			.then(convertMyFormDataToObject)
-			.then(updateFileActionSchema.safeParse);
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(parsed.error),
-			});
-		}
-
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
-
-		return transactionInfo.tx(
-			async ({ reqWithTransaction }) => {
-				// For file type, combine existing media IDs with newly uploaded media IDs
-				const existingMediaIds = parsed.data.fileMedia ?? [];
-
-				const updateResult = await tryUpdateFileModule({
-					payload,
-					id: moduleId,
-					title: parsed.data.title,
-					description: parsed.data.description,
-					status: parsed.data.status,
-					media: existingMediaIds,
-					req: reqWithTransaction,
-					overrideAccess: false,
-				});
-
-				if (!updateResult.ok) {
-					return badRequest({
-						success: false,
-						error: updateResult.error.message,
-					});
-				}
-
-				return ok({
-					success: true,
-					message: "Module updated successfully",
-				});
-			},
-			(errorResponse) => {
-				return errorResponse.data.status === StatusCode.BadRequest;
-			},
-		);
-	},
-)!;
-
-const updateAssignmentAction = serverOnly$(
-	async ({
-		request,
-		context,
-		params,
-	}: Route.ActionArgs) => {
-		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
-
-		if (!moduleIdResult.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(moduleIdResult.error),
-			});
-		}
-
-		const moduleId = moduleIdResult.data;
-
-		const parsed = await request
-			.formData()
-			.then(convertMyFormDataToObject)
-			.then(updateAssignmentActionSchema.safeParse);
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(parsed.error),
-			});
-		}
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
-
-		return transactionInfo.tx(
-			async ({ reqWithTransaction }) => {
-				const allowedFileTypes =
-					parsed.data.assignmentAllowedFileTypes &&
-						parsed.data.assignmentAllowedFileTypes.length > 0
-						? presetValuesToFileTypes(parsed.data.assignmentAllowedFileTypes)
-						: undefined;
-
-				const updateResult = await tryUpdateAssignmentModule({
-					payload,
-					id: moduleId,
-					title: parsed.data.title,
-					description: parsed.data.description,
-					status: parsed.data.status,
-					instructions: parsed.data.assignmentInstructions,
-					requireTextSubmission: parsed.data.assignmentRequireTextSubmission,
-					requireFileSubmission: parsed.data.assignmentRequireFileSubmission,
-					allowedFileTypes,
-					maxFileSize: parsed.data.assignmentMaxFileSize,
-					maxFiles: parsed.data.assignmentMaxFiles,
-					req: reqWithTransaction,
-				});
-
-				if (!updateResult.ok) {
-					return badRequest({
-						success: false,
-						error: updateResult.error.message,
-					});
-				}
-
-				return ok({
-					success: true,
-					message: "Module updated successfully",
-				});
-			},
-			(errorResponse) => {
-				return errorResponse.data.status === StatusCode.BadRequest;
-			},
-		);
-	},
-)!;
-
-const updateQuizAction = serverOnly$(
-	async ({
-		request,
-		context,
-		params,
-	}: Route.ActionArgs) => {
-		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
-
-		if (!moduleIdResult.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(moduleIdResult.error),
-			});
-		}
-
-		const moduleId = moduleIdResult.data;
-
-		const parsed = await request
-			.formData()
-			.then(convertMyFormDataToObject)
-			.then(updateQuizActionSchema.safeParse);
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(parsed.error),
-			});
-		}
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
-
-		return transactionInfo.tx(
-			async ({ reqWithTransaction }) => {
-				const updateResult = await tryUpdateQuizModule({
-					payload,
-					id: moduleId,
-					title: parsed.data.title,
-					description: parsed.data.description,
-					status: parsed.data.status,
-					instructions: parsed.data.quizInstructions,
-					points: parsed.data.quizPoints,
-					timeLimit: parsed.data.quizTimeLimit,
-					gradingType: parsed.data.quizGradingType,
-					rawQuizConfig: parsed.data.rawQuizConfig,
-					req: reqWithTransaction,
-					overrideAccess: false,
-				});
-
-				if (!updateResult.ok) {
-					return badRequest({
-						success: false,
-						error: updateResult.error.message,
-					});
-				}
-
-				return ok({
-					success: true,
-					message: "Module updated successfully",
-				});
-			},
-			(errorResponse) => {
-				return errorResponse.data.status === StatusCode.BadRequest;
-			},
-		);
-	},
-)!;
-
-const updateDiscussionAction = serverOnly$(
-	async ({
-		request,
-		context,
-		params,
-	}: Route.ActionArgs) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
-
-		if (!moduleIdResult.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(moduleIdResult.error),
-			});
-		}
-
-		const moduleId = moduleIdResult.data;
-
-		const parsed = await request
-			.formData()
-			.then(convertMyFormDataToObject)
-			.then(updateDiscussionActionSchema.safeParse);
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: z.prettifyError(parsed.error),
-			});
-		}
-
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
-
-		return transactionInfo.tx(
-			async ({ reqWithTransaction }) => {
-				const updateResult = await tryUpdateDiscussionModule({
-					payload,
-					id: moduleId,
-					title: parsed.data.title,
-					description: parsed.data.description,
-					status: parsed.data.status,
-					instructions: parsed.data.discussionInstructions,
-					dueDate: parsed.data.discussionDueDate,
-					requireThread: parsed.data.discussionRequireThread,
-					requireReplies: parsed.data.discussionRequireReplies,
-					minReplies: parsed.data.discussionMinReplies,
-					req: reqWithTransaction,
-				});
-
-				if (!updateResult.ok) {
-					return badRequest({
-						success: false,
-						error: updateResult.error.message,
-					});
-				}
-
-				return ok({
-					success: true,
-					message: "Module updated successfully",
-				});
-			},
-			(errorResponse) => {
-				return errorResponse.data.status === StatusCode.BadRequest;
-			},
-		);
-	},
-)!;
+	return ok({
+		success: true,
+		message: "Module updated successfully",
+	});
+})!, {
+	action: (params, searchParams) => getActionUrl(searchParams.action, String(params.moduleId)),
+});
 
 const actionMap = {
 	[Action.UpdatePage]: updatePageAction,
@@ -624,7 +393,7 @@ const actionMap = {
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const { request, params } = args;
+	const { request } = args;
 	const { action: actionType } = loadSearchParams(request);
 
 	if (!actionType) {
@@ -658,126 +427,6 @@ export const clientAction = async ({
 
 	return actionData;
 };
-
-export function useUpdateWhiteboard() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateWhiteboard = (
-		moduleId: string,
-		values: z.infer<typeof updateWhiteboardActionSchema>,
-	) => {
-		fetcher.submit(
-			new MyFormData<z.infer<typeof updateWhiteboardActionSchema>>(values),
-			{
-				method: "POST",
-				action: getActionUrl(Action.UpdateWhiteboard, moduleId),
-				encType: ContentType.MULTIPART,
-			},
-		);
-	};
-
-	return {
-		updateWhiteboard,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-export function useUpdateFile() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateFile = (
-		moduleId: string,
-		values: z.infer<typeof updateFileActionSchema>,
-	) => {
-		fetcher.submit(
-			new MyFormData<z.infer<typeof updateFileActionSchema>>(values),
-			{
-				method: "POST",
-				action: getActionUrl(Action.UpdateFile, moduleId),
-				encType: ContentType.MULTIPART,
-			},
-		);
-	};
-
-	return {
-		updateFile,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-export function useUpdateAssignment() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateAssignment = (
-		moduleId: string,
-		values: z.infer<typeof updateAssignmentActionSchema>,
-	) => {
-		fetcher.submit(
-			new MyFormData<z.infer<typeof updateAssignmentActionSchema>>(values),
-			{
-				method: "POST",
-				action: getActionUrl(Action.UpdateAssignment, moduleId),
-				encType: ContentType.MULTIPART,
-			},
-		);
-	};
-
-	return {
-		updateAssignment,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-export function useUpdateQuiz() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateQuiz = (
-		moduleId: string,
-		values: z.infer<typeof updateQuizActionSchema>,
-	) => {
-		fetcher.submit(
-			new MyFormData<z.infer<typeof updateQuizActionSchema>>(values),
-			{
-				method: "POST",
-				action: getActionUrl(Action.UpdateQuiz, moduleId),
-				encType: ContentType.MULTIPART,
-			},
-		);
-	};
-
-	return {
-		updateQuiz,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-export function useUpdateDiscussion() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateDiscussion = (
-		moduleId: string,
-		values: z.infer<typeof updateDiscussionActionSchema>,
-	) => {
-		fetcher.submit(
-			new MyFormData<z.infer<typeof updateDiscussionActionSchema>>(values),
-			{
-				method: "POST",
-				action: getActionUrl(Action.UpdateDiscussion, moduleId),
-				encType: ContentType.MULTIPART,
-			},
-		);
-	};
-
-	return {
-		updateDiscussion,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
 
 function getPageFormInitialValues(
 	module: Extract<
@@ -845,17 +494,20 @@ function WhiteboardFormWrapper({
 }: {
 	module: Extract<ActivityModuleResult, { type: "whiteboard" }>;
 }) {
-	const { updateWhiteboard, isLoading } = useUpdateWhiteboard();
+	const { submit: updateWhiteboard, isLoading } = useUpdateWhiteboard();
 	const initialValues = getWhiteboardFormInitialValues(module);
 	return (
 		<WhiteboardForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updateWhiteboard(String(module.id), {
-					title: values.title,
-					description: values.description,
-					status: values.status,
-					whiteboardContent: values.whiteboardContent,
+				updateWhiteboard({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						whiteboardContent: values.whiteboardContent,
+					},
 				})
 			}
 			isLoading={isLoading}
@@ -890,18 +542,20 @@ function FileFormWrapper({
 	>;
 	uploadLimit?: number;
 }) {
-	const { updateFile, isLoading } = useUpdateFile();
+	const { submit: updateFile, isLoading } = useUpdateFile();
 	const initialValues = getFileFormInitialValues(module);
 	return (
 		<FileForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updateFile(String(module.id), {
-					title: values.title,
-					description: values.description,
-					status: values.status,
-					fileMedia: values.fileMedia,
-					files: values.fileFiles,
+				updateFile({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						fileMedia: [...values.fileMedia, ...values.fileFiles],
+					},
 				})
 			}
 			uploadLimit={uploadLimit}
@@ -944,24 +598,27 @@ function AssignmentFormWrapper({
 		{ type: "assignment" }
 	>;
 }) {
-	const { updateAssignment, isLoading } = useUpdateAssignment();
+	const { submit: updateAssignment, isLoading } = useUpdateAssignment();
 	const initialValues = getAssignmentFormInitialValues(module);
 	return (
 		<AssignmentForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updateAssignment(String(module.id), {
-					title: values.title,
-					description: values.description,
-					status: values.status,
-					assignmentInstructions: values.assignmentInstructions,
-					assignmentRequireTextSubmission:
-						values.assignmentRequireTextSubmission,
-					assignmentRequireFileSubmission:
-						values.assignmentRequireFileSubmission,
-					assignmentAllowedFileTypes: values.assignmentAllowedFileTypes,
-					assignmentMaxFileSize: values.assignmentMaxFileSize,
-					assignmentMaxFiles: values.assignmentMaxFiles,
+				updateAssignment({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						assignmentInstructions: values.assignmentInstructions,
+						assignmentRequireTextSubmission:
+							values.assignmentRequireTextSubmission,
+						assignmentRequireFileSubmission:
+							values.assignmentRequireFileSubmission,
+						assignmentAllowedFileTypes: values.assignmentAllowedFileTypes,
+						assignmentMaxFileSize: values.assignmentMaxFileSize,
+						assignmentMaxFiles: values.assignmentMaxFiles,
+					},
 				})
 			}
 			isLoading={isLoading}
@@ -998,22 +655,25 @@ function QuizFormWrapper({
 		{ type: "quiz" }
 	>;
 }) {
-	const { updateQuiz, isLoading } = useUpdateQuiz();
+	const { submit: updateQuiz, isLoading } = useUpdateQuiz();
 	const initialValues = getQuizFormInitialValues(module);
 	return (
 		<QuizForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updateQuiz(String(module.id), {
-					title: values.title,
-					description: values.description,
-					status: values.status,
-					quizInstructions: values.quizInstructions,
-					quizPoints: values.quizPoints,
-					quizTimeLimit: values.quizTimeLimit,
-					quizGradingType: values.quizGradingType,
-					rawQuizConfig:
-						values.rawQuizConfig === null ? undefined : values.rawQuizConfig,
+				updateQuiz({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						quizInstructions: values.quizInstructions,
+						quizPoints: values.quizPoints,
+						quizTimeLimit: values.quizTimeLimit,
+						quizGradingType: values.quizGradingType,
+						rawQuizConfig:
+							values.rawQuizConfig === null ? undefined : values.rawQuizConfig,
+					},
 				})
 			}
 			isLoading={isLoading}
@@ -1051,23 +711,26 @@ function DiscussionFormWrapper({
 		{ type: "discussion" }
 	>;
 }) {
-	const { updateDiscussion, isLoading } = useUpdateDiscussion();
+	const { submit: updateDiscussion, isLoading } = useUpdateDiscussion();
 	const initialValues = getDiscussionFormInitialValues(module);
 	return (
 		<DiscussionForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updateDiscussion(String(module.id), {
-					title: values.title,
-					description: values.description,
-					status: values.status,
-					discussionInstructions: values.discussionInstructions,
-					discussionDueDate: values.discussionDueDate
-						? values.discussionDueDate.toISOString()
-						: null,
-					discussionRequireThread: values.discussionRequireThread,
-					discussionRequireReplies: values.discussionRequireReplies,
-					discussionMinReplies: values.discussionMinReplies,
+				updateDiscussion({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						discussionInstructions: values.discussionInstructions,
+						discussionDueDate: values.discussionDueDate
+							? values.discussionDueDate.toISOString()
+							: null,
+						discussionRequireThread: values.discussionRequireThread,
+						discussionRequireReplies: values.discussionRequireReplies,
+						discussionMinReplies: values.discussionMinReplies,
+					},
 				})
 			}
 			isLoading={isLoading}

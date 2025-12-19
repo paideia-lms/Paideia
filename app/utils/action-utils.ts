@@ -1,23 +1,12 @@
 import { z } from "zod";
 import type { ActionFunctionArgs } from "react-router";
-import { useFetcher, useParams } from "react-router";
-import type {
-	ConditionalPick,
-	KeysOfUnion,
-	Merge,
-	Simplify,
-	UnionToIntersection,
-} from "type-fest";
+import { useFetcher } from "react-router";
+import type { Simplify, UnionToIntersection } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest } from "~/utils/responses";
 import { paramsSchema, type ParamsType } from "~/utils/routes-utils";
 import { isRequestMethod } from "~/utils/assert-request-method";
-import {
-	createLoader,
-	parseAsStringEnum,
-	ParserMap,
-	SingleParserBuilder,
-} from "nuqs/server";
+import { createLoader, parseAsStringEnum, type ParserMap } from "nuqs/server";
 import { ContentType } from "~/utils/get-content-type";
 
 /**
