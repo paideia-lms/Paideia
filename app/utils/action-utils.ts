@@ -1,3 +1,25 @@
+import { z } from "zod";
+import type { ActionFunctionArgs } from "react-router";
+import { useFetcher, useParams } from "react-router";
+import type {
+	ConditionalPick,
+	KeysOfUnion,
+	Merge,
+	Simplify,
+	UnionToIntersection,
+} from "type-fest";
+import { serverOnly$ } from "vite-env-only/macros";
+import { badRequest } from "~/utils/responses";
+import { paramsSchema, type ParamsType } from "~/utils/routes-utils";
+import { isRequestMethod } from "~/utils/assert-request-method";
+import {
+	createLoader,
+	parseAsStringEnum,
+	ParserMap,
+	SingleParserBuilder,
+} from "nuqs/server";
+import { ContentType } from "~/utils/get-content-type";
+
 /**
  * Special marker used to represent null values in FormData.
  * This marker is extremely unlikely to be used by users.
@@ -107,4 +129,232 @@ export class MyFormData<
 	json(): T {
 		return convertMyFormDataToObject<T>(this);
 	}
+}
+
+type PreserveOptionalParams<T extends ActionFunctionArgs> = {
+	params: Simplify<
+		{
+			[K in Extract<
+				keyof T["params"],
+				keyof ParamsType
+			> as undefined extends T["params"][K] ? K : never]?: ParamsType[K];
+		} & {
+			[K in Extract<
+				keyof T["params"],
+				keyof ParamsType
+			> as undefined extends T["params"][K] ? never : K]: ParamsType[K];
+		}
+	>;
+};
+
+export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
+	return <
+		Method extends "POST" | "GET" | "PATCH" | "PUT" | "DELETE",
+		FormDataSchema extends z.ZodTypeAny | undefined,
+		SearchParamsSchema extends ParserMap | undefined,
+		Action extends string | undefined = undefined,
+	>({
+		formDataSchema,
+		method = "POST" as Method,
+		searchParams,
+		action,
+	}: {
+		formDataSchema?: FormDataSchema;
+		method?: Method;
+		searchParams?: SearchParamsSchema;
+		/**
+		 *  if action is provided, it will be merged with searchParams.
+		 * it is the shortcut for
+		 *
+		 * ```
+		 * { action: parseAsStringEnum([action]).withDefault(action), ...searchParams }
+		 * ```
+		 */
+		action?: Action;
+	} = {}) => {
+		// Merge action shortcut with searchParams if both are provided
+		const mergedSearchParams = action
+			? {
+					action: parseAsStringEnum([action]).withDefault(action),
+					...(searchParams ?? {}),
+				}
+			: searchParams;
+
+		const loadSearchParams = mergedSearchParams
+			? createLoader(mergedSearchParams)
+			: undefined;
+
+		type HasSearchParams = SearchParamsSchema extends Record<string, any>
+			? true
+			: false;
+
+		type HasAction = Action extends string ? true : false;
+
+		type HasBothSearchParamsAndAction = HasSearchParams extends true
+			? HasAction extends true
+				? true
+				: false
+			: false;
+
+		type SearchParamsType = Simplify<
+			UnionToIntersection<
+				Exclude<
+					HasBothSearchParamsAndAction extends true
+						? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+						: HasAction extends true
+							? { action: Action }
+							: HasSearchParams extends true
+								? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+								: never,
+					{ action: never }
+				>
+			>
+		>;
+
+		type Params = PreserveOptionalParams<T>;
+
+		type ArgsWithFormData = FormDataSchema extends z.ZodTypeAny
+			? Simplify<
+					Omit<T, "params" | "request" | "searchParams"> &
+						Params & {
+							formData: z.infer<FormDataSchema>;
+							searchParams: SearchParamsType;
+							request: Omit<T["request"], "method"> & { method: Method };
+						}
+				>
+			: Simplify<
+					Omit<T, "params" | "request"> &
+						Params & {
+							searchParams: SearchParamsType;
+							request: Omit<T["request"], "method"> & { method: Method };
+						}
+				>;
+
+		const _action = mergedSearchParams?.action
+			.defaultValue as SearchParamsType["action"];
+		// console.log({ _action, searchParams, action });
+
+		type OtherSearchParams = Omit<SearchParamsType, "action">;
+
+		return <A extends (args: ArgsWithFormData) => ReturnType<A>>(
+			a: A,
+			options: {
+				action: (
+					params: Params["params"],
+					searchParams: SearchParamsType,
+				) => string;
+			},
+		) => {
+			const action = serverOnly$(async (args: T) => {
+				const { params, request } = args;
+
+				// check request method
+				if (!isRequestMethod(request.method, method)) {
+					return badRequest({
+						success: false,
+						error: `Method ${request.method} not allowed. Expected ${method}.`,
+					});
+				}
+
+				// check every params in the schema
+				for (const [key, value] of Object.entries(params)) {
+					const result =
+						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+					if (!result.success) {
+						return badRequest({
+							success: false,
+							error: z.prettifyError(result.error),
+						});
+					}
+				}
+
+				// parse search params if schema is provided
+				const parsedSearchParams = loadSearchParams
+					? loadSearchParams(request)
+					: undefined;
+
+				// parse form data if schema is provided
+				if (formDataSchema) {
+					const parsed = await request
+						.formData()
+						.then(convertMyFormDataToObject)
+						.then(formDataSchema.safeParse);
+
+					if (!parsed.success) {
+						return badRequest({
+							success: false,
+							error: z.prettifyError(parsed.error),
+						});
+					}
+
+					return a({
+						...args,
+						request: {
+							...request,
+							method: method as Method,
+						},
+						...(parsedSearchParams !== undefined
+							? { searchParams: parsedSearchParams }
+							: {}),
+						formData: parsed.data,
+					} as unknown as ArgsWithFormData);
+				}
+
+				return a({
+					...args,
+					request: {
+						...request,
+						method: method as Method,
+					},
+					...(parsedSearchParams !== undefined
+						? { searchParams: parsedSearchParams }
+						: {}),
+				} as unknown as ArgsWithFormData);
+			})!;
+
+			const hook = () => {
+				const fetcher = useFetcher<ReturnType<A>>();
+
+				const submit = async (
+					args: Simplify<
+						{
+							params: Params["params"];
+							values: z.infer<FormDataSchema>;
+						} & (keyof OtherSearchParams extends never // if there are no other search params, searchParams can be optional
+							? { searchParams?: OtherSearchParams }
+							: { searchParams: OtherSearchParams })
+					>,
+				) => {
+					const url = options.action(args.params, {
+						...("searchParams" in args ? args.searchParams : {}),
+						action: _action,
+					} as unknown as SearchParamsType);
+
+					await fetcher.submit(
+						new MyFormData(
+							args.values as Record<
+								string,
+								string | number | boolean | object | Blob | null | undefined
+							>,
+						),
+						{
+							method,
+							action: url,
+							encType: ContentType.MULTIPART,
+						},
+					);
+				};
+
+				return {
+					submit,
+					isLoading: fetcher.state !== "idle",
+					data: fetcher.data,
+					fetcher,
+				};
+			};
+
+			// change the
+			return [action, hook] as const;
+		};
+	};
 }

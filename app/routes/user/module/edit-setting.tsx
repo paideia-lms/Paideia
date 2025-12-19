@@ -2,10 +2,11 @@ import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
 	createLoader,
+	parseAsString,
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { stringify } from "qs";
-import { type ActionFunction, type ActionFunctionArgs, href, useFetcher } from "react-router";
+import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -44,16 +45,14 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
-import { convertMyFormDataToObject, MyFormData } from "app/utils/action-utils";
+import { convertMyFormDataToObject, MyFormData, typeCreateActionRpc } from "app/utils/action-utils";
 import { enum_activity_modules_status } from "src/payload-generated-schema";
-import { paramsSchema, ParamsType } from "app/routes";
-import type { Simplify } from "type-fest";
-import type { KeysOfUnion, OmitIndexSignature } from "type-fest";
-
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
+
+	console.log("test")
 
 	if (!userModuleContext) {
 		throw new NotFoundResponse("Module context not found");
@@ -148,99 +147,112 @@ const updateDiscussionActionSchema = z.object({
 	discussionMinReplies: z.coerce.number().optional(),
 });
 
-type PreserveOptionalParams<T extends ActionFunctionArgs> = {
-	params: Simplify<{
-		[K in Extract<keyof T["params"], keyof ParamsType> as
-		undefined extends T["params"][K] ? K : never
-		]?: ParamsType[K];
-	} & {
-		[K in Extract<keyof T["params"], keyof ParamsType> as
-		undefined extends T["params"][K] ? never : K
-		]: ParamsType[K];
-	}>;
-};
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createUpdatePageActionRpc = createActionRpc({
+	formDataSchema: updatePageActionSchema, method: "POST", action: Action.UpdatePage
+});
+const createUpdateWhiteboardActionRpc = createActionRpc({
+	formDataSchema: updateWhiteboardActionSchema, method: "POST",
+});
+const createUpdateFileActionRpc = createActionRpc({
+	formDataSchema: updateFileActionSchema, method: "POST",
+	action: Action.UpdateFile
+});
+const createUpdateAssignmentActionRpc = createActionRpc({
+	formDataSchema: updateAssignmentActionSchema, method: "POST",
+	action: Action.UpdateAssignment
+});
+const createUpdateQuizActionRpc = createActionRpc({
+	formDataSchema: updateQuizActionSchema, method: "POST",
+	action: Action.UpdateQuiz
+});
+const createUpdateDiscussionActionRpc = createActionRpc({
+	formDataSchema: updateDiscussionActionSchema, method: "POST",
+	action: Action.UpdateDiscussion
+});
 
-function parseParamsBeforeAction<T extends ActionFunctionArgs>(
-) {
-	return <A extends (args: Simplify<Omit<T, "params"> & PreserveOptionalParams<T>>) => ReturnType<A>>(a: A) => {
-		return serverOnly$(async (args: T) => {
-			const { params } = args;
-			// check every params in the schema
-			for (const [key, value] of Object.entries(params)) {
-				const result = paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
-				if (!result.success) {
-					return badRequest({
-						success: false,
-						error: z.prettifyError(result.error),
-					});
-				}
-			}
-			return a(args as unknown as Simplify<Omit<T, "params"> & PreserveOptionalParams<T>>)
-		})!
-	}
-}
-
-
-
-const updatePageAction = parseParamsBeforeAction<Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }>()(async ({
+const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(async ({
 	request,
 	context,
 	params,
+	formData,
+	searchParams,
 }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
-	const parsed = await request
-		.formData()
-		.then(convertMyFormDataToObject)
-		.then(updatePageActionSchema.safeParse);
+	console.log("test 2")
 
-	if (!parsed.success) {
+	const updateResult = await tryUpdatePageModule({
+		payload,
+		id: params.moduleId,
+		title: formData.title,
+		description: formData.description,
+		status: formData.status,
+		content: formData.content,
+		req: payloadRequest,
+	});
+
+	if (!updateResult.ok) {
 		return badRequest({
 			success: false,
-			error: z.prettifyError(parsed.error),
+			error: updateResult.error.message,
 		});
 	}
 
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload, payloadRequest);
+	return ok({
+		success: true,
+		message: "Module updated successfully",
+	});
+}, {
+	action: (params, searchParams) => {
+		return href("/user/module/edit/:moduleId/setting", { moduleId: String(params.moduleId) }) + "?" + stringify({ action: searchParams.action });
+	}
+});
 
-	return transactionInfo.tx(
-		async ({ reqWithTransaction }) => {
-			const updateResult = await tryUpdatePageModule({
-				payload,
-				id: params.moduleId,
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				content: parsed.data.content,
-				req: reqWithTransaction,
-			});
 
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
-				});
-			}
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		},
-		(errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		},
+// Custom hooks for updating modules
+// export function useUpdatePage() {
+// 	const fetcher = useFetcher<typeof updatePageAction>();
+
+// 	const updatePage = async (
+// 		moduleId: string,
+// 		values: z.infer<typeof updatePageActionSchema>,
+// 	) => {
+// 		await fetcher.submit(
+// 			new MyFormData<z.infer<typeof updatePageActionSchema>>(values),
+// 			{
+// 				method: "POST",
+// 				action: getActionUrl(Action.UpdatePage, moduleId),
+// 				encType: ContentType.MULTIPART,
+// 			},
+// 		);
+// 	};
+
+// 	return {
+// 		updatePage,
+// 		isLoading: fetcher.state !== "idle",
+// 		data: fetcher.data,
+// 		fetcher
+// 	};
+// }
+
+const getActionUrl = (action: Action, moduleId: string) => {
+	return (
+		href("/user/module/edit/:moduleId/setting", { moduleId }) +
+		"?" +
+		stringify({ action })
 	);
-})
+};
+
+
+
 const updateWhiteboardAction = serverOnly$(
 	async ({
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & {
-		searchParams: { action: Action.UpdateWhiteboard };
-	}) => {
+	}: Route.ActionArgs) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
@@ -306,7 +318,7 @@ const updateFileAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action.UpdateFile } }) => {
+	}: Route.ActionArgs) => {
 		const { payload, payloadRequest, systemGlobals } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
@@ -394,9 +406,7 @@ const updateAssignmentAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & {
-		searchParams: { action: Action.UpdateAssignment };
-	}) => {
+	}: Route.ActionArgs) => {
 		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
 
 		if (!moduleIdResult.success) {
@@ -471,7 +481,7 @@ const updateQuizAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action.UpdateQuiz } }) => {
+	}: Route.ActionArgs) => {
 		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
 
 		if (!moduleIdResult.success) {
@@ -540,9 +550,7 @@ const updateDiscussionAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & {
-		searchParams: { action: Action.UpdateDiscussion };
-	}) => {
+	}: Route.ActionArgs) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
@@ -606,14 +614,14 @@ const updateDiscussionAction = serverOnly$(
 	},
 )!;
 
-const getActionUrl = (action: Action, moduleId: string) => {
-	return (
-		href("/user/module/edit/:moduleId/setting", { moduleId }) +
-		"?" +
-		stringify({ action })
-	);
+const actionMap = {
+	[Action.UpdatePage]: updatePageAction,
+	[Action.UpdateWhiteboard]: updateWhiteboardAction,
+	[Action.UpdateFile]: updateFileAction,
+	[Action.UpdateAssignment]: updateAssignmentAction,
+	[Action.UpdateQuiz]: updateQuizAction,
+	[Action.UpdateDiscussion]: updateDiscussionAction,
 };
-
 
 export const action = async (args: Route.ActionArgs) => {
 	const { request, params } = args;
@@ -626,74 +634,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	const paramsResult = paramsSchema.moduleId.safeParse(params.moduleId);
-
-	if (!paramsResult.success) {
-		return badRequest({
-			success: false,
-			error: z.prettifyError(paramsResult.error),
-		});
-	}
-
-
-	if (actionType === Action.UpdatePage) {
-		return updatePageAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateWhiteboard) {
-		return updateWhiteboardAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateFile) {
-		return updateFileAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateAssignment) {
-		return updateAssignmentAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateQuiz) {
-		return updateQuizAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateDiscussion) {
-		return updateDiscussionAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		success: false,
-		error: "Invalid action",
-	});
+	return actionMap[actionType](args);
 };
 
 export const clientAction = async ({
@@ -717,31 +658,6 @@ export const clientAction = async ({
 
 	return actionData;
 };
-
-// Custom hooks for updating modules
-export function useUpdatePage() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updatePage = (
-		moduleId: string,
-		values: z.infer<typeof updatePageActionSchema>,
-	) => {
-		fetcher.submit(
-			new MyFormData<z.infer<typeof updatePageActionSchema>>(values),
-			{
-				method: "POST",
-				action: getActionUrl(Action.UpdatePage, moduleId),
-				encType: ContentType.MULTIPART,
-			},
-		);
-	};
-
-	return {
-		updatePage,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
 
 export function useUpdateWhiteboard() {
 	const fetcher = useFetcher<typeof clientAction>();
@@ -888,17 +804,20 @@ function PageFormWrapper({
 		{ type: "page" }
 	>;
 }) {
-	const { updatePage, isLoading } = useUpdatePage();
+	const { submit: updatePage, isLoading } = useUpdatePage();
 	const initialValues = getPageFormInitialValues(module);
 	return (
 		<PageForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updatePage(String(module.id), {
-					title: values.title,
-					description: values.description,
-					status: values.status,
-					content: values.content,
+				updatePage({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						status: values.status,
+						content: values.content,
+					},
 				})
 			}
 			isLoading={isLoading}

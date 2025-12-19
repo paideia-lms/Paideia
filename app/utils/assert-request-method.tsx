@@ -13,3 +13,7 @@ export function assertRequestMethodInRemix<
 		throw new Response("Method not allowed", { status: 405 });
 	}
 }
+
+export function isRequestMethod<T extends "POST" | "GET" | "PATCH" | "PUT" | "DELETE">(method: string, target: T): method is Lowercase<T> | T {
+	return method.toUpperCase() === target;
+}
