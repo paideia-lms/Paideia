@@ -24,7 +24,7 @@ import {
 } from "../internal/discussion-management";
 import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
 
-import { canSubmitAssignment } from "../utils/permissions";
+import { canSubmitAssignment, permissions } from "../utils/permissions";
 export { courseModuleContextKey } from "./utils/context-keys";
 
 export interface ModuleDateInfo {
@@ -334,12 +334,9 @@ export const tryGetCourseModuleContext = Result.wrap(
 				limit: 1000,
 				req,
 				overrideAccess,
-			});
-			if (!submissionsResult.ok) {
-				throw submissionsResult.error;
-			}
+			}).getOrThrow();
 
-			const allSubmissions = submissionsResult.value.docs;
+			const allSubmissions = submissionsResult.docs;
 
 			// userSubmissions should always be filtered to current user's submissions
 			// regardless of role (for display in module page)
@@ -400,10 +397,6 @@ export const tryGetCourseModuleContext = Result.wrap(
 				quizRemainingTime = remaining;
 			}
 
-			const canSubmit = enrolment
-				? canSubmitAssignment(enrolment).allowed
-				: false;
-
 			// Construct QuizData from activityModule and settings
 			const quizSettings = moduleLink.settings as LatestQuizSettings | null;
 			const rawQuizConfig = moduleLink.activityModule.rawQuizConfig ?? null;
@@ -430,8 +423,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 			};
 
 			// Transform quiz submissions for display
-			const allQuizSubmissionsForDisplay: QuizSubmissionData[] =
-				quizSubmissionsForDisplay;
+			const allQuizSubmissionsForDisplay = quizSubmissionsForDisplay;
 
 			return {
 				...moduleLink,
@@ -442,10 +434,24 @@ export const tryGetCourseModuleContext = Result.wrap(
 				allQuizSubmissionsForDisplay,
 				hasActiveQuizAttempt,
 				quizRemainingTime,
-				canSubmit,
 				formattedModuleSettings,
 				previousModule,
 				nextModule,
+				permissions: {
+					canPreview: permissions.quiz.canPreview(
+						user ?? undefined,
+						enrolment ?? undefined,
+					),
+					canStartAttempt: permissions.quiz.canStartAttempt(
+						quiz?.maxAttempts ?? null,
+						allQuizSubmissionsForDisplay.length,
+						hasActiveQuizAttempt,
+					),
+					canDeleteSubmissions: permissions.quiz.canDeleteSubmissions(
+						user ?? undefined,
+						enrolment ?? undefined,
+					),
+				},
 			};
 		} else if (moduleLink.type === "discussion") {
 			// Fetch discussion submissions

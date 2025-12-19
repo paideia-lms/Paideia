@@ -25,13 +25,14 @@ import {
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { AssignmentFormInitialValues as NewAssignmentFormInitialValues } from "app/routes/user/module/new";
-import type {
-	AssignmentFormInitialValues as EditAssignmentFormInitialValues,
-} from "app/routes/user/module/edit-setting";
+import type { AssignmentFormInitialValues as EditAssignmentFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { Simplify, UnionToIntersection } from "type-fest";
 
-
-type AssignmentFormData = Simplify<UnionToIntersection<NewAssignmentFormInitialValues | EditAssignmentFormInitialValues>>
+type AssignmentFormData = Simplify<
+	UnionToIntersection<
+		NewAssignmentFormInitialValues | EditAssignmentFormInitialValues
+	>
+>;
 
 interface AssignmentFormProps {
 	initialValues?: Partial<AssignmentFormData>;
@@ -39,7 +40,9 @@ interface AssignmentFormProps {
 	isLoading?: boolean;
 }
 
-const useAssignmentForm = (initialValues: Partial<AssignmentModuleFormValues>) => {
+const useAssignmentForm = (
+	initialValues: Partial<AssignmentModuleFormValues>,
+) => {
 	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -63,8 +66,8 @@ const useAssignmentForm = (initialValues: Partial<AssignmentModuleFormValues>) =
 		},
 	});
 
-	return form
-}
+	return form;
+};
 
 export function AssignmentForm({
 	initialValues,
@@ -170,10 +173,7 @@ function InstructionsEditor({
 }: {
 	form: UseFormReturnType<AssignmentFormData>;
 }) {
-	const instructions = useFormWatchForceUpdate(
-		form,
-		"assignmentInstructions",
-	);
+	const instructions = useFormWatchForceUpdate(form, "assignmentInstructions");
 
 	return (
 		<Input.Wrapper label="Instructions">
@@ -221,7 +221,6 @@ function FileSubmissionSettings({
 				searchable
 				clearable
 			/>
-
 
 			<NumberInput
 				{...form.getInputProps("assignmentMaxFileSize")}

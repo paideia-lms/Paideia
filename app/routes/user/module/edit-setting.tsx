@@ -146,7 +146,6 @@ const updateDiscussionActionSchema = z.object({
 	discussionMinReplies: z.coerce.number().optional(),
 });
 
-
 const updatePageAction = serverOnly$(
 	async ({
 		request,
@@ -165,7 +164,10 @@ const updatePageAction = serverOnly$(
 
 		const moduleId = moduleIdResult.data;
 
-		const parsed = await request.formData().then(convertMyFormDataToObject).then(updatePageActionSchema.safeParse);
+		const parsed = await request
+			.formData()
+			.then(convertMyFormDataToObject)
+			.then(updatePageActionSchema.safeParse);
 
 		if (!parsed.success) {
 			return badRequest({
@@ -177,32 +179,34 @@ const updatePageAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-
-			const updateResult = await tryUpdatePageModule({
-				payload,
-				id: Number(moduleId),
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				content: parsed.data.content,
-				req: reqWithTransaction,
-			});
-
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const updateResult = await tryUpdatePageModule({
+					payload,
+					id: Number(moduleId),
+					title: parsed.data.title,
+					description: parsed.data.description,
+					status: parsed.data.status,
+					content: parsed.data.content,
+					req: reqWithTransaction,
 				});
-			}
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		}, (errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		});
+				if (!updateResult.ok) {
+					return badRequest({
+						success: false,
+						error: updateResult.error.message,
+					});
+				}
+
+				return ok({
+					success: true,
+					message: "Module updated successfully",
+				});
+			},
+			(errorResponse) => {
+				return errorResponse.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -242,32 +246,35 @@ const updateWhiteboardAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const updateResult = await tryUpdateWhiteboardModule({
-				payload,
-				id: moduleId,
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				content: parsed.data.whiteboardContent,
-				req: reqWithTransaction,
-				overrideAccess: false,
-			});
-
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const updateResult = await tryUpdateWhiteboardModule({
+					payload,
+					id: moduleId,
+					title: parsed.data.title,
+					description: parsed.data.description,
+					status: parsed.data.status,
+					content: parsed.data.whiteboardContent,
+					req: reqWithTransaction,
+					overrideAccess: false,
 				});
-			}
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		}, (errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		});
+				if (!updateResult.ok) {
+					return badRequest({
+						success: false,
+						error: updateResult.error.message,
+					});
+				}
+
+				return ok({
+					success: true,
+					message: "Module updated successfully",
+				});
+			},
+			(errorResponse) => {
+				return errorResponse.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -308,78 +315,54 @@ const updateFileAction = serverOnly$(
 		}
 
 		const moduleId = moduleIdResult.data;
-		const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+		// Convert formData to object and parse with schema
+		const parsed = await request
+			.formData()
+			.then(convertMyFormDataToObject)
+			.then(updateFileActionSchema.safeParse);
+
+		if (!parsed.success) {
+			return badRequest({
+				success: false,
+				error: z.prettifyError(parsed.error),
+			});
+		}
 
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Parse form data with media upload handler
-			const parseResult = await tryParseFormDataWithMediaUpload({
-				payload,
-				request,
-				userId: currentUser.id,
-				req: reqWithTransaction,
-				maxFileSize,
-				fields: [
-					{
-						fieldName: "files",
-					},
-				],
-			});
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				// For file type, combine existing media IDs with newly uploaded media IDs
+				const existingMediaIds = parsed.data.fileMedia ?? [];
 
-			if (!parseResult.ok) {
-				return handleUploadError(
-					parseResult.error,
-					maxFileSize,
-					"Failed to parse form data",
-				);
-			}
-
-			const { formData, uploadedMedia } = parseResult.value;
-
-			const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
-
-			// Convert formData to object and parse with schema
-			const formDataObj = convertMyFormDataToObject(formData);
-			const parsed = updateFileActionSchema.safeParse(formDataObj);
-
-			if (!parsed.success) {
-				return badRequest({
-					success: false,
-					error: z.prettifyError(parsed.error),
+				const updateResult = await tryUpdateFileModule({
+					payload,
+					id: moduleId,
+					title: parsed.data.title,
+					description: parsed.data.description,
+					status: parsed.data.status,
+					media: existingMediaIds,
+					req: reqWithTransaction,
+					overrideAccess: false,
 				});
-			}
 
-			// For file type, combine existing media IDs with newly uploaded media IDs
-			const existingMediaIds = parsed.data.fileMedia ?? [];
-			const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
+				if (!updateResult.ok) {
+					return badRequest({
+						success: false,
+						error: updateResult.error.message,
+					});
+				}
 
-			const updateResult = await tryUpdateFileModule({
-				payload,
-				id: moduleId,
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				media: allMediaIds.length > 0 ? allMediaIds : undefined,
-				req: reqWithTransaction,
-				overrideAccess: false,
-			});
-
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
+				return ok({
+					success: true,
+					message: "Module updated successfully",
 				});
-			}
-
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		}, (errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		});
+			},
+			(errorResponse) => {
+				return errorResponse.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -391,8 +374,6 @@ const updateAssignmentAction = serverOnly$(
 	}: Route.ActionArgs & {
 		searchParams: { action: Action.UpdateAssignment };
 	}) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
 		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
 
 		if (!moduleIdResult.success) {
@@ -415,46 +396,50 @@ const updateAssignmentAction = serverOnly$(
 				error: z.prettifyError(parsed.error),
 			});
 		}
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const allowedFileTypes =
-				parsed.data.assignmentAllowedFileTypes &&
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const allowedFileTypes =
+					parsed.data.assignmentAllowedFileTypes &&
 					parsed.data.assignmentAllowedFileTypes.length > 0
-					? presetValuesToFileTypes(parsed.data.assignmentAllowedFileTypes)
-					: undefined;
+						? presetValuesToFileTypes(parsed.data.assignmentAllowedFileTypes)
+						: undefined;
 
-			const updateResult = await tryUpdateAssignmentModule({
-				payload,
-				id: moduleId,
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				instructions: parsed.data.assignmentInstructions,
-				requireTextSubmission: parsed.data.assignmentRequireTextSubmission,
-				requireFileSubmission: parsed.data.assignmentRequireFileSubmission,
-				allowedFileTypes,
-				maxFileSize: parsed.data.assignmentMaxFileSize,
-				maxFiles: parsed.data.assignmentMaxFiles,
-				req: reqWithTransaction,
-			});
-
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
+				const updateResult = await tryUpdateAssignmentModule({
+					payload,
+					id: moduleId,
+					title: parsed.data.title,
+					description: parsed.data.description,
+					status: parsed.data.status,
+					instructions: parsed.data.assignmentInstructions,
+					requireTextSubmission: parsed.data.assignmentRequireTextSubmission,
+					requireFileSubmission: parsed.data.assignmentRequireFileSubmission,
+					allowedFileTypes,
+					maxFileSize: parsed.data.assignmentMaxFileSize,
+					maxFiles: parsed.data.assignmentMaxFiles,
+					req: reqWithTransaction,
 				});
-			}
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		}, (errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		});
+				if (!updateResult.ok) {
+					return badRequest({
+						success: false,
+						error: updateResult.error.message,
+					});
+				}
+
+				return ok({
+					success: true,
+					message: "Module updated successfully",
+				});
+			},
+			(errorResponse) => {
+				return errorResponse.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -464,8 +449,6 @@ const updateQuizAction = serverOnly$(
 		context,
 		params,
 	}: Route.ActionArgs & { searchParams: { action: Action.UpdateQuiz } }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
 		const moduleIdResult = z.coerce.number().safeParse(params.moduleId);
 
 		if (!moduleIdResult.success) {
@@ -488,40 +471,44 @@ const updateQuizAction = serverOnly$(
 				error: z.prettifyError(parsed.error),
 			});
 		}
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const updateResult = await tryUpdateQuizModule({
-				payload,
-				id: moduleId,
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				instructions: parsed.data.quizInstructions,
-				points: parsed.data.quizPoints,
-				timeLimit: parsed.data.quizTimeLimit,
-				gradingType: parsed.data.quizGradingType,
-				rawQuizConfig: parsed.data.rawQuizConfig,
-				req: reqWithTransaction,
-				overrideAccess: false,
-			});
-
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const updateResult = await tryUpdateQuizModule({
+					payload,
+					id: moduleId,
+					title: parsed.data.title,
+					description: parsed.data.description,
+					status: parsed.data.status,
+					instructions: parsed.data.quizInstructions,
+					points: parsed.data.quizPoints,
+					timeLimit: parsed.data.quizTimeLimit,
+					gradingType: parsed.data.quizGradingType,
+					rawQuizConfig: parsed.data.rawQuizConfig,
+					req: reqWithTransaction,
+					overrideAccess: false,
 				});
-			}
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		}, (errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		});
+				if (!updateResult.ok) {
+					return badRequest({
+						success: false,
+						error: updateResult.error.message,
+					});
+				}
+
+				return ok({
+					success: true,
+					message: "Module updated successfully",
+				});
+			},
+			(errorResponse) => {
+				return errorResponse.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -561,35 +548,38 @@ const updateDiscussionAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const updateResult = await tryUpdateDiscussionModule({
-				payload,
-				id: moduleId,
-				title: parsed.data.title,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				instructions: parsed.data.discussionInstructions,
-				dueDate: parsed.data.discussionDueDate,
-				requireThread: parsed.data.discussionRequireThread,
-				requireReplies: parsed.data.discussionRequireReplies,
-				minReplies: parsed.data.discussionMinReplies,
-				req: reqWithTransaction,
-			});
-
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const updateResult = await tryUpdateDiscussionModule({
+					payload,
+					id: moduleId,
+					title: parsed.data.title,
+					description: parsed.data.description,
+					status: parsed.data.status,
+					instructions: parsed.data.discussionInstructions,
+					dueDate: parsed.data.discussionDueDate,
+					requireThread: parsed.data.discussionRequireThread,
+					requireReplies: parsed.data.discussionRequireReplies,
+					minReplies: parsed.data.discussionMinReplies,
+					req: reqWithTransaction,
 				});
-			}
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		}, (errorResponse) => {
-			return errorResponse.data.status === StatusCode.BadRequest;
-		});
+				if (!updateResult.ok) {
+					return badRequest({
+						success: false,
+						error: updateResult.error.message,
+					});
+				}
+
+				return ok({
+					success: true,
+					message: "Module updated successfully",
+				});
+			},
+			(errorResponse) => {
+				return errorResponse.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -709,11 +699,14 @@ export function useUpdatePage() {
 		moduleId: string,
 		values: z.infer<typeof updatePageActionSchema>,
 	) => {
-		fetcher.submit(new MyFormData<z.infer<typeof updatePageActionSchema>>(values), {
-			method: "POST",
-			action: getActionUrl(Action.UpdatePage, moduleId),
-			encType: ContentType.MULTIPART,
-		});
+		fetcher.submit(
+			new MyFormData<z.infer<typeof updatePageActionSchema>>(values),
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdatePage, moduleId),
+				encType: ContentType.MULTIPART,
+			},
+		);
 	};
 
 	return {
@@ -754,13 +747,14 @@ export function useUpdateFile() {
 		moduleId: string,
 		values: z.infer<typeof updateFileActionSchema>,
 	) => {
-
-
-		fetcher.submit(new MyFormData<z.infer<typeof updateFileActionSchema>>(values), {
-			method: "POST",
-			action: getActionUrl(Action.UpdateFile, moduleId),
-			encType: ContentType.MULTIPART,
-		});
+		fetcher.submit(
+			new MyFormData<z.infer<typeof updateFileActionSchema>>(values),
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateFile, moduleId),
+				encType: ContentType.MULTIPART,
+			},
+		);
 	};
 
 	return {
@@ -842,13 +836,18 @@ export function useUpdateDiscussion() {
 	};
 }
 
-function getPageFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "page" }>) {
+function getPageFormInitialValues(
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "page" }
+	>,
+) {
 	return {
 		title: module.title,
 		description: module.description || "",
 		status: module.status,
 		content: module.content || "",
-	}
+	};
 }
 
 export type PageFormInitialValues = ReturnType<typeof getPageFormInitialValues>;
@@ -857,34 +856,43 @@ export type PageFormInitialValues = ReturnType<typeof getPageFormInitialValues>;
 function PageFormWrapper({
 	module,
 }: {
-	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "page" }>;
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "page" }
+	>;
 }) {
 	const { updatePage, isLoading } = useUpdatePage();
 	const initialValues = getPageFormInitialValues(module);
 	return (
 		<PageForm
 			initialValues={initialValues}
-			onSubmit={(values) => updatePage(String(module.id), {
-				title: values.title,
-				description: values.description,
-				status: values.status,
-				content: values.content,
-			})}
+			onSubmit={(values) =>
+				updatePage(String(module.id), {
+					title: values.title,
+					description: values.description,
+					status: values.status,
+					content: values.content,
+				})
+			}
 			isLoading={isLoading}
 		/>
 	);
 }
 
-function getWhiteboardFormInitialValues(module: Extract<ActivityModuleResult, { type: "whiteboard" }>) {
+function getWhiteboardFormInitialValues(
+	module: Extract<ActivityModuleResult, { type: "whiteboard" }>,
+) {
 	return {
 		title: module.title,
 		description: module.description || "",
 		status: module.status,
 		whiteboardContent: module.content || "",
-	}
+	};
 }
 
-export type WhiteboardFormInitialValues = ReturnType<typeof getWhiteboardFormInitialValues>;
+export type WhiteboardFormInitialValues = ReturnType<
+	typeof getWhiteboardFormInitialValues
+>;
 
 function WhiteboardFormWrapper({
 	module,
@@ -909,14 +917,19 @@ function WhiteboardFormWrapper({
 	);
 }
 
-function getFileFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "file" }>) {
+function getFileFormInitialValues(
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "file" }
+	>,
+) {
 	return {
 		title: module.title,
 		description: module.description || "",
 		status: module.status,
 		fileMedia: module.media?.map((m) => m.id) ?? [],
 		fileFiles: [] as File[],
-	}
+	};
 }
 
 export type FileFormInitialValues = ReturnType<typeof getFileFormInitialValues>;
@@ -925,7 +938,10 @@ function FileFormWrapper({
 	module,
 	uploadLimit,
 }: {
-	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "file" }>;
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "file" }
+	>;
 	uploadLimit?: number;
 }) {
 	const { updateFile, isLoading } = useUpdateFile();
@@ -934,15 +950,13 @@ function FileFormWrapper({
 		<FileForm
 			initialValues={initialValues}
 			onSubmit={(values) =>
-				updateFile(
-					String(module.id),
-					{
-						title: values.title,
-						description: values.description,
-						status: values.status,
-						fileMedia: values.fileMedia,
-						files: values.fileFiles,
-					})
+				updateFile(String(module.id), {
+					title: values.title,
+					description: values.description,
+					status: values.status,
+					fileMedia: values.fileMedia,
+					files: values.fileFiles,
+				})
 			}
 			uploadLimit={uploadLimit}
 			existingMedia={module.media ?? []}
@@ -951,7 +965,12 @@ function FileFormWrapper({
 	);
 }
 
-const getAssignmentFormInitialValues = (module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "assignment" }>) => {
+const getAssignmentFormInitialValues = (
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "assignment" }
+	>,
+) => {
 	return {
 		title: module.title,
 		description: module.description || "",
@@ -964,15 +983,20 @@ const getAssignmentFormInitialValues = (module: Extract<Route.ComponentProps["lo
 		),
 		assignmentMaxFileSize: module.maxFileSize ?? 10,
 		assignmentMaxFiles: module.maxFiles ?? 5,
-	}
+	};
 };
 
-export type AssignmentFormInitialValues = ReturnType<typeof getAssignmentFormInitialValues>;
+export type AssignmentFormInitialValues = ReturnType<
+	typeof getAssignmentFormInitialValues
+>;
 
 function AssignmentFormWrapper({
 	module,
 }: {
-	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "assignment" }>;
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "assignment" }
+	>;
 }) {
 	const { updateAssignment, isLoading } = useUpdateAssignment();
 	const initialValues = getAssignmentFormInitialValues(module);
@@ -987,7 +1011,8 @@ function AssignmentFormWrapper({
 					assignmentInstructions: values.assignmentInstructions,
 					assignmentRequireTextSubmission:
 						values.assignmentRequireTextSubmission,
-					assignmentRequireFileSubmission: values.assignmentRequireFileSubmission,
+					assignmentRequireFileSubmission:
+						values.assignmentRequireFileSubmission,
 					assignmentAllowedFileTypes: values.assignmentAllowedFileTypes,
 					assignmentMaxFileSize: values.assignmentMaxFileSize,
 					assignmentMaxFiles: values.assignmentMaxFiles,
@@ -998,7 +1023,12 @@ function AssignmentFormWrapper({
 	);
 }
 
-function getQuizFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "quiz" }>) {
+function getQuizFormInitialValues(
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "quiz" }
+	>,
+) {
 	return {
 		title: module.title,
 		description: module.description || "",
@@ -1009,7 +1039,7 @@ function getQuizFormInitialValues(module: Extract<Route.ComponentProps["loaderDa
 		// ! we force it to be automatic for now
 		quizGradingType: "automatic" as const,
 		rawQuizConfig: (module.rawQuizConfig as QuizConfig | null) ?? null,
-	}
+	};
 }
 
 export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
@@ -1017,7 +1047,10 @@ export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
 function QuizFormWrapper({
 	module,
 }: {
-	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "quiz" }>;
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "quiz" }
+	>;
 }) {
 	const { updateQuiz, isLoading } = useUpdateQuiz();
 	const initialValues = getQuizFormInitialValues(module);
@@ -1034,9 +1067,7 @@ function QuizFormWrapper({
 					quizTimeLimit: values.quizTimeLimit,
 					quizGradingType: values.quizGradingType,
 					rawQuizConfig:
-						values.rawQuizConfig === null
-							? undefined
-							: values.rawQuizConfig,
+						values.rawQuizConfig === null ? undefined : values.rawQuizConfig,
 				})
 			}
 			isLoading={isLoading}
@@ -1044,7 +1075,12 @@ function QuizFormWrapper({
 	);
 }
 
-function getDiscussionFormInitialValues(module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "discussion" }>) {
+function getDiscussionFormInitialValues(
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "discussion" }
+	>,
+) {
 	return {
 		title: module.title,
 		description: module.description || "",
@@ -1054,15 +1090,20 @@ function getDiscussionFormInitialValues(module: Extract<Route.ComponentProps["lo
 		discussionRequireThread: module.requireThread ?? false,
 		discussionRequireReplies: module.requireReplies ?? false,
 		discussionMinReplies: module.minReplies ?? 1,
-	}
+	};
 }
 
-export type DiscussionFormInitialValues = ReturnType<typeof getDiscussionFormInitialValues>;
+export type DiscussionFormInitialValues = ReturnType<
+	typeof getDiscussionFormInitialValues
+>;
 
 function DiscussionFormWrapper({
 	module,
 }: {
-	module: Extract<Route.ComponentProps["loaderData"]["module"], { type: "discussion" }>;
+	module: Extract<
+		Route.ComponentProps["loaderData"]["module"],
+		{ type: "discussion" }
+	>;
 }) {
 	const { updateDiscussion, isLoading } = useUpdateDiscussion();
 	const initialValues = getDiscussionFormInitialValues(module);

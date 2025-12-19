@@ -195,7 +195,9 @@ const createPageAction = async ({
 const createWhiteboardAction = async ({
 	request,
 	context,
-}: Route.ActionArgs & { searchParams: { action: Action.CreateWhiteboard } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.CreateWhiteboard };
+}) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	const parsed = await request
@@ -345,7 +347,9 @@ const createFileAction = async ({
 const createAssignmentAction = async ({
 	request,
 	context,
-}: Route.ActionArgs & { searchParams: { action: Action.CreateAssignment } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.CreateAssignment };
+}) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	const parsed = await request
@@ -367,7 +371,7 @@ const createAssignmentAction = async ({
 		async ({ reqWithTransaction }) => {
 			const allowedFileTypes =
 				parsed.data.assignmentAllowedFileTypes &&
-					parsed.data.assignmentAllowedFileTypes.length > 0
+				parsed.data.assignmentAllowedFileTypes.length > 0
 					? presetValuesToFileTypes(parsed.data.assignmentAllowedFileTypes)
 					: undefined;
 
@@ -464,7 +468,9 @@ const createQuizAction = async ({
 const createDiscussionAction = async ({
 	request,
 	context,
-}: Route.ActionArgs & { searchParams: { action: Action.CreateDiscussion } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.CreateDiscussion };
+}) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	const parsed = await request
@@ -745,14 +751,13 @@ export function useCreateDiscussion() {
 	};
 }
 
-
 function getPageFormInitialValues() {
 	return {
 		title: "",
 		description: "",
 		status: "draft" as ActivityModule["status"],
 		content: "",
-	}
+	};
 }
 
 export type PageFormInitialValues = ReturnType<typeof getPageFormInitialValues>;
@@ -783,10 +788,12 @@ function getWhiteboardFormInitialValues() {
 		description: "",
 		status: "draft" as ActivityModule["status"],
 		whiteboardContent: "",
-	}
+	};
 }
 
-export type WhiteboardFormInitialValues = ReturnType<typeof getWhiteboardFormInitialValues>;
+export type WhiteboardFormInitialValues = ReturnType<
+	typeof getWhiteboardFormInitialValues
+>;
 
 function WhiteboardFormWrapper() {
 	const { createWhiteboard, isLoading } = useCreateWhiteboard();
@@ -814,7 +821,7 @@ function getFileFormInitialValues() {
 		status: "draft" as ActivityModule["status"],
 		fileMedia: [] as number[],
 		fileFiles: [] as File[],
-	}
+	};
 }
 
 export type FileFormInitialValues = ReturnType<typeof getFileFormInitialValues>;
@@ -851,10 +858,12 @@ const getAssignmentFormInitialValues = () => {
 		assignmentAllowedFileTypes: [] as string[],
 		assignmentMaxFileSize: 10,
 		assignmentMaxFiles: 5,
-	}
+	};
 };
 
-export type AssignmentFormInitialValues = ReturnType<typeof getAssignmentFormInitialValues>;
+export type AssignmentFormInitialValues = ReturnType<
+	typeof getAssignmentFormInitialValues
+>;
 
 function AssignmentFormWrapper() {
 	const { createAssignment, isLoading } = useCreateAssignment();
@@ -892,7 +901,7 @@ function getQuizFormInitialValues() {
 		quizTimeLimit: 60,
 		quizGradingType: "automatic" as const,
 		rawQuizConfig: null as QuizConfig | null,
-	}
+	};
 }
 
 export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
@@ -930,10 +939,12 @@ function getDiscussionFormInitialValues() {
 		discussionRequireThread: false,
 		discussionRequireReplies: false,
 		discussionMinReplies: 1,
-	}
+	};
 }
 
-export type DiscussionFormInitialValues = ReturnType<typeof getDiscussionFormInitialValues>;
+export type DiscussionFormInitialValues = ReturnType<
+	typeof getDiscussionFormInitialValues
+>;
 
 function DiscussionFormWrapper() {
 	const { createDiscussion, isLoading } = useCreateDiscussion();

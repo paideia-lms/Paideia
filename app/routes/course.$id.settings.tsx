@@ -96,7 +96,6 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const { course } = courseContext;
 
-
 	if (!courseContext.permissions.canEdit.allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to edit this course",
@@ -129,8 +128,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {
@@ -376,7 +375,9 @@ export function useEditCourse() {
 	return { editCourse, isLoading: fetcher.state !== "idle", fetcher };
 }
 
-const useEditCourseForm = (course: Route.ComponentProps["loaderData"]["course"]) => {
+const useEditCourseForm = (
+	course: Route.ComponentProps["loaderData"]["course"],
+) => {
 	// Initialize form with default values (hooks must be called unconditionally)
 	const form = useForm({
 		mode: "uncontrolled",
@@ -426,7 +427,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		// we only want the changed values 
+		// we only want the changed values
 		const data = omitBy(
 			values,
 			(value, key) => form.getInitialValues()[key] === value,

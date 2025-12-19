@@ -158,18 +158,18 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
-				baseGrade: submission.grade,
-				maxGrade,
-				feedback: submission.feedback || null,
-			}
+					baseGrade: submission.grade,
+					maxGrade,
+					feedback: submission.feedback || null,
+				}
 			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 
 		return {
@@ -214,20 +214,20 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+			submissionWithGrade.grade !== undefined
 				? {
-					baseGrade: submissionWithGrade.grade,
-					maxGrade,
-					feedback: submissionWithGrade.feedback || null,
-				}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						feedback: submissionWithGrade.feedback || null,
+					}
 				: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 
 		return {
@@ -274,7 +274,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+					subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -285,12 +285,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const author =
 					typeof student === "object" && student !== null
 						? {
-							id: student.id,
-							firstName: student.firstName ?? null,
-							lastName: student.lastName ?? null,
-							email: student.email ?? null,
-							avatar: student.avatar ?? null,
-						}
+								id: student.id,
+								firstName: student.firstName ?? null,
+								lastName: student.lastName ?? null,
+								email: student.email ?? null,
+								avatar: student.avatar ?? null,
+							}
 						: null;
 
 				return [
@@ -327,7 +327,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+					subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -390,12 +390,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+			submissionWithGrade.grade !== undefined
 				? {
-					baseGrade: submissionWithGrade.grade,
-					maxGrade,
-					feedback: submissionWithGrade.feedback || null,
-				}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						feedback: submissionWithGrade.feedback || null,
+					}
 				: null;
 
 		// Add student submissions to gradingSubmission for display
@@ -413,9 +413,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 
 		return {
@@ -437,8 +437,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Not in grading mode - return list view data
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-			courseModuleContext.type === "quiz" ||
-			courseModuleContext.type === "discussion"
+		courseModuleContext.type === "quiz" ||
+		courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -453,13 +453,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-					submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 					? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						gradedAt: submissionWithGrade.gradedAt || null,
-						feedback: submissionWithGrade.feedback || null,
-					}
+							baseGrade: submissionWithGrade.grade,
+							maxGrade,
+							gradedAt: submissionWithGrade.gradedAt || null,
+							feedback: submissionWithGrade.feedback || null,
+						}
 					: null,
 		};
 	});
@@ -468,9 +468,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -491,9 +491,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -514,9 +514,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -646,133 +646,136 @@ const gradeSubmissionAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const formData = await request.formData();
-			const submissionId = formData.get("submissionId");
-			const score = formData.get("score");
-			const feedback = formData.get("feedback");
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const formData = await request.formData();
+				const submissionId = formData.get("submissionId");
+				const score = formData.get("score");
+				const feedback = formData.get("feedback");
 
-			// Validate submission ID
-			if (!submissionId || typeof submissionId !== "string") {
-				return badRequest({ error: "Submission ID is required" });
-			}
-
-			const id = Number.parseInt(submissionId, 10);
-			if (Number.isNaN(id)) {
-				return badRequest({ error: "Invalid submission ID" });
-			}
-
-			// Validate score
-			if (!score || typeof score !== "string") {
-				return badRequest({ error: "Score is required" });
-			}
-
-			const scoreValue = Number.parseFloat(score);
-			if (Number.isNaN(scoreValue) || scoreValue < 0) {
-				return badRequest({ error: "Invalid score value" });
-			}
-
-			// Grade the submission based on module type
-			if (moduleType === "assignment") {
-				const gradeResult = await tryGradeAssignmentSubmission({
-					payload,
-					req: reqWithTransaction,
-					id,
-					grade: scoreValue,
-					feedback:
-						feedback && typeof feedback === "string" ? feedback : undefined,
-					gradedBy: currentUser.id,
-				});
-
-				if (!gradeResult.ok) {
-					const errorMessage = String(gradeResult.error);
-					return badRequest({ error: errorMessage });
+				// Validate submission ID
+				if (!submissionId || typeof submissionId !== "string") {
+					return badRequest({ error: "Submission ID is required" });
 				}
 
-				return ok({
-					success: true,
-					submission: gradeResult.value,
-					message: "Submission graded successfully",
-				});
-			} else if (moduleType === "quiz") {
-				// For quiz, we need to get the submission first to get enrollment and gradebook item
-				const submissionResult = await tryGetQuizSubmissionById({
-					payload,
-					id,
-					req: reqWithTransaction,
-				});
-
-				if (!submissionResult.ok) {
-					return badRequest({ error: submissionResult.error.message });
+				const id = Number.parseInt(submissionId, 10);
+				if (Number.isNaN(id)) {
+					return badRequest({ error: "Invalid submission ID" });
 				}
 
-				const submission = submissionResult.value;
-				const enrollmentId =
-					typeof submission.enrollment === "object"
-						? submission.enrollment.id
-						: submission.enrollment;
+				// Validate score
+				if (!score || typeof score !== "string") {
+					return badRequest({ error: "Score is required" });
+				}
 
-				// Get gradebook item
-				const gradebookItemResult =
-					await tryFindGradebookItemByCourseModuleLink({
+				const scoreValue = Number.parseFloat(score);
+				if (Number.isNaN(scoreValue) || scoreValue < 0) {
+					return badRequest({ error: "Invalid score value" });
+				}
+
+				// Grade the submission based on module type
+				if (moduleType === "assignment") {
+					const gradeResult = await tryGradeAssignmentSubmission({
 						payload,
 						req: reqWithTransaction,
-						courseModuleLinkId: courseModuleContext.id,
+						id,
+						grade: scoreValue,
+						feedback:
+							feedback && typeof feedback === "string" ? feedback : undefined,
+						gradedBy: currentUser.id,
 					});
 
-				if (!gradebookItemResult.ok) {
-					return badRequest({ error: "Gradebook item not found" });
+					if (!gradeResult.ok) {
+						const errorMessage = String(gradeResult.error);
+						return badRequest({ error: errorMessage });
+					}
+
+					return ok({
+						success: true,
+						submission: gradeResult.value,
+						message: "Submission graded successfully",
+					});
+				} else if (moduleType === "quiz") {
+					// For quiz, we need to get the submission first to get enrollment and gradebook item
+					const submissionResult = await tryGetQuizSubmissionById({
+						payload,
+						id,
+						req: reqWithTransaction,
+					});
+
+					if (!submissionResult.ok) {
+						return badRequest({ error: submissionResult.error.message });
+					}
+
+					const submission = submissionResult.value;
+					const enrollmentId =
+						typeof submission.enrollment === "object"
+							? submission.enrollment.id
+							: submission.enrollment;
+
+					// Get gradebook item
+					const gradebookItemResult =
+						await tryFindGradebookItemByCourseModuleLink({
+							payload,
+							req: reqWithTransaction,
+							courseModuleLinkId: courseModuleContext.id,
+						});
+
+					if (!gradebookItemResult.ok) {
+						return badRequest({ error: "Gradebook item not found" });
+					}
+
+					const gradebookItemId = gradebookItemResult.value.id;
+
+					// Grade the quiz submission
+					const gradeResult = await tryGradeQuizSubmission({
+						payload,
+						req: reqWithTransaction,
+						id,
+						enrollmentId,
+						gradebookItemId,
+						gradedBy: currentUser.id,
+					});
+
+					if (!gradeResult.ok) {
+						const errorMessage = String(gradeResult.error);
+						return badRequest({ error: errorMessage });
+					}
+
+					return ok({
+						success: true,
+						submission: gradeResult.value,
+						message: "Quiz submission graded successfully",
+					});
+				} else if (moduleType === "discussion") {
+					// Grade the discussion submission
+					const gradeResult = await tryGradeDiscussionSubmission({
+						payload,
+						req: reqWithTransaction,
+						id,
+						grade: scoreValue,
+						feedback:
+							feedback && typeof feedback === "string" ? feedback : undefined,
+						gradedBy: currentUser.id,
+						overrideAccess: false,
+					});
+
+					if (!gradeResult.ok) {
+						const errorMessage = String(gradeResult.error);
+						return badRequest({ error: errorMessage });
+					}
+
+					return ok({
+						success: true,
+						submission: gradeResult.value,
+						message: "Discussion submission graded successfully",
+					});
+				} else {
+					return badRequest({ error: "Unsupported module type for grading" });
 				}
-
-				const gradebookItemId = gradebookItemResult.value.id;
-
-				// Grade the quiz submission
-				const gradeResult = await tryGradeQuizSubmission({
-					payload,
-					req: reqWithTransaction,
-					id,
-					enrollmentId,
-					gradebookItemId,
-					gradedBy: currentUser.id,
-				});
-
-				if (!gradeResult.ok) {
-					const errorMessage = String(gradeResult.error);
-					return badRequest({ error: errorMessage });
-				}
-
-				return ok({
-					success: true,
-					submission: gradeResult.value,
-					message: "Quiz submission graded successfully",
-				});
-			} else if (moduleType === "discussion") {
-				// Grade the discussion submission
-				const gradeResult = await tryGradeDiscussionSubmission({
-					payload,
-					req: reqWithTransaction,
-					id,
-					grade: scoreValue,
-					feedback:
-						feedback && typeof feedback === "string" ? feedback : undefined,
-					gradedBy: currentUser.id,
-					overrideAccess: false,
-				});
-
-				if (!gradeResult.ok) {
-					const errorMessage = String(gradeResult.error);
-					return badRequest({ error: errorMessage });
-				}
-
-				return ok({
-					success: true,
-					submission: gradeResult.value,
-					message: "Discussion submission graded successfully",
-				});
-			} else {
-				return badRequest({ error: "Unsupported module type for grading" });
-			}
-		}, (errorResponse) => errorResponse.data.status === StatusCode.BadRequest);
+			},
+			(errorResponse) => errorResponse.data.status === StatusCode.BadRequest,
+		);
 	},
 )!;
 

@@ -21,6 +21,8 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
+import { tryCreateMedia } from "./media-management";
+import { m } from "node_modules/nuqs/dist/parsers-U3P6hK0x";
 
 // Base args that are common to all module types
 interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
@@ -199,7 +201,7 @@ export interface UpdateDiscussionModuleArgs
 }
 
 export interface UpdateFileModuleArgs extends BaseUpdateActivityModuleArgs {
-	media?: number[];
+	media?: (number | File)[];
 }
 
 export type UpdateActivityModuleArgs =
@@ -1939,7 +1941,6 @@ export const tryUpdateFileModule = Result.wrap(
 			title,
 			description,
 			status,
-
 			req,
 			overrideAccess = false,
 			media,
@@ -1992,7 +1993,27 @@ export const tryUpdateFileModule = Result.wrap(
 					collection: "files",
 					id: fileId,
 					data: {
-						media: media,
+						media: media
+							? await Promise.all(
+									media.map(async (m) =>
+										m instanceof File
+											? await tryCreateMedia({
+													payload,
+													file: await m.arrayBuffer().then(Buffer.from),
+													filename: m.name ?? "unknown",
+													mimeType: m.type ?? "application/octet-stream",
+													alt: "File attachment",
+													caption: "File attachment",
+													userId: req?.user?.id ?? 0,
+													req: reqWithTransaction,
+													overrideAccess,
+												})
+													.getOrThrow()
+													.then((r) => r.media.id)
+											: m,
+									),
+								)
+							: undefined,
 					},
 					req: reqWithTransaction,
 					overrideAccess,
@@ -2007,33 +2028,16 @@ export const tryUpdateFileModule = Result.wrap(
 				);
 			}
 
-			await payload
+			const updatedModule = await payload
 				.update({
 					collection: "activity-modules",
 					id,
 					data: updateData,
 					req: reqWithTransaction,
 					overrideAccess,
-					depth: 0,
-				})
-				.then(stripDepth<0, "update">());
-
-			// Fetch updated module with depth 1 to get related data
-			const updatedModule = await payload
-				.findByID({
-					collection: "activity-modules",
-					id,
-					req: reqWithTransaction,
-					overrideAccess,
 					depth: 1,
 				})
-				.then(stripDepth<1, "findByID">());
-
-			if (!updatedModule) {
-				throw new NonExistingActivityModuleError(
-					`Failed to retrieve updated activity module with id '${id}'`,
-				);
-			}
+				.then(stripDepth<1, "update">());
 
 			// Build result directly since we know the type
 			const createdBy = updatedModule.createdBy;

@@ -1,4 +1,11 @@
-import { Button, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import {
+	Button,
+	Select,
+	Stack,
+	Textarea,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
@@ -8,9 +15,7 @@ import type { PageFormInitialValues as NewPageFormInitialValues } from "app/rout
 import type { Simplify, UnionToIntersection } from "type-fest";
 
 type PageFormData = Simplify<
-	UnionToIntersection<
-		NewPageFormInitialValues | EditPageFormInitialValues
-	>
+	UnionToIntersection<NewPageFormInitialValues | EditPageFormInitialValues>
 >;
 
 interface PageFormProps {

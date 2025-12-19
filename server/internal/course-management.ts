@@ -326,19 +326,15 @@ export const tryFindCourseById = Result.wrap(
 				////////////////////////////////////////////////////////
 				// complex type narrowing
 				////////////////////////////////////////////////////////
-				// console.log("r", JSON.stringify(r, null, 2));
 				return {
 					...r,
 					docs: r.docs.map((c) => {
 						return {
-							...(c as Depth<Omit<Course, "sections">, 2>),
+							...(c as Depth<Course, 2>),
 							// ! join, these items depth is controlled by maxDepth in the collection config
-							groups: (
-								(c.groups as Depth<Course["groups"], 2>)?.docs ?? []
-							).map((c) => omitType(c, ["course"])),
-							enrollments: (
-								(c.enrollments as Depth<Course["enrollments"], 2>)?.docs ?? []
-							).map((c) => omitType(c, ["course"])),
+							groups: (c.groups as Depth<Course["groups"], 2>)?.docs ?? [],
+							enrollments:
+								(c.enrollments as Depth<Course["enrollments"], 2>)?.docs ?? [],
 							// ! populate, this will have depth 2
 							category: c.category,
 						};

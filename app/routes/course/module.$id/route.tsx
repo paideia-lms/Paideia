@@ -65,7 +65,12 @@ import { QuizInstructionsView } from "app/components/activity-modules-preview/qu
 import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsString, useQueryState } from "nuqs";
 import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
-import { AssignmentActions, DiscussionActions, QuizActions } from "~/utils/module-actions";
+import {
+	AssignmentActions,
+	DiscussionActions,
+	QuizActions,
+} from "~/utils/module-actions";
+import { JsonTree } from "@gfazioli/mantine-json-tree";
 export const loader = async ({
 	context,
 	params,
@@ -514,20 +519,20 @@ const markQuizAttemptAsCompleteAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>
+				questionId: string;
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+				selectedAnswer?: string;
+				multipleChoiceAnswers?: Array<{
+					option: string;
+					isSelected: boolean;
+				}>;
+		  }>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -1064,9 +1069,20 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 	const { submitQuiz } = useSubmitQuiz(loaderData.id);
 	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
 
-	const quizConfig = loaderData.quiz?.rawQuizConfig || null;
+	const quizConfig = loaderData.quiz.rawQuizConfig;
 	if (!quizConfig) {
-		return <Text c="red">No quiz configuration available</Text>;
+		return (
+			<Text c="red">
+				No quiz configuration available
+				<JsonTree
+					data={loaderData}
+					showIndentGuides
+					showItemsCount
+					withCopyToClipboard
+					withExpandAll
+				/>
+			</Text>
+		);
 	}
 
 	// Use server-calculated values
@@ -1078,8 +1094,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-				"status" in loaderData.userSubmission &&
-				loaderData.userSubmission.status === "in_progress"
+			"status" in loaderData.userSubmission &&
+			loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 
@@ -1128,8 +1144,9 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 				quiz={loaderData.quiz}
 				allSubmissions={allQuizSubmissionsForDisplay}
 				onStartQuiz={startQuizAttempt}
-				canSubmit={loaderData.canSubmit}
+				canSubmit={loaderData.permissions.canStartAttempt.allowed}
 				quizRemainingTime={loaderData.quizRemainingTime}
+				canPreview={loaderData.permissions?.canPreview.allowed ?? false}
 			/>
 			{allQuizSubmissionsForDisplay.length > 0 && (
 				<SubmissionHistory

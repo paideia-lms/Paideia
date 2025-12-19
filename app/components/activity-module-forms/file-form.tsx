@@ -1,4 +1,11 @@
-import { Button, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import {
+	Button,
+	Select,
+	Stack,
+	Textarea,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useRef } from "react";
@@ -61,9 +68,7 @@ function useSyncFormWithInitialValues<T extends Record<string, unknown>>(
 }
 
 type FileFormData = Simplify<
-	UnionToIntersection<
-		NewFileFormInitialValues | EditFileFormInitialValues
-	>
+	UnionToIntersection<NewFileFormInitialValues | EditFileFormInitialValues>
 >;
 
 interface FileFormProps {

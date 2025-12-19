@@ -1,4 +1,11 @@
-import { Button, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import {
+	Button,
+	Select,
+	Stack,
+	Textarea,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
@@ -10,9 +17,7 @@ import type { QuizFormInitialValues as NewQuizFormInitialValues } from "app/rout
 import type { Simplify, UnionToIntersection } from "type-fest";
 
 type QuizFormData = Simplify<
-	UnionToIntersection<
-		NewQuizFormInitialValues | EditQuizFormInitialValues
-	>
+	UnionToIntersection<NewQuizFormInitialValues | EditQuizFormInitialValues>
 >;
 
 interface QuizFormProps {
@@ -41,8 +46,8 @@ const useQuizForm = (initialValues: Partial<QuizFormData> | undefined) => {
 		},
 	});
 
-	return form
-}
+	return form;
+};
 
 export type UseQuizFormReturnType = ReturnType<typeof useQuizForm>;
 
@@ -95,11 +100,7 @@ export function QuizForm({
 	);
 }
 
-function QuizBuilder({
-	form,
-}: {
-	form: UseFormReturnType<QuizFormData>;
-}) {
+function QuizBuilder({ form }: { form: UseFormReturnType<QuizFormData> }) {
 	// Watch the quiz type from form
 	const quizType = useFormWatchForceUpdate(form, "rawQuizConfig.type");
 

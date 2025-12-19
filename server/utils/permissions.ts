@@ -1061,6 +1061,36 @@ export function canStartQuizAttempt(
 	};
 }
 
+/**
+ * Checks if a user can preview a quiz (view quiz configuration and questions).
+ *
+ * Permission Rules:
+ * - Admins can preview quizzes
+ * - Users with teacher, manager, or TA enrolment role can preview quizzes
+ *
+ * @param user - The user attempting to preview
+ * @param enrolment - The enrolment object with role field
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canPreviewQuiz(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+): PermissionResult {
+	const allowed = isAdminOrContentManager(user) || isTeachingStaff(enrolment);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can preview this quiz"
+			: "Only admins, teachers, managers, and TAs can preview quizzes",
+	};
+}
+
 export function canDeleteSubmissions(
 	user?: {
 		id: number;
@@ -1224,6 +1254,7 @@ export const permissions = {
 	},
 	quiz: {
 		canStartAttempt: canStartQuizAttempt,
+		canPreview: canPreviewQuiz,
 		canDeleteSubmissions: canDeleteSubmissions,
 	},
 	discussion: {
