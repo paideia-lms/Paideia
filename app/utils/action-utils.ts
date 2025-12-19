@@ -173,13 +173,12 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 			? createLoader(mergedSearchParams)
 			: undefined;
 
-		type HasSearchParams = SearchParamsSchema extends Record<string, any>
+		// Compute SearchParamsType (preserving original logic for correctness)
+		type HasSearchParams = SearchParamsSchema extends Record<string, unknown>
 			? true
 			: false;
-
 		type HasAction = Action extends string ? true : false;
-
-		type HasBothSearchParamsAndAction = HasSearchParams extends true
+		type HasBoth = HasSearchParams extends true
 			? HasAction extends true
 				? true
 				: false
@@ -188,7 +187,7 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 		type SearchParamsType = Simplify<
 			UnionToIntersection<
 				Exclude<
-					HasBothSearchParamsAndAction extends true
+					HasBoth extends true
 						? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
 						: HasAction extends true
 							? { action: Action }
@@ -202,26 +201,20 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 		type Params = PreserveOptionalParams<T>;
 
+		// Base args structure
+		type BaseArgs = Omit<T, "params" | "request" | "searchParams"> &
+			Params & {
+				searchParams: SearchParamsType;
+				request: Omit<T["request"], "method"> & { method: Method };
+			};
+
+		// Args with formData when schema is provided
 		type ArgsWithFormData = FormDataSchema extends z.ZodTypeAny
-			? Simplify<
-					Omit<T, "params" | "request" | "searchParams"> &
-						Params & {
-							formData: z.infer<FormDataSchema>;
-							searchParams: SearchParamsType;
-							request: Omit<T["request"], "method"> & { method: Method };
-						}
-				>
-			: Simplify<
-					Omit<T, "params" | "request"> &
-						Params & {
-							searchParams: SearchParamsType;
-							request: Omit<T["request"], "method"> & { method: Method };
-						}
-				>;
+			? Simplify<BaseArgs & { formData: z.infer<FormDataSchema> }>
+			: Simplify<BaseArgs>;
 
 		const _action = mergedSearchParams?.action
 			.defaultValue as SearchParamsType["action"];
-		// console.log({ _action, searchParams, action });
 
 		type OtherSearchParams = Omit<SearchParamsType, "action">;
 
@@ -262,6 +255,18 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 					? loadSearchParams(request)
 					: undefined;
 
+				// Build base args object
+				const baseArgs = {
+					...args,
+					request: {
+						...request,
+						method: method as Method,
+					},
+					...(parsedSearchParams !== undefined
+						? { searchParams: parsedSearchParams }
+						: {}),
+				} as unknown as BaseArgs;
+
 				// parse form data if schema is provided
 				if (formDataSchema) {
 					const parsed = await request
@@ -277,28 +282,12 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 					}
 
 					return a({
-						...args,
-						request: {
-							...request,
-							method: method as Method,
-						},
-						...(parsedSearchParams !== undefined
-							? { searchParams: parsedSearchParams }
-							: {}),
+						...baseArgs,
 						formData: parsed.data,
 					} as unknown as ArgsWithFormData);
 				}
 
-				return a({
-					...args,
-					request: {
-						...request,
-						method: method as Method,
-					},
-					...(parsedSearchParams !== undefined
-						? { searchParams: parsedSearchParams }
-						: {}),
-				} as unknown as ArgsWithFormData);
+				return a(baseArgs as unknown as ArgsWithFormData);
 			})!;
 
 			const hook = () => {
@@ -309,13 +298,15 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 						{
 							params: Params["params"];
 							values: z.infer<FormDataSchema>;
-						} & (keyof OtherSearchParams extends never // if there are no other search params, searchParams can be optional
+						} & (keyof OtherSearchParams extends never
 							? { searchParams?: OtherSearchParams }
 							: { searchParams: OtherSearchParams })
 					>,
 				) => {
+					const providedSearchParams =
+						"searchParams" in args ? args.searchParams : {};
 					const url = options.action(args.params, {
-						...("searchParams" in args ? args.searchParams : {}),
+						...providedSearchParams,
 						action: _action,
 					} as unknown as SearchParamsType);
 
@@ -342,7 +333,6 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 				};
 			};
 
-			// change the
 			return [action, hook] as const;
 		};
 	};
