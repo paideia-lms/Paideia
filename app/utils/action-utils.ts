@@ -395,11 +395,12 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 				const submit = async (
 					args: Simplify<
-						{
-							values: z.infer<FormDataSchema>;
-						} & (keyof OtherSearchParams extends never
-							? { searchParams?: OtherSearchParams }
-							: { searchParams: OtherSearchParams }) &
+						(keyof z.infer<FormDataSchema> extends never
+							? { values?: z.infer<FormDataSchema> }
+							: { values: z.infer<FormDataSchema> }) &
+							(keyof OtherSearchParams extends never
+								? { searchParams?: OtherSearchParams }
+								: { searchParams: OtherSearchParams }) &
 							(keyof Params["params"] extends never
 								? { params?: Params["params"] }
 								: { params: Params["params"] })
@@ -418,7 +419,7 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 					await fetcher.submit(
 						new MyFormData(
-							args.values as Record<
+							(args.values ?? {}) as Record<
 								string,
 								string | number | boolean | object | Blob | null | undefined
 							>,

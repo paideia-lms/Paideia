@@ -1481,177 +1481,178 @@ export const tryCreateDiscussionModule = Result.wrap(
 /**
  * Get an activity module by ID
  */
-export const tryGetActivityModuleById = Result.wrap(
-	async (args: GetActivityModuleByIdArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryGetActivityModuleById(args: GetActivityModuleByIdArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Activity module ID is required");
-		}
+			// Validate ID
+			if (!id) {
+				throw new InvalidArgumentError("Activity module ID is required");
+			}
 
-		// Fetch the activity module with related data
-		const activityModuleResult = await payload
-			.find({
-				collection: ActivityModules.slug,
-				where: {
-					and: [
-						{
-							id: { equals: id },
+			// Fetch the activity module with related data
+			const activityModuleResult = await payload
+				.find({
+					collection: ActivityModules.slug,
+					where: {
+						and: [
+							{
+								id: { equals: id },
+							},
+						],
+					},
+					joins: {
+						// NOTE: Submissions are no longer joined here as they now link to
+						// course-activity-module-links instead of activity-modules directly.
+						// To access submissions, query through course-activity-module-links.
+						grants: {
+							limit: MOCK_INFINITY,
 						},
-					],
-				},
-				joins: {
-					// NOTE: Submissions are no longer joined here as they now link to
-					// course-activity-module-links instead of activity-modules directly.
-					// To access submissions, query through course-activity-module-links.
-					grants: {
-						limit: MOCK_INFINITY,
 					},
-				},
-				pagination: false,
-				depth: 1, // Fetch related assignment/quiz/discussion data
-				req,
-				context: req?.context,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">())
-			.then((r) => {
-				const am = r.docs[0];
-				if (!am) {
-					return null;
-				}
-				const createdBy = am.createdBy;
-				const owner = am.owner;
-				const page = am.page;
-				const whiteboard = am.whiteboard;
-				const file = am.file;
-				const assignment = am.assignment;
-				const quiz = am.quiz;
-				const discussion = am.discussion;
-				const createdByAvatar = createdBy.avatar;
-				const ownerAvatar = owner.avatar;
-				// NOTE: Submissions are no longer joined on activity-modules.
-				// They now link to course-activity-module-links instead.
-
-				const grants = am.grants?.docs ?? [];
-
-				// type narrowing file
-				const fileMedia = file?.media?.map((m) => {
-					return m;
-				});
-
-				const pageMedia = page?.contentMedia ?? [];
-				return {
-					...am,
-					createdBy: {
-						...createdBy,
-						avatar: createdByAvatar ?? null,
-					},
-					owner: {
-						...owner,
-						avatar: ownerAvatar ?? null,
-					},
-					page: page
-						? {
-								...page,
-								media: pageMedia ?? null,
-							}
-						: null,
-					whiteboard,
-					file: file
-						? {
-								id: file.id,
-								media: fileMedia ?? null,
-								updatedAt: file.updatedAt,
-								createdAt: file.createdAt,
-							}
-						: null,
-					assignment,
-					quiz,
-					discussion,
-					grants,
-				};
-			})
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: "tryGetActivityModuleById",
-					args: { payload, req, overrideAccess },
-				});
-				throw error;
-			});
-
-		if (!activityModuleResult) {
-			throw new NonExistingActivityModuleError(
-				`Activity module with id '${id}' not found`,
-			);
-		}
-
-		// Refine the result to a discriminated union based on type
-		const baseResult = {
-			id: activityModuleResult.id,
-			title: activityModuleResult.title,
-			description: activityModuleResult.description,
-			status: activityModuleResult.status,
-			createdBy: {
-				...activityModuleResult.createdBy,
-				firstName: activityModuleResult.createdBy.firstName ?? "",
-				lastName: activityModuleResult.createdBy.lastName ?? "",
-			},
-			owner: {
-				...activityModuleResult.owner,
-				firstName: activityModuleResult.owner.firstName ?? "",
-				lastName: activityModuleResult.owner.lastName ?? "",
-			},
-			grants: activityModuleResult.grants,
-			updatedAt: activityModuleResult.updatedAt,
-			createdAt: activityModuleResult.createdAt,
-		} satisfies BaseActivityModuleResult;
-
-		// Build discriminated union result using helper function
-		const moduleData: ActivityModuleData = {
-			id: activityModuleResult.id,
-			title: activityModuleResult.title,
-			description: activityModuleResult.description,
-			status: activityModuleResult.status,
-			type: activityModuleResult.type,
-			createdBy: baseResult.createdBy,
-			owner: baseResult.owner,
-			grants: baseResult.grants,
-			updatedAt: activityModuleResult.updatedAt,
-			createdAt: activityModuleResult.createdAt,
-			// Cast to ActivityModuleData types to allow createdBy from Payload
-			page: activityModuleResult.page,
-			whiteboard: activityModuleResult.whiteboard,
-			file: activityModuleResult.file,
-			assignment: activityModuleResult.assignment,
-			quiz: activityModuleResult.quiz
-				? {
-						...activityModuleResult.quiz,
-						rawQuizConfig:
-							(activityModuleResult.quiz
-								.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
+					pagination: false,
+					depth: 1, // Fetch related assignment/quiz/discussion data
+					req,
+					context: req?.context,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.then((r) => {
+					const am = r.docs[0];
+					if (!am) {
+						return null;
 					}
-				: null,
-			discussion: activityModuleResult.discussion,
-		};
+					const createdBy = am.createdBy;
+					const owner = am.owner;
+					const page = am.page;
+					const whiteboard = am.whiteboard;
+					const file = am.file;
+					const assignment = am.assignment;
+					const quiz = am.quiz;
+					const discussion = am.discussion;
+					const createdByAvatar = createdBy.avatar;
+					const ownerAvatar = owner.avatar;
+					// NOTE: Submissions are no longer joined on activity-modules.
+					// They now link to course-activity-module-links instead.
 
-		return buildDiscriminatedUnionResult(
-			baseResult,
-			moduleData,
-			payload,
-			req,
-			overrideAccess,
-		);
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get activity module", {
-			cause: error,
-		}),
-);
+					const grants = am.grants?.docs ?? [];
 
+					// type narrowing file
+					const fileMedia = file?.media?.map((m) => {
+						return m;
+					});
+
+					const pageMedia = page?.contentMedia ?? [];
+					return {
+						...am,
+						createdBy: {
+							...createdBy,
+							avatar: createdByAvatar ?? null,
+						},
+						owner: {
+							...owner,
+							avatar: ownerAvatar ?? null,
+						},
+						page: page
+							? {
+									...page,
+									media: pageMedia ?? null,
+								}
+							: null,
+						whiteboard,
+						file: file
+							? {
+									id: file.id,
+									media: fileMedia ?? null,
+									updatedAt: file.updatedAt,
+									createdAt: file.createdAt,
+								}
+							: null,
+						assignment,
+						quiz,
+						discussion,
+						grants,
+					};
+				})
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryGetActivityModuleById",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
+
+			if (!activityModuleResult) {
+				throw new NonExistingActivityModuleError(
+					`Activity module with id '${id}' not found`,
+				);
+			}
+
+			// Refine the result to a discriminated union based on type
+			const baseResult = {
+				id: activityModuleResult.id,
+				title: activityModuleResult.title,
+				description: activityModuleResult.description,
+				status: activityModuleResult.status,
+				createdBy: {
+					...activityModuleResult.createdBy,
+					firstName: activityModuleResult.createdBy.firstName ?? "",
+					lastName: activityModuleResult.createdBy.lastName ?? "",
+				},
+				owner: {
+					...activityModuleResult.owner,
+					firstName: activityModuleResult.owner.firstName ?? "",
+					lastName: activityModuleResult.owner.lastName ?? "",
+				},
+				grants: activityModuleResult.grants,
+				updatedAt: activityModuleResult.updatedAt,
+				createdAt: activityModuleResult.createdAt,
+			} satisfies BaseActivityModuleResult;
+
+			// Build discriminated union result using helper function
+			const moduleData: ActivityModuleData = {
+				id: activityModuleResult.id,
+				title: activityModuleResult.title,
+				description: activityModuleResult.description,
+				status: activityModuleResult.status,
+				type: activityModuleResult.type,
+				createdBy: baseResult.createdBy,
+				owner: baseResult.owner,
+				grants: baseResult.grants,
+				updatedAt: activityModuleResult.updatedAt,
+				createdAt: activityModuleResult.createdAt,
+				// Cast to ActivityModuleData types to allow createdBy from Payload
+				page: activityModuleResult.page,
+				whiteboard: activityModuleResult.whiteboard,
+				file: activityModuleResult.file,
+				assignment: activityModuleResult.assignment,
+				quiz: activityModuleResult.quiz
+					? {
+							...activityModuleResult.quiz,
+							rawQuizConfig:
+								(activityModuleResult.quiz
+									.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
+						}
+					: null,
+				discussion: activityModuleResult.discussion,
+			};
+
+			return buildDiscriminatedUnionResult(
+				baseResult,
+				moduleData,
+				payload,
+				req,
+				overrideAccess,
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get activity module", {
+				cause: error,
+			}),
+	);
+}
 /**
  * Updates a page activity module
  */

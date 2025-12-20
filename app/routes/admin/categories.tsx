@@ -83,7 +83,7 @@ export const categoryActionSearchParams = {
 
 export const loadSearchParams = createLoader(categoryActionSearchParams);
 
-const getActionUrl = (action: Action) => {
+const getRouteUrl = (action: Action) => {
 	return href("/admin/categories") + "?" + stringify({ action });
 };
 
@@ -333,7 +333,7 @@ export function useEditCategory() {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.Edit),
+				action: getRouteUrl(Action.Edit),
 				encType: ContentType.JSON,
 			},
 		);
@@ -356,7 +356,7 @@ export function useDeleteCategory() {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.Delete),
+				action: getRouteUrl(Action.Delete),
 				encType: ContentType.JSON,
 			},
 		);

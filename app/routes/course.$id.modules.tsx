@@ -50,7 +50,7 @@ export const moduleLinkSearchParams = {
 
 export const loadSearchParams = createLoader(moduleLinkSearchParams);
 
-const getActionUrl = (action: Action, courseId: number) => {
+const getRouteUrl = (action: Action, courseId: number) => {
 	return (
 		href("/course/:courseId/modules", {
 			courseId: courseId.toString(),
@@ -72,7 +72,7 @@ export function useCreateModuleLink() {
 			{ activityModuleId, ...(sectionId && { sectionId }) },
 			{
 				method: "post",
-				action: getActionUrl(Action.Create, courseId),
+				action: getRouteUrl(Action.Create, courseId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -96,7 +96,7 @@ export function useDeleteModuleLink() {
 			{ linkId, ...(redirectTo && { redirectTo }) },
 			{
 				method: "post",
-				action: getActionUrl(Action.Delete, courseId),
+				action: getRouteUrl(Action.Delete, courseId),
 				encType: ContentType.JSON,
 			},
 		);

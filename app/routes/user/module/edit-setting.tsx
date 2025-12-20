@@ -158,7 +158,7 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 	action: Action.UpdateDiscussion
 });
 
-const getActionUrl = (action: Action, moduleId: string) => {
+const getRouteUrl = (action: Action, moduleId: string) => {
 	return (
 		href("/user/module/edit/:moduleId/setting", { moduleId }) +
 		"?" +
@@ -195,7 +195,7 @@ const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(serverOnly$(
 		message: "Module updated successfully",
 	});
 })!, {
-	action: ({ params, searchParams }) => getActionUrl(searchParams.action, String(params.moduleId)),
+	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
 });
 
 const [updateWhiteboardAction, useUpdateWhiteboard] = createUpdateWhiteboardActionRpc(serverOnly$(async ({
@@ -228,7 +228,7 @@ const [updateWhiteboardAction, useUpdateWhiteboard] = createUpdateWhiteboardActi
 		message: "Module updated successfully",
 	});
 })!, {
-	action: ({ params, searchParams }) => getActionUrl(searchParams.action, String(params.moduleId)),
+	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
 });
 
 const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(serverOnly$(async ({
@@ -264,7 +264,7 @@ const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(serverOnly$(
 		message: "Module updated successfully",
 	});
 })!, {
-	action: ({ params, searchParams }) => getActionUrl(searchParams.action, String(params.moduleId)),
+	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
 });
 
 const [updateAssignmentAction, useUpdateAssignment] = createUpdateAssignmentActionRpc(serverOnly$(async ({
@@ -307,7 +307,7 @@ const [updateAssignmentAction, useUpdateAssignment] = createUpdateAssignmentActi
 		message: "Module updated successfully",
 	});
 })!, {
-	action: ({ params, searchParams }) => getActionUrl(searchParams.action, String(params.moduleId)),
+	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
 });
 
 const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(serverOnly$(async ({
@@ -344,7 +344,7 @@ const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(serverOnly$(
 		message: "Module updated successfully",
 	});
 })!, {
-	action: ({ params, searchParams }) => getActionUrl(searchParams.action, String(params.moduleId)),
+	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
 });
 
 const [updateDiscussionAction, useUpdateDiscussion] = createUpdateDiscussionActionRpc(serverOnly$(async ({
@@ -380,7 +380,7 @@ const [updateDiscussionAction, useUpdateDiscussion] = createUpdateDiscussionActi
 		message: "Module updated successfully",
 	});
 })!, {
-	action: ({ params, searchParams }) => getActionUrl(searchParams.action, String(params.moduleId)),
+	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
 });
 
 const actionMap = {

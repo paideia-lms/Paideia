@@ -9,6 +9,7 @@ import {
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { tryCreateMedia } from "./media-management";
 
 export interface CreateUserArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -31,7 +32,7 @@ export interface UpdateUserArgs extends BaseInternalFunctionArgs {
 		lastName?: string;
 		role?: User["role"];
 		bio?: string;
-		avatar?: number | Media;
+		avatar?: File | null;
 		_verified?: boolean;
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
@@ -161,26 +162,38 @@ export const tryCreateUser = Result.wrap(
  */
 export const tryUpdateUser = Result.wrap(
 	async (args: UpdateUserArgs) => {
-		const {
-			payload,
-			userId,
-			data,
+		const { payload, userId, data, req, overrideAccess = false } = args;
 
-			req,
-			overrideAccess = false,
-		} = args;
+		const transactionInfo = await handleTransactionId(payload, req);
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const updatedUser = await payload
+				.update({
+					collection: "users",
+					id: userId,
+					data: {
+						...data,
+						avatar: data.avatar
+							? await tryCreateMedia({
+									payload,
+									file: await data.avatar.arrayBuffer().then(Buffer.from),
+									filename: data.avatar.name ?? "unknown",
+									mimeType: data.avatar.type ?? "application/octet-stream",
+									alt: "User avatar",
+									caption: "User avatar",
+									req: reqWithTransaction,
+									userId,
+								})
+									.getOrThrow()
+									.then((r) => r.media.id)
+							: undefined,
+					},
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "update">());
 
-		const updatedUser = await payload
-			.update({
-				collection: "users",
-				id: userId,
-				data,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<0, "update">());
-
-		return updatedUser;
+			return updatedUser;
+		});
 	},
 	(error) =>
 		transformError(error) ??

@@ -249,7 +249,7 @@ const uploadAction = async ({
 	});
 };
 
-const getActionUrl = (action: Action, field: Field) => {
+const getRouteUrl = (action: Action, field: Field) => {
 	return href("/admin/appearance/logo") + "?" + stringify({ action, field });
 };
 
@@ -316,7 +316,7 @@ export function useUploadLogo(field: Field) {
 		fetcher.submit(formData, {
 			method: "POST",
 			encType: ContentType.MULTIPART,
-			action: getActionUrl(Action.Upload, field),
+			action: getRouteUrl(Action.Upload, field),
 		});
 	};
 
@@ -333,7 +333,7 @@ export function useClearLogo(field: Field) {
 	const clearLogo = () => {
 		fetcher.submit(null, {
 			method: "POST",
-			action: getActionUrl(Action.Clear, field),
+			action: getRouteUrl(Action.Clear, field),
 		});
 	};
 

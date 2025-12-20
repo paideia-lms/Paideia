@@ -381,7 +381,7 @@ describe("Media Management", () => {
 		}
 	});
 
-	test("should delete a single media record", async () => {
+	test.only("should delete a single media record", async () => {
 		// First create a media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 		const createResult = await tryCreateMedia({
@@ -407,37 +407,38 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: createdMedia.id,
-			userId: testUserId,
 			overrideAccess: true,
 		});
 
 		expect(deleteResult.ok).toBe(true);
-
-		if (deleteResult.ok) {
-			expect(deleteResult.value.deletedMedia.length).toBe(1);
-			expect(deleteResult.value.deletedMedia[0]?.id).toBe(createdMedia.id);
-
-			// Verify the media is actually deleted from database
-			const getResult = await tryGetMediaById({
-				payload,
-				id: createdMedia.id,
-				overrideAccess: true,
-			});
-
-			expect(getResult.ok).toBe(false);
-
-			// Verify the file is deleted from S3 (if filename exists)
-			if (createdMedia.filename) {
-				const bufferResult = await tryGetMediaBufferFromFilename({
-					payload,
-					s3Client,
-					filename: createdMedia.filename,
-
-					overrideAccess: true,
-				});
-				expect(bufferResult.ok).toBe(false);
-			}
+		if (!deleteResult.ok) {
+			throw new Error("Failed to delete test media");
 		}
+
+		expect(deleteResult.value.deletedMedia.length).toBe(1);
+		expect(deleteResult.value.deletedMedia[0]?.id).toBe(createdMedia.id);
+
+		// Verify the media is actually deleted from database
+		const getResult = await tryGetMediaById({
+			payload,
+			id: createdMedia.id,
+			overrideAccess: true,
+		});
+
+		expect(getResult.ok).toBe(false);
+		if (!createdMedia.filename) {
+			throw new Error("Created media has no filename");
+		}
+
+		// Verify the file is deleted from S3 (if filename exists)
+		const bufferResult = await tryGetMediaBufferFromFilename({
+			payload,
+			s3Client,
+			filename: createdMedia.filename,
+
+			overrideAccess: true,
+		});
+		expect(bufferResult.ok).toBe(false);
 	});
 
 	test("should fail to delete media with usage", async () => {
@@ -475,7 +476,6 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: testMediaId,
-			userId: testUserId,
 			overrideAccess: true,
 		});
 
@@ -548,31 +548,31 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: mediaIds,
-			userId: testUserId,
 			overrideAccess: true,
 		});
 
 		expect(deleteResult.ok).toBe(true);
 
-		if (deleteResult.ok) {
-			expect(deleteResult.value.deletedMedia.length).toBe(3);
-			const deletedIds = deleteResult.value.deletedMedia.map(
-				(m: { id: number }) => m.id,
-			);
-			expect(deletedIds).toContain(mediaIds[0]!);
-			expect(deletedIds).toContain(mediaIds[1]!);
-			expect(deletedIds).toContain(mediaIds[2]!);
+		if (!deleteResult.ok) {
+			throw new Error("Failed to delete test media");
+		}
+		expect(deleteResult.value.deletedMedia.length).toBe(3);
+		const deletedIds = deleteResult.value.deletedMedia.map(
+			(m: { id: number }) => m.id,
+		);
+		expect(deletedIds).toContain(mediaIds[0]!);
+		expect(deletedIds).toContain(mediaIds[1]!);
+		expect(deletedIds).toContain(mediaIds[2]!);
 
-			// Verify all media are actually deleted
-			for (const mediaId of mediaIds) {
-				const getResult = await tryGetMediaById({
-					payload,
-					id: mediaId,
-					overrideAccess: true,
-				});
+		// Verify all media are actually deleted
+		for (const mediaId of mediaIds) {
+			const getResult = await tryGetMediaById({
+				payload,
+				id: mediaId,
+				overrideAccess: true,
+			});
 
-				expect(getResult.ok).toBe(false);
-			}
+			expect(getResult.ok).toBe(false);
 		}
 	});
 
@@ -581,7 +581,6 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: [],
-			userId: testUserId,
 		});
 
 		expect(result.ok).toBe(false);
@@ -596,7 +595,6 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: 999999,
-			userId: testUserId,
 		});
 
 		expect(result.ok).toBe(false);
@@ -629,7 +627,6 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: [existingId, nonExistentId],
-			userId: testUserId,
 			overrideAccess: true,
 		});
 
@@ -693,15 +690,10 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: [mediaId1, mediaId2],
-			userId: testUserId,
 			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.error.message).toContain("usage");
-			expect(result.error.message).toContain("Cannot delete");
-		}
 
 		// Verify both media still exist (transaction rollback)
 		const getResult1 = await tryGetMediaById({

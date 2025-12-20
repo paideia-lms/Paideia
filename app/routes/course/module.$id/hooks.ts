@@ -9,7 +9,7 @@ import {
 } from "~/utils/module-actions";
 import type { clientAction } from "./route";
 
-export const getActionUrl = (
+export const getRouteUrl = (
 	action: string,
 	moduleLinkId: string,
 	additionalParams?: Record<string, string | null>,
@@ -45,7 +45,7 @@ export const useSubmitAssignment = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
+			action: getRouteUrl(
 				AssignmentActions.SUBMIT_ASSIGNMENT,
 				String(moduleLinkId),
 			),
@@ -68,7 +68,7 @@ export const useStartQuizAttempt = (moduleLinkId: number) => {
 		const formData = new FormData();
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(QuizActions.START_ATTEMPT, String(moduleLinkId)),
+			action: getRouteUrl(QuizActions.START_ATTEMPT, String(moduleLinkId)),
 		});
 	};
 
@@ -111,7 +111,7 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
+			action: getRouteUrl(
 				QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE,
 				String(moduleLinkId),
 			),
@@ -136,7 +136,7 @@ export const useCreateThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
+			action: getRouteUrl(
 				DiscussionActions.CREATE_THREAD,
 				String(moduleLinkId),
 			),
@@ -165,7 +165,7 @@ export const useUpvoteThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
+			action: getRouteUrl(
 				DiscussionActions.UPVOTE_THREAD,
 				String(moduleLinkId),
 			),
@@ -200,7 +200,7 @@ export const useRemoveUpvoteThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
+			action: getRouteUrl(
 				DiscussionActions.REMOVE_UPVOTE_THREAD,
 				String(moduleLinkId),
 			),
@@ -233,10 +233,7 @@ export const useUpvoteReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
-				DiscussionActions.UPVOTE_REPLY,
-				String(moduleLinkId),
-			),
+			action: getRouteUrl(DiscussionActions.UPVOTE_REPLY, String(moduleLinkId)),
 		});
 	};
 
@@ -265,7 +262,7 @@ export const useRemoveUpvoteReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(
+			action: getRouteUrl(
 				DiscussionActions.REMOVE_UPVOTE_REPLY,
 				String(moduleLinkId),
 			),
@@ -298,7 +295,7 @@ export const useCreateReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl("", String(moduleLinkId), { replyTo: replyToParam }),
+			action: getRouteUrl("", String(moduleLinkId), { replyTo: replyToParam }),
 		});
 	};
 

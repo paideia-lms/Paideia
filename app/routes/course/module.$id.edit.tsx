@@ -375,7 +375,7 @@ const updateDiscussionSettingsAction = async ({
 	);
 };
 
-const getActionUrl = (action: Action, moduleLinkId: string) => {
+const getRouteUrl = (action: Action, moduleLinkId: string) => {
 	return (
 		href("/course/module/:moduleLinkId/edit", {
 			moduleLinkId,
@@ -480,7 +480,7 @@ function useUpdatePageSettings(moduleLinkId: string) {
 			{ name: name || null },
 			{
 				method: "POST",
-				action: getActionUrl(Action.UpdatePage, moduleLinkId),
+				action: getRouteUrl(Action.UpdatePage, moduleLinkId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -501,7 +501,7 @@ function useUpdateWhiteboardSettings(moduleLinkId: string) {
 			{ name: name || null },
 			{
 				method: "POST",
-				action: getActionUrl(Action.UpdateWhiteboard, moduleLinkId),
+				action: getRouteUrl(Action.UpdateWhiteboard, moduleLinkId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -522,7 +522,7 @@ function useUpdateFileSettings(moduleLinkId: string) {
 			{ name: name || null },
 			{
 				method: "POST",
-				action: getActionUrl(Action.UpdateFile, moduleLinkId),
+				action: getRouteUrl(Action.UpdateFile, moduleLinkId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -564,7 +564,7 @@ function useUpdateAssignmentSettings(moduleLinkId: string) {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.UpdateAssignment, moduleLinkId),
+				action: getRouteUrl(Action.UpdateAssignment, moduleLinkId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -604,7 +604,7 @@ function useUpdateQuizSettings(moduleLinkId: string) {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.UpdateQuiz, moduleLinkId),
+				action: getRouteUrl(Action.UpdateQuiz, moduleLinkId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -642,7 +642,7 @@ function useUpdateDiscussionSettings(moduleLinkId: string) {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.UpdateDiscussion, moduleLinkId),
+				action: getRouteUrl(Action.UpdateDiscussion, moduleLinkId),
 				encType: ContentType.JSON,
 			},
 		);

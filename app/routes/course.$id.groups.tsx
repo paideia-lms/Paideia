@@ -60,7 +60,7 @@ export const groupSearchParams = {
 
 export const loadSearchParams = createLoader(groupSearchParams);
 
-const getActionUrl = (action: Action, courseId: number) => {
+const getRouteUrl = (action: Action, courseId: number) => {
 	return (
 		href("/course/:courseId/groups", {
 			courseId: courseId.toString(),
@@ -290,7 +290,7 @@ export const useCreateGroup = () => {
 			},
 			{
 				method: "post",
-				action: getActionUrl(Action.CreateGroup, courseId),
+				action: getRouteUrl(Action.CreateGroup, courseId),
 			},
 		);
 	};
@@ -312,7 +312,7 @@ export const useDeleteGroup = () => {
 			},
 			{
 				method: "post",
-				action: getActionUrl(Action.DeleteGroup, courseId),
+				action: getRouteUrl(Action.DeleteGroup, courseId),
 			},
 		);
 	};

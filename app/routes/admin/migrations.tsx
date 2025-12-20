@@ -42,7 +42,7 @@ export const migrationSearchParams = {
 
 export const loadSearchParams = createLoader(migrationSearchParams);
 
-const getActionUrl = (action: Action) => {
+const getRouteUrl = (action: Action) => {
 	return href("/admin/migrations") + "?" + stringify({ action });
 };
 
@@ -77,7 +77,7 @@ export function useDumpPostgres() {
 	const dumpPostgres = () => {
 		fetcher.submit(null, {
 			method: "post",
-			action: getActionUrl(Action.Dump),
+			action: getRouteUrl(Action.Dump),
 			encType: ContentType.JSON,
 		});
 	};

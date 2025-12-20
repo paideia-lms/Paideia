@@ -109,20 +109,18 @@ async function createUserWithAvatar(
 	if (avatarPath && avatarFilename) {
 		const avatarBuffer = await getVfsFileBuffer(vfs, avatarPath);
 		if (avatarBuffer) {
-			const media = await tryCreateMedia({
-				payload,
-				file: avatarBuffer,
-				filename: avatarFilename,
-				mimeType: "image/png",
-				alt: `${userData.firstName} ${userData.lastName} avatar`,
-				userId: user.id,
-				overrideAccess: true,
-			}).getOrThrow();
+			const avatarFile = new File(
+				[new Uint8Array(avatarBuffer)],
+				avatarFilename,
+				{
+					type: "image/png",
+				},
+			);
 
 			await tryUpdateUser({
 				payload,
 				userId: user.id,
-				data: { avatar: media.media.id },
+				data: { avatar: avatarFile },
 				overrideAccess: true,
 			}).getOrThrow();
 		}
@@ -155,29 +153,25 @@ async function createAdminUser(
 	// Create and assign admin avatar
 	const avatarBuffer = await getVfsFileBuffer(vfs, "fixture/paideia-logo.png");
 	if (avatarBuffer) {
-		const mediaResult = await tryCreateMedia({
+		const avatarFile = new File(
+			[new Uint8Array(avatarBuffer)],
+			"paideia-logo.png",
+			{
+				type: "image/png",
+			},
+		);
+
+		const updateResult = await tryUpdateUser({
 			payload,
-			file: avatarBuffer,
-			filename: "paideia-logo.png",
-			mimeType: "image/png",
-			alt: "Admin avatar",
 			userId: adminUser.id,
+			data: { avatar: avatarFile },
 			overrideAccess: true,
 		});
 
-		if (mediaResult.ok) {
-			const updateResult = await tryUpdateUser({
-				payload,
-				userId: adminUser.id,
-				data: { avatar: mediaResult.value.media.id },
-				overrideAccess: true,
-			});
-
-			if (updateResult.ok) {
-				console.log(
-					`✅ Admin avatar assigned with media ID: ${mediaResult.value.media.id}`,
-				);
-			}
+		if (updateResult.ok) {
+			console.log(
+				`✅ Admin avatar assigned with media ID: ${updateResult.value.avatar}`,
+			);
 		}
 	}
 

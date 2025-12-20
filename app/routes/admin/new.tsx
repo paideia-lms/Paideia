@@ -207,7 +207,7 @@ const createAction = async ({
 	});
 };
 
-const getActionUrl = (action: Action) => {
+const getRouteUrl = (action: Action) => {
 	return href("/admin/user/new") + "?" + stringify({ action });
 };
 
@@ -331,7 +331,7 @@ export default function NewUserPage() {
 		fetcher.submit(formData, {
 			method: "POST",
 			encType: "multipart/form-data",
-			action: getActionUrl(Action.Create),
+			action: getRouteUrl(Action.Create),
 		});
 	};
 

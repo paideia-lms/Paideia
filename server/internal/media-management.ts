@@ -35,6 +35,9 @@ export interface CreateMediaArgs extends BaseInternalFunctionArgs {
 	mimeType: string;
 	alt?: string;
 	caption?: string;
+	/**
+	 * the creator of the media
+	 */
 	userId: number;
 }
 
@@ -116,7 +119,7 @@ export const tryCreateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		console.log(`tryCreateMedia with filename: ${filename}`);
+		payload.logger.info(`tryCreateMedia with filename: ${filename}`);
 
 		// Create media record using Payload's upload functionality
 		const media = await payload
@@ -730,7 +733,6 @@ export const tryGetAllMedia = Result.wrap(
 export interface DeleteMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	id: number | number[];
-	userId: number;
 }
 
 export interface DeleteMediaResult {
@@ -746,164 +748,132 @@ export interface DeleteMediaResult {
  * 3. Deletes the media record(s) from the database
  * 4. Uses transactions to ensure atomicity
  */
-export const tryDeleteMedia = Result.wrap(
-	async (args: DeleteMediaArgs) => {
-		const {
-			payload,
-			s3Client,
-			id,
+export function tryDeleteMedia(args: DeleteMediaArgs) {
+	return Result.try(
+		async () => {
+			const { payload, s3Client, id, req, overrideAccess = false } = args;
 
-			req,
-			overrideAccess = false,
-		} = args;
+			// Validate required fields
+			if (!id) {
+				throw new InvalidArgumentError("Media ID is required");
+			}
 
-		// Validate required fields
-		if (!id) {
-			throw new InvalidArgumentError("Media ID is required");
-		}
+			if (Array.isArray(id) && id.length === 0) {
+				throw new InvalidArgumentError("At least one media ID is required");
+			}
+			// Normalize to array
+			const ids = Array.isArray(id) ? id : [id];
 
-		if (Array.isArray(id) && id.length === 0) {
-			throw new InvalidArgumentError("At least one media ID is required");
-		}
-		// Normalize to array
-		const ids = Array.isArray(id) ? id : [id];
+			const transactionInfo = await handleTransactionId(payload, req);
 
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		return transactionInfo.tx(async () => {
-			// Get the media records before deletion
-			const media = await payload
-				.find({
-					collection: "media",
-					where: {
-						id: {
-							in: ids,
-						},
-					},
-					limit: ids.length,
-
+			return transactionInfo.tx(async () => {
+				// Get the media records before deletion
+				const media = await tryGetMediaByIds({
+					payload,
+					ids,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
-				})
-				.catch((error) => {
-					interceptPayloadError({
-						error,
-						functionNamePrefix: "tryDeleteMedia",
-						args: { payload, req, overrideAccess },
-					});
-					throw error;
-				});
+				}).getOrThrow();
+				const foundMedia = media.docs;
 
-			const foundMedia = media.docs;
-
-			if (foundMedia.length === 0) {
-				throw new NonExistingMediaError(
-					`No media records found with the provided IDs`,
-				);
-			}
-
-			if (foundMedia.length !== ids.length) {
-				const foundIds = foundMedia.map((m) => m.id);
-				const missingIds = ids.filter((id) => !foundIds.includes(id));
-				throw new NonExistingMediaError(
-					`Media records not found: ${missingIds.join(", ")}`,
-				);
-			}
-
-			// Check if any media has usage before deletion
-			const mediaWithUsage: Array<{ id: number; usages: number }> = [];
-			// Use Promise.all to check usages in parallel
-			const usagesResults = await Promise.all(
-				foundMedia.map((media) =>
-					tryFindMediaUsages({
-						payload,
-						mediaId: media.id,
-
-						req: transactionInfo.reqWithTransaction,
-						overrideAccess,
-					}).then((usagesResult) => ({
-						media,
-						usagesResult,
-					})),
-				),
-			);
-
-			// Check if any media has usage
-			// or if anything is error, we rollback the transaction
-			for (const { media, usagesResult } of usagesResults) {
-				if (!usagesResult.ok) {
-					await rollbackTransactionIfCreated(payload, transactionInfo);
-					throw usagesResult.error;
+				if (foundMedia.length === 0) {
+					throw new NonExistingMediaError(
+						`No media records found with the provided IDs`,
+					);
 				}
-				if (usagesResult.value.totalUsages > 0) {
-					mediaWithUsage.push({
-						id: media.id,
-						usages: usagesResult.value.totalUsages,
-					});
+
+				if (foundMedia.length !== ids.length) {
+					const foundIds = foundMedia.map((m) => m.id);
+					const missingIds = ids.filter((id) => !foundIds.includes(id));
+					throw new NonExistingMediaError(
+						`Media records not found: ${missingIds.join(", ")}`,
+					);
 				}
-			}
 
-			// now we get all media with usage
-			// we throw error if there is any media with usage
-			if (mediaWithUsage.length > 0) {
-				const mediaIdsWithUsage = mediaWithUsage.map((m) => m.id).join(", ");
-				const totalUsages = mediaWithUsage.reduce(
-					(sum, m) => sum + m.usages,
-					0,
-				);
-				throw new MediaInUseError(
-					`Cannot delete media file(s) ${mediaIdsWithUsage} because ${totalUsages} usage${totalUsages !== 1 ? "s" : ""} found. Please remove all references before deleting.`,
-				);
-			}
-
-			// Delete files from S3 first
-			await Promise.all(
-				foundMedia
-					.filter((media) => !!media.filename)
-					.map((media) => {
-						const deleteCommand = new DeleteObjectCommand({
-							Bucket: envVars.S3_BUCKET.value,
-							Key: media.filename!,
-						});
-						return s3Client.send(deleteCommand);
-					}),
-			);
-
-			// Delete all media records from database
-			await Promise.all(
-				ids.map((mediaId) =>
-					payload
-						.delete({
-							collection: "media",
-							id: mediaId,
-
+				// Use Promise.all to check usages in parallel
+				const usagesResults = await Promise.all(
+					foundMedia.map((media) =>
+						tryFindMediaUsages({
+							payload,
+							mediaId: media.id,
 							req: transactionInfo.reqWithTransaction,
 							overrideAccess,
 						})
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: "tryDeleteMedia",
-								args: { payload, req, overrideAccess },
+							.getOrThrow()
+							.then((usagesResult) => ({
+								media,
+								usagesResult,
+							})),
+					),
+				);
+
+				// Check if any media has usage before deletion
+				const mediaWithUsage = usagesResults
+					.filter(({ usagesResult }) => usagesResult.totalUsages > 0)
+					.map(({ media, usagesResult }) => ({
+						id: media.id,
+						usages: usagesResult.totalUsages,
+					}));
+
+				// now we get all media with usage
+				// we throw error if there is any media with usage
+				if (mediaWithUsage.length > 0) {
+					const mediaIdsWithUsage = mediaWithUsage.map((m) => m.id).join(", ");
+					const totalUsages = mediaWithUsage.reduce(
+						(sum, m) => sum + m.usages,
+						0,
+					);
+					throw new MediaInUseError(
+						`Cannot delete media file(s) ${mediaIdsWithUsage} because ${totalUsages} usage${totalUsages !== 1 ? "s" : ""} found. Please remove all references before deleting.`,
+					);
+				}
+
+				// Delete files from S3 first
+				await Promise.all(
+					foundMedia
+						.filter((media) => !!media.filename)
+						.map((media) => {
+							const deleteCommand = new DeleteObjectCommand({
+								Bucket: envVars.S3_BUCKET.value,
+								Key: media.filename!,
 							});
-							throw error;
+							return s3Client.send(deleteCommand);
 						}),
-				),
-			);
+				);
 
-			await commitTransactionIfCreated(payload, transactionInfo);
+				// Delete all media records from database
+				await Promise.all(
+					ids.map((mediaId) =>
+						payload
+							.delete({
+								collection: "media",
+								id: mediaId,
+								req: transactionInfo.reqWithTransaction,
+								overrideAccess,
+							})
+							.catch((error) => {
+								interceptPayloadError({
+									error,
+									functionNamePrefix: "tryDeleteMedia",
+									args: { payload, req, overrideAccess },
+								});
+								throw error;
+							}),
+					),
+				);
 
-			return {
-				deletedMedia: foundMedia,
-			};
-		});
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to delete media", {
-			cause: error,
-		}),
-);
+				return {
+					deletedMedia: foundMedia,
+				};
+			});
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to delete media", {
+				cause: error,
+			}),
+	);
+}
 
 export interface GetMediaByMimeTypeArgs extends BaseInternalFunctionArgs {
 	mimeType: string;
@@ -1935,312 +1905,370 @@ export interface FindMediaUsagesResult {
  * 3. Handles both direct relationship fields and array fields
  * 4. Returns all usages with collection name, document ID, and field path
  */
-export const tryFindMediaUsages = Result.wrap(
-	async (args: FindMediaUsagesArgs) => {
-		const { payload, mediaId, req, overrideAccess = false } = args;
+export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
+	return Result.try(
+		async () => {
+			const { payload, mediaId, req, overrideAccess = false } = args;
 
-		// Validate media ID
-		if (!mediaId) {
-			throw new InvalidArgumentError("Media ID is required");
-		}
-
-		// Normalize media ID to number for comparison
-		const normalizedMediaId =
-			typeof mediaId === "string" ? Number.parseInt(mediaId, 10) : mediaId;
-
-		if (Number.isNaN(normalizedMediaId)) {
-			throw new InvalidArgumentError("Invalid media ID format");
-		}
-
-		// Verify media exists
-		const _media = await tryGetMediaById({
-			payload,
-			id: mediaId,
-			req,
-			overrideAccess,
-		}).getOrThrow();
-
-		// Helper function to extract media ID from logo field
-		const getLogoId = (logo: unknown): number | null => {
-			if (logo === null || logo === undefined) return null;
-			if (typeof logo === "number") return logo;
-			if (typeof logo === "object" && logo !== null && "id" in logo) {
-				return typeof logo.id === "number" ? logo.id : null;
+			// Validate media ID
+			if (!mediaId) {
+				throw new InvalidArgumentError("Media ID is required");
 			}
-			return null;
-		};
 
-		// Run all queries in parallel using Promise.all
-		const [
-			usersResult,
-			coursesThumbnailResult,
-			assignmentSubmissionsResult,
-			discussionSubmissionsResult,
-			notesResult,
-			pagesResult,
-			coursesMediaResult,
-			filesResult,
-			appearanceSettings,
-		] = await Promise.all([
-			// Search users collection for avatar field
-			payload
-				.find({
+			// Normalize media ID to number for comparison
+			const normalizedMediaId =
+				typeof mediaId === "string" ? Number.parseInt(mediaId, 10) : mediaId;
+
+			if (Number.isNaN(normalizedMediaId)) {
+				throw new InvalidArgumentError("Invalid media ID format");
+			}
+
+			// Verify media exists
+			const _media = await tryGetMediaById({
+				payload,
+				id: mediaId,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			// Helper function to extract media ID from logo field
+			const getLogoId = (logo: unknown): number | null => {
+				if (logo === null || logo === undefined) return null;
+				if (typeof logo === "number") return logo;
+				if (typeof logo === "object" && logo !== null && "id" in logo) {
+					return typeof logo.id === "number" ? logo.id : null;
+				}
+				return null;
+			};
+
+			// Run all queries in parallel using Promise.all
+			const [
+				usersResult,
+				coursesThumbnailResult,
+				assignmentSubmissionsResult,
+				discussionSubmissionsResult,
+				notesResult,
+				pagesResult,
+				coursesMediaResult,
+				filesResult,
+				appearanceSettings,
+			] = await Promise.all([
+				// Search users collection for avatar field
+				payload
+					.find({
+						collection: "users",
+						where: {
+							avatar: {
+								equals: normalizedMediaId,
+							},
+						},
+						depth: 0,
+						limit: MOCK_INFINITY,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">()),
+				// Search courses collection for thumbnail field
+				payload
+					.find({
+						collection: "courses",
+						where: {
+							thumbnail: {
+								equals: normalizedMediaId,
+							},
+						},
+						depth: 0,
+						limit: MOCK_INFINITY,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">()),
+				// Search assignment-submissions collection for attachments array
+				payload
+					.find({
+						collection: "assignment-submissions",
+						where: {
+							or: [
+								{
+									"attachments.file": {
+										intersects: [normalizedMediaId],
+									},
+								},
+							],
+						},
+						depth: 0,
+						limit: MOCK_INFINITY, // ! we don't want to limit the number of assignment submissions
+						req,
+						overrideAccess,
+					})
+					.then((result) => result.docs.map(stripDepth<0, "find">())),
+				// Search discussion-submissions collection for attachments array
+				payload
+					.find({
+						collection: "discussion-submissions",
+						depth: 0,
+						where: {
+							or: [
+								{
+									"attachments.file": {
+										intersects: [normalizedMediaId],
+									},
+								},
+							],
+						},
+						limit: MOCK_INFINITY,
+						req,
+						overrideAccess,
+					})
+					.then((result) => result.docs.map(stripDepth<0, "find">())),
+				// Search notes collection for media array
+				payload
+					.find({
+						collection: "notes",
+						depth: 0,
+						limit: MOCK_INFINITY,
+						where: {
+							or: [
+								{
+									contentMedia: {
+										intersects: [normalizedMediaId],
+									},
+								},
+							],
+						},
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">()),
+				// Search pages collection for media array
+				payload
+					.find({
+						collection: "pages",
+						depth: 0,
+						limit: MOCK_INFINITY, // ! we don't want to limit the number of pages
+						where: {
+							or: [
+								{
+									contentMedia: {
+										intersects: [normalizedMediaId],
+									},
+								},
+							],
+						},
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">()),
+				// Search courses collection for media array
+				payload
+					.find({
+						collection: "courses",
+						depth: 0,
+						limit: MOCK_INFINITY, // ! we don't want to limit the number of courses
+						where: {
+							or: [
+								{
+									descriptionMedia: {
+										intersects: [normalizedMediaId],
+									},
+								},
+								{
+									thumbnail: {
+										equals: normalizedMediaId,
+									},
+								},
+							],
+						},
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">()),
+				// Search files collection for media array (file modules)
+				payload
+					.find({
+						collection: "files",
+						depth: 0,
+						limit: MOCK_INFINITY, // ! we don't want to limit the number of files
+						where: {
+							or: [
+								{
+									media: {
+										intersects: [normalizedMediaId],
+									},
+								},
+							],
+						},
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">()),
+				// Search appearance-settings global for logo fields
+				payload
+					.findGlobal({
+						slug: "appearance-settings",
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "findGlobal">()),
+			]);
+
+			const usages: MediaUsage[] = [];
+
+			// Process users collection results
+			for (const user of usersResult.docs) {
+				usages.push({
 					collection: "users",
-					where: {
-						avatar: {
-							equals: normalizedMediaId,
-						},
-					},
-					depth: 0,
-					limit: 10000,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">()),
-			// Search courses collection for thumbnail field
-			payload
-				.find({
+					documentId: user.id,
+					fieldPath: "avatar",
+				});
+			}
+
+			// Process courses collection thumbnail results
+			for (const course of coursesThumbnailResult.docs) {
+				usages.push({
 					collection: "courses",
-					where: {
-						thumbnail: {
-							equals: normalizedMediaId,
-						},
-					},
-					depth: 0,
-					limit: 10000,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">()),
-			// Search assignment-submissions collection for attachments array
-			payload
-				.find({
-					collection: "assignment-submissions",
-					depth: 0,
-					limit: MOCK_INFINITY,
-					req,
-					overrideAccess,
-				})
-				.then((result) => result.docs.map(stripDepth<0, "find">())),
-			// Search discussion-submissions collection for attachments array
-			payload
-				.find({
-					collection: "discussion-submissions",
-					depth: 0,
-					limit: MOCK_INFINITY,
-					req,
-					overrideAccess,
-				})
-				.then((result) => result.docs.map(stripDepth<0, "find">())),
-			// Search notes collection for media array
-			payload
-				.find({
-					collection: "notes",
-					depth: 0,
-					limit: MOCK_INFINITY,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">()),
-			// Search pages collection for media array
-			payload
-				.find({
-					collection: "pages",
-					depth: 0,
-					limit: 10000,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">()),
-			// Search courses collection for media array
-			payload
-				.find({
-					collection: "courses",
-					depth: 0,
-					limit: 10000,
+					documentId: course.id,
+					fieldPath: "thumbnail",
+				});
+			}
 
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">()),
-			// Search files collection for media array (file modules)
-			payload
-				.find({
-					collection: "files",
-					depth: 0,
-					limit: 10000,
+			// Process assignment-submissions collection results
+			for (const submission of assignmentSubmissionsResult) {
+				if (submission.attachments && Array.isArray(submission.attachments)) {
+					for (let i = 0; i < submission.attachments.length; i++) {
+						const attachment = submission.attachments[i];
+						if (attachment) {
+							const fileId = attachment.file;
+							if (fileId === normalizedMediaId) {
+								usages.push({
+									collection: "assignment-submissions",
+									documentId: submission.id,
+									fieldPath: `attachments.${i}.file`,
+								});
+							}
+						}
+					}
+				}
+			}
 
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">()),
-			// Search appearance-settings global for logo fields
-			payload
-				.findGlobal({
-					slug: "appearance-settings",
+			// Process discussion-submissions collection results
+			for (const submission of discussionSubmissionsResult) {
+				if (submission.attachments && Array.isArray(submission.attachments)) {
+					for (let i = 0; i < submission.attachments.length; i++) {
+						const attachment = submission.attachments[i];
+						if (attachment) {
+							const fileId = attachment.file;
+							if (fileId === normalizedMediaId) {
+								usages.push({
+									collection: "discussion-submissions",
+									documentId: submission.id,
+									fieldPath: `attachments.${i}.file`,
+								});
+							}
+						}
+					}
+				}
+			}
 
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "findGlobal">()),
-		]);
-
-		const usages: MediaUsage[] = [];
-
-		// Process users collection results
-		for (const user of usersResult.docs) {
-			usages.push({
-				collection: "users",
-				documentId: user.id,
-				fieldPath: "avatar",
-			});
-		}
-
-		// Process courses collection thumbnail results
-		for (const course of coursesThumbnailResult.docs) {
-			usages.push({
-				collection: "courses",
-				documentId: course.id,
-				fieldPath: "thumbnail",
-			});
-		}
-
-		// Process assignment-submissions collection results
-		for (const submission of assignmentSubmissionsResult) {
-			if (submission.attachments && Array.isArray(submission.attachments)) {
-				for (let i = 0; i < submission.attachments.length; i++) {
-					const attachment = submission.attachments[i];
-					if (attachment) {
-						const fileId = attachment.file;
-						if (fileId === normalizedMediaId) {
+			// Process notes collection results
+			for (const note of notesResult.docs) {
+				if (note.contentMedia && Array.isArray(note.contentMedia)) {
+					for (let i = 0; i < note.contentMedia.length; i++) {
+						const mediaId = note.contentMedia[i]!;
+						if (mediaId === normalizedMediaId) {
 							usages.push({
-								collection: "assignment-submissions",
-								documentId: submission.id,
-								fieldPath: `attachments.${i}.file`,
+								collection: "notes",
+								documentId: note.id,
+								fieldPath: `contentMedia.${i}`,
 							});
 						}
 					}
 				}
 			}
-		}
 
-		// Process discussion-submissions collection results
-		for (const submission of discussionSubmissionsResult) {
-			if (submission.attachments && Array.isArray(submission.attachments)) {
-				for (let i = 0; i < submission.attachments.length; i++) {
-					const attachment = submission.attachments[i];
-					if (attachment) {
-						const fileId = attachment.file;
-						if (fileId === normalizedMediaId) {
+			// Process pages collection results
+			for (const page of pagesResult.docs) {
+				if (page.contentMedia && Array.isArray(page.contentMedia)) {
+					for (let i = 0; i < page.contentMedia.length; i++) {
+						const mediaId = page.contentMedia[i]!;
+						if (mediaId === normalizedMediaId) {
 							usages.push({
-								collection: "discussion-submissions",
-								documentId: submission.id,
-								fieldPath: `attachments.${i}.file`,
+								collection: "pages",
+								documentId: page.id,
+								fieldPath: `contentMedia.${i}`,
 							});
 						}
 					}
 				}
 			}
-		}
 
-		// Process notes collection results
-		for (const note of notesResult.docs) {
-			if (note.contentMedia && Array.isArray(note.contentMedia)) {
-				for (let i = 0; i < note.contentMedia.length; i++) {
-					const mediaId = note.contentMedia[i]!;
-					if (mediaId === normalizedMediaId) {
+			// Process courses collection media array results
+			for (const course of coursesMediaResult.docs) {
+				if (course.descriptionMedia && Array.isArray(course.descriptionMedia)) {
+					for (let i = 0; i < course.descriptionMedia.length; i++) {
+						const mediaId = course.descriptionMedia[i]!;
+						if (mediaId === normalizedMediaId) {
+							usages.push({
+								collection: "courses",
+								documentId: course.id,
+								fieldPath: `descriptionMedia.${i}`,
+							});
+						}
+					}
+				}
+			}
+
+			// Process files collection results (file modules)
+			for (const file of filesResult.docs) {
+				if (file.media && Array.isArray(file.media)) {
+					for (let i = 0; i < file.media.length; i++) {
+						const mediaId = file.media[i]!;
+						if (mediaId === normalizedMediaId) {
+							usages.push({
+								collection: "files",
+								documentId: file.id,
+								fieldPath: `descriptionMedia.${i}`,
+							});
+						}
+					}
+				}
+			}
+
+			// Process appearance-settings global results
+			if (appearanceSettings) {
+				// Check all 6 logo fields
+				const logoFields = [
+					{ field: "logoLight", fieldPath: "logoLight" },
+					{ field: "logoDark", fieldPath: "logoDark" },
+					{ field: "compactLogoLight", fieldPath: "compactLogoLight" },
+					{ field: "compactLogoDark", fieldPath: "compactLogoDark" },
+					{ field: "faviconLight", fieldPath: "faviconLight" },
+					{ field: "faviconDark", fieldPath: "faviconDark" },
+				] as const;
+
+				for (const { field, fieldPath } of logoFields) {
+					const logoId = getLogoId(
+						appearanceSettings[field as keyof typeof appearanceSettings],
+					);
+					if (logoId === normalizedMediaId) {
 						usages.push({
-							collection: "notes",
-							documentId: note.id,
-							fieldPath: `contentMedia.${i}`,
+							collection: "appearance-settings",
+							documentId: appearanceSettings.id,
+							fieldPath,
 						});
 					}
 				}
 			}
-		}
 
-		// Process pages collection results
-		for (const page of pagesResult.docs) {
-			if (page.contentMedia && Array.isArray(page.contentMedia)) {
-				for (let i = 0; i < page.contentMedia.length; i++) {
-					const mediaId = page.contentMedia[i]!;
-					if (mediaId === normalizedMediaId) {
-						usages.push({
-							collection: "pages",
-							documentId: page.id,
-							fieldPath: `contentMedia.${i}`,
-						});
-					}
-				}
-			}
-		}
-
-		// Process courses collection media array results
-		for (const course of coursesMediaResult.docs) {
-			if (course.descriptionMedia && Array.isArray(course.descriptionMedia)) {
-				for (let i = 0; i < course.descriptionMedia.length; i++) {
-					const mediaId = course.descriptionMedia[i]!;
-					if (mediaId === normalizedMediaId) {
-						usages.push({
-							collection: "courses",
-							documentId: course.id,
-							fieldPath: `descriptionMedia.${i}`,
-						});
-					}
-				}
-			}
-		}
-
-		// Process files collection results (file modules)
-		for (const file of filesResult.docs) {
-			if (file.media && Array.isArray(file.media)) {
-				for (let i = 0; i < file.media.length; i++) {
-					const mediaId = file.media[i]!;
-					if (mediaId === normalizedMediaId) {
-						usages.push({
-							collection: "files",
-							documentId: file.id,
-							fieldPath: `descriptionMedia.${i}`,
-						});
-					}
-				}
-			}
-		}
-
-		// Process appearance-settings global results
-		if (appearanceSettings) {
-			// Check all 6 logo fields
-			const logoFields = [
-				{ field: "logoLight", fieldPath: "logoLight" },
-				{ field: "logoDark", fieldPath: "logoDark" },
-				{ field: "compactLogoLight", fieldPath: "compactLogoLight" },
-				{ field: "compactLogoDark", fieldPath: "compactLogoDark" },
-				{ field: "faviconLight", fieldPath: "faviconLight" },
-				{ field: "faviconDark", fieldPath: "faviconDark" },
-			] as const;
-
-			for (const { field, fieldPath } of logoFields) {
-				const logoId = getLogoId(
-					appearanceSettings[field as keyof typeof appearanceSettings],
-				);
-				if (logoId === normalizedMediaId) {
-					usages.push({
-						collection: "appearance-settings",
-						documentId: appearanceSettings.id,
-						fieldPath,
-					});
-				}
-			}
-		}
-
-		return {
-			usages,
-			totalUsages: usages.length,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to find media usages", {
-			cause: error,
-		}),
-);
+			return {
+				usages,
+				totalUsages: usages.length,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to find media usages", {
+				cause: error,
+			}),
+	);
+}

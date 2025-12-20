@@ -50,7 +50,7 @@ export const participantActionSearchParams = {
 
 export const loadSearchParams = createLoader(participantActionSearchParams);
 
-const getActionUrl = (action: Action, courseId: string) => {
+const getRouteUrl = (action: Action, courseId: string) => {
 	return (
 		href("/course/:courseId/participants", {
 			courseId,
@@ -308,7 +308,7 @@ function useEnrollUser(courseId: string) {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.Enroll, courseId),
+				action: getRouteUrl(Action.Enroll, courseId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -339,7 +339,7 @@ function useEditEnrollment(courseId: string) {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.EditEnrollment, courseId),
+				action: getRouteUrl(Action.EditEnrollment, courseId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -362,7 +362,7 @@ function useDeleteEnrollment(courseId: string) {
 			},
 			{
 				method: "POST",
-				action: getActionUrl(Action.DeleteEnrollment, courseId),
+				action: getRouteUrl(Action.DeleteEnrollment, courseId),
 				encType: ContentType.JSON,
 			},
 		);

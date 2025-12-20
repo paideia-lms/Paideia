@@ -2,7 +2,7 @@ import { useFetcher, href } from "react-router";
 import { type clientAction, Action } from "./route";
 import { stringify } from "qs";
 
-const getActionUrl = (action: Action, moduleLinkId: number) => {
+const getRouteUrl = (action: Action, moduleLinkId: number) => {
 	return (
 		href("/course/module/:moduleLinkId/submissions", {
 			moduleLinkId: moduleLinkId.toString(),
@@ -25,7 +25,7 @@ export const useDeleteSubmission = () => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.DeleteSubmission, moduleLinkId),
+			action: getRouteUrl(Action.DeleteSubmission, moduleLinkId),
 		});
 	};
 
@@ -54,7 +54,7 @@ export const useGradeSubmission = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.GradeSubmission, moduleLinkId),
+			action: getRouteUrl(Action.GradeSubmission, moduleLinkId),
 		});
 	};
 
@@ -75,7 +75,7 @@ export const useReleaseGrade = (moduleLinkId: number) => {
 		formData.append("enrollmentId", String(enrollmentId));
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.ReleaseGrade, moduleLinkId),
+			action: getRouteUrl(Action.ReleaseGrade, moduleLinkId),
 		});
 	};
 

@@ -160,7 +160,7 @@ const createCreateDiscussionActionRpc = createActionRpc({
 	action: Action.CreateDiscussion,
 });
 
-const getActionUrl = (action: Action) => {
+const getRouteUrl = (action: Action) => {
 	return href("/user/module/new") + "?" + stringify({ action });
 };
 
@@ -191,7 +191,7 @@ const [createPageAction, useCreatePage] = createCreatePageActionRpc(serverOnly$(
 		message: "Module created successfully",
 	});
 })!, {
-	action: ({ searchParams }) => getActionUrl(searchParams.action),
+	action: ({ searchParams }) => getRouteUrl(searchParams.action),
 });
 
 const [createWhiteboardAction, useCreateWhiteboard] = createCreateWhiteboardActionRpc(serverOnly$(async ({
@@ -221,7 +221,7 @@ const [createWhiteboardAction, useCreateWhiteboard] = createCreateWhiteboardActi
 		message: "Module created successfully",
 	});
 })!, {
-	action: ({ searchParams }) => getActionUrl(searchParams.action),
+	action: ({ searchParams }) => getRouteUrl(searchParams.action),
 });
 
 const [createFileAction, useCreateFile] = createCreateFileActionRpc(serverOnly$(async ({
@@ -251,7 +251,7 @@ const [createFileAction, useCreateFile] = createCreateFileActionRpc(serverOnly$(
 		message: "Module created successfully",
 	});
 })!, {
-	action: ({ searchParams }) => getActionUrl(searchParams.action),
+	action: ({ searchParams }) => getRouteUrl(searchParams.action),
 });
 
 const [createAssignmentAction, useCreateAssignment] = createCreateAssignmentActionRpc(serverOnly$(async ({
@@ -292,7 +292,7 @@ const [createAssignmentAction, useCreateAssignment] = createCreateAssignmentActi
 		message: "Module created successfully",
 	});
 })!, {
-	action: ({ searchParams }) => getActionUrl(searchParams.action),
+	action: ({ searchParams }) => getRouteUrl(searchParams.action),
 });
 
 const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(serverOnly$(async ({
@@ -326,7 +326,7 @@ const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(serverOnly$(
 		message: "Module created successfully",
 	});
 })!, {
-	action: ({ searchParams }) => getActionUrl(searchParams.action),
+	action: ({ searchParams }) => getRouteUrl(searchParams.action),
 });
 
 const [createDiscussionAction, useCreateDiscussion] = createCreateDiscussionActionRpc(serverOnly$(async ({
@@ -360,7 +360,7 @@ const [createDiscussionAction, useCreateDiscussion] = createCreateDiscussionActi
 		message: "Module created successfully",
 	});
 })!, {
-	action: ({ searchParams }) => getActionUrl(searchParams.action),
+	action: ({ searchParams }) => getRouteUrl(searchParams.action),
 });
 
 const actionMap = {

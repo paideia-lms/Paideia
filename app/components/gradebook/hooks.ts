@@ -14,7 +14,7 @@ enum Action {
 	GetCategory = "get-category",
 }
 
-const getActionUrl = (action: Action, courseId: number) => {
+const getRouteUrl = (action: Action, courseId: number) => {
 	return (
 		href("/course/:courseId/grades", {
 			courseId: courseId.toString(),
@@ -42,7 +42,7 @@ export function useCreateGradeItem() {
 		fetcher.submit(values, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: getActionUrl(Action.CreateItem, courseId),
+			action: getRouteUrl(Action.CreateItem, courseId),
 		});
 	};
 
@@ -68,7 +68,7 @@ export function useCreateCategory() {
 		fetcher.submit(values, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: getActionUrl(Action.CreateCategory, courseId),
+			action: getRouteUrl(Action.CreateCategory, courseId),
 		});
 	};
 
@@ -102,7 +102,7 @@ export function useUpdateGradeItem() {
 		fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: getActionUrl(Action.UpdateItem, courseId),
+			action: getRouteUrl(Action.UpdateItem, courseId),
 		});
 	};
 
@@ -133,7 +133,7 @@ export function useUpdateGradeCategory() {
 		fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: getActionUrl(Action.UpdateCategory, courseId),
+			action: getRouteUrl(Action.UpdateCategory, courseId),
 		});
 	};
 
@@ -153,7 +153,7 @@ export function useDeleteGradeItem() {
 			{
 				method: "POST",
 				encType: ContentType.JSON,
-				action: getActionUrl(Action.DeleteItem, courseId),
+				action: getRouteUrl(Action.DeleteItem, courseId),
 			},
 		);
 	};
@@ -174,7 +174,7 @@ export function useDeleteGradeCategory() {
 			{
 				method: "POST",
 				encType: ContentType.JSON,
-				action: getActionUrl(Action.DeleteCategory, courseId),
+				action: getRouteUrl(Action.DeleteCategory, courseId),
 			},
 		);
 	};

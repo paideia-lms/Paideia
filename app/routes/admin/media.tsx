@@ -405,7 +405,6 @@ const deleteMediaAction = serverOnly$(
 					payload,
 					s3Client,
 					id: mediaIds,
-					userId: currentUser.id,
 					req: reqWithTransaction,
 				});
 
@@ -549,7 +548,7 @@ const pruneAllOrphanedMediaAction = serverOnly$(
 	},
 )!;
 
-const getActionUrl = (action: Action) => {
+const getRouteUrl = (action: Action) => {
 	return href("/admin/media") + "?" + stringify({ action });
 };
 
@@ -632,7 +631,7 @@ export function useDeleteMedia() {
 		formData.append("mediaIds", ids.join(","));
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.DeleteMedia),
+			action: getRouteUrl(Action.DeleteMedia),
 		});
 	};
 	return {
@@ -663,7 +662,7 @@ export function useRenameMedia() {
 		formData.append("newFilename", newFilename);
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.UpdateMedia),
+			action: getRouteUrl(Action.UpdateMedia),
 		});
 	};
 
@@ -683,7 +682,7 @@ export function useDeleteOrphanedMedia() {
 		formData.append("filenames", names.join(","));
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.DeleteOrphanedMedia),
+			action: getRouteUrl(Action.DeleteOrphanedMedia),
 		});
 	};
 
@@ -1949,7 +1948,7 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 		const formData = new FormData();
 		orphanedFetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(Action.PruneAllOrphanedMedia),
+			action: getRouteUrl(Action.PruneAllOrphanedMedia),
 		});
 	};
 

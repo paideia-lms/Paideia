@@ -96,7 +96,7 @@ export const tryGetUserModuleContext = Result.wrap(
 		// Fetch linked courses with enrollments
 
 		const [module, links, grants, instructors] = await Promise.all([
-			await tryGetActivityModuleById({
+			tryGetActivityModuleById({
 				payload,
 				id: moduleId,
 				req,
