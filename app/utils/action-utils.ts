@@ -8,6 +8,7 @@ import { paramsSchema, type ParamsType } from "~/utils/routes-utils";
 import { isRequestMethod } from "~/utils/assert-request-method";
 import { createLoader, parseAsStringEnum, type ParserMap } from "nuqs/server";
 import { ContentType } from "~/utils/get-content-type";
+import type { SetOptional } from "type-fest";
 
 /**
  * Special marker used to represent null values in FormData.
@@ -213,18 +214,17 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 			? Simplify<BaseArgs & { formData: z.infer<FormDataSchema> }>
 			: Simplify<BaseArgs>;
 
-		const _action = mergedSearchParams?.action
-			.defaultValue as SearchParamsType["action"];
+		const _action = mergedSearchParams?.action.defaultValue;
 
 		type OtherSearchParams = Omit<SearchParamsType, "action">;
 
 		return <A extends (args: ArgsWithFormData) => ReturnType<A>>(
 			a: A,
 			options: {
-				action: (
-					params: Params["params"],
-					searchParams: SearchParamsType,
-				) => string;
+				action: (args: {
+					params: Params["params"];
+					searchParams: SearchParamsType;
+				}) => string;
 			},
 		) => {
 			const action = serverOnly$(async (args: T) => {
@@ -269,10 +269,11 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 				// parse form data if schema is provided
 				if (formDataSchema) {
-					const parsed = await request
+					const object = await request
 						.formData()
-						.then(convertMyFormDataToObject)
-						.then(formDataSchema.safeParse);
+						.then(convertMyFormDataToObject);
+					console.log(object);
+					const parsed = formDataSchema.safeParse(object);
 
 					if (!parsed.success) {
 						return badRequest({
@@ -296,19 +297,25 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 				const submit = async (
 					args: Simplify<
 						{
-							params: Params["params"];
 							values: z.infer<FormDataSchema>;
 						} & (keyof OtherSearchParams extends never
 							? { searchParams?: OtherSearchParams }
-							: { searchParams: OtherSearchParams })
+							: { searchParams: OtherSearchParams }) &
+							(keyof Params["params"] extends never
+								? { params?: Params["params"] }
+								: { params: Params["params"] })
 					>,
 				) => {
 					const providedSearchParams =
 						"searchParams" in args ? args.searchParams : {};
-					const url = options.action(args.params, {
-						...providedSearchParams,
-						action: _action,
-					} as unknown as SearchParamsType);
+					const providedParams = "params" in args ? args.params : {};
+					const url = options.action({
+						params: providedParams as Params["params"],
+						searchParams: {
+							...providedSearchParams,
+							action: _action,
+						} as unknown as SearchParamsType,
+					});
 
 					await fetcher.submit(
 						new MyFormData(

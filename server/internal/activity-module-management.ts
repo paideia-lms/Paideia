@@ -106,7 +106,7 @@ export interface CreateDiscussionModuleArgs
 }
 
 export interface CreateFileModuleArgs extends BaseCreateActivityModuleArgs {
-	media?: number[];
+	media?: File[];
 }
 
 export type CreateActivityModuleArgs =
@@ -905,7 +905,25 @@ export const tryCreateFileModule = Result.wrap(
 				.create({
 					collection: "files",
 					data: {
-						media: media || [],
+						media: media
+							? await Promise.all(
+									media.map(async (m) => {
+										const buffer = Buffer.from(await m.arrayBuffer());
+										const createMediaResult = await tryCreateMedia({
+											payload,
+											file: buffer,
+											filename: m.name ?? "unknown",
+											mimeType: m.type ?? "application/octet-stream",
+											alt: "File attachment",
+											caption: "File attachment",
+											userId,
+											req: reqWithTransaction,
+											overrideAccess,
+										}).getOrThrow();
+										return createMediaResult.media.id;
+									}),
+								)
+							: undefined,
 						createdBy: userId,
 					},
 					req: reqWithTransaction,

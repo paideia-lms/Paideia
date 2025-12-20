@@ -128,8 +128,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -178,10 +178,11 @@ export const action = async ({
 	}
 
 	// Get form data and convert to object
-	const parse = await request
+	const object = await request
 		.formData()
-		.then(convertMyFormDataToObject)
-		.then(actionInputSchema.safeParse);
+		.then(convertMyFormDataToObject);
+	console.log(object);
+	const parse = actionInputSchema.safeParse(object)
 
 	if (!parse.success) {
 		return badRequest({
@@ -432,6 +433,8 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			values,
 			(value, key) => form.getInitialValues()[key] === value,
 		);
+
+		console.log(data);
 
 		await editCourse(course.id, data);
 	};
