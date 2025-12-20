@@ -1,116 +1,215 @@
 import { z } from "zod";
 import type { ActionFunctionArgs } from "react-router";
-import { useFetcher } from "react-router";
+import { data, useFetcher } from "react-router";
 import type { Simplify, UnionToIntersection } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest } from "~/utils/responses";
-import { paramsSchema, type ParamsType } from "~/utils/routes-utils";
+import { paramsSchema, type ParamsType } from "./params-schema";
 import { isRequestMethod } from "~/utils/assert-request-method";
 import { createLoader, parseAsStringEnum, type ParserMap } from "nuqs/server";
 import { ContentType } from "~/utils/get-content-type";
-import type { SetOptional } from "type-fest";
 
 /**
- * Special marker used to represent null values in FormData.
- * This marker is extremely unlikely to be used by users.
- * If a user needs to send this exact string, they should JSON.stringify it
- * as part of an object, which will escape it properly.
+ * Special marker used to represent explicit null values.
  */
 export const NULL_MARKER = "\0__FORM_NULL__\0";
 
 /**
+ * Prefix for keys used to store extracted Blobs in the FormData.
+ * We use a null character and specific prefix to avoid collisions with user data.
+ */
+export const BLOB_REF_PREFIX = "\0__BLOB_REF__:";
+
+/**
+ * Helper to generate a unique ID for blobs.
+ */
+function generateBlobId(): string {
+	return `${BLOB_REF_PREFIX}${Math.random().toString(36).slice(2)}_${Date.now()}`;
+}
+
+/**
+ * Checks if a string is a blob reference.
+ * Handles both with and without null character prefix (FormData may normalize keys).
+ * Also handles escaped null characters (\u0000) that may appear after JSON serialization.
+ */
+function isBlobRef(value: any): value is string {
+	if (typeof value !== "string") return false;
+	// Check for actual null character prefix
+	if (value.startsWith(BLOB_REF_PREFIX)) return true;
+	// Check for escaped null character (\u0000) after JSON.parse
+	if (value.charCodeAt(0) === 0 && value.length > 1 && value[1] === "_")
+		return true;
+	// Check for literal escaped null (\u0000)
+	if (value.startsWith("\\u0000__BLOB_REF__:")) return true;
+	// Check for normalized key without null character
+	if (value.startsWith("__BLOB_REF__:")) return true;
+	// Also check if it contains the pattern (in case of any other normalization)
+	return /^[\0\\u0000]?__BLOB_REF__:/.test(value);
+}
+
+export function normalizeBlobRef(data: string): string {
+	if (data.charCodeAt(0) === 0 && data.startsWith(BLOB_REF_PREFIX)) {
+		// Remove the first null character
+		return data.slice(1);
+	}
+	if (data.startsWith("__BLOB_REF__:")) {
+		return BLOB_REF_PREFIX + data.slice(2);
+	}
+	return data.slice(6);
+}
+
+/**
+ * Recursively traverses an object to restore Blobs from the FormData
+ * by matching the unique reference IDs.
+ */
+function restoreBlobsInObject(data: any, formData: FormData): any {
+	if (!data) return data;
+
+	if (Array.isArray(data)) {
+		return data.map((item) => restoreBlobsInObject(item, formData));
+	}
+
+	if (typeof data === "object") {
+		// If it's a plain object, recurse through values
+		const restored: any = {};
+		for (const [key, value] of Object.entries(data)) {
+			restored[key] = restoreBlobsInObject(value, formData);
+		}
+		return restored;
+	}
+
+	// Check if this primitive value is actually a reference to a Blob
+	if (isBlobRef(data)) {
+		// Normalize the reference to consistent format without null character
+		const normalizedRef = normalizeBlobRef(data);
+
+		// Try to get the blob using the FormData key format. Try both format.
+		// ! for some reason, in bun test, format 2 will work. in react router, format 1 will work
+		const blob = formData.get(normalizedRef);
+		const blob2 = formData.get("\0" + normalizedRef);
+
+		// If we found the blob, return it. Otherwise (rare error case), keep string.
+		return blob instanceof Blob ? blob : blob2 instanceof Blob ? blob2 : data;
+	}
+
+	return data;
+}
+
+/**
  * Converts FormData (including MyFormData) to a plain object.
- * Handles the special NULL_MARKER, JSON parsing, and preserves Files.
- * This function can be used on both client and server side.
- *
- * @param formData - The FormData instance to convert
- * @returns A plain object with parsed values
+ * Handles NULL_MARKER, JSON parsing, and recursively restores Blobs.
  */
 export function convertMyFormDataToObject<T = Record<string, unknown>>(
 	formData: FormData,
 ): T {
-	const f = Object.fromEntries(formData);
-	const data = Object.fromEntries(
-		Object.entries(f)
-			// Filter out the dummy field added for empty FormData
-			.filter(([key]) => key !== "__empty__")
-			.map(([key, value]) => {
-				// Files should be preserved as-is
-				if (value instanceof File) {
-					return [key, value];
-				}
+	const result: any = {};
+	const entries = formData.entries() as unknown as [string, string | Blob][];
 
-				const stringValue = value as string;
+	// 1. Iterate over all entries in the FormData
+	for (const [key, value] of entries) {
+		// Skip the internal fields (Blobs stored by ID and empty markers)
+		if (key === "__empty__" || isBlobRef(key)) {
+			continue;
+		}
 
-				// Check if this is our null marker
-				if (stringValue === NULL_MARKER) {
-					return [key, null];
-				}
+		let parsedValue: any = value;
 
-				// Try to parse as JSON (handles objects, arrays, numbers, booleans, and JSON strings)
-				// Falls back to original value if parsing fails
-				try {
-					const parsed = JSON.parse(stringValue);
-					return [key, parsed];
-				} catch {
-					// Not valid JSON, return as string
-					// This shouldn't happen if we're using MyFormData correctly,
-					// but handle it gracefully
-					return [key, stringValue];
-				}
-			}),
-	) as T;
+		// 2. Handle Files/Blobs directly appended (not through MyFormData)
+		if (value instanceof Blob) {
+			result[key] = value;
+			continue;
+		}
+
+		// 3. Handle Top-Level Nulls
+		if (value === NULL_MARKER) {
+			parsedValue = null;
+		}
+		// 4. Handle JSON Strings (Everything else is stored as JSON)
+		else if (typeof value === "string") {
+			try {
+				parsedValue = JSON.parse(value);
+			} catch {
+				// Fallback for non-JSON simple strings
+				parsedValue = value;
+			}
+		}
+
+		// 5. Recursively restore Blobs within the parsed structure
+		// This finds any "__BLOB_REF__:xyz" strings and replaces them with the actual File
+		result[key] = restoreBlobsInObject(parsedValue, formData);
+	}
+
+	return result as T;
+}
+
+/**
+ * Helper to traverse data, extract Blobs, and replace them with reference strings.
+ * Returns the "clean" data and a Map of extracted Blobs.
+ */
+function extractBlobsAndReplace(
+	data: any,
+	extractedBlobs: Map<string, Blob>,
+): any {
+	if (data === undefined) return undefined;
+
+	// 1. Found a Blob!
+	if (data instanceof Blob) {
+		const refId = generateBlobId();
+		extractedBlobs.set(refId, data);
+		return refId; // Replace the Blob with its Reference ID in the object tree
+	}
+
+	// 2. Handle Arrays
+	if (Array.isArray(data)) {
+		return data.map((item) => extractBlobsAndReplace(item, extractedBlobs));
+	}
+
+	// 3. Handle Objects (excluding null)
+	if (data !== null && typeof data === "object") {
+		const cleanObj: any = {};
+		for (const [key, value] of Object.entries(data)) {
+			const cleanValue = extractBlobsAndReplace(value, extractedBlobs);
+			if (cleanValue !== undefined) {
+				cleanObj[key] = cleanValue;
+			}
+		}
+		return cleanObj;
+	}
+
+	// 4. Return primitives as-is
 	return data;
 }
 
-export class MyFormData<
-	T extends Record<
-		string,
-		Blob | string | object | boolean | number | null | undefined
-	>,
-> extends FormData {
+export class MyFormData<T extends Record<string, any>> extends FormData {
 	constructor(data: T) {
 		super();
 		let hasAnyField = false;
 
 		for (const [key, value] of Object.entries(data)) {
-			// Skip undefined values (don't append to FormData)
-			if (value === undefined) {
-				continue;
-			}
-
+			if (value === undefined) continue;
 			hasAnyField = true;
 
-			// Send null as special marker to distinguish from undefined and string "null"
+			// Handle explicit null
 			if (value === null) {
 				this.append(key, NULL_MARKER);
 				continue;
 			}
 
-			// For strings, we need to handle the edge case where string is "null"
-			// We JSON.stringify it to preserve it and distinguish from actual null
-			if (typeof value === "string") {
-				this.append(key, JSON.stringify(value));
-				continue;
+			// Extract Blobs from the value (deeply)
+			const extractedBlobs = new Map<string, Blob>();
+			const cleanValue = extractBlobsAndReplace(value, extractedBlobs);
+
+			// 1. Append the extracted Blobs to the root of FormData
+			// These act as a "sidecar" storage for the binaries
+			for (const [refId, blob] of extractedBlobs) {
+				this.append(refId, blob);
 			}
 
-			this.append(
-				key,
-				value instanceof Blob
-					? value
-					: typeof value === "object"
-						? JSON.stringify(value)
-						: typeof value === "boolean"
-							? value.toString()
-							: typeof value === "number"
-								? value.toString()
-								: value,
-			);
+			// 2. Append the structure (now containing reference strings instead of Blobs)
+			// We stringify it so types (boolean, number) are preserved distinct from strings
+			this.append(key, JSON.stringify(cleanValue));
 		}
 
-		// If FormData is empty (all values were undefined or object was empty),
-		// add a dummy field to ensure the request is valid
-		// This prevents "fail to fetch" errors when submitting empty FormData
 		if (!hasAnyField) {
 			this.append("__empty__", "true");
 		}
@@ -269,13 +368,13 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 				// parse form data if schema is provided
 				if (formDataSchema) {
-					const object = await request
+					const parsed = await request
 						.formData()
-						.then(convertMyFormDataToObject);
-					console.log(object);
-					const parsed = formDataSchema.safeParse(object);
+						.then(convertMyFormDataToObject)
+						.then(formDataSchema.safeParse);
 
 					if (!parsed.success) {
+						console.log(parsed.error);
 						return badRequest({
 							success: false,
 							error: z.prettifyError(parsed.error),
