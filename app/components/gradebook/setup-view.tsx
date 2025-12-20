@@ -27,7 +27,7 @@ import {
 import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
-import { useDeleteGradeCategory, useDeleteGradeItem } from "./hooks";
+import { useDeleteCategory, useDeleteItem } from "~/routes/course.$id.grades";
 import {
 	CreateCategoryModal,
 	type CreateCategoryModalHandle,
@@ -134,8 +134,8 @@ function GradebookItemRow({
 	const isExpanded = expandedCategoryIds.includes(item.id);
 
 	// Instantiate delete hooks
-	const { deleteGradeItem } = useDeleteGradeItem();
-	const { deleteGradeCategory } = useDeleteGradeCategory();
+	const { submit: deleteGradeItem } = useDeleteItem();
+	const { submit: deleteGradeCategory } = useDeleteCategory();
 
 	// Calculate padding based on depth (xl = ~24px per level)
 	const paddingLeft = depth * 24;
@@ -298,7 +298,10 @@ function GradebookItemRow({
 											"Are you sure you want to delete this category? The category must be empty (no items or subcategories) to be deleted.",
 										)
 									) {
-										deleteGradeCategory(courseId, item.id);
+										deleteGradeCategory({
+											values: { categoryId: item.id },
+											params: { courseId },
+										});
 									}
 								}}
 							>
@@ -317,7 +320,10 @@ function GradebookItemRow({
 											"Are you sure you want to delete this gradebook item?",
 										)
 									) {
-										deleteGradeItem(courseId, item.id);
+										deleteGradeItem({
+											values: { itemId: item.id },
+											params: { courseId },
+										});
 									}
 								}}
 							>

@@ -4,9 +4,13 @@ import {
 	createLoader,
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
+import { stringify } from "qs";
+import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { typeCreateActionRpc } from "app/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import {
 	tryCreateGradebookCategory,
 	tryDeleteGradebookCategory,
@@ -26,7 +30,6 @@ import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-m
 import { z } from "zod";
 import { GraderReportView } from "~/components/gradebook/report-view";
 import { GradebookSetupView } from "~/components/gradebook/setup-view";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
 
@@ -49,61 +52,101 @@ export const gradesSearchParams = {
 
 export const loadSearchParams = createLoader(gradesSearchParams);
 
-// ============================================================================
-// Schemas
-// ============================================================================
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
-const createItemSchema = z.object({
-	name: z.string().min(1, "Name is required"),
-	description: z.string().optional(),
-	categoryId: z.coerce.number().optional().nullable(),
-	maxGrade: z.coerce.number().optional(),
-	minGrade: z.coerce.number().optional(),
-	weight: z.coerce.number().nullable(),
-	extraCredit: z.boolean().optional(),
+const createCreateItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().min(1, "Name is required"),
+		description: z.string().optional(),
+		categoryId: z.coerce.number().optional().nullable(),
+		maxGrade: z.coerce.number().optional(),
+		minGrade: z.coerce.number().optional(),
+		weight: z.coerce.number().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.CreateItem,
 });
 
-const createCategorySchema = z.object({
-	name: z.string().min(1, "Name is required"),
-	description: z.string().optional(),
-	parentId: z.coerce.number().optional().nullable(),
-	extraCredit: z.boolean().optional(),
+const createCreateCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().min(1, "Name is required"),
+		description: z.string().optional(),
+		parentId: z.coerce.number().optional().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.CreateCategory,
 });
 
-const updateItemSchema = z.object({
-	itemId: z.coerce.number(),
-	name: z.string().min(1, "Name is required").optional(),
-	description: z.string().optional(),
-	categoryId: z.coerce.number().optional().nullable(),
-	maxGrade: z.coerce.number().optional(),
-	minGrade: z.coerce.number().optional(),
-	weight: z.coerce.number().nullable(),
-	extraCredit: z.boolean().optional(),
+const createUpdateItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		itemId: z.coerce.number(),
+		name: z.string().min(1, "Name is required").optional(),
+		description: z.string().optional(),
+		categoryId: z.coerce.number().optional().nullable(),
+		maxGrade: z.coerce.number().optional(),
+		minGrade: z.coerce.number().optional(),
+		weight: z.coerce.number().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.UpdateItem,
 });
 
-const updateCategorySchema = z.object({
-	categoryId: z.coerce.number(),
-	name: z.string().min(1, "Name is required").optional(),
-	description: z.string().optional(),
-	weight: z.coerce.number().nullable(),
-	extraCredit: z.boolean().optional(),
+const createUpdateCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+		name: z.string().min(1, "Name is required").optional(),
+		description: z.string().optional(),
+		weight: z.coerce.number().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.UpdateCategory,
 });
 
-const getItemSchema = z.object({
-	itemId: z.coerce.number(),
+const createGetItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		itemId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.GetItem,
 });
 
-const getCategorySchema = z.object({
-	categoryId: z.coerce.number(),
+const createGetCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.GetCategory,
 });
 
-const deleteItemSchema = z.object({
-	itemId: z.coerce.number(),
+const createDeleteItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		itemId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.DeleteItem,
 });
 
-const deleteCategorySchema = z.object({
-	categoryId: z.coerce.number(),
+const createDeleteCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.DeleteCategory,
 });
+
+const getRouteUrl = (action: Action, courseId: number) => {
+	return (
+		href("/course/:courseId/grades", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
 
 // ============================================================================
 // Loader
@@ -152,313 +195,330 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-// ============================================================================
-// Action Handlers
-// ============================================================================
+const [createItemAction, useCreateItem] = createCreateItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!courseContext)
+			throw new ForbiddenResponse("Course not found or access denied");
 
-async function createItemAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const courseContext = context.get(courseContextKey);
-	if (!courseContext)
-		throw new ForbiddenResponse("Course not found or access denied");
+		// Get gradebook
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
+			payload,
+			courseId: courseContext.course.id,
+			req: payloadRequest,
+		});
+		if (!gradebookResult.ok)
+			return badRequest({ error: "Gradebook not found for this course" });
+		const gradebook = gradebookResult.value;
 
-	// Get gradebook
-	const gradebookResult = await tryGetGradebookByCourseWithDetails({
-		payload,
-		courseId: courseContext.course.id,
-		req: payloadRequest,
-	});
-	if (!gradebookResult.ok)
-		return badRequest({ error: "Gradebook not found for this course" });
-	const gradebook = gradebookResult.value;
+		// Get next sort order
+		const sortOrderResult = await tryGetNextItemSortOrder({
+			payload,
+			gradebookId: gradebook.id,
+			categoryId: formData.categoryId ?? null,
+			req: payloadRequest,
+		});
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = createItemSchema.safeParse(data);
+		if (!sortOrderResult.ok) {
+			return badRequest({ error: "Failed to get sort order" });
+		}
 
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
+		const createResult = await tryCreateGradebookItem({
+			payload,
+			courseId: courseContext.course.id,
+			categoryId: formData.categoryId ?? null,
+			name: formData.name,
+			description: formData.description,
+			maxGrade: formData.maxGrade,
+			minGrade: formData.minGrade,
+			weight: formData.weight,
+			extraCredit: formData.extraCredit ?? false,
+			sortOrder: sortOrderResult.value,
+			req: payloadRequest,
+		});
 
-	// Get next sort order
-	const sortOrderResult = await tryGetNextItemSortOrder({
-		payload,
-		gradebookId: gradebook.id,
-		categoryId: parsedData.data.categoryId ?? null,
-		req: payloadRequest,
-	});
+		if (!createResult.ok) {
+			return badRequest({ error: createResult.error.message });
+		}
 
-	if (!sortOrderResult.ok) {
-		return badRequest({ error: "Failed to get sort order" });
-	}
+		return ok({
+			success: true,
+			message: "Gradebook item created successfully",
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	const createResult = await tryCreateGradebookItem({
-		payload,
-		courseId: courseContext.course.id,
-		categoryId: parsedData.data.categoryId ?? null,
-		name: parsedData.data.name,
-		description: parsedData.data.description,
-		maxGrade: parsedData.data.maxGrade,
-		minGrade: parsedData.data.minGrade,
-		weight: parsedData.data.weight,
-		extraCredit: parsedData.data.extraCredit ?? false,
-		sortOrder: sortOrderResult.value,
-		req: payloadRequest,
-	});
+const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!courseContext)
+			throw new ForbiddenResponse("Course not found or access denied");
 
-	if (!createResult.ok) {
-		return badRequest({ error: createResult.error.message });
-	}
+		// Get gradebook
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
+			payload,
+			courseId: courseContext.course.id,
+			req: payloadRequest,
+		});
+		if (!gradebookResult.ok)
+			return badRequest({ error: "Gradebook not found for this course" });
+		const gradebook = gradebookResult.value;
 
-	return ok({
-		success: true,
-		message: "Gradebook item created successfully",
-	});
-}
+		// Get next sort order
+		const sortOrderResult = await tryGetNextSortOrder({
+			payload,
+			gradebookId: gradebook.id,
+			parentId: formData.parentId ?? null,
+			req: payloadRequest,
+		});
 
-async function createCategoryAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const courseContext = context.get(courseContextKey);
-	if (!courseContext)
-		throw new ForbiddenResponse("Course not found or access denied");
+		if (!sortOrderResult.ok) {
+			return badRequest({ error: "Failed to get sort order" });
+		}
 
-	// Get gradebook
-	const gradebookResult = await tryGetGradebookByCourseWithDetails({
-		payload,
-		courseId: courseContext.course.id,
-		req: payloadRequest,
-	});
-	if (!gradebookResult.ok)
-		return badRequest({ error: "Gradebook not found for this course" });
-	const gradebook = gradebookResult.value;
+		const createResult = await tryCreateGradebookCategory({
+			payload,
+			gradebookId: gradebook.id,
+			parentId: formData.parentId ?? null,
+			name: formData.name,
+			description: formData.description,
+			sortOrder: sortOrderResult.value,
+			req: payloadRequest,
+		});
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = createCategorySchema.safeParse(data);
+		if (!createResult.ok) {
+			return badRequest({ error: createResult.error.message });
+		}
+		return ok({
+			success: true,
+			message: "Gradebook category created successfully",
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
+const [updateItemAction, useUpdateItem] = createUpdateItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-	// Get next sort order
-	const sortOrderResult = await tryGetNextSortOrder({
-		payload,
-		gradebookId: gradebook.id,
-		parentId: parsedData.data.parentId ?? null,
-		req: payloadRequest,
-	});
+		const updateResult = await tryUpdateGradebookItem({
+			payload,
+			itemId: formData.itemId,
+			name: formData.name,
+			description: formData.description,
+			categoryId: formData.categoryId ?? null,
+			maxGrade: formData.maxGrade,
+			minGrade: formData.minGrade,
+			weight: formData.weight,
+			extraCredit: formData.extraCredit,
+			req: payloadRequest,
+		});
 
-	if (!sortOrderResult.ok) {
-		return badRequest({ error: "Failed to get sort order" });
-	}
+		if (!updateResult.ok) {
+			return badRequest({ error: updateResult.error.message });
+		}
 
-	const createResult = await tryCreateGradebookCategory({
-		payload,
-		gradebookId: gradebook.id,
-		parentId: parsedData.data.parentId ?? null,
-		name: parsedData.data.name,
-		description: parsedData.data.description,
-		sortOrder: sortOrderResult.value,
-		req: payloadRequest,
-	});
+		return ok({
+			success: true,
+			message: "Gradebook item updated successfully",
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (!createResult.ok) {
-		return badRequest({ error: createResult.error.message });
-	}
-	return ok({
-		success: true,
-		message: "Gradebook category created successfully",
-	});
-}
+const [updateCategoryAction, useUpdateCategory] = createUpdateCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-async function updateItemAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = updateItemSchema.safeParse(data);
+		const updateResult = await tryUpdateGradebookCategory({
+			payload,
+			categoryId: formData.categoryId,
+			name: formData.name,
+			description: formData.description,
+			weight: formData.weight,
+			extraCredit: formData.extraCredit,
+			req: payloadRequest,
+		});
 
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
+		if (!updateResult.ok) {
+			return badRequest({ error: updateResult.error.message });
+		}
 
-	const updateResult = await tryUpdateGradebookItem({
-		payload,
-		itemId: parsedData.data.itemId,
-		name: parsedData.data.name,
-		description: parsedData.data.description,
-		categoryId: parsedData.data.categoryId ?? null,
-		maxGrade: parsedData.data.maxGrade,
-		minGrade: parsedData.data.minGrade,
-		weight: parsedData.data.weight,
-		extraCredit: parsedData.data.extraCredit,
-		req: payloadRequest,
-	});
+		return ok({
+			success: true,
+			message: "Gradebook category updated successfully",
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (!updateResult.ok) {
-		return badRequest({ error: updateResult.error.message });
-	}
+const [getItemAction, useGetItem] = createGetItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-	return ok({
-		success: true,
-		message: "Gradebook item updated successfully",
-	});
-}
+		const itemResult = await tryFindGradebookItemById({
+			payload,
+			itemId: formData.itemId,
+			req: payloadRequest,
+		});
 
-async function updateCategoryAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = updateCategorySchema.safeParse(data);
+		if (!itemResult.ok) {
+			return badRequest({ error: itemResult.error.message });
+		}
 
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
+		const item = itemResult.value;
 
-	const updateResult = await tryUpdateGradebookCategory({
-		payload,
-		categoryId: parsedData.data.categoryId,
-		name: parsedData.data.name,
-		description: parsedData.data.description,
-		weight: parsedData.data.weight,
-		extraCredit: parsedData.data.extraCredit,
-		req: payloadRequest,
-	});
+		// Handle category as number or object
+		const categoryId =
+			typeof item.category === "number"
+				? item.category
+				: (item.category?.id ?? null);
 
-	if (!updateResult.ok) {
-		return badRequest({ error: updateResult.error.message });
-	}
+		return ok({
+			success: true,
+			item: {
+				id: item.id,
+				name: item.name,
+				description: item.description ?? "",
+				categoryId,
+				maxGrade: item.maxGrade,
+				minGrade: item.minGrade,
+				weight: item.weight,
+				extraCredit: item.extraCredit ?? false,
+			},
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Gradebook category updated successfully",
-	});
-}
+const [getCategoryAction, useGetCategory] = createGetCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload } = context.get(globalContextKey);
 
-async function getItemAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = getItemSchema.safeParse(data);
+		const categoryResult = await tryFindGradebookCategoryById(
+			payload,
+			formData.categoryId,
+		);
 
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
+		if (!categoryResult.ok) {
+			return badRequest({ error: categoryResult.error.message });
+		}
 
-	const itemResult = await tryFindGradebookItemById({
-		payload,
-		itemId: parsedData.data.itemId,
-		req: payloadRequest,
-	});
+		const category = categoryResult.value;
 
-	if (!itemResult.ok) {
-		return badRequest({ error: itemResult.error.message });
-	}
+		// Handle parent as number or object
+		const parentId =
+			typeof category.parent === "number"
+				? category.parent
+				: (category.parent?.id ?? null);
 
-	const item = itemResult.value;
+		return ok({
+			success: true,
+			category: {
+				id: category.id,
+				name: category.name,
+				description: category.description ?? "",
+				parentId,
+				weight: category.weight,
+			},
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	// Handle category as number or object
-	const categoryId =
-		typeof item.category === "number"
-			? item.category
-			: (item.category?.id ?? null);
+const [deleteItemAction, useDeleteItem] = createDeleteItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-	return ok({
-		success: true,
-		item: {
-			id: item.id,
-			name: item.name,
-			description: item.description ?? "",
-			categoryId,
-			maxGrade: item.maxGrade,
-			minGrade: item.minGrade,
-			weight: item.weight,
-			extraCredit: item.extraCredit ?? false,
-		},
-	});
-}
+		const deleteResult = await tryDeleteGradebookItem({
+			payload,
+			itemId: formData.itemId,
+			req: payloadRequest,
+		});
 
-async function getCategoryAction({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = getCategorySchema.safeParse(data);
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
 
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
+		return ok({
+			success: true,
+			message: "Gradebook item deleted successfully",
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	const categoryResult = await tryFindGradebookCategoryById(
-		payload,
-		parsedData.data.categoryId,
-	);
+const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-	if (!categoryResult.ok) {
-		return badRequest({ error: categoryResult.error.message });
-	}
+		const deleteResult = await tryDeleteGradebookCategory({
+			payload,
+			categoryId: formData.categoryId,
+			req: payloadRequest,
+		});
 
-	const category = categoryResult.value;
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
 
-	// Handle parent as number or object
-	const parentId =
-		typeof category.parent === "number"
-			? category.parent
-			: (category.parent?.id ?? null);
+		return ok({
+			success: true,
+			message: "Gradebook category deleted successfully",
+		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	return ok({
-		success: true,
-		category: {
-			id: category.id,
-			name: category.name,
-			description: category.description ?? "",
-			parentId,
-			weight: category.weight,
-		},
-	});
-}
+// Export hooks for use in components
+export {
+	useCreateItem,
+	useCreateCategory,
+	useUpdateItem,
+	useUpdateCategory,
+	useGetItem,
+	useGetCategory,
+	useDeleteItem,
+	useDeleteCategory,
+};
 
-async function deleteItemAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = deleteItemSchema.safeParse(data);
-
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
-
-	const deleteResult = await tryDeleteGradebookItem({
-		payload,
-		itemId: parsedData.data.itemId,
-		req: payloadRequest,
-	});
-
-	if (!deleteResult.ok) {
-		return badRequest({ error: deleteResult.error.message });
-	}
-
-	return ok({
-		success: true,
-		message: "Gradebook item deleted successfully",
-	});
-}
-
-async function deleteCategoryAction({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = deleteCategorySchema.safeParse(data);
-
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
-
-	const deleteResult = await tryDeleteGradebookCategory({
-		payload,
-		categoryId: parsedData.data.categoryId,
-		req: payloadRequest,
-	});
-
-	if (!deleteResult.ok) {
-		return badRequest({ error: deleteResult.error.message });
-	}
-
-	return ok({
-		success: true,
-		message: "Gradebook category deleted successfully",
-	});
-}
+const actionMap = {
+	[Action.CreateItem]: createItemAction,
+	[Action.CreateCategory]: createCategoryAction,
+	[Action.UpdateItem]: updateItemAction,
+	[Action.UpdateCategory]: updateCategoryAction,
+	[Action.DeleteItem]: deleteItemAction,
+	[Action.DeleteCategory]: deleteCategoryAction,
+	[Action.GetItem]: getItemAction,
+	[Action.GetCategory]: getCategoryAction,
+};
 
 export const action = async (args: Route.ActionArgs) => {
 	const { request, context } = args;
@@ -481,26 +541,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	switch (actionType) {
-		case Action.CreateItem:
-			return createItemAction(args);
-		case Action.CreateCategory:
-			return createCategoryAction(args);
-		case Action.UpdateItem:
-			return updateItemAction(args);
-		case Action.UpdateCategory:
-			return updateCategoryAction(args);
-		case Action.DeleteItem:
-			return deleteItemAction(args);
-		case Action.DeleteCategory:
-			return deleteCategoryAction(args);
-		case Action.GetItem:
-			return getItemAction(args);
-		case Action.GetCategory:
-			return getCategoryAction(args);
-		default:
-			return badRequest({ error: "Invalid action" });
-	}
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {

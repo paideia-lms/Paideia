@@ -10,11 +10,13 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { redirect, useFetcher } from "react-router";
+import { href, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCategory } from "server/internal/course-category-management";
-import z from "zod";
+import { z } from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -22,6 +24,20 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/category-new";
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createCreateCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().min(1, "Name is required"),
+		parent: z.coerce.number().optional().nullable(),
+	}),
+	method: "POST",
+});
+
+const getRouteUrl = () => {
+	return href("/admin/category/new");
+};
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -49,37 +65,19 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ success: false, error: "Unauthorized" });
-	}
-
-	try {
-		const formData = await request.formData();
-		const parsed = z
-			.object({
-				name: z.string().min(1, "Name is required"),
-				parent: z.coerce.number().optional().nullable(),
-			})
-			.safeParse({
-				name: formData.get("name"),
-				parent: formData.get("parent"),
-			});
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: parsed.error.issues[0]?.message ?? "Validation error",
-			});
+const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ success: false, error: "Unauthorized" });
 		}
 
 		const createResult = await tryCreateCategory({
 			payload,
-			req: request,
-			name: parsed.data.name,
-			parent: parsed.data.parent ?? undefined,
+			req: payloadRequest,
+			name: formData.name,
+			parent: formData.parent ?? undefined,
 		});
 
 		if (!createResult.ok) {
@@ -87,14 +85,16 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		return ok({ success: true, id: createResult.value.id });
-	} catch (error) {
-		return badRequest({
-			success: false,
-			error:
-				error instanceof Error ? error.message : "Failed to create category",
-		});
-	}
-};
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
+
+// Export hook for use in components
+export { useCreateCategory };
+
+export const action = createCategoryAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -116,10 +116,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-import { href } from "react-router";
-
 export default function NewCategoryPage({ loaderData }: Route.ComponentProps) {
-	const fetcher = useFetcher<typeof clientAction>();
+	const { submit: createCategory, isLoading } = useCreateCategory();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -127,12 +125,14 @@ export default function NewCategoryPage({ loaderData }: Route.ComponentProps) {
 		validate: { name: (v) => (!v ? "Name is required" : null) },
 	});
 
-	const handleSubmit = (values: typeof form.values) => {
-		const formData = new FormData();
-		formData.append("name", values.name);
-		if (values.parent) formData.append("parent", values.parent);
-		fetcher.submit(formData, { method: "POST" });
-	};
+	const handleSubmit = form.onSubmit((values) => {
+		createCategory({
+			values: {
+				name: values.name,
+				...(values.parent && { parent: Number(values.parent) }),
+			},
+		});
+	});
 
 	return (
 		<Container size="sm" py="xl">
@@ -148,7 +148,7 @@ export default function NewCategoryPage({ loaderData }: Route.ComponentProps) {
 				<Title order={2} mb="xl">
 					Create New Category
 				</Title>
-				<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
+				<form method="POST" onSubmit={handleSubmit}>
 					<Stack gap="lg">
 						<TextInput
 							{...form.getInputProps("name")}
@@ -168,14 +168,14 @@ export default function NewCategoryPage({ loaderData }: Route.ComponentProps) {
 						<Group justify="flex-end" mt="md">
 							<Button
 								type="submit"
-								loading={fetcher.state !== "idle"}
-								disabled={fetcher.state !== "idle"}
+								loading={isLoading}
+								disabled={isLoading}
 							>
 								Create Category
 							</Button>
 						</Group>
 					</Stack>
-				</fetcher.Form>
+				</form>
 			</Paper>
 		</Container>
 	);

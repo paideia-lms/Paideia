@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ActionFunctionArgs } from "react-router";
-import { data, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 import type { Simplify, UnionToIntersection } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest } from "~/utils/responses";
@@ -8,6 +8,14 @@ import { paramsSchema, type ParamsType } from "./params-schema";
 import { isRequestMethod } from "~/utils/assert-request-method";
 import { createLoader, parseAsStringEnum, type ParserMap } from "nuqs/server";
 import { ContentType } from "~/utils/get-content-type";
+
+/**
+ * Makes a property optional if the type has no keys, required otherwise.
+ * Useful for conditional property requirements based on type emptiness.
+ */
+type OptionalIfEmpty<T, Key extends string> = keyof T extends never
+	? { [K in Key]?: T }
+	: { [K in Key]: T };
 
 /**
  * Special marker used to represent explicit null values.
@@ -315,14 +323,17 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 		const _action = mergedSearchParams?.action.defaultValue;
 
-		type OtherSearchParams = Omit<SearchParamsType, "action">;
+		type OtherSearchParams = SearchParamsType extends never
+			? // biome-ignore lint/complexity/noBannedTypes: it is intented
+				{}
+			: Omit<SearchParamsType, "action">;
 
 		return <A extends (args: ArgsWithFormData) => ReturnType<A>>(
 			a: A,
 			options: {
 				action: (args: {
 					params: Params["params"];
-					searchParams: SearchParamsType;
+					searchParams: SearchParamsType extends never ? {} : SearchParamsType;
 				}) => string;
 			},
 		) => {
@@ -374,7 +385,6 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 						.then(formDataSchema.safeParse);
 
 					if (!parsed.success) {
-						console.log(parsed.error);
 						return badRequest({
 							success: false,
 							error: z.prettifyError(parsed.error),
@@ -395,15 +405,9 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 
 				const submit = async (
 					args: Simplify<
-						(keyof z.infer<FormDataSchema> extends never
-							? { values?: z.infer<FormDataSchema> }
-							: { values: z.infer<FormDataSchema> }) &
-							(keyof OtherSearchParams extends never
-								? { searchParams?: OtherSearchParams }
-								: { searchParams: OtherSearchParams }) &
-							(keyof Params["params"] extends never
-								? { params?: Params["params"] }
-								: { params: Params["params"] })
+						OptionalIfEmpty<z.infer<FormDataSchema>, "values"> &
+							OptionalIfEmpty<OtherSearchParams, "searchParams"> &
+							OptionalIfEmpty<Params["params"], "params">
 					>,
 				) => {
 					const providedSearchParams =

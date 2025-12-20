@@ -39,7 +39,10 @@ import {
 import { createLoader } from "nuqs/server";
 import { useEffect } from "react";
 import { stringify } from "qs";
-import { href, Link, useFetcher } from "react-router";
+import { href, Link } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
+import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -54,11 +57,6 @@ import {
 	tryUpdateCategory,
 } from "server/internal/course-category-management";
 import { useReorderCategories } from "~/routes/api/category-reorder";
-import { assertRequestMethod } from "~/utils/assert-request-method";
-import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -82,6 +80,26 @@ export const categoryActionSearchParams = {
 };
 
 export const loadSearchParams = createLoader(categoryActionSearchParams);
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createEditCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+		name: z.string().optional(),
+		parent: z.coerce.number().nullish(),
+	}),
+	method: "POST",
+	action: Action.Edit,
+});
+
+const createDeleteCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.Delete,
+});
 
 const getRouteUrl = (action: Action) => {
 	return href("/admin/categories") + "?" + stringify({ action });
@@ -182,11 +200,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	return { flat, selectedCategory, uncategorizedCount };
 };
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request, context } = args;
+// Shared authorization check
+const checkAuthorization = (context: Route.ActionArgs["context"]) => {
 	const userSession = context.get(userContextKey);
-
-	assertRequestMethod(request.method, "POST");
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
@@ -198,6 +214,82 @@ export const action = async (args: Route.ActionArgs) => {
 		return badRequest({ error: "Only admins can manage categories" });
 	}
 
+	return null;
+};
+
+const [editCategoryAction, useEditCategory] = createEditCategoryActionRpc(
+	serverOnly$(async ({ context, formData, request }) => {
+		const { payload } = context.get(globalContextKey);
+
+		const authError = checkAuthorization(context);
+		if (authError) return authError;
+
+		const categoryId = formData.categoryId;
+		if (!Number.isFinite(categoryId)) {
+			return badRequest({ error: "Invalid categoryId" });
+		}
+
+		const parentValue = formData.parent === null ? undefined : formData.parent;
+
+		const updateRes = await tryUpdateCategory({
+			payload,
+			categoryId,
+			req: request,
+			name: formData.name,
+			parent: parentValue,
+		});
+
+		if (!updateRes.ok) {
+			return badRequest({ error: updateRes.error.message });
+		}
+
+		return ok({ success: true });
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
+
+const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const authError = checkAuthorization(context);
+		if (authError) return authError;
+
+		const categoryId = formData.categoryId;
+		if (!Number.isFinite(categoryId)) {
+			return badRequest({ error: "Invalid categoryId" });
+		}
+
+		// Wrap multi-mutation ops in a transaction
+
+		const delRes = await tryDeleteCategory({
+			payload,
+			categoryId,
+			req: payloadRequest,
+		});
+		if (!delRes.ok) {
+			return badRequest({ error: delRes.error.message });
+		}
+
+		return ok({ success: true });
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
+
+// Export hooks for use in components
+export { useEditCategory, useDeleteCategory };
+
+const actionMap = {
+	[Action.Edit]: editCategoryAction,
+	[Action.Delete]: deleteCategoryAction,
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
 	const { action: actionType } = loadSearchParams(request);
 
 	if (!actionType) {
@@ -206,93 +298,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionType === Action.Edit) {
-		return editCategoryAction({
-			...args,
-			searchParams: { action: actionType },
-		});
-	}
-
-	if (actionType === Action.Delete) {
-		return deleteCategoryAction({
-			...args,
-			searchParams: { action: actionType },
-		});
-	}
-
-	return badRequest({ error: "Invalid action" });
-};
-
-const editCategoryAction = async ({
-	request,
-	context,
-}: Route.ActionArgs & { searchParams: { action: Action.Edit } }) => {
-	const { payload } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		categoryId: number;
-		name?: string;
-		parent?: number | null;
-	};
-
-	const categoryId = requestData.categoryId;
-	if (!Number.isFinite(categoryId)) {
-		return badRequest({ error: "Invalid categoryId" });
-	}
-
-	const parentValue =
-		requestData.parent === null ? undefined : requestData.parent;
-
-	const updateRes = await tryUpdateCategory({
-		payload,
-		categoryId,
-		req: request,
-		name: requestData.name,
-		parent: parentValue,
-	});
-
-	if (!updateRes.ok) {
-		return badRequest({ error: updateRes.error.message });
-	}
-
-	return ok({ success: true });
-};
-
-const deleteCategoryAction = async ({
-	request,
-	context,
-}: Route.ActionArgs & { searchParams: { action: Action.Delete } }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		categoryId: number;
-	};
-
-	const categoryId = requestData.categoryId;
-	if (!Number.isFinite(categoryId)) {
-		return badRequest({ error: "Invalid categoryId" });
-	}
-
-	// Wrap multi-mutation ops in a transaction
-	const transactionInfo = await handleTransactionId(payload, payloadRequest);
-
-	return transactionInfo.tx(
-		async (txInfo) => {
-			const delRes = await tryDeleteCategory({
-				payload,
-				categoryId,
-				req: txInfo.reqWithTransaction,
-			});
-			if (!delRes.ok) {
-				return badRequest({ error: delRes.error.message });
-			}
-
-			return ok({ success: true });
-		},
-		(result) => {
-			return result.data.status === StatusCode.BadRequest;
-		},
-	);
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -315,58 +321,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 
 	return actionData;
-}
-
-export function useEditCategory() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const editCategory = (data: {
-		categoryId: number;
-		name?: string;
-		parent?: number | null;
-	}) => {
-		fetcher.submit(
-			{
-				categoryId: data.categoryId,
-				name: data.name ?? null,
-				parent: data.parent ?? null,
-			},
-			{
-				method: "POST",
-				action: getRouteUrl(Action.Edit),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		editCategory,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-export function useDeleteCategory() {
-	const fetcher = useFetcher<typeof action>();
-
-	const deleteCategory = (categoryId: number) => {
-		fetcher.submit(
-			{
-				categoryId,
-			},
-			{
-				method: "POST",
-				action: getRouteUrl(Action.Delete),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		deleteCategory,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
 }
 
 export default function AdminCategoriesPage({
@@ -725,8 +679,8 @@ function EditDeleteControls({
 		href("/admin/courses") +
 		"?query=" +
 		encodeURIComponent(`category:"${nameToken}"`);
-	const { editCategory, isLoading: isEditing } = useEditCategory();
-	const { deleteCategory, isLoading: isDeleting } = useDeleteCategory();
+	const { submit: editCategory, isLoading: isEditing } = useEditCategory();
+	const { submit: deleteCategory, isLoading: isDeleting } = useDeleteCategory();
 	const [editOpened, setEditOpened] = useQueryState(
 		"edit",
 		parseAsInteger.withOptions({ shallow: false }),
@@ -781,16 +735,18 @@ function EditDeleteControls({
 				defaultName={selectedCategory.name}
 				categoryId={selectedCategory.id}
 				defaultParentId={selectedCategory.parentId ?? null}
-				onSubmit={(values) => {
+				onSubmit={async (values) => {
 					const parentValue = values.parent;
 					const parent =
 						parentValue == null || parentValue === ""
 							? null
 							: Number(parentValue);
-					editCategory({
-						categoryId: selectedCategory.id,
-						name: values.name,
-						parent,
+					await editCategory({
+						values: {
+							categoryId: selectedCategory.id,
+							name: values.name || undefined,
+							parent,
+						},
 					});
 					setEditOpened(null);
 				}}
@@ -800,8 +756,12 @@ function EditDeleteControls({
 			<DeleteCategoryModal
 				opened={!!deleteOpened}
 				onClose={() => setDeleteOpened(null)}
-				onConfirm={() => {
-					deleteCategory(selectedCategory.id);
+				onConfirm={async () => {
+					await deleteCategory({
+						values: {
+							categoryId: selectedCategory.id,
+						},
+					});
 					setDeleteOpened(null);
 				}}
 				isSubmitting={isDeleting}

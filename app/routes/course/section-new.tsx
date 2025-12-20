@@ -13,7 +13,10 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { createLoader, parseAsInteger } from "nuqs/server";
-import { href, redirect, useFetcher, useNavigate } from "react-router";
+import { href, redirect, useNavigate } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
+import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -22,7 +25,6 @@ import {
 	tryFindSectionsByCourse,
 } from "server/internal/course-section-management";
 import { canEditCourseSection } from "server/utils/permissions";
-import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -30,7 +32,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/section-new";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 // Define search params for parent section prefill
 export const sectionNewSearchParams = {
@@ -38,6 +39,76 @@ export const sectionNewSearchParams = {
 };
 
 export const loadSearchParams = createLoader(sectionNewSearchParams);
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createCreateSectionActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		title: z.string().min(1, "Section title is required"),
+		description: z.string().min(1, "Section description is required"),
+		parentSection: z.string().optional(),
+	}),
+	method: "POST",
+});
+
+const getRouteUrl = (courseId: number) => {
+	return href("/course/:courseId/section/new", {
+		courseId: courseId.toString(),
+	});
+};
+
+const [createSectionAction, useCreateSection] = createCreateSectionActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { courseId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const parentSectionId =
+			formData.parentSection && formData.parentSection !== ""
+				? Number.parseInt(formData.parentSection, 10)
+				: undefined;
+
+		if (formData.parentSection && Number.isNaN(parentSectionId)) {
+			return badRequest({ error: "Invalid parent section ID" });
+		}
+
+		// Create the section
+		const result = await tryCreateSection({
+			payload,
+			data: {
+				course: Number(courseId),
+				title: formData.title.trim(),
+				description: formData.description.trim(),
+				parentSection: parentSectionId,
+			},
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		const newSection = result.value;
+
+		// Redirect to the new section page
+		return redirect(
+			href("/course/section/:sectionId", {
+				sectionId: newSection.id.toString(),
+			}),
+		);
+	})!,
+	{
+		action: ({ params }) => getRouteUrl(Number(params.courseId)),
+	},
+);
+
+// Export hook for use in component
+export { useCreateSection };
 
 export const loader = async ({
 	request,
@@ -80,16 +151,11 @@ export const loader = async ({
 	const { parentSection } = loadSearchParams(request);
 
 	// Fetch all sections for parent dropdown
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const sectionsResult = await tryFindSectionsByCourse({
 		payload,
 		courseId: Number(courseId),
-
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		overrideAccess: false,
 	});
 
@@ -103,74 +169,7 @@ export const loader = async ({
 	};
 };
 
-export const action = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs) => {
-	assertRequestMethod(request.method, "POST");
-
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const { courseId } = params;
-	const formData = await request.formData();
-	const title = formData.get("title") as string;
-	const description = formData.get("description") as string;
-	const parentSectionIdStr = formData.get("parentSection") as string;
-
-	if (!title || title.trim().length === 0) {
-		return badRequest({ error: "Section title is required" });
-	}
-
-	if (!description || description.trim().length === 0) {
-		return badRequest({ error: "Section description is required" });
-	}
-
-	const parentSectionId =
-		parentSectionIdStr && parentSectionIdStr !== ""
-			? Number.parseInt(parentSectionIdStr, 10)
-			: undefined;
-
-	if (parentSectionIdStr && Number.isNaN(parentSectionId)) {
-		return badRequest({ error: "Invalid parent section ID" });
-	}
-
-	// Create the section
-	const result = await tryCreateSection({
-		payload,
-		data: {
-			course: Number(courseId),
-			title: title.trim(),
-			description: description.trim(),
-			parentSection: parentSectionId,
-		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	const newSection = result.value;
-
-	// Redirect to the new section page
-	return redirect(
-		href("/course/section/:sectionId", { sectionId: newSection.id.toString() }),
-	);
-};
+export const action = createSectionAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -195,28 +194,10 @@ interface CreateSectionFormValues {
 	parentSection: string;
 }
 
-function useCreateNewSection() {
-	const fetcher = useFetcher<typeof action>();
-
-	const handleSubmit = (values: CreateSectionFormValues) => {
-		const formData = new FormData();
-		formData.append("title", values.title);
-		formData.append("description", values.description);
-		formData.append("parentSection", values.parentSection);
-		fetcher.submit(formData, { method: "POST" });
-	};
-
-	return {
-		handleSubmit,
-		isLoading: fetcher.state !== "idle",
-		state: fetcher.state,
-	};
-}
-
 export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 	const { course, sections, parentSectionId } = loaderData;
 	const navigate = useNavigate();
-	const { handleSubmit, isLoading } = useCreateNewSection();
+	const { submit: createSection, isLoading } = useCreateSection();
 
 	const sectionOptions = [
 		{ value: "", label: "None (Root Level)" },
@@ -259,7 +240,18 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 				</div>
 
 				<Paper shadow="sm" p="xl" withBorder>
-					<form onSubmit={form.onSubmit(handleSubmit)}>
+					<form
+						onSubmit={form.onSubmit(async (values) => {
+							await createSection({
+								values: {
+									title: values.title,
+									description: values.description,
+									parentSection: values.parentSection || undefined,
+								},
+								params: { courseId: course.id },
+							});
+						})}
+					>
 						<Stack gap="md">
 							<TextInput
 								{...form.getInputProps("title")}

@@ -21,7 +21,10 @@ import {
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { stringify } from "qs";
-import { href, redirect, useFetcher, useNavigate } from "react-router";
+import { href, redirect, useNavigate } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
+import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -44,11 +47,6 @@ import type {
 } from "server/json";
 import { permissions } from "server/utils/permissions";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
-import { assertRequestMethod } from "~/utils/assert-request-method";
-import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -123,266 +121,305 @@ export const moduleSettingsSearchParams = {
 
 export const loadSearchParams = createLoader(moduleSettingsSearchParams);
 
-const updatePageSettingsAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }) => {
-	assertRequestMethod(request.method, "POST");
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { moduleLinkId } = params;
+const createUpdatePageSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().nullish(),
+	}),
+	method: "POST",
+	action: Action.UpdatePage,
+});
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+const createUpdateWhiteboardSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().nullish(),
+	}),
+	method: "POST",
+	action: Action.UpdateWhiteboard,
+});
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		name?: string | null;
-	};
+const createUpdateFileSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().nullish(),
+	}),
+	method: "POST",
+	action: Action.UpdateFile,
+});
 
-	const result = await tryUpdatePageModuleSettings({
-		payload,
-		linkId: Number(moduleLinkId),
-		name: requestData.name || undefined,
-		req: payloadRequest,
-	});
+const createUpdateAssignmentSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().nullish(),
+		allowSubmissionsFrom: z.string().nullish(),
+		dueDate: z.string().nullish(),
+		cutoffDate: z.string().nullish(),
+		maxAttempts: z.coerce.number().nullish(),
+	}),
+	method: "POST",
+	action: Action.UpdateAssignment,
+});
 
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
+const createUpdateQuizSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().nullish(),
+		openingTime: z.string().nullish(),
+		closingTime: z.string().nullish(),
+		maxAttempts: z.coerce.number().nullish(),
+	}),
+	method: "POST",
+	action: Action.UpdateQuiz,
+});
 
-	return redirect(
-		href("/course/module/:moduleLinkId", {
-			moduleLinkId: String(moduleLinkId),
-		}),
-	);
-};
+const createUpdateDiscussionSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().nullish(),
+		dueDate: z.string().nullish(),
+		cutoffDate: z.string().nullish(),
+	}),
+	method: "POST",
+	action: Action.UpdateDiscussion,
+});
 
-const updateWhiteboardSettingsAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & {
-	searchParams: { action: Action.UpdateWhiteboard };
-}) => {
-	assertRequestMethod(request.method, "POST");
-
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { moduleLinkId } = params;
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		name?: string | null;
-	};
-
-	const result = await tryUpdateWhiteboardModuleSettings({
-		payload,
-		linkId: Number(moduleLinkId),
-		name: requestData.name || undefined,
-		req: request,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return redirect(
-		href("/course/module/:moduleLinkId", {
-			moduleLinkId: String(moduleLinkId),
-		}),
-	);
-};
-
-const updateFileSettingsAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action.UpdateFile } }) => {
-	assertRequestMethod(request.method, "POST");
-
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { moduleLinkId } = params;
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		name?: string | null;
-	};
-
-	const result = await tryUpdateFileModuleSettings({
-		payload,
-		linkId: Number(moduleLinkId),
-		name: requestData.name || undefined,
-		req: payloadRequest,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return redirect(
-		href("/course/module/:moduleLinkId", {
-			moduleLinkId: String(moduleLinkId),
-		}),
-	);
-};
-
-const updateAssignmentSettingsAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & {
-	searchParams: { action: Action.UpdateAssignment };
-}) => {
-	assertRequestMethod(request.method, "POST");
-
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { moduleLinkId } = params;
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		name?: string | null;
-		allowSubmissionsFrom?: string | null;
-		dueDate?: string | null;
-		cutoffDate?: string | null;
-		maxAttempts?: number | null;
-	};
-
-	const result = await tryUpdateAssignmentModuleSettings({
-		payload,
-		linkId: Number(moduleLinkId),
-		name: requestData.name || undefined,
-		allowSubmissionsFrom: requestData.allowSubmissionsFrom || undefined,
-		dueDate: requestData.dueDate || undefined,
-		cutoffDate: requestData.cutoffDate || undefined,
-		maxAttempts: requestData.maxAttempts || undefined,
-		req: payloadRequest,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return redirect(
-		href("/course/module/:moduleLinkId", {
-			moduleLinkId: String(moduleLinkId),
-		}),
-	);
-};
-
-const updateQuizSettingsAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action.UpdateQuiz } }) => {
-	assertRequestMethod(request.method, "POST");
-
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { moduleLinkId } = params;
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		name?: string | null;
-		openingTime?: string | null;
-		closingTime?: string | null;
-		maxAttempts?: number | null;
-	};
-
-	const result = await tryUpdateQuizModuleSettings({
-		payload,
-		linkId: Number(moduleLinkId),
-		name: requestData.name || undefined,
-		openingTime: requestData.openingTime || undefined,
-		closingTime: requestData.closingTime || undefined,
-		maxAttempts: requestData.maxAttempts || undefined,
-		req: payloadRequest,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return redirect(
-		href("/course/module/:moduleLinkId", {
-			moduleLinkId: String(moduleLinkId),
-		}),
-	);
-};
-
-const updateDiscussionSettingsAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & {
-	searchParams: { action: Action.UpdateDiscussion };
-}) => {
-	assertRequestMethod(request.method, "POST");
-
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { moduleLinkId } = params;
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const requestData = data as {
-		name?: string | null;
-		dueDate?: string | null;
-		cutoffDate?: string | null;
-	};
-
-	const result = await tryUpdateDiscussionModuleSettings({
-		payload,
-		linkId: Number(moduleLinkId),
-		name: requestData.name || undefined,
-		dueDate: requestData.dueDate || undefined,
-		cutoffDate: requestData.cutoffDate || undefined,
-		req: payloadRequest,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return redirect(
-		href("/course/module/:moduleLinkId", {
-			moduleLinkId: String(moduleLinkId),
-		}),
-	);
-};
-
-const getRouteUrl = (action: Action, moduleLinkId: string) => {
+const getRouteUrl = (action: Action, moduleLinkId: number) => {
 	return (
 		href("/course/module/:moduleLinkId/edit", {
-			moduleLinkId,
+			moduleLinkId: moduleLinkId.toString(),
 		}) +
 		"?" +
 		stringify({ action })
 	);
+};
+
+const [updatePageSettingsAction, useUpdatePageSettings] =
+	createUpdatePageSettingsActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const { moduleLinkId } = params;
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const result = await tryUpdatePageModuleSettings({
+				payload,
+				linkId: Number(moduleLinkId),
+				name: formData.name || undefined,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ searchParams, params }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
+
+const [updateWhiteboardSettingsAction, useUpdateWhiteboardSettings] =
+	createUpdateWhiteboardSettingsActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const { moduleLinkId } = params;
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const result = await tryUpdateWhiteboardModuleSettings({
+				payload,
+				linkId: Number(moduleLinkId),
+				name: formData.name || undefined,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ searchParams, params }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
+
+const [updateFileSettingsAction, useUpdateFileSettings] =
+	createUpdateFileSettingsActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const { moduleLinkId } = params;
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const result = await tryUpdateFileModuleSettings({
+				payload,
+				linkId: Number(moduleLinkId),
+				name: formData.name || undefined,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ searchParams, params }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
+
+const [updateAssignmentSettingsAction, useUpdateAssignmentSettings] =
+	createUpdateAssignmentSettingsActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const { moduleLinkId } = params;
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const result = await tryUpdateAssignmentModuleSettings({
+				payload,
+				linkId: Number(moduleLinkId),
+				name: formData.name || undefined,
+				allowSubmissionsFrom: formData.allowSubmissionsFrom || undefined,
+				dueDate: formData.dueDate || undefined,
+				cutoffDate: formData.cutoffDate || undefined,
+				maxAttempts: formData.maxAttempts || undefined,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ searchParams, params }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
+
+const [updateQuizSettingsAction, useUpdateQuizSettings] =
+	createUpdateQuizSettingsActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const { moduleLinkId } = params;
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const result = await tryUpdateQuizModuleSettings({
+				payload,
+				linkId: Number(moduleLinkId),
+				name: formData.name || undefined,
+				openingTime: formData.openingTime || undefined,
+				closingTime: formData.closingTime || undefined,
+				maxAttempts: formData.maxAttempts || undefined,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ searchParams, params }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
+
+const [updateDiscussionSettingsAction, useUpdateDiscussionSettings] =
+	createUpdateDiscussionSettingsActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const { moduleLinkId } = params;
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const result = await tryUpdateDiscussionModuleSettings({
+				payload,
+				linkId: Number(moduleLinkId),
+				name: formData.name || undefined,
+				dueDate: formData.dueDate || undefined,
+				cutoffDate: formData.cutoffDate || undefined,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ searchParams, params }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
+
+// Export hooks for use in components
+export {
+	useUpdatePageSettings,
+	useUpdateWhiteboardSettings,
+	useUpdateFileSettings,
+	useUpdateAssignmentSettings,
+	useUpdateQuizSettings,
+	useUpdateDiscussionSettings,
+};
+
+const actionMap = {
+	[Action.UpdatePage]: updatePageSettingsAction,
+	[Action.UpdateWhiteboard]: updateWhiteboardSettingsAction,
+	[Action.UpdateFile]: updateFileSettingsAction,
+	[Action.UpdateAssignment]: updateAssignmentSettingsAction,
+	[Action.UpdateQuiz]: updateQuizSettingsAction,
+	[Action.UpdateDiscussion]: updateDiscussionSettingsAction,
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -395,63 +432,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionType === Action.UpdatePage) {
-		return updatePageSettingsAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateWhiteboard) {
-		return updateWhiteboardSettingsAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateFile) {
-		return updateFileSettingsAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateAssignment) {
-		return updateAssignmentSettingsAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateQuiz) {
-		return updateQuizSettingsAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.UpdateDiscussion) {
-		return updateDiscussionSettingsAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		error: "Invalid action",
-	});
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -471,189 +452,15 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-// Custom hooks for updating module settings
-function useUpdatePageSettings(moduleLinkId: string) {
-	const fetcher = useFetcher<typeof action>();
-
-	const updatePageSettings = (name?: string | null) => {
-		fetcher.submit(
-			{ name: name || null },
-			{
-				method: "POST",
-				action: getRouteUrl(Action.UpdatePage, moduleLinkId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updatePageSettings,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-function useUpdateWhiteboardSettings(moduleLinkId: string) {
-	const fetcher = useFetcher<typeof action>();
-
-	const updateWhiteboardSettings = (name?: string | null) => {
-		fetcher.submit(
-			{ name: name || null },
-			{
-				method: "POST",
-				action: getRouteUrl(Action.UpdateWhiteboard, moduleLinkId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updateWhiteboardSettings,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-function useUpdateFileSettings(moduleLinkId: string) {
-	const fetcher = useFetcher<typeof action>();
-
-	const updateFileSettings = (name?: string | null) => {
-		fetcher.submit(
-			{ name: name || null },
-			{
-				method: "POST",
-				action: getRouteUrl(Action.UpdateFile, moduleLinkId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updateFileSettings,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-function useUpdateAssignmentSettings(moduleLinkId: string) {
-	const fetcher = useFetcher<typeof action>();
-
-	const toISOStringOrNull = (
-		value: Date | string | null | undefined,
-	): string | null => {
-		if (!value) return null;
-		if (value instanceof Date) return value.toISOString();
-		if (typeof value === "string") return value;
-		return null;
-	};
-
-	const updateAssignmentSettings = (values: {
-		name?: string | null;
-		allowSubmissionsFrom?: Date | string | null;
-		dueDate?: Date | string | null;
-		cutoffDate?: Date | string | null;
-		maxAttempts?: number | null;
-	}) => {
-		fetcher.submit(
-			{
-				name: values.name || null,
-				allowSubmissionsFrom: toISOStringOrNull(values.allowSubmissionsFrom),
-				dueDate: toISOStringOrNull(values.dueDate),
-				cutoffDate: toISOStringOrNull(values.cutoffDate),
-				maxAttempts: values.maxAttempts || null,
-			},
-			{
-				method: "POST",
-				action: getRouteUrl(Action.UpdateAssignment, moduleLinkId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updateAssignmentSettings,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-function useUpdateQuizSettings(moduleLinkId: string) {
-	const fetcher = useFetcher<typeof action>();
-
-	const toISOStringOrNull = (
-		value: Date | string | null | undefined,
-	): string | null => {
-		if (!value) return null;
-		if (value instanceof Date) return value.toISOString();
-		if (typeof value === "string") return value;
-		return null;
-	};
-
-	const updateQuizSettings = (values: {
-		name?: string | null;
-		openingTime?: Date | string | null;
-		closingTime?: Date | string | null;
-		maxAttempts?: number | null;
-	}) => {
-		fetcher.submit(
-			{
-				name: values.name || null,
-				openingTime: toISOStringOrNull(values.openingTime),
-				closingTime: toISOStringOrNull(values.closingTime),
-				maxAttempts: values.maxAttempts || null,
-			},
-			{
-				method: "POST",
-				action: getRouteUrl(Action.UpdateQuiz, moduleLinkId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updateQuizSettings,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-function useUpdateDiscussionSettings(moduleLinkId: string) {
-	const fetcher = useFetcher<typeof action>();
-
-	const toISOStringOrNull = (
-		value: Date | string | null | undefined,
-	): string | null => {
-		if (!value) return null;
-		if (value instanceof Date) return value.toISOString();
-		if (typeof value === "string") return value;
-		return null;
-	};
-
-	const updateDiscussionSettings = (values: {
-		name?: string | null;
-		dueDate?: Date | string | null;
-		cutoffDate?: Date | string | null;
-	}) => {
-		fetcher.submit(
-			{
-				name: values.name || null,
-				dueDate: toISOStringOrNull(values.dueDate),
-				cutoffDate: toISOStringOrNull(values.cutoffDate),
-			},
-			{
-				method: "POST",
-				action: getRouteUrl(Action.UpdateDiscussion, moduleLinkId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updateDiscussionSettings,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
+// Helper function to convert Date to ISO string or null
+const toISOStringOrNull = (
+	value: Date | string | null | undefined,
+): string | null => {
+	if (!value) return null;
+	if (value instanceof Date) return value.toISOString();
+	if (typeof value === "string") return value;
+	return null;
+};
 
 // Form wrappers that use their respective hooks
 function PageSettingsFormWrapper({
@@ -665,9 +472,7 @@ function PageSettingsFormWrapper({
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
-	const { updatePageSettings, isLoading } = useUpdatePageSettings(
-		String(moduleLinkId),
-	);
+	const { submit: updatePageSettings, isLoading } = useUpdatePageSettings();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -676,7 +481,16 @@ function PageSettingsFormWrapper({
 	});
 
 	return (
-		<form onSubmit={form.onSubmit((values) => updatePageSettings(values.name))}>
+		<form
+			onSubmit={form.onSubmit(async (values) => {
+				await updatePageSettings({
+					values: {
+						name: values.name || null,
+					},
+					params: { moduleLinkId },
+				});
+			})}
+		>
 			<Stack gap="md">
 				<TextInput
 					label="Custom Module Name"
@@ -712,9 +526,8 @@ function WhiteboardSettingsFormWrapper({
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
-	const { updateWhiteboardSettings, isLoading } = useUpdateWhiteboardSettings(
-		String(moduleLinkId),
-	);
+	const { submit: updateWhiteboardSettings, isLoading } =
+		useUpdateWhiteboardSettings();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -724,9 +537,14 @@ function WhiteboardSettingsFormWrapper({
 
 	return (
 		<form
-			onSubmit={form.onSubmit((values) =>
-				updateWhiteboardSettings(values.name),
-			)}
+			onSubmit={form.onSubmit(async (values) => {
+				await updateWhiteboardSettings({
+					values: {
+						name: values.name || null,
+					},
+					params: { moduleLinkId },
+				});
+			})}
 		>
 			<Stack gap="md">
 				<TextInput
@@ -763,9 +581,7 @@ function FileSettingsFormWrapper({
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
-	const { updateFileSettings, isLoading } = useUpdateFileSettings(
-		String(moduleLinkId),
-	);
+	const { submit: updateFileSettings, isLoading } = useUpdateFileSettings();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -774,7 +590,16 @@ function FileSettingsFormWrapper({
 	});
 
 	return (
-		<form onSubmit={form.onSubmit((values) => updateFileSettings(values.name))}>
+		<form
+			onSubmit={form.onSubmit(async (values) => {
+				await updateFileSettings({
+					values: {
+						name: values.name || null,
+					},
+					params: { moduleLinkId },
+				});
+			})}
+		>
 			<Stack gap="md">
 				<TextInput
 					{...form.getInputProps("name")}
@@ -810,9 +635,8 @@ function AssignmentSettingsFormWrapper({
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
-	const { updateAssignmentSettings, isLoading } = useUpdateAssignmentSettings(
-		String(moduleLinkId),
-	);
+	const { submit: updateAssignmentSettings, isLoading } =
+		useUpdateAssignmentSettings();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -828,15 +652,20 @@ function AssignmentSettingsFormWrapper({
 
 	return (
 		<form
-			onSubmit={form.onSubmit((values) =>
-				updateAssignmentSettings({
-					name: values.name,
-					allowSubmissionsFrom: values.allowSubmissionsFrom,
-					dueDate: values.dueDate,
-					cutoffDate: values.cutoffDate,
-					maxAttempts: values.maxAttempts,
-				}),
-			)}
+			onSubmit={form.onSubmit(async (values) => {
+				await updateAssignmentSettings({
+					values: {
+						name: values.name || null,
+						allowSubmissionsFrom: toISOStringOrNull(
+							values.allowSubmissionsFrom,
+						),
+						dueDate: toISOStringOrNull(values.dueDate),
+						cutoffDate: toISOStringOrNull(values.cutoffDate),
+						maxAttempts: values.maxAttempts || null,
+					},
+					params: { moduleLinkId },
+				});
+			})}
 		>
 			<Stack gap="md">
 				<TextInput
@@ -905,9 +734,7 @@ function QuizSettingsFormWrapper({
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
-	const { updateQuizSettings, isLoading } = useUpdateQuizSettings(
-		String(moduleLinkId),
-	);
+	const { submit: updateQuizSettings, isLoading } = useUpdateQuizSettings();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -924,14 +751,17 @@ function QuizSettingsFormWrapper({
 
 	return (
 		<form
-			onSubmit={form.onSubmit((values) =>
-				updateQuizSettings({
-					name: values.name,
-					openingTime: values.openingTime,
-					closingTime: values.closingTime,
-					maxAttempts: values.maxAttempts,
-				}),
-			)}
+			onSubmit={form.onSubmit(async (values) => {
+				await updateQuizSettings({
+					values: {
+						name: values.name || null,
+						openingTime: toISOStringOrNull(values.openingTime),
+						closingTime: toISOStringOrNull(values.closingTime),
+						maxAttempts: values.maxAttempts || null,
+					},
+					params: { moduleLinkId },
+				});
+			})}
 		>
 			<Stack gap="md">
 				<TextInput
@@ -991,9 +821,8 @@ function DiscussionSettingsFormWrapper({
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
-	const { updateDiscussionSettings, isLoading } = useUpdateDiscussionSettings(
-		String(moduleLinkId),
-	);
+	const { submit: updateDiscussionSettings, isLoading } =
+		useUpdateDiscussionSettings();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -1005,13 +834,16 @@ function DiscussionSettingsFormWrapper({
 
 	return (
 		<form
-			onSubmit={form.onSubmit((values) =>
-				updateDiscussionSettings({
-					name: values.name,
-					dueDate: values.dueDate,
-					cutoffDate: values.cutoffDate,
-				}),
-			)}
+			onSubmit={form.onSubmit(async (values) => {
+				await updateDiscussionSettings({
+					values: {
+						name: values.name || null,
+						dueDate: toISOStringOrNull(values.dueDate),
+						cutoffDate: toISOStringOrNull(values.cutoffDate),
+					},
+					params: { moduleLinkId },
+				});
+			})}
 		>
 			<Stack gap="md">
 				<TextInput
@@ -1060,7 +892,8 @@ function DangerZone({
 	moduleLinkId: number;
 	courseId: number;
 }) {
-	const { deleteModuleLink, isLoading: isDeleting } = useDeleteModuleLink();
+	const { submit: deleteModuleLink, isLoading: isDeleting } =
+		useDeleteModuleLink();
 
 	const handleDelete = () => {
 		modals.openConfirmModal({
@@ -1074,12 +907,16 @@ function DangerZone({
 			),
 			labels: { confirm: "Remove", cancel: "Cancel" },
 			confirmProps: { color: "red" },
-			onConfirm: () => {
-				deleteModuleLink(
-					moduleLinkId,
-					courseId,
-					href("/course/:courseId", { courseId: String(courseId) }),
-				);
+			onConfirm: async () => {
+				await deleteModuleLink({
+					values: {
+						linkId: moduleLinkId,
+						redirectTo: href("/course/:courseId", {
+							courseId: String(courseId),
+						}),
+					},
+					params: { courseId },
+				});
 			},
 		});
 	};

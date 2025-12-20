@@ -26,7 +26,10 @@ import { stringify } from "qs";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
-import { href, Link, useFetcher } from "react-router";
+import { href, Link } from "react-router";
+import { z } from "zod";
+import { typeCreateActionRpc } from "app/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -59,6 +62,28 @@ export const groupSearchParams = {
 };
 
 export const loadSearchParams = createLoader(groupSearchParams);
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createCreateGroupActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().min(1, "Group name is required"),
+		description: z.string().optional(),
+		parent: z.string().optional(),
+		color: z.string().optional(),
+		maxMembers: z.coerce.number().optional(),
+	}),
+	method: "POST",
+	action: Action.CreateGroup,
+});
+
+const createDeleteGroupActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		groupId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.DeleteGroup,
+});
 
 const getRouteUrl = (action: Action, courseId: number) => {
 	return (
@@ -141,80 +166,73 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-const createGroupAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action.CreateGroup } }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const { courseId } = params;
+const [createGroupAction, useCreateGroup] = createCreateGroupActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { courseId } = params;
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-	const formData = await request.formData();
-	const name = formData.get("name") as string;
-	const description = formData.get("description") as string;
-	const parentId = formData.get("parent");
-	const color = formData.get("color") as string;
-	const maxMembers = formData.get("maxMembers");
+		const createResult = await tryCreateGroup({
+			payload,
+			name: formData.name,
+			course: Number(courseId),
+			parent: formData.parent ? Number(formData.parent) : undefined,
+			description: formData.description || undefined,
+			color: formData.color || undefined,
+			maxMembers: formData.maxMembers,
+			isActive: true,
+			req: payloadRequest,
+		});
 
-	if (!name) {
-		return badRequest({ error: "Group name is required" });
-	}
+		if (!createResult.ok) {
+			return badRequest({ error: createResult.error.message });
+		}
 
-	const createResult = await tryCreateGroup({
-		payload,
-		name,
-		course: Number(courseId),
-		parent: parentId ? Number(parentId) : undefined,
-		description: description || undefined,
-		color: color || undefined,
-		maxMembers: maxMembers ? Number(maxMembers) : undefined,
-		isActive: true,
-		req: payloadRequest,
-	});
+		return ok({ success: true, message: "Group created successfully" });
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, params.courseId),
+	},
+);
 
-	if (!createResult.ok) {
-		return badRequest({ error: createResult.error.message });
-	}
+const [deleteGroupAction, useDeleteGroup] = createDeleteGroupActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	return ok({ success: true, message: "Group created successfully" });
-};
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-const deleteGroupAction = async ({
-	request,
-	context,
-}: Route.ActionArgs & { searchParams: { action: Action.DeleteGroup } }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+		const deleteResult = await tryDeleteGroup({
+			payload,
+			groupId: formData.groupId,
+			req: payloadRequest,
+		});
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		return ok({ success: true, message: "Group deleted successfully" });
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	const formData = await request.formData();
-	const groupId = Number(formData.get("groupId"));
-	if (Number.isNaN(groupId)) {
-		return badRequest({ error: "Invalid group ID" });
-	}
+// Export hooks for use in components
+export { useCreateGroup, useDeleteGroup };
 
-	const deleteResult = await tryDeleteGroup({
-		payload,
-		groupId,
-		req: payloadRequest,
-	});
-
-	if (!deleteResult.ok) {
-		return badRequest({ error: deleteResult.error.message });
-	}
-
-	return ok({ success: true, message: "Group deleted successfully" });
+const actionMap = {
+	[Action.CreateGroup]: createGroupAction,
+	[Action.DeleteGroup]: deleteGroupAction,
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -227,27 +245,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionType === Action.CreateGroup) {
-		return createGroupAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.DeleteGroup) {
-		return deleteGroupAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		error: "Invalid action",
-	});
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -269,68 +267,14 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-export const useCreateGroup = () => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const createGroup = (
-		name: string,
-		description: string,
-		parent: string,
-		color: string,
-		maxMembers: number,
-		courseId: number,
-	) => {
-		fetcher.submit(
-			{
-				name,
-				description,
-				parent,
-				color,
-				maxMembers: maxMembers.toString(),
-			},
-			{
-				method: "post",
-				action: getRouteUrl(Action.CreateGroup, courseId),
-			},
-		);
-	};
-
-	return {
-		createGroup,
-		isLoading: fetcher.state === "submitting",
-		data: fetcher.data,
-	};
-};
-
-export const useDeleteGroup = () => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const deleteGroup = (groupId: number, courseId: number) => {
-		fetcher.submit(
-			{
-				groupId: groupId.toString(),
-			},
-			{
-				method: "post",
-				action: getRouteUrl(Action.DeleteGroup, courseId),
-			},
-		);
-	};
-
-	return {
-		deleteGroup,
-		isLoading: fetcher.state === "submitting",
-		data: fetcher.data,
-	};
-};
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
 export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
-	const { createGroup, isLoading: isCreatingGroup } = useCreateGroup();
-	const { deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
+	const { submit: createGroup, isLoading: isCreatingGroup } = useCreateGroup();
+	const { submit: deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
 	const { groups, currentUser, course, enrolment } = loaderData;
 	// Modal states
 	const [
@@ -357,17 +301,19 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 		);
 	};
 
-	const handleCreateGroup = () => {
+	const handleCreateGroup = async () => {
 		if (!groupName) return;
 
-		createGroup(
-			groupName,
-			groupDescription,
-			groupParent || "",
-			groupColor,
-			Number(groupMaxMembers),
-			course.id,
-		);
+		await createGroup({
+			values: {
+				name: groupName,
+				description: groupDescription || undefined,
+				parent: groupParent || undefined,
+				color: groupColor || undefined,
+				maxMembers: groupMaxMembers ? Number(groupMaxMembers) : undefined,
+			},
+			params: { courseId: course.id },
+		});
 		closeCreateModal();
 		setGroupName("");
 		setGroupDescription("");
@@ -381,9 +327,14 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 		openDeleteModal();
 	};
 
-	const handleConfirmDeleteGroup = () => {
+	const handleConfirmDeleteGroup = async () => {
 		if (deletingGroupId) {
-			deleteGroup(deletingGroupId, course.id);
+			await deleteGroup({
+				values: {
+					groupId: deletingGroupId,
+				},
+				params: { courseId: course.id },
+			});
 			closeDeleteModal();
 			setDeletingGroupId(null);
 		}

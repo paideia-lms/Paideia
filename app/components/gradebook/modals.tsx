@@ -22,10 +22,10 @@ import {
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import {
 	useCreateCategory,
-	useCreateGradeItem,
-	useUpdateGradeCategory,
-	useUpdateGradeItem,
-} from "./hooks";
+	useCreateItem,
+	useUpdateCategory,
+	useUpdateItem,
+} from "~/routes/course.$id.grades";
 
 export interface CreateGradeItemModalHandle {
 	open: () => void;
@@ -41,7 +41,7 @@ export const CreateGradeItemModal = forwardRef<
 	CreateGradeItemModalProps
 >(({ categoryOptions, courseId }, ref) => {
 	const [opened, setOpened] = useState(false);
-	const { createGradeItem, isLoading } = useCreateGradeItem();
+	const { submit: createGradeItem, isLoading } = useCreateItem();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -70,22 +70,25 @@ export const CreateGradeItemModal = forwardRef<
 		},
 	}));
 
-	const handleSubmit = form.onSubmit((values) => {
+	const handleSubmit = form.onSubmit(async (values) => {
 		const categoryId = values.category
 			? Number.parseInt(values.category, 10)
 			: null;
-		createGradeItem(courseId, {
-			name: values.name,
-			description: values.description || undefined,
-			categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
-			maxGrade: values.maxGrade
-				? Number.parseFloat(values.maxGrade)
-				: undefined,
-			minGrade: values.minGrade
-				? Number.parseFloat(values.minGrade)
-				: undefined,
-			weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,
-			extraCredit: values.overrideWeight ? values.extraCredit : false,
+		await createGradeItem({
+			values: {
+				name: values.name,
+				description: values.description || undefined,
+				categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
+				maxGrade: values.maxGrade
+					? Number.parseFloat(values.maxGrade)
+					: undefined,
+				minGrade: values.minGrade
+					? Number.parseFloat(values.minGrade)
+					: undefined,
+				weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,
+				extraCredit: values.overrideWeight ? values.extraCredit : false,
+			},
+			params: { courseId },
 		});
 		form.reset();
 		setOpened(false);
@@ -207,7 +210,7 @@ export function UpdateGradeItemButton({
 	courseId,
 }: UpdateGradeItemButtonProps) {
 	const [opened, setOpened] = useState(false);
-	const { updateGradeItem, isLoading } = useUpdateGradeItem();
+	const { submit: updateGradeItem, isLoading } = useUpdateItem();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -227,26 +230,27 @@ export function UpdateGradeItemButton({
 		},
 	});
 
-	const handleSubmit = form.onSubmit((values) => {
+	const handleSubmit = form.onSubmit(async (values) => {
 		const categoryId = values.category
 			? Number.parseInt(values.category, 10)
 			: null;
-		const data = {
-			name: values.name,
-			description: values.description || undefined,
-			categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
-			maxGrade: values.maxGrade
-				? Number.parseFloat(values.maxGrade)
-				: undefined,
-			minGrade: values.minGrade
-				? Number.parseFloat(values.minGrade)
-				: undefined,
-			weight: values.overrideWeight ? (values.weight ?? 0) : null,
-
-			extraCredit: values.overrideWeight ? values.extraCredit : false,
-		};
-
-		updateGradeItem(courseId, item.id, data);
+		await updateGradeItem({
+			values: {
+				itemId: item.id,
+				name: values.name,
+				description: values.description || undefined,
+				categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
+				maxGrade: values.maxGrade
+					? Number.parseFloat(values.maxGrade)
+					: undefined,
+				minGrade: values.minGrade
+					? Number.parseFloat(values.minGrade)
+					: undefined,
+				weight: values.overrideWeight ? (values.weight ?? 0) : null,
+				extraCredit: values.overrideWeight ? values.extraCredit : false,
+			},
+			params: { courseId },
+		});
 		setOpened(false);
 	});
 
@@ -418,7 +422,7 @@ export const CreateCategoryModal = forwardRef<
 	CreateCategoryModalProps
 >(({ parentOptions, courseId }, ref) => {
 	const [opened, setOpened] = useState(false);
-	const { createCategory, isLoading } = useCreateCategory();
+	const { submit: createCategory, isLoading } = useCreateCategory();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -440,13 +444,16 @@ export const CreateCategoryModal = forwardRef<
 		},
 	}));
 
-	const handleSubmit = form.onSubmit((values) => {
+	const handleSubmit = form.onSubmit(async (values) => {
 		const parentId = values.parent ? Number.parseInt(values.parent, 10) : null;
 
-		createCategory(courseId, {
-			name: values.name,
-			description: values.description || undefined,
-			parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
+		await createCategory({
+			values: {
+				name: values.name,
+				description: values.description || undefined,
+				parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
+			},
+			params: { courseId },
 		});
 		form.reset();
 		setOpened(false);
@@ -523,7 +530,7 @@ export function UpdateGradeCategoryButton({
 	courseId,
 }: UpdateGradeCategoryButtonProps) {
 	const [opened, setOpened] = useState(false);
-	const { updateGradeCategory, isLoading } = useUpdateGradeCategory();
+	const { submit: updateGradeCategory, isLoading } = useUpdateCategory();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -541,11 +548,15 @@ export function UpdateGradeCategoryButton({
 	});
 
 	const handleSubmit = form.onSubmit(async (values) => {
-		updateGradeCategory(courseId, category.id, {
-			name: values.name,
-			description: values.description || undefined,
-			weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,
-			extraCredit: values.overrideWeight ? values.extraCredit : false,
+		await updateGradeCategory({
+			values: {
+				categoryId: category.id,
+				name: values.name,
+				description: values.description || undefined,
+				weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,
+				extraCredit: values.overrideWeight ? values.extraCredit : false,
+			},
+			params: { courseId },
 		});
 		setOpened(false);
 	});

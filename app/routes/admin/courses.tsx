@@ -181,7 +181,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 	const [categoryModalOpened, setCategoryModalOpened] = useState(false);
 	const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 	const [statusModalOpened, setStatusModalOpened] = useState(false);
-	const { batchUpdateCourses, isLoading } = useBatchUpdateCourses();
+	const { submit: batchUpdateCourses, isLoading } = useBatchUpdateCourses();
 
 	const allOnPageIds = courses.map((c) => c.id as number);
 	const allSelectedOnPage = allOnPageIds.every((id: number) =>
@@ -222,8 +222,10 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 		batchUpdateCourses({
-			courseIds: selectedCourseIds,
-			category: Number(selectedCategory),
+			values: {
+				courseIds: selectedCourseIds,
+				category: Number(selectedCategory),
+			},
 		});
 	};
 
@@ -535,10 +537,10 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 										});
 										return;
 									}
-									batchUpdateCourses({
+									batchUpdateCourses({values:{
 										courseIds: selectedCourseIds,
 										status: selectedStatus as Course["status"],
-									});
+									}});
 									setStatusModalOpened(false);
 								}}
 								loading={isLoading}

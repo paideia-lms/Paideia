@@ -168,6 +168,82 @@ const astPatterns = {
 		}
 		return false;
 	},
+
+	/**
+	 * Matches export const action declarations
+	 * AST structure: VariableStatement -> VariableDeclarationList -> VariableDeclaration
+	 */
+	exportConstAction: (node: ts.Node): boolean => {
+		if (ts.isVariableStatement(node)) {
+			// Check if it's exported
+			if (
+				node.modifiers?.some(
+					(modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+				)
+			) {
+				// Check if it declares a const variable named "action"
+				const declarationList = node.declarationList;
+				if (declarationList.flags & ts.NodeFlags.Const) {
+					return declarationList.declarations.some(
+						(declaration) =>
+							ts.isIdentifier(declaration.name) &&
+							declaration.name.text === "action",
+					);
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Matches imports containing typeCreateActionRpc
+	 */
+	typeCreateActionRpcImport: (node: ts.Node): boolean => {
+		if (ts.isImportDeclaration(node)) {
+			const importClause = node.importClause;
+			if (importClause) {
+				// Check named imports
+				if (importClause.namedBindings) {
+					if (ts.isNamedImports(importClause.namedBindings)) {
+						return importClause.namedBindings.elements.some(
+							(element) => element.name.text === "typeCreateActionRpc",
+						);
+					}
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Matches export const action when typeCreateActionRpc is not imported
+	 * This pattern matcher checks if the file has export const action but lacks the import
+	 */
+	exportConstActionWithoutImport: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// First check if this is export const action
+		if (!astPatterns.exportConstAction(node)) {
+			return false;
+		}
+
+		// If it is export const action, check if typeCreateActionRpc is imported
+		// Traverse the source file to find imports
+		let hasImport = false;
+		function visitForImport(n: ts.Node) {
+			if (astPatterns.typeCreateActionRpcImport(n)) {
+				hasImport = true;
+				return;
+			}
+			ts.forEachChild(n, visitForImport);
+		}
+
+		visitForImport(sourceFile);
+
+		// Return true if export const action exists but import is missing (violation)
+		return !hasImport;
+	},
 };
 
 // Log level configuration
@@ -240,6 +316,18 @@ export const rules: LintRule[] = [
 			{
 				name: "tryParseFormDataWithMediaUpload import",
 				matcher: astPatterns.tryParseFormDataWithMediaUploadImport,
+			},
+		],
+	},
+	{
+		name: "Require typeCreateActionRpc import when using export const action",
+		description: "Files with export const action must import typeCreateActionRpc (multi-action pattern requirement)",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "export const action without typeCreateActionRpc import",
+				matcher: astPatterns.exportConstActionWithoutImport,
 			},
 		],
 	},

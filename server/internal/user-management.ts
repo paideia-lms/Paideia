@@ -2,13 +2,10 @@ import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
-import type { Media, User } from "../payload-types";
+import type { User } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
-import {
-	interceptPayloadError,
-	stripDepth,
-} from "./utils/internal-function-utils";
+import { stripDepth } from "./utils/internal-function-utils";
 import { tryCreateMedia } from "./media-management";
 
 export interface CreateUserArgs extends BaseInternalFunctionArgs {
@@ -19,7 +16,7 @@ export interface CreateUserArgs extends BaseInternalFunctionArgs {
 		lastName?: string;
 		role?: User["role"];
 		bio?: string;
-		avatar?: number;
+		avatar?: File | null;
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
@@ -124,26 +121,58 @@ export const tryCreateUser = Result.wrap(
 			throw new Error(`User with email ${email} already exists`);
 		}
 
-		const newUser = await payload
-			.create({
-				collection: "users",
-				data: {
-					email,
-					password,
-					firstName,
-					lastName,
-					role,
-					bio,
-					avatar,
-					theme: theme ?? "light",
-					direction: direction ?? "ltr",
-					// ! TODO: automatically verify the user for now, we need to fix this in the future
-					_verified: true,
-				},
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<0, "create">());
+		const transactionInfo = await handleTransactionId(payload, req);
+		const newUser = transactionInfo.tx(async ({ reqWithTransaction }) => {
+			let user = await payload
+				.create({
+					collection: "users",
+					data: {
+						email,
+						password,
+						firstName,
+						lastName,
+						role,
+						bio,
+						theme: theme ?? "light",
+						direction: direction ?? "ltr",
+						// ! TODO: automatically verify the user for now, we need to fix this in the future
+						_verified: true,
+					},
+					req: reqWithTransaction,
+					depth: 0,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "create">());
+
+			if (avatar) {
+				const mediaId = await tryCreateMedia({
+					payload,
+					file: await avatar.arrayBuffer().then(Buffer.from),
+					filename: avatar.name,
+					mimeType: avatar.type,
+					userId: user.id,
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+					.getOrThrow()
+					.then((r) => r.media.id);
+
+				user = await payload
+					.update({
+						collection: "users",
+						id: user.id,
+						data: {
+							avatar: mediaId,
+						},
+						req: reqWithTransaction,
+						depth: 0,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "update">());
+			}
+
+			return user;
+		});
 
 		return newUser;
 	},
@@ -176,8 +205,8 @@ export const tryUpdateUser = Result.wrap(
 							? await tryCreateMedia({
 									payload,
 									file: await data.avatar.arrayBuffer().then(Buffer.from),
-									filename: data.avatar.name ?? "unknown",
-									mimeType: data.avatar.type ?? "application/octet-stream",
+									filename: data.avatar.name,
+									mimeType: data.avatar.type,
 									alt: "User avatar",
 									caption: "User avatar",
 									req: reqWithTransaction,

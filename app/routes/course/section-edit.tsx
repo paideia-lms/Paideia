@@ -47,10 +47,86 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	});
 };
 
+type DangerZoneProps = {
+	section: Route.ComponentProps["loaderData"]["section"];
+	course: Route.ComponentProps["loaderData"]["course"];
+};
+
+function DangerZone({ section, course }: DangerZoneProps) {
+	const { submit: deleteSection, isLoading: isDeleting } =
+		useDeleteCourseSection();
+
+	const handleDelete = () => {
+		modals.openConfirmModal({
+			title: "Delete Section",
+			children: (
+				<Text size="sm">
+					Are you sure you want to delete this section? This action cannot be
+					undone. The section must not have any subsections or activity modules to be deleted.
+				</Text>
+			),
+			labels: { confirm: "Delete", cancel: "Cancel" },
+			confirmProps: { color: "red" },
+			onConfirm: () => {
+				deleteSection({
+					values: {
+						sectionId: section.id,
+						courseId: course.id,
+					},
+				});
+			},
+		});
+	};
+
+	return <Paper
+		withBorder
+		shadow="sm"
+		p="xl"
+		style={{ borderColor: "var(--mantine-color-red-6)" }}
+	>
+		<Stack gap="md">
+			<div>
+				<Title order={3} c="red">
+					Danger Zone
+				</Title>
+				<Text size="sm" c="dimmed" mt="xs">
+					Irreversible and destructive actions
+				</Text>
+			</div>
+
+			<Divider color="red" />
+
+			<Group justify="space-between" align="flex-start">
+				<div style={{ flex: 1 }}>
+					<Text fw={500} mb="xs">
+						Delete this section
+					</Text>
+					<Text size="sm" c="dimmed">
+						Once you delete a section, there is no going back. Please be
+						certain. The section must not have any subsections or activity
+						modules to be deleted.
+					</Text>
+				</div>
+				<Button
+					color="red"
+					variant="light"
+					leftSection={<IconTrash size={16} />}
+					onClick={handleDelete}
+					loading={isDeleting}
+					style={{ minWidth: "150px" }}
+				>
+					Delete Section
+				</Button>
+			</Group>
+		</Stack>
+	</Paper>
+}
+
 export default function SectionEditPage({ loaderData }: Route.ComponentProps) {
 	const { section, course } = loaderData;
-	const { updateSection, isLoading } = useUpdateCourseSection();
-	const { deleteSection, isLoading: isDeleting } = useDeleteCourseSection();
+	const { submit: updateSection, isLoading } =
+		useUpdateCourseSection();
+
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -73,28 +149,14 @@ export default function SectionEditPage({ loaderData }: Route.ComponentProps) {
 
 	const handleSubmit = form.onSubmit((values) => {
 		updateSection({
-			sectionId: section.id,
-			title: values.title,
-			description: values.description || undefined,
+			values: {
+				sectionId: section.id,
+				title: values.title,
+				description: values.description || undefined,
+			},
 		});
 	});
 
-	const handleDelete = () => {
-		modals.openConfirmModal({
-			title: "Delete Section",
-			children: (
-				<Text size="sm">
-					Are you sure you want to delete this section? This action cannot be
-					undone. The section must not have any subsections or activity modules.
-				</Text>
-			),
-			labels: { confirm: "Delete", cancel: "Cancel" },
-			confirmProps: { color: "red" },
-			onConfirm: () => {
-				deleteSection({ sectionId: section.id, courseId: course.id });
-			},
-		});
-	};
 
 	const title = `Edit ${section.title} | ${course.title} | Paideia LMS`;
 
@@ -153,49 +215,7 @@ export default function SectionEditPage({ loaderData }: Route.ComponentProps) {
 					</form>
 				</Paper>
 
-				{/* Danger Zone */}
-				<Paper
-					withBorder
-					shadow="sm"
-					p="xl"
-					style={{ borderColor: "var(--mantine-color-red-6)" }}
-				>
-					<Stack gap="md">
-						<div>
-							<Title order={3} c="red">
-								Danger Zone
-							</Title>
-							<Text size="sm" c="dimmed" mt="xs">
-								Irreversible and destructive actions
-							</Text>
-						</div>
-
-						<Divider color="red" />
-
-						<Group justify="space-between" align="flex-start">
-							<div style={{ flex: 1 }}>
-								<Text fw={500} mb="xs">
-									Delete this section
-								</Text>
-								<Text size="sm" c="dimmed">
-									Once you delete a section, there is no going back. Please be
-									certain. The section must not have any subsections or activity
-									modules to be deleted.
-								</Text>
-							</div>
-							<Button
-								color="red"
-								variant="light"
-								leftSection={<IconTrash size={16} />}
-								onClick={handleDelete}
-								loading={isDeleting}
-								style={{ minWidth: "150px" }}
-							>
-								Delete Section
-							</Button>
-						</Group>
-					</Stack>
-				</Paper>
+				<DangerZone section={section} course={course} />
 			</Stack>
 		</Container>
 	);

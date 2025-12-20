@@ -16,22 +16,22 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
 import { stringify } from "qs";
 import { useState } from "react";
-import { href, redirect, useFetcher } from "react-router";
+import { href, redirect } from "react-router";
+import { typeCreateActionRpc } from "app/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateUser } from "server/internal/user-management";
-import {
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
 import type { User } from "server/payload-types";
 import { enum_users_role } from "src/payload-generated-schema";
-import z from "zod";
-import { handleUploadError } from "~/utils/handle-upload-errors";
+import { z } from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -40,9 +40,7 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -73,123 +71,74 @@ enum Action {
 
 // Define search params for user creation
 export const userSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
+	action: parseAsStringEnumServer(Object.values(Action)),
 };
 
 export const loadSearchParams = createLoader(userSearchParams);
 
-const inputSchema = z.object({
-	email: z.email(),
-	password: z.string().min(8),
-	firstName: z.string(),
-	lastName: z.string(),
-	bio: z.string().optional(),
-	role: z.enum(enum_users_role.enumValues),
-	avatar: z.coerce.number().nullish(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createCreateUserActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		email: z.email(),
+		password: z.string().min(8),
+		firstName: z.string().min(1),
+		lastName: z.string().min(1),
+		bio: z.string().optional(),
+		role: z.enum(enum_users_role.enumValues),
+		avatar: z.file().nullish(),
+	}),
+	method: "POST",
+	action: Action.Create,
 });
 
-const createAction = async ({
-	request,
-	context,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const getRouteUrl = (action: Action) => {
+	return href("/admin/user/new") + "?" + stringify({ action });
+};
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
+const [createAction, useCreateUser] = createCreateUserActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
-
-	if (currentUser.role !== "admin") {
-		return forbidden({
-			success: false,
-			error: "Only admins can create users",
-		});
-	}
-
-	// Get upload limit from system globals
-	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	);
-
-	return transactionInfo.tx(async (txInfo) => {
-		// Parse form data with media upload handler
-		const parseResult = await tryParseFormDataWithMediaUpload({
-			payload,
-			request,
-			userId: currentUser.id,
-			req: txInfo.reqWithTransaction,
-			maxFileSize,
-			fields: [
-				{
-					fieldName: "avatar",
-					alt: "User avatar",
-				},
-			],
-		});
-
-		if (!parseResult.ok) {
-			return handleUploadError(
-				parseResult.error,
-				maxFileSize,
-				"Failed to parse form data",
-			);
-		}
-
-		const { formData } = parseResult.value;
-
-		const parsed = inputSchema.safeParse({
-			email: formData.get("email"),
-			password: formData.get("password"),
-			firstName: formData.get("firstName"),
-			lastName: formData.get("lastName"),
-			bio: formData.get("bio"),
-			role: formData.get("role"),
-			avatar: formData.get("avatar"),
-		});
-
-		if (!parsed.success) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			return badRequest({
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
 				success: false,
-				error: parsed.error.message,
+				error: "Unauthorized",
 			});
 		}
 
-		// Create user within the same transaction
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+
+		if (currentUser.role !== "admin") {
+			return forbidden({
+				success: false,
+				error: "Only admins can create users",
+			});
+		}
+
+		// Create user
 		const createResult = await tryCreateUser({
 			payload,
 			data: {
-				email: parsed.data.email,
-				password: parsed.data.password,
-				firstName: parsed.data.firstName,
-				lastName: parsed.data.lastName,
-				bio: parsed.data.bio,
-				role: parsed.data.role,
-				avatar: parsed.data.avatar ?? undefined,
+				email: formData.email,
+				password: formData.password,
+				firstName: formData.firstName,
+				lastName: formData.lastName,
+				bio: formData.bio,
+				role: formData.role,
+				avatar: formData.avatar ?? undefined,
 			},
 			overrideAccess: false,
-			req: txInfo.reqWithTransaction,
+			req: payloadRequest,
 		});
 
 		if (!createResult.ok) {
@@ -204,11 +153,17 @@ const createAction = async ({
 			message: "User created successfully",
 			id: createResult.value.id,
 		});
-	});
-};
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
 
-const getRouteUrl = (action: Action) => {
-	return href("/admin/user/new") + "?" + stringify({ action });
+// Export hook for use in component
+export { useCreateUser };
+
+const actionMap = {
+	[Action.Create]: createAction,
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -222,19 +177,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionType === Action.Create) {
-		return createAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		success: false,
-		error: "Invalid action",
-	});
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -266,7 +209,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function NewUserPage() {
-	const fetcher = useFetcher<typeof action>();
+	const { submit: createUser, isLoading } = useCreateUser();
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -312,26 +255,17 @@ export default function NewUserPage() {
 		}
 	};
 
-	const handleSubmit = (values: typeof form.values) => {
-		const formData = new FormData();
-		formData.append("email", values.email);
-		formData.append("password", values.password);
-		formData.append("firstName", values.firstName);
-		formData.append("lastName", values.lastName);
-		formData.append("bio", values.bio);
-		formData.append(
-			"role",
-			(values.role ?? "student") as NonNullable<User["role"]>,
-		);
-
-		if (selectedFile) {
-			formData.append("avatar", selectedFile);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			encType: "multipart/form-data",
-			action: getRouteUrl(Action.Create),
+	const handleSubmit = async (values: typeof form.values) => {
+		await createUser({
+			values: {
+				email: values.email,
+				password: values.password,
+				firstName: values.firstName,
+				lastName: values.lastName,
+				bio: values.bio || undefined,
+				role: (values.role ?? "student") as NonNullable<User["role"]>,
+				avatar: selectedFile || null,
+			},
 		});
 	};
 
@@ -356,7 +290,7 @@ export default function NewUserPage() {
 					Create New User
 				</Title>
 
-				<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
+				<form onSubmit={form.onSubmit(handleSubmit)}>
 					<Stack gap="lg">
 						<div>
 							<Text size="sm" fw={500} mb="xs">
@@ -483,14 +417,14 @@ export default function NewUserPage() {
 						<Group justify="flex-end" mt="md">
 							<Button
 								type="submit"
-								loading={fetcher.state !== "idle"}
-								disabled={fetcher.state !== "idle"}
+								loading={isLoading}
+								disabled={isLoading}
 							>
 								Create User
 							</Button>
 						</Group>
 					</Stack>
-				</fetcher.Form>
+				</form>
 			</Paper>
 		</Container>
 	);

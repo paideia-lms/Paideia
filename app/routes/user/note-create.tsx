@@ -20,7 +20,6 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/note-create";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -42,7 +41,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 export const action = async ({ request, context }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -68,11 +67,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 	return await transactionInfo.tx(async (txInfo) => {
 		// Parse form data with media upload handler

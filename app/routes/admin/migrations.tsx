@@ -10,18 +10,14 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type { Migration as MigrationType } from "payload";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { dumpDatabase } from "server/utils/db/dump";
 import { getMigrationStatus } from "server/utils/db/migration-status";
 import { migrations } from "src/migrations";
-import { ContentType } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -35,15 +31,15 @@ enum Action {
 	Dump = "dump",
 }
 
-// Define search params for migration actions
-export const migrationSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
-export const loadSearchParams = createLoader(migrationSearchParams);
+const createDumpActionRpc = createActionRpc({
+	method: "POST",
+	action: Action.Dump,
+});
 
-const getRouteUrl = (action: Action) => {
-	return href("/admin/migrations") + "?" + stringify({ action });
+const getRouteUrl = () => {
+	return href("/admin/migrations");
 };
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -71,77 +67,43 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-export function useDumpPostgres() {
-	const fetcher = useFetcher<typeof clientAction>();
+const [dumpAction, useDumpPostgres] = createDumpActionRpc(
+	serverOnly$(async ({ context }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	const dumpPostgres = () => {
-		fetcher.submit(null, {
-			method: "post",
-			action: getRouteUrl(Action.Dump),
-			encType: ContentType.JSON,
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		if (currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can dump database" });
+		}
+
+		const result = await dumpDatabase({ payload });
+
+		if (!result.success) {
+			return badRequest({ error: result.error || "Failed to dump database" });
+		}
+
+		return ok({
+			success: true,
+			message: `Database dump completed: ${result.outputPath}`,
+			outputPath: result.outputPath,
 		});
-	};
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
 
-	return {
-		dumpPostgres,
-		state: fetcher.state,
-		isLoading: fetcher.state !== "idle",
-	};
-}
+// Export hook for use in components
+export { useDumpPostgres };
 
-const dumpAction = async ({
-	context,
-}: Route.ActionArgs & { searchParams: { action: Action.Dump } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	if (currentUser.role !== "admin") {
-		return unauthorized({ error: "Only admins can dump database" });
-	}
-
-	const result = await dumpDatabase({ payload });
-
-	if (!result.success) {
-		return badRequest({ error: result.error || "Failed to dump database" });
-	}
-
-	return ok({
-		success: true,
-		message: `Database dump completed: ${result.outputPath}`,
-		outputPath: result.outputPath,
-	});
-};
-
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	if (actionType === Action.Dump) {
-		return dumpAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		error: "Invalid action",
-	});
-};
+export const action = dumpAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -167,7 +129,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function MigrationsPage({ loaderData }: Route.ComponentProps) {
 	const { statuses } = loaderData;
-	const { dumpPostgres, isLoading } = useDumpPostgres();
+	const { submit: dumpPostgres, isLoading } = useDumpPostgres();
 
 	const rows = statuses.map((status) => (
 		<Table.Tr key={status.Name}>
@@ -216,7 +178,7 @@ export default function MigrationsPage({ loaderData }: Route.ComponentProps) {
 				>
 					<Title order={1}>Database Migrations</Title>
 					<Button
-						onClick={dumpPostgres}
+						onClick={() => dumpPostgres({ values: {} })}
 						disabled={isLoading}
 						loading={isLoading}
 					>
