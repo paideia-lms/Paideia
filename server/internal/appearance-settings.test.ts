@@ -6,7 +6,7 @@ import {
 	tryGetAppearanceSettings,
 	tryUpdateAppearanceSettings,
 } from "./appearance-settings";
-import { tryCreateMedia, tryFindMediaUsages } from "./media-management";
+import { tryFindMediaUsages } from "./media-management";
 import { tryCreateUser } from "./user-management";
 import { stripDepth, type Depth } from "./utils/internal-function-utils";
 import type { User } from "server/payload-types";
@@ -67,34 +67,11 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should upload logo and track media usage", async () => {
-		// Create a test media file (logo)
+		// Create a File object from the fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createMediaResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-logo-light.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
+		const logoFile = new File([fileBuffer], "test-logo-light.png", {
+			type: "image/png",
 		});
-
-		expect(createMediaResult.ok).toBe(true);
-		if (!createMediaResult.ok) {
-			throw new Error("Failed to create test media");
-		}
-
-		const logoMediaId = createMediaResult.value.media.id;
-
-		// Get current appearance settings
-		const getSettingsResult = await tryGetAppearanceSettings({
-			payload,
-			overrideAccess: true,
-		});
-
-		expect(getSettingsResult.ok).toBe(true);
-		if (!getSettingsResult.ok) {
-			throw new Error("Failed to get appearance settings");
-		}
 
 		// Fetch the actual user from database
 		const testUser = await payload
@@ -111,7 +88,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				logoLight: logoMediaId,
+				logoLight: logoFile,
 			},
 			overrideAccess: false,
 		});
@@ -121,13 +98,14 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to update appearance settings");
 		}
 
-		// Verify logoLight was set
-		expect(updateResult.value.logoLight?.id).toBe(logoMediaId);
+		// Get the created media ID from the result
+		const logoMediaId = updateResult.value.logoLight?.id;
+		expect(logoMediaId).toBeDefined();
 
 		// Verify the logo is tracked in media usage
 		const findUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: logoMediaId,
+			mediaId: logoMediaId!,
 			overrideAccess: true,
 		});
 
@@ -152,51 +130,24 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should upload multiple logos and track all media usages", async () => {
-		// Create multiple logo media files
+		// Create multiple File objects from the fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 
-		const logoLightResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-logo-light-2.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
+		const logoLightFile = new File([fileBuffer], "test-logo-light-2.png", {
+			type: "image/png",
 		});
 
-		const logoDarkResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-logo-dark.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
+		const logoDarkFile = new File([fileBuffer], "test-logo-dark.png", {
+			type: "image/png",
 		});
 
-		const compactLogoLightResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-compact-logo-light.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
-		});
-
-		expect(logoLightResult.ok).toBe(true);
-		expect(logoDarkResult.ok).toBe(true);
-		expect(compactLogoLightResult.ok).toBe(true);
-
-		if (
-			!logoLightResult.ok ||
-			!logoDarkResult.ok ||
-			!compactLogoLightResult.ok
-		) {
-			throw new Error("Failed to create test media");
-		}
-
-		const logoLightId = logoLightResult.value.media.id;
-		const logoDarkId = logoDarkResult.value.media.id;
-		const compactLogoLightId = compactLogoLightResult.value.media.id;
+		const compactLogoLightFile = new File(
+			[fileBuffer],
+			"test-compact-logo-light.png",
+			{
+				type: "image/png",
+			},
+		);
 
 		// Fetch the actual user from database
 		const testUser = await payload.findByID({
@@ -210,9 +161,9 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				logoLight: logoLightId,
-				logoDark: logoDarkId,
-				compactLogoLight: compactLogoLightId,
+				logoLight: logoLightFile,
+				logoDark: logoDarkFile,
+				compactLogoLight: compactLogoLightFile,
 			},
 			overrideAccess: false,
 		});
@@ -222,15 +173,20 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to update appearance settings");
 		}
 
+		// Get the created media IDs from the result
+		const logoLightId = updateResult.value.logoLight?.id;
+		const logoDarkId = updateResult.value.logoDark?.id;
+		const compactLogoLightId = updateResult.value.compactLogoLight?.id;
+
 		// Verify all logos were set
-		expect(updateResult.value.logoLight?.id).toBe(logoLightId);
-		expect(updateResult.value.logoDark?.id).toBe(logoDarkId);
-		expect(updateResult.value.compactLogoLight?.id).toBe(compactLogoLightId);
+		expect(logoLightId).toBeDefined();
+		expect(logoDarkId).toBeDefined();
+		expect(compactLogoLightId).toBeDefined();
 
 		// Verify each logo is tracked in media usage
 		const logoLightUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: logoLightId,
+			mediaId: logoLightId!,
 			overrideAccess: true,
 		});
 
@@ -247,7 +203,7 @@ describe("Appearance Settings Functions", () => {
 
 		const logoDarkUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: logoDarkId,
+			mediaId: logoDarkId!,
 			overrideAccess: true,
 		});
 
@@ -264,7 +220,7 @@ describe("Appearance Settings Functions", () => {
 
 		const compactLogoLightUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: compactLogoLightId,
+			mediaId: compactLogoLightId!,
 			overrideAccess: true,
 		});
 
@@ -283,36 +239,16 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should handle favicon uploads and track media usage", async () => {
-		// Create favicon media files
+		// Create favicon File objects from the fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 
-		const faviconLightResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-favicon-light.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
+		const faviconLightFile = new File([fileBuffer], "test-favicon-light.png", {
+			type: "image/png",
 		});
 
-		const faviconDarkResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-favicon-dark.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
+		const faviconDarkFile = new File([fileBuffer], "test-favicon-dark.png", {
+			type: "image/png",
 		});
-
-		expect(faviconLightResult.ok).toBe(true);
-		expect(faviconDarkResult.ok).toBe(true);
-
-		if (!faviconLightResult.ok || !faviconDarkResult.ok) {
-			throw new Error("Failed to create test media");
-		}
-
-		const faviconLightId = faviconLightResult.value.media.id;
-		const faviconDarkId = faviconDarkResult.value.media.id;
 
 		// Fetch the actual user from database
 		const testUser = await payload.findByID({
@@ -326,8 +262,8 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				faviconLight: faviconLightId,
-				faviconDark: faviconDarkId,
+				faviconLight: faviconLightFile,
+				faviconDark: faviconDarkFile,
 			},
 			overrideAccess: false,
 		});
@@ -337,14 +273,18 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to update appearance settings");
 		}
 
+		// Get the created media IDs from the result
+		const faviconLightId = updateResult.value.faviconLight?.id;
+		const faviconDarkId = updateResult.value.faviconDark?.id;
+
 		// Verify favicons were set
-		expect(updateResult.value.faviconLight?.id).toBe(faviconLightId);
-		expect(updateResult.value.faviconDark?.id).toBe(faviconDarkId);
+		expect(faviconLightId).toBeDefined();
+		expect(faviconDarkId).toBeDefined();
 
 		// Verify favicons are tracked in media usage
 		const faviconLightUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: faviconLightId,
+			mediaId: faviconLightId!,
 			overrideAccess: true,
 		});
 
@@ -362,7 +302,7 @@ describe("Appearance Settings Functions", () => {
 
 		const faviconDarkUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: faviconDarkId,
+			mediaId: faviconDarkId!,
 			overrideAccess: true,
 		});
 
@@ -379,23 +319,11 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should get appearance settings with logo fields", async () => {
-		// Create a test logo
+		// Create a File object from the fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createMediaResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-logo-get.png",
-			mimeType: "image/png",
-			userId: testUserId,
-			overrideAccess: true,
+		const logoFile = new File([fileBuffer], "test-logo-get.png", {
+			type: "image/png",
 		});
-
-		expect(createMediaResult.ok).toBe(true);
-		if (!createMediaResult.ok) {
-			throw new Error("Failed to create test media");
-		}
-
-		const logoMediaId = createMediaResult.value.media.id;
 
 		// Fetch the actual user from database
 		const testUser = await payload.findByID({
@@ -409,12 +337,18 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				logoLight: logoMediaId,
+				logoLight: logoFile,
 			},
 			overrideAccess: false,
 		});
 
 		expect(updateResult.ok).toBe(true);
+		if (!updateResult.ok) {
+			throw new Error("Failed to update appearance settings");
+		}
+
+		const logoMediaId = updateResult.value.logoLight?.id;
+		expect(logoMediaId).toBeDefined();
 
 		// Get settings and verify logo is returned
 		const getSettingsResult = await tryGetAppearanceSettings({

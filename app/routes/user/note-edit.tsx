@@ -30,7 +30,7 @@ export const loader = async ({
 	params,
 	request,
 }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -43,20 +43,13 @@ export const loader = async ({
 	const note = await tryFindNoteById({
 		payload,
 		noteId: Number(params.noteId),
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new NotFoundResponse("Note not found");
 	});
 
-	if (!note.ok) {
-		throw new NotFoundResponse("Note not found");
-	}
-
 	// Extract createdBy ID (handle both depth 0 and 1)
-	const createdById = note.value.createdBy.id;
+	const createdById = note.createdBy.id;
 
 	// Check if user can edit this note
 	if (currentUser.id !== createdById && currentUser.role !== "admin") {
@@ -64,7 +57,7 @@ export const loader = async ({
 	}
 
 	return {
-		note: note.value,
+		note,
 	};
 };
 
@@ -75,7 +68,7 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -100,11 +93,7 @@ export const action = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	// Parse form data with media upload handler

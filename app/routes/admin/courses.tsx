@@ -43,7 +43,6 @@ import CourseSearchInput from "~/components/course-search-input";
 import { ForbiddenResponse } from "~/utils/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 // Define search params
 export const coursesSearchParams = {
@@ -54,7 +53,7 @@ export const coursesSearchParams = {
 export const loadSearchParams = createLoader(coursesSearchParams);
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -78,19 +77,13 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to get courses");
 	});
 
-	if (!coursesResult.ok) {
-		throw new ForbiddenResponse("Failed to get courses");
-	}
-
 	// categories for batch update select
-	const categoriesResult = await tryGetCategoryTree({ payload, req: request });
+	const categoriesResult = await tryGetCategoryTree({ payload, req: payloadRequest });
 	const flatCategories: { value: string; label: string }[] = [];
 	if (categoriesResult.ok) {
 		const visit = (nodes: CategoryTreeNode[], prefix: string) => {
@@ -105,12 +98,12 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		visit(categoriesResult.value, "");
 	}
 
-	const courses = coursesResult.value.docs.map((course) => {
+	const courses = coursesResult.docs.map((course) => {
 		const createdBy = course.createdBy;
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -130,9 +123,9 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 	return {
 		courses,
-		totalCourses: coursesResult.value.totalDocs,
-		totalPages: coursesResult.value.totalPages,
-		currentPage: coursesResult.value.page,
+		totalCourses: coursesResult.totalDocs,
+		totalPages: coursesResult.totalPages,
+		currentPage: coursesResult.page,
 		categories: flatCategories,
 	};
 };
@@ -336,8 +329,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																		(id) => id !== course.id,
-																	),
+																	(id) => id !== course.id,
+																),
 														)
 													}
 												/>
@@ -537,10 +530,12 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 										});
 										return;
 									}
-									batchUpdateCourses({values:{
-										courseIds: selectedCourseIds,
-										status: selectedStatus as Course["status"],
-									}});
+									batchUpdateCourses({
+										values: {
+											courseIds: selectedCourseIds,
+											status: selectedStatus as Course["status"],
+										}
+									});
 									setStatusModalOpened(false);
 								}}
 								loading={isLoading}

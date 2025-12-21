@@ -560,6 +560,43 @@ export const tryFindSubcategories = Result.wrap(
 		new UnknownError("Failed to find subcategories", { cause: error }),
 );
 
+export interface FindAllCategoriesArgs extends BaseInternalFunctionArgs {
+	sort?: string;
+}
+
+/**
+ * Finds all categories with optional sort
+ */
+export const tryFindAllCategories = Result.wrap(
+	async (args: FindAllCategoriesArgs) => {
+		const { payload, sort = "name", req, overrideAccess = false } = args;
+
+		const categories = await payload
+			.find({
+				collection: CourseCategories.slug,
+				pagination: false,
+				sort,
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryFindAllCategories",
+					args: { payload, req },
+				});
+				throw error;
+			});
+
+		return categories.docs as CourseCategory[];
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find all categories", { cause: error }),
+);
+
 // This page no longer handles action; API route handles reorder
 
 export interface FlatNode {

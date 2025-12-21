@@ -19,8 +19,8 @@ import {
 import type { Route } from "./+types/registration";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export async function loader({ context, request }: Route.LoaderArgs) {
-	const { payload } = context.get(globalContextKey);
+export async function loader({ context }: Route.LoaderArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -34,18 +34,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 	const settings = await tryGetRegistrationSettings({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to get registration settings");
 	});
 
-	if (!settings.ok) {
-		throw new ForbiddenResponse("Failed to get registration settings");
-	}
-
-	return { settings: settings.value };
+	return { settings };
 }
 
 const inputSchema = z.object({
@@ -64,7 +58,7 @@ const inputSchema = z.object({
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
 		return forbidden({ error: "Unauthorized" });
@@ -84,11 +78,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateRegistrationSettings({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		data: {
 			disableRegistration,
 			showRegistrationButton,

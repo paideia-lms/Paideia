@@ -17,11 +17,13 @@ import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCourse } from "server/internal/course-management";
+import { tryFindAllCategories } from "server/internal/course-category-management";
 import type { Course } from "server/payload-types";
 import { z } from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
+	InternalServerErrorResponse,
 	ok,
 	StatusCode,
 	unauthorized,
@@ -69,16 +71,19 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	// Fetch categories for the dropdown
-	const categories = await payload.find({
-		collection: "course-categories",
-		limit: 100,
-		sort: "name",
+	const categoriesResult = await tryFindAllCategories({
+		payload,
 		req: payloadRequest,
+		sort: "name",
 	});
+
+	if (!categoriesResult.ok) {
+		throw new InternalServerErrorResponse(categoriesResult.error.message);
+	}
 
 	return {
 		success: true,
-		categories: categories.docs.map((cat) => ({
+		categories: categoriesResult.value.map((cat) => ({
 			value: cat.id.toString(),
 			label: cat.name,
 		})),

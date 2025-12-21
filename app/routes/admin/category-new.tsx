@@ -15,11 +15,15 @@ import { typeCreateActionRpc } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateCategory } from "server/internal/course-category-management";
+import {
+	tryCreateCategory,
+	tryFindAllCategories,
+} from "server/internal/course-category-management";
 import { z } from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
+	InternalServerErrorResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
@@ -40,7 +44,7 @@ const getRouteUrl = () => {
 };
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.authenticatedUser) {
@@ -51,14 +55,18 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can create categories");
 	}
 
-	const categories = await payload.find({
-		collection: "course-categories",
-		limit: 100,
+	const categoriesResult = await tryFindAllCategories({
+		payload,
+		req: payloadRequest,
 		sort: "name",
 	});
 
+	if (!categoriesResult.ok) {
+		throw new InternalServerErrorResponse(categoriesResult.error.message);
+	}
+
 	return {
-		categories: categories.docs.map((cat) => ({
+		categories: categoriesResult.value.map((cat) => ({
 			value: String(cat.id),
 			label: cat.name,
 		})),
