@@ -100,7 +100,7 @@ export async function dumpDatabase({
 
 		// Get all tables in the schema
 		const tablesResult = await adapter.execute({
-			drizzle: adapter.drizzle,
+			drizzle: adapter.drizzle as any,
 			raw: `
 				SELECT table_name 
 				FROM information_schema.tables 
@@ -119,7 +119,7 @@ export async function dumpDatabase({
 
 			// Get table structure (columns, types, defaults, constraints)
 			const columnsResult = await adapter.execute({
-				drizzle: adapter.drizzle,
+				drizzle: adapter.drizzle as any,
 				raw: `
 					SELECT 
 						column_name,
@@ -206,7 +206,7 @@ export async function dumpDatabase({
 
 			// Get primary keys
 			const pkResult = await adapter.execute({
-				drizzle: adapter.drizzle,
+				drizzle: adapter.drizzle as any,
 				raw: `
 					SELECT a.attname
 					FROM pg_index i
@@ -226,7 +226,7 @@ export async function dumpDatabase({
 
 			// Get foreign keys
 			const fkResult = await adapter.execute({
-				drizzle: adapter.drizzle,
+				drizzle: adapter.drizzle as any,
 				raw: `
 					SELECT
 						tc.constraint_name,
@@ -272,7 +272,7 @@ export async function dumpDatabase({
 
 			// Get indexes
 			const indexResult = await adapter.execute({
-				drizzle: adapter.drizzle,
+				drizzle: adapter.drizzle as any,
 				raw: `
 					SELECT
 						indexname,
@@ -305,7 +305,7 @@ export async function dumpDatabase({
 			const orderBy =
 				columns.length > 0 ? `ORDER BY "${columns[0]!.column_name}"` : "";
 			const dataResult = await adapter.execute({
-				drizzle: adapter.drizzle,
+				drizzle: adapter.drizzle as any,
 				raw: `SELECT * FROM ${fullTableName} ${orderBy};`,
 			});
 

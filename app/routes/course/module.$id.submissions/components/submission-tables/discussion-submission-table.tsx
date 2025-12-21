@@ -14,7 +14,6 @@ import {
 import { IconDots, IconPencil, IconSend } from "@tabler/icons-react";
 import { countBy } from "es-toolkit/array";
 import { href, Link } from "react-router";
-import { DiscussionActions } from "~/utils/module-actions";
 import {
 	calculateDiscussionGradingStats,
 	filterPublishedSubmissions,
@@ -25,7 +24,7 @@ import {
 	groupAndSortDiscussionSubmissions,
 	type DiscussionSubmissionType,
 } from "./helpers";
-import type { Route } from "app/routes/course/module.$id.submissions/route";
+import { type Route, View, getRouteUrl } from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
@@ -146,10 +145,10 @@ function DiscussionStudentSubmissionRow({
 								<Menu.Item
 									component={Link}
 									to={
-										href("/course/module/:moduleLinkId/submissions", {
-											moduleLinkId: String(moduleLinkId),
-										}) +
-										`?action=${DiscussionActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+										getRouteUrl({
+											view: View.GRADING,
+											submissionId: latestSubmission.id,
+										}, moduleLinkId)
 									}
 									leftSection={<IconPencil size={14} />}
 								>

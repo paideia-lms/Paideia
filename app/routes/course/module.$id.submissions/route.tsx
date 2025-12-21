@@ -4,8 +4,9 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	createLoader,
 	parseAsInteger,
-	parseAsString,
+	parseAsStringEnum,
 	parseAsStringEnum as parseAsStringEnumServer,
+
 } from "nuqs/server";
 import { useState } from "react";
 import { courseContextKey } from "server/contexts/course-context";
@@ -34,7 +35,7 @@ import {
 	canDeleteSubmissions,
 	canSeeModuleSubmissions,
 } from "server/utils/permissions";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateActionRpc } from "app/utils/action-utils";
 import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion-grading-view";
 import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
 import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
@@ -44,7 +45,6 @@ import {
 	DiscussionSubmissionTable,
 	QuizSubmissionTable,
 } from "app/routes/course/module.$id.submissions/components/submission-tables";
-import { AssignmentActions, QuizActions } from "~/utils/module-actions";
 import {
 	badRequest,
 	BadRequestResponse,
@@ -54,18 +54,17 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
-import { useDeleteSubmission, useReleaseGrade } from "./hooks";
+
 import { isNotNil } from "es-toolkit";
+import { href } from "react-router";
+import { stringify } from "qs";
+import { z } from "zod";
 
 export type { Route };
 
-// Define search params
-export const submissionsSearchParams = {
-	action: parseAsString,
-	submissionId: parseAsInteger,
-};
-
-export const loadSearchParams = createLoader(submissionsSearchParams);
+export enum View {
+	GRADING = "grading",
+}
 
 export enum Action {
 	DeleteSubmission = "deleteSubmission",
@@ -73,14 +72,53 @@ export enum Action {
 	ReleaseGrade = "releaseGrade",
 }
 
-// Define search params for submission actions
-export const submissionActionSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+export function getRouteUrl(searchParams: {
+	action?: Action;
+	view?: View;
+	submissionId?: number;
+}, moduleLinkId: number) {
+	return href("/course/module/:moduleLinkId/submissions", {
+		moduleLinkId: moduleLinkId.toString(),
+	}) + "?" + stringify(searchParams);
 };
 
-export const loadActionSearchParams = createLoader(
-	submissionActionSearchParams,
-);
+// Define search params
+export const submissionsSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+	submissionId: parseAsInteger,
+	view: parseAsStringEnum(Object.values(View)),
+};
+
+export const loadSearchParams = createLoader(submissionsSearchParams);
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createDeleteSubmissionActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.DeleteSubmission,
+});
+
+const createGradeSubmissionActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		score: z.coerce.number(),
+		feedback: z.string().optional(),
+	}),
+	method: "POST",
+	action: Action.GradeSubmission,
+});
+
+const createReleaseGradeActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		courseModuleLinkId: z.coerce.number(),
+		enrollmentId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.ReleaseGrade,
+});
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const { payloadRequest, payload } = context.get(globalContextKey);
@@ -128,11 +166,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	);
 
 	// Parse search params to check if we're in grading mode
-	const { action, submissionId } = loadSearchParams(request);
+	const { submissionId, view } = loadSearchParams(request);
 
-	const isGradingMode =
-		(action === AssignmentActions.GRADE_SUBMISSION ||
-			action === QuizActions.GRADE_SUBMISSION) &&
+	const showGradingView =
+		(view === View.GRADING) &&
 		submissionId !== null;
 
 	// Fetch gradebook item to get maxGrade for all submissions
@@ -147,7 +184,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		: null;
 
 	// If we're in grading mode, return grading-specific data
-	if (isGradingMode && courseModuleContext.type === "assignment") {
+	if (showGradingView && courseModuleContext.type === "assignment") {
 		const submission = await tryGetAssignmentSubmissionById({
 			payload,
 			id: submissionId,
@@ -158,18 +195,18 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
-					baseGrade: submission.grade,
-					maxGrade,
-					feedback: submission.feedback || null,
-				}
+				baseGrade: submission.grade,
+				maxGrade,
+				feedback: submission.feedback || null,
+			}
 			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -183,12 +220,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			gradingSubmission: submission,
 			gradingGrade,
-			action,
+			view,
 			maxGrade,
 		};
 	}
 
-	if (isGradingMode && courseModuleContext.type === "quiz") {
+	if (showGradingView && courseModuleContext.type === "quiz") {
 		const submissionResult = await tryGetQuizSubmissionById({
 			payload,
 			id: submissionId!,
@@ -196,7 +233,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		});
 
 		if (!submissionResult.ok) {
-			throw badRequest({ error: submissionResult.error.message });
+			throw new BadRequestResponse(submissionResult.error.message);
 		}
 
 		const submission = submissionResult.value;
@@ -214,20 +251,20 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -241,12 +278,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			gradingSubmission: submission,
 			gradingGrade,
-			action,
+			view,
 			maxGrade,
 		};
 	}
 
-	if (isGradingMode && courseModuleContext.type === "discussion") {
+	if (showGradingView && courseModuleContext.type === "discussion") {
 		const allSubmissions = courseModuleContext.submissions;
 		const submission = allSubmissions.find(
 			(sub: { id: number }) => sub.id === submissionId,
@@ -274,7 +311,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -285,12 +322,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const author =
 					typeof student === "object" && student !== null
 						? {
-								id: student.id,
-								firstName: student.firstName ?? null,
-								lastName: student.lastName ?? null,
-								email: student.email ?? null,
-								avatar: student.avatar ?? null,
-							}
+							id: student.id,
+							firstName: student.firstName ?? null,
+							lastName: student.lastName ?? null,
+							email: student.email ?? null,
+							avatar: student.avatar ?? null,
+						}
 						: null;
 
 				return [
@@ -327,7 +364,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -390,12 +427,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Add student submissions to gradingSubmission for display
@@ -413,9 +450,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -429,7 +466,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			gradingSubmission,
 			gradingGrade,
-			action,
+			view,
 			maxGrade,
 		};
 	}
@@ -437,8 +474,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Not in grading mode - return list view data
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-		courseModuleContext.type === "quiz" ||
-		courseModuleContext.type === "discussion"
+			courseModuleContext.type === "quiz" ||
+			courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -453,13 +490,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
@@ -468,9 +505,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -482,7 +519,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			submissions: submissionsWithGrades,
 			moduleLinkId: courseModuleContext.id,
 			canDelete,
-			action,
+			view,
 			maxGrade,
 		};
 	}
@@ -491,9 +528,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -505,7 +542,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			submissions: submissionsWithGrades,
 			moduleLinkId: courseModuleContext.id,
 			canDelete,
-			action,
+			view,
 			maxGrade,
 		};
 	}
@@ -514,9 +551,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -528,7 +565,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			submissions: submissionsWithGrades,
 			moduleLinkId: courseModuleContext.id,
 			canDelete,
-			action,
+			view,
 			maxGrade,
 		};
 	}
@@ -536,13 +573,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	throw new BadRequestResponse("Unsupported module type");
 };
 
-const deleteSubmissionAction = serverOnly$(
-	async ({
-		request,
-		context,
-	}: Route.ActionArgs & {
-		searchParams: { action: Action.DeleteSubmission };
-	}) => {
+const [deleteSubmissionAction, useDeleteSubmission] = createDeleteSubmissionActionRpc(
+	async ({ context, formData, params }) => {
+		// params is used in the action option for URL generation
+		void params;
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -575,18 +609,7 @@ const deleteSubmissionAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const formData = await request.formData();
-			const submissionId = formData.get("submissionId");
-
-			if (!submissionId || typeof submissionId !== "string") {
-				return badRequest({ error: "Submission ID is required" });
-			}
-
-			const id = Number.parseInt(submissionId, 10);
-			if (Number.isNaN(id)) {
-				return badRequest({ error: "Invalid submission ID" });
-			}
-
+			const id = formData.submissionId;
 			// Delete the submission
 			const deleteResult = await tryDeleteAssignmentSubmission({
 				payload,
@@ -604,15 +627,19 @@ const deleteSubmissionAction = serverOnly$(
 			});
 		});
 	},
-)!;
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(
+				{ action: searchParams.action },
+				Number(params.moduleLinkId),
+			),
+	},
+);
 
-const gradeSubmissionAction = serverOnly$(
-	async ({
-		request,
-		context,
-	}: Route.ActionArgs & {
-		searchParams: { action: Action.GradeSubmission };
-	}) => {
+const [gradeSubmissionAction, useGradeSubmission] = createGradeSubmissionActionRpc(
+	async ({ context, formData, params }) => {
+		// params is used in the action option for URL generation
+		void params;
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -648,30 +675,8 @@ const gradeSubmissionAction = serverOnly$(
 
 		return transactionInfo.tx(
 			async ({ reqWithTransaction }) => {
-				const formData = await request.formData();
-				const submissionId = formData.get("submissionId");
-				const score = formData.get("score");
-				const feedback = formData.get("feedback");
+				const id = formData.submissionId;
 
-				// Validate submission ID
-				if (!submissionId || typeof submissionId !== "string") {
-					return badRequest({ error: "Submission ID is required" });
-				}
-
-				const id = Number.parseInt(submissionId, 10);
-				if (Number.isNaN(id)) {
-					return badRequest({ error: "Invalid submission ID" });
-				}
-
-				// Validate score
-				if (!score || typeof score !== "string") {
-					return badRequest({ error: "Score is required" });
-				}
-
-				const scoreValue = Number.parseFloat(score);
-				if (Number.isNaN(scoreValue) || scoreValue < 0) {
-					return badRequest({ error: "Invalid score value" });
-				}
 
 				// Grade the submission based on module type
 				if (moduleType === "assignment") {
@@ -679,9 +684,8 @@ const gradeSubmissionAction = serverOnly$(
 						payload,
 						req: reqWithTransaction,
 						id,
-						grade: scoreValue,
-						feedback:
-							feedback && typeof feedback === "string" ? feedback : undefined,
+						grade: formData.score,
+						feedback: formData.feedback,
 						gradedBy: currentUser.id,
 					});
 
@@ -753,9 +757,8 @@ const gradeSubmissionAction = serverOnly$(
 						payload,
 						req: reqWithTransaction,
 						id,
-						grade: scoreValue,
-						feedback:
-							feedback && typeof feedback === "string" ? feedback : undefined,
+						grade: formData.score,
+						feedback: formData.feedback,
 						gradedBy: currentUser.id,
 						overrideAccess: false,
 					});
@@ -777,15 +780,19 @@ const gradeSubmissionAction = serverOnly$(
 			(errorResponse) => errorResponse.data.status === StatusCode.BadRequest,
 		);
 	},
-)!;
+	{
+		action: ({ params }) =>
+			getRouteUrl(
+				{ action: Action.GradeSubmission },
+				Number(params.moduleLinkId),
+			),
+	},
+);
 
-const releaseGradeAction = serverOnly$(
-	async ({
-		request,
-		context,
-	}: Route.ActionArgs & {
-		searchParams: { action: Action.ReleaseGrade };
-	}) => {
+const [releaseGradeAction, useReleaseGrade] = createReleaseGradeActionRpc(
+	async ({ context, formData, params }) => {
+		// params is used in the action option for URL generation
+		void params;
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -820,29 +827,8 @@ const releaseGradeAction = serverOnly$(
 		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const formData = await request.formData();
-			const courseModuleLinkId = formData.get("courseModuleLinkId");
-			const enrollmentId = formData.get("enrollmentId");
-
-			// Validate course module link ID
-			if (!courseModuleLinkId || typeof courseModuleLinkId !== "string") {
-				return badRequest({ error: "Course module link ID is required" });
-			}
-
-			const courseModuleLinkIdValue = Number.parseInt(courseModuleLinkId, 10);
-			if (Number.isNaN(courseModuleLinkIdValue)) {
-				return badRequest({ error: "Invalid course module link ID" });
-			}
-
-			// Validate enrollment ID
-			if (!enrollmentId || typeof enrollmentId !== "string") {
-				return badRequest({ error: "Enrollment ID is required" });
-			}
-
-			const enrollmentIdValue = Number.parseInt(enrollmentId, 10);
-			if (Number.isNaN(enrollmentIdValue)) {
-				return badRequest({ error: "Invalid enrollment ID" });
-			}
+			const courseModuleLinkIdValue = formData.courseModuleLinkId;
+			const enrollmentIdValue = formData.enrollmentId;
 
 			// Release the grade based on module type
 			let releaseResult:
@@ -888,44 +874,36 @@ const releaseGradeAction = serverOnly$(
 			});
 		});
 	},
-)!;
+	{
+		action: ({ params }) =>
+			getRouteUrl(
+				{ action: Action.ReleaseGrade },
+				Number(params.moduleLinkId),
+			),
+	},
+);
+
+export {
+	useDeleteSubmission,
+	useGradeSubmission,
+	useReleaseGrade,
+}
+
+const actionMap = {
+	[Action.DeleteSubmission]: deleteSubmissionAction,
+	[Action.GradeSubmission]: gradeSubmissionAction,
+	[Action.ReleaseGrade]: releaseGradeAction,
+};
 
 export const action = async (args: Route.ActionArgs) => {
 	const { request } = args;
-	const { action: actionType } = loadActionSearchParams(request);
+	const { action: actionType } = loadSearchParams(request);
 
 	if (!actionType) {
 		return badRequest({ error: "Action is required" });
 	}
 
-	if (actionType === Action.DeleteSubmission) {
-		return deleteSubmissionAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.GradeSubmission) {
-		return gradeSubmissionAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.ReleaseGrade) {
-		return releaseGradeAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({ error: "Invalid action" });
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -966,10 +944,8 @@ export default function ModuleSubmissionsPage({
 }: Route.ComponentProps) {
 	// Call hooks unconditionally at the top
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
-	const { deleteSubmission } = useDeleteSubmission();
-	const { releaseGrade, isReleasing } = useReleaseGrade(
-		loaderData.moduleLinkId,
-	);
+	const { submit: deleteSubmission, isLoading: isDeleting } = useDeleteSubmission();
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 
 	// If we're in grading mode, show the appropriate grading view
 	if (loaderData.mode === "grading") {
@@ -988,7 +964,17 @@ export default function ModuleSubmissionsPage({
 					course={loaderData.course}
 					moduleLinkId={loaderData.moduleLinkId}
 					grade={loaderData.gradingGrade}
-					onReleaseGrade={releaseGrade}
+					onReleaseGrade={(courseModuleLinkId, enrollmentId) => releaseGrade(
+						{
+							params: {
+								moduleLinkId: loaderData.moduleLinkId,
+							},
+							values: {
+								courseModuleLinkId: courseModuleLinkId,
+								enrollmentId: enrollmentId,
+							},
+						}
+					)}
 					isReleasing={isReleasing}
 					enrollment={submissionWithRelations.enrollment}
 					courseModuleLink={submissionWithRelations.courseModuleLink}
@@ -1011,7 +997,17 @@ export default function ModuleSubmissionsPage({
 					course={loaderData.course}
 					moduleLinkId={loaderData.moduleLinkId}
 					grade={loaderData.gradingGrade}
-					onReleaseGrade={releaseGrade}
+					onReleaseGrade={(courseModuleLinkId, enrollmentId) => releaseGrade(
+						{
+							params: {
+								moduleLinkId: loaderData.moduleLinkId,
+							},
+							values: {
+								courseModuleLinkId: courseModuleLinkId,
+								enrollmentId: enrollmentId,
+							},
+						}
+					)}
 					isReleasing={isReleasing}
 					enrollment={submissionWithRelations.enrollment}
 					courseModuleLink={submissionWithRelations.courseModuleLink}
@@ -1038,7 +1034,17 @@ export default function ModuleSubmissionsPage({
 					course={loaderData.course}
 					moduleLinkId={loaderData.moduleLinkId}
 					grade={loaderData.gradingGrade}
-					onReleaseGrade={releaseGrade}
+					onReleaseGrade={(courseModuleLinkId, enrollmentId) => releaseGrade(
+						{
+							params: {
+								moduleLinkId: loaderData.moduleLinkId,
+							},
+							values: {
+								courseModuleLinkId: courseModuleLinkId,
+								enrollmentId: enrollmentId,
+							},
+						}
+					)}
 					isReleasing={isReleasing}
 					enrollment={submissionWithRelations.enrollment}
 					courseModuleLink={submissionWithRelations.courseModuleLink}
@@ -1093,10 +1099,27 @@ export default function ModuleSubmissionsPage({
 						onSelectRow={handleSelectRow}
 						canDelete={loaderData.canDelete}
 						onDeleteSubmission={(submissionId) =>
-							deleteSubmission(submissionId, loaderData.moduleLinkId)
+							deleteSubmission({
+								params: {
+									moduleLinkId: loaderData.moduleLinkId,
+								},
+								values: {
+									submissionId: submissionId,
+								},
+							})
 						}
 						moduleLinkId={loaderData.moduleLinkId}
-						onReleaseGrade={releaseGrade}
+						onReleaseGrade={(courseModuleLinkId, enrollmentId) => releaseGrade(
+							{
+								params: {
+									moduleLinkId: loaderData.moduleLinkId,
+								},
+								values: {
+									courseModuleLinkId: courseModuleLinkId,
+									enrollmentId: enrollmentId,
+								},
+							}
+						)}
 						isReleasing={isReleasing}
 					/>
 				</Stack>
@@ -1114,7 +1137,17 @@ export default function ModuleSubmissionsPage({
 						>[0]["submissions"]
 					}
 					moduleLinkId={loaderData.moduleLinkId}
-					onReleaseGrade={releaseGrade}
+					onReleaseGrade={(courseModuleLinkId, enrollmentId) => releaseGrade(
+						{
+							params: {
+								moduleLinkId: loaderData.moduleLinkId,
+							},
+							values: {
+								courseModuleLinkId: courseModuleLinkId,
+								enrollmentId: enrollmentId,
+							},
+						}
+					)}
 					isReleasing={isReleasing}
 				/>
 			);
@@ -1127,7 +1160,17 @@ export default function ModuleSubmissionsPage({
 					enrollments={loaderData.enrollments}
 					submissions={loaderData.submissions}
 					moduleLinkId={loaderData.moduleLinkId}
-					onReleaseGrade={releaseGrade}
+					onReleaseGrade={(courseModuleLinkId, enrollmentId) => releaseGrade(
+						{
+							params: {
+								moduleLinkId: loaderData.moduleLinkId,
+							},
+							values: {
+								courseModuleLinkId: courseModuleLinkId,
+								enrollmentId: enrollmentId,
+							},
+						}
+					)}
 					isReleasing={isReleasing}
 				/>
 			);

@@ -1104,10 +1104,10 @@ describe("Media Management", () => {
 
 	test("should find all media usages across collections", async () => {
 		// Create a media file to test with
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const file = Bun.file("fixture/gem.png") as unknown as File;
 		const createMediaResult = await tryCreateMedia({
 			payload,
-			file: Buffer.from(fileBuffer),
+			file: Buffer.from(await file.arrayBuffer()),
 			filename: "test-media-usages.png",
 			mimeType: "image/png",
 			alt: "Test media for usages",
@@ -1239,12 +1239,7 @@ describe("Media Management", () => {
 			enrollmentId,
 			attemptNumber: 1,
 			content: "Test submission content",
-			attachments: [
-				{
-					file: testMediaId,
-					description: "Test attachment",
-				},
-			],
+			attachments: [file],
 			overrideAccess: true,
 		});
 

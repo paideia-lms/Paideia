@@ -17,7 +17,7 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-import { useCreateReply } from "../hooks";
+import { useCreateReply } from "../route";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
 
 dayjs.extend(relativeTime);
@@ -47,7 +47,7 @@ export function ReplyCardWithUpvote({
 }: ReplyCardWithUpvoteProps) {
 	const [opened, { toggle }] = useDisclosure(true); // Open by default to show nested replies
 	const [replyContent, setReplyContent] = useState("");
-	const { createReply, isSubmitting, data } = useCreateReply(moduleLinkId);
+	const { submit: createReply, isLoading: isSubmitting } = useCreateReply();
 
 	// Use nested replies from the reply object itself (nested structure)
 	const nestedReplies = reply.replies || [];
@@ -67,7 +67,16 @@ export function ReplyCardWithUpvote({
 		if (replyContent.trim()) {
 			const threadIdNum = Number.parseInt(threadId, 10);
 			if (!Number.isNaN(threadIdNum)) {
-				createReply(replyContent.trim(), threadIdNum, reply.id);
+				createReply({
+					params: { moduleLinkId },
+					values: {
+						content: replyContent.trim(),
+						parentThread: threadIdNum,
+					},
+					searchParams: {
+						replyTo: reply.id,
+					},
+				});
 				setReplyContent("");
 				if (onCancelReply) {
 					onCancelReply();
@@ -86,8 +95,8 @@ export function ReplyCardWithUpvote({
 								to={
 									courseId && reply.authorId
 										? href("/course/:courseId/participants/profile", {
-												courseId: String(courseId),
-											}) + `?userId=${reply.authorId}`
+											courseId: String(courseId),
+										}) + `?userId=${reply.authorId}`
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}

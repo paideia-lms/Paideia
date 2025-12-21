@@ -1,8 +1,7 @@
 import { ActionIcon, Group, Text } from "@mantine/core";
 import { IconArrowBigUp, IconArrowBigUpFilled } from "@tabler/icons-react";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import { useRemoveUpvoteReply } from "../hooks";
-import { useUpvoteReply } from "../hooks";
+import { useRemoveUpvoteReply, useUpvoteReply } from "../route";
 
 interface ReplyUpvoteButtonProps {
 	reply: DiscussionReply;
@@ -15,17 +14,27 @@ export function ReplyUpvoteButton({
 	moduleLinkId,
 	threadId,
 }: ReplyUpvoteButtonProps) {
-	const { upvoteReply } = useUpvoteReply(moduleLinkId);
-	const { removeUpvoteReply } = useRemoveUpvoteReply(moduleLinkId);
+	const { submit: upvoteReply } = useUpvoteReply();
+	const { submit: removeUpvoteReply } = useRemoveUpvoteReply();
 
 	const handleUpvote = () => {
 		const submissionId = Number.parseInt(reply.id, 10);
 		if (Number.isNaN(submissionId)) return;
 
 		if (reply.isUpvoted) {
-			removeUpvoteReply(submissionId, threadId);
+			removeUpvoteReply({
+				params: { moduleLinkId },
+				values: {
+					submissionId,
+				},
+			});
 		} else {
-			upvoteReply(submissionId, threadId);
+			upvoteReply({
+				params: { moduleLinkId },
+				values: {
+					submissionId,
+				},
+			});
 		}
 	};
 

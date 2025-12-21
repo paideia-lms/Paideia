@@ -35,7 +35,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import type { useFetcher } from "react-router";
 import { href, Link } from "react-router";
-import { DiscussionActions } from "~/utils/module-actions";
+import { DiscussionActions } from "app/routes/course/module.$id/route";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 
 type FetcherType = ReturnType<typeof useFetcher>;
@@ -67,8 +67,8 @@ function AuthorInfo({
 	const profileHref =
 		typeof courseId === "number" && typeof authorId === "number"
 			? href("/course/:courseId/participants/profile", {
-					courseId: String(courseId),
-				}) + `?userId=${authorId}`
+				courseId: String(courseId),
+			}) + `?userId=${authorId}`
 			: "#";
 
 	return (

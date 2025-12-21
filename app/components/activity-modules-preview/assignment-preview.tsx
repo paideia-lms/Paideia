@@ -24,7 +24,6 @@ import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { getMimeTypesArray } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { AssignmentActions } from "~/utils/module-actions";
 import { isHtmlEmpty } from "../rich-text-editor";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { SubmissionData } from "../submission-history";
@@ -443,9 +442,8 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${
-									maxAttempts !== 1 ? "s" : ""
-								} used`
+							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
+							} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
@@ -506,27 +504,28 @@ export function AssignmentPreview({
 	}
 
 	// Don't allow non-students to access the submission form
-	if (action === AssignmentActions.EDIT_SUBMISSION && !canSubmit) {
-		setAction(null);
-	}
+	// if (action === AssignmentActions.EDIT_SUBMISSION && !canSubmit) {
+	// 	setAction(null);
+	// }
 
-	if (action === AssignmentActions.EDIT_SUBMISSION && canSubmit) {
-		return (
-			<SubmissionForm
-				assignment={assignment}
-				isSubmitting={isSubmitting}
-				onClose={handleCloseForm}
-				onSubmit={handleSubmit}
-			/>
-		);
-	}
+	// if (action === AssignmentActions.EDIT_SUBMISSION && canSubmit) {
+	// 	return (
+	// 		<SubmissionForm
+	// 			assignment={assignment}
+	// 			isSubmitting={isSubmitting}
+	// 			onClose={handleCloseForm}
+	// 			onSubmit={handleSubmit}
+	// 		/>
+	// 	);
+	// }
 
 	return (
 		<InstructionsView
 			assignment={assignment}
 			allSubmissions={allSubmissions}
 			submission={submission}
-			onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
+			// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
+			onAddSubmission={() => { }}
 			canSubmit={canSubmit}
 			isStudent={isStudent}
 		/>

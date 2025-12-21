@@ -169,7 +169,7 @@ export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 	const handleSubmit = form.onSubmit((values) => {
 		updatePreference({
 			params: {
-				id: String(user.id),
+				id: user.id,
 			},
 			values: {
 				theme: values.theme as "light" | "dark",
@@ -194,7 +194,7 @@ export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 						Preferences
 					</Title>
 
-					<form onSubmit={form.onSubmit(handleSubmit)}>
+					<form onSubmit={handleSubmit}>
 						<Stack gap="md">
 							<Radio.Group
 								{...form.getInputProps("theme")}

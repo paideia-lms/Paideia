@@ -17,6 +17,7 @@ import {
 	type BaseInternalFunctionArgs,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { tryCreateMedia } from "./media-management";
 
 type AssignmentSettings = Extract<
 	LatestCourseModuleSettings["settings"],
@@ -30,25 +31,7 @@ export interface CreateAssignmentSubmissionArgs
 	enrollmentId: number;
 	attemptNumber?: number;
 	content?: string;
-	attachments?: Array<{
-		file: number;
-		description?: string;
-	}>;
-	timeSpent?: number;
-}
-
-export interface UpdateAssignmentSubmissionArgs
-	extends BaseInternalFunctionArgs {
-	id: number;
-	status?: "draft" | "submitted" | "graded" | "returned";
-	content?: string;
-	attachments?: Array<
-		| number
-		| {
-				file: number;
-				description?: string;
-		  }
-	>;
+	attachments?: File[];
 	timeSpent?: number;
 }
 
@@ -84,24 +67,19 @@ export interface ListAssignmentSubmissionsArgs
  * Validates file attachments against assignment configuration
  */
 function validateFileAttachments(
-	attachments: Array<{ file: number; description?: string }> | undefined,
-	assignment: {
+	attachments: File[],
+	restriction: {
 		allowedFileTypes?: Array<{ extension: string; mimeType: string }> | null;
 		maxFileSize?: number | null;
 		maxFiles?: number | null;
 	} | null,
-	mediaFiles: Array<{
-		id: number;
-		mimeType?: string | null;
-		filesize?: number | null;
-	}>,
 ): void {
 	if (!attachments || attachments.length === 0) {
 		return;
 	}
 
 	// Check max files
-	const maxFiles = assignment?.maxFiles ?? 5;
+	const maxFiles = restriction?.maxFiles ?? 5;
 	if (attachments.length > maxFiles) {
 		throw new InvalidArgumentError(
 			`Cannot upload more than ${maxFiles} file${maxFiles !== 1 ? "s" : ""}`,
@@ -110,35 +88,28 @@ function validateFileAttachments(
 
 	// Get allowed file types (use defaults if not configured)
 	const allowedFileTypes =
-		assignment?.allowedFileTypes && assignment.allowedFileTypes.length > 0
-			? assignment.allowedFileTypes
+		restriction?.allowedFileTypes && restriction.allowedFileTypes.length > 0
+			? restriction.allowedFileTypes
 			: DEFAULT_ALLOWED_FILE_TYPES;
 
 	const allowedMimeTypes = allowedFileTypes.map((ft) => ft.mimeType);
-	const maxFileSize = (assignment?.maxFileSize ?? 10) * 1024 * 1024; // Convert MB to bytes
+	const maxFileSize = (restriction?.maxFileSize ?? 10) * 1024 * 1024; // Convert MB to bytes
 
 	// Validate each file
 	for (const attachment of attachments) {
-		const mediaFile = mediaFiles.find((mf) => mf.id === attachment.file);
-		if (!mediaFile) {
-			throw new InvalidArgumentError(
-				`File with ID ${attachment.file} not found`,
-			);
-		}
-
 		// Validate MIME type
-		if (mediaFile.mimeType && !allowedMimeTypes.includes(mediaFile.mimeType)) {
+		if (attachment.type && !allowedMimeTypes.includes(attachment.type)) {
 			const allowedExtensions = allowedFileTypes
 				.map((ft) => ft.extension)
 				.join(", ");
 			throw new InvalidArgumentError(
-				`File type "${mediaFile.mimeType}" is not allowed. Allowed types: ${allowedExtensions}`,
+				`File type "${attachment.type}" is not allowed. Allowed types: ${allowedExtensions}`,
 			);
 		}
 
 		// Validate file size
-		if (mediaFile.filesize && mediaFile.filesize > maxFileSize) {
-			const maxSizeMB = assignment?.maxFileSize ?? 10;
+		if (attachment.size && attachment.size > maxFileSize) {
+			const maxSizeMB = restriction?.maxFileSize ?? 10;
 			throw new InvalidArgumentError(
 				`File size exceeds maximum of ${maxSizeMB}MB`,
 			);
@@ -160,7 +131,6 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			content,
 			attachments,
 			timeSpent,
-
 			req,
 			overrideAccess = false,
 		} = args;
@@ -202,18 +172,12 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			}
 
 			// Get course module link to access assignment
-			const courseModuleLinkResult = await tryFindCourseActivityModuleLinkById({
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
 				payload,
 				linkId: courseModuleLinkId,
 				req: reqWithTransaction,
 				overrideAccess,
-			});
-
-			if (!courseModuleLinkResult.ok) {
-				throw new InvalidArgumentError("Course module link not found");
-			}
-
-			const courseModuleLink = courseModuleLinkResult.value;
+			}).getOrThrow();
 
 			// Get assignment from activity module (discriminated union)
 			const activityModule = courseModuleLink.activityModule;
@@ -230,24 +194,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 
 			// Validate file attachments if provided
 			if (attachments && attachments.length > 0) {
-				const mediaFileIds = attachments.map((a) => a.file);
-				const mediaFiles = await payload
-					.find({
-						collection: "media",
-						where: {
-							id: { in: mediaFileIds },
-						},
-						depth: 1,
-						req: reqWithTransaction,
-						overrideAccess,
-					})
-					.then(stripDepth<1, "find">());
-
-				validateFileAttachments(
-					attachments,
-					assignmentForValidation,
-					mediaFiles.docs,
-				);
+				validateFileAttachments(attachments, assignmentForValidation);
 			}
 
 			const assignmentSettings =
@@ -257,6 +204,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 				? new Date() > new Date(assignmentSettings.dueDate)
 				: false;
 
+			const now = new Date().toISOString();
 			const submission = await payload
 				.create({
 					collection: "assignment-submissions",
@@ -265,9 +213,32 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 						student: studentId,
 						enrollment: enrollmentId,
 						attemptNumber,
-						status: "draft",
+						// ! we don't support draft submissions yet
+						status: "submitted",
+						submittedAt: now,
 						content,
-						attachments,
+						attachments: attachments
+							? await Promise.all(
+									attachments.map(async (attachment) =>
+										tryCreateMedia({
+											payload,
+											file: Buffer.from(await attachment.arrayBuffer()),
+											filename: attachment.name,
+											mimeType: attachment.type,
+											alt: attachment.name,
+											caption: attachment.name,
+											userId: studentId,
+											req: reqWithTransaction,
+											overrideAccess,
+										})
+											.getOrThrow()
+											.then((result) => ({
+												file: result.media.id,
+												description: attachment.name,
+											})),
+									),
+								)
+							: [],
 						isLate,
 						timeSpent,
 					},
@@ -370,262 +341,6 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get assignment submission", {
-			cause: error,
-		}),
-);
-
-/**
- * Updates an assignment submission
- */
-export const tryUpdateAssignmentSubmission = Result.wrap(
-	async (args: UpdateAssignmentSubmissionArgs) => {
-		const {
-			payload,
-			id,
-			status,
-			content,
-			attachments,
-			timeSpent,
-
-			req,
-			overrideAccess = false,
-		} = args;
-
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Assignment submission ID is required");
-		}
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Get existing submission to access assignment configuration
-			const existingSubmission = await payload.findByID({
-				collection: "assignment-submissions",
-				id,
-				depth: 0,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			if (!existingSubmission) {
-				throw new NonExistingAssignmentSubmissionError(
-					`Assignment submission with id '${id}' not found`,
-				);
-			}
-
-			// Validate file attachments if being updated
-			if (attachments !== undefined && attachments.length > 0) {
-				// Get course module link to access assignment
-				const courseModuleLinkId =
-					typeof existingSubmission.courseModuleLink === "object"
-						? existingSubmission.courseModuleLink.id
-						: existingSubmission.courseModuleLink;
-
-				const courseModuleLinkResult =
-					await tryFindCourseActivityModuleLinkById({
-						payload,
-						linkId: courseModuleLinkId,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-
-				if (!courseModuleLinkResult.ok) {
-					throw new InvalidArgumentError("Course module link not found");
-				}
-
-				const courseModuleLink = courseModuleLinkResult.value;
-				const activityModule = courseModuleLink.activityModule;
-
-				// Extract assignment data for validation (only available for assignment type)
-				const assignmentForValidation =
-					activityModule.type === "assignment"
-						? {
-								allowedFileTypes: activityModule.allowedFileTypes ?? null,
-								maxFileSize: activityModule.maxFileSize ?? null,
-								maxFiles: activityModule.maxFiles ?? null,
-							}
-						: null;
-
-				// Extract file IDs from attachments (could be numbers or objects)
-				const fileIds = attachments
-					.map((a) => (typeof a === "number" ? a : a.file))
-					.filter((id): id is number => typeof id === "number");
-
-				if (fileIds.length > 0) {
-					const mediaFiles = await payload.find({
-						collection: "media",
-						where: {
-							id: { in: fileIds },
-						},
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-
-					// Convert attachments to proper format for validation
-					const attachmentsForValidation = attachments.map((a) =>
-						typeof a === "number" ? { file: a } : a,
-					);
-
-					validateFileAttachments(
-						attachmentsForValidation,
-						assignmentForValidation,
-						mediaFiles.docs,
-					);
-				}
-			}
-
-			// Build update data object
-			const updateData: Record<string, unknown> = {};
-			if (status !== undefined) updateData.status = status;
-			if (content !== undefined) updateData.content = content;
-			if (attachments !== undefined) updateData.attachments = attachments;
-			if (timeSpent !== undefined) updateData.timeSpent = timeSpent;
-
-			// If status is being changed to submitted, set submittedAt
-			if (status === "submitted") {
-				updateData.submittedAt = new Date().toISOString();
-			}
-
-			// Validate that at least one field is being updated
-			if (Object.keys(updateData).length === 0) {
-				throw new InvalidArgumentError(
-					"At least one field must be provided for update",
-				);
-			}
-
-			const updatedSubmission = await payload.update({
-				collection: "assignment-submissions",
-				id,
-				data: updateData,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-			assertZodInternal(
-				"tryUpdateAssignmentSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({ id: z.number() }),
-			);
-
-			const student = updatedSubmission.student;
-			assertZodInternal(
-				"tryUpdateAssignmentSubmission: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const enrollment = updatedSubmission.enrollment;
-			assertZodInternal(
-				"tryUpdateAssignmentSubmission: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			return {
-				...updatedSubmission,
-				courseModuleLink: courseModuleLinkRef,
-				student,
-				enrollment,
-			};
-		});
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update assignment submission", {
-			cause: error,
-		}),
-);
-
-export interface SubmitAssignmentArgs extends BaseInternalFunctionArgs {
-	submissionId: number;
-}
-
-/**
- * Submits an assignment (changes status from draft to submitted)
- */
-export const trySubmitAssignment = Result.wrap(
-	async (args: SubmitAssignmentArgs) => {
-		const {
-			payload,
-			submissionId,
-
-			req,
-			overrideAccess = false,
-		} = args;
-
-		// Validate ID
-		if (!submissionId) {
-			throw new InvalidArgumentError("Assignment submission ID is required");
-		}
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Get the current submission
-			const currentSubmission = await payload.findByID({
-				collection: "assignment-submissions",
-				id: submissionId,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			if (!currentSubmission) {
-				throw new NonExistingAssignmentSubmissionError(
-					`Assignment submission with id '${submissionId}' not found`,
-				);
-			}
-
-			if (currentSubmission.status !== "draft") {
-				throw new InvalidArgumentError(
-					"Only draft submissions can be submitted",
-				);
-			}
-
-			// Update status to submitted
-			const updatedSubmission = await payload
-				.update({
-					collection: "assignment-submissions",
-					id: submissionId,
-					data: {
-						status: "submitted",
-						submittedAt: new Date().toISOString(),
-					},
-					depth: 1,
-					req: reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "update">());
-
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-
-			const student = updatedSubmission.student;
-
-			const enrollment = updatedSubmission.enrollment;
-			return {
-				...updatedSubmission,
-				courseModuleLink: courseModuleLinkRef,
-				student,
-				enrollment,
-			};
-		});
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to submit assignment", {
 			cause: error,
 		}),
 );

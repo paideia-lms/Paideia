@@ -19,7 +19,7 @@ import { getRouteUrl } from "app/routes/course.$id.participants.profile";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
-import { useGradeSubmission } from "../hooks";
+import { useGradeSubmission } from "../route";
 
 // ============================================================================
 // Types
@@ -50,12 +50,12 @@ interface DiscussionSubmissionItem {
 		lastName?: string | null;
 		email?: string | null;
 		avatar?:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-			  }
-			| null;
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+		}
+		| null;
 	} | null;
 }
 
@@ -65,20 +65,20 @@ export interface DiscussionGradingViewProps {
 		status: "draft" | "submitted" | "graded" | "returned";
 		submittedAt?: string | null;
 		student:
+		| {
+			id: number;
+			firstName?: string | null;
+			lastName?: string | null;
+			email?: string | null;
+			avatar?:
+			| number
 			| {
-					id: number;
-					firstName?: string | null;
-					lastName?: string | null;
-					email?: string | null;
-					avatar?:
-						| number
-						| {
-								id: number;
-								filename?: string | null;
-						  }
-						| null;
-			  }
-			| number;
+				id: number;
+				filename?: string | null;
+			}
+			| null;
+		}
+		| number;
 		studentSubmissions?: DiscussionSubmissionItem[];
 	};
 	module: {
@@ -104,17 +104,17 @@ export interface DiscussionGradingViewProps {
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
 	enrollment?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 	courseModuleLink?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 	maxGrade?: number | null;
 }
 
@@ -164,8 +164,8 @@ function PostContextCollapse({
 					{ancestors.map((ancestor, index) => {
 						const authorName = ancestor.author
 							? `${ancestor.author.firstName ?? ""} ${ancestor.author.lastName ?? ""}`.trim() ||
-								ancestor.author.email ||
-								"Unknown"
+							ancestor.author.email ||
+							"Unknown"
 							: "Unknown";
 
 						const getAvatarUrl = (): string | undefined => {
@@ -267,7 +267,7 @@ function PostGradingForm({
 		},
 	});
 
-	const { gradeSubmission, isGrading } = useGradeSubmission(moduleLinkId);
+	const { submit: gradeSubmission, isLoading: isGrading, } = useGradeSubmission();
 
 	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
 		const scoreValue =
@@ -283,7 +283,14 @@ function PostGradingForm({
 			return;
 		}
 
-		gradeSubmission(post.id, scoreValue, values.feedback || undefined);
+		gradeSubmission({
+			params: { moduleLinkId },
+			values: {
+				submissionId: post.id,
+				score: scoreValue,
+				feedback: values.feedback || undefined,
+			},
+		});
 	});
 
 	return (
@@ -349,7 +356,7 @@ export function DiscussionGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-				student.email
+			student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -428,7 +435,7 @@ export function DiscussionGradingView({
 								)
 							</Text>
 							{submission.studentSubmissions &&
-							submission.studentSubmissions.length > 0 ? (
+								submission.studentSubmissions.length > 0 ? (
 								<Stack gap="md">
 									{submission.studentSubmissions
 										.sort((a, b) => {
@@ -474,7 +481,7 @@ export function DiscussionGradingView({
 																	post.grade !== undefined && (
 																		<Badge color="green" variant="filled">
 																			{maxGrade !== null &&
-																			maxGrade !== undefined
+																				maxGrade !== undefined
 																				? `${post.grade}/${maxGrade}`
 																				: String(post.grade)}
 																		</Badge>
