@@ -296,7 +296,8 @@ export function CourseStructureTree({
 	currentItemId,
 	canSeeStatus = false,
 }: CourseStructureTreeProps) {
-	const { updateCourseStructure, isLoading } = useUpdateCourseStructure();
+	const { submit: updateCourseStructure, isLoading } =
+		useUpdateCourseStructure();
 	const isFirstRender = useIsFirstRender();
 	const flatData = convertCourseStructureToFlatData(courseStructure);
 	const ref = useClickOutside(() => {
@@ -385,12 +386,14 @@ export function CourseStructureTree({
 			// );
 
 			await updateCourseStructure({
-				courseId: courseId,
-				sourceId: sourceId,
-				sourceType: sourceType,
-				targetId: targetIdNum,
-				targetType: targetType,
-				location,
+				values: {
+					courseId: courseId,
+					sourceId: sourceId,
+					sourceType: sourceType,
+					targetId: targetIdNum,
+					targetType: targetType,
+					location,
+				},
 			}).catch((error) => {
 				console.error("Failed to update course structure:", error);
 			});

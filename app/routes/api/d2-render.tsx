@@ -1,51 +1,62 @@
-import { useCallback } from "react";
-import { href, useFetcher } from "react-router";
+import { useEffect, useCallback } from "react";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
-import z from "zod";
+import { z } from "zod";
 import { renderD2ToSvg } from "~/utils/d2-render";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest } from "~/utils/responses";
 import type { Route } from "./+types/d2-render";
 
-const inputSchema = z.object({
-	code: z.string().min(1, "D2 code cannot be empty"),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createRenderD2ActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		code: z.string().min(1, "D2 code cannot be empty"),
+	}),
+	method: "POST",
 });
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	// Check if D2 CLI is available
-	const d2Available = await isD2Available();
-	if (!d2Available) {
-		return badRequest({
-			error:
-				"D2 CLI is not installed. Please install D2 CLI to use this feature.",
-		});
-	}
-
-	const { unstorage } = context.get(globalContextKey);
-	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsed = inputSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-
-	const { code } = parsed.data;
-
-	try {
-		const svg = await renderD2ToSvg(code, unstorage);
-		return { svg };
-	} catch (error) {
-		console.error("Error processing D2 code:", error);
-		return badRequest({
-			error:
-				error instanceof Error
-					? `Error processing D2 code: ${error.message}`
-					: "Unknown error processing D2 code",
-		});
-	}
+const getRouteUrl = () => {
+	return href("/api/d2-render");
 };
+
+const [renderD2Action, useRenderD2] = createRenderD2ActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		// Check if D2 CLI is available
+		const d2Available = await isD2Available();
+		if (!d2Available) {
+			return badRequest({
+				error:
+					"D2 CLI is not installed. Please install D2 CLI to use this feature.",
+			});
+		}
+
+		const { unstorage } = context.get(globalContextKey);
+
+		try {
+			const svg = await renderD2ToSvg(formData.code, unstorage);
+			return { svg };
+		} catch (error) {
+			console.error("Error processing D2 code:", error);
+			return badRequest({
+				error:
+					error instanceof Error
+						? `Error processing D2 code: ${error.message}`
+						: "Unknown error processing D2 code",
+			});
+		}
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
+
+// Export hook for use in components
+export { useRenderD2 };
+
+export const action = renderD2Action;
 
 export interface UseD2DiagramOptions {
 	onSuccess?: (svg: string) => void;
@@ -67,45 +78,48 @@ export interface UseD2DiagramOptions {
  * ```
  */
 export function useD2Diagram(options: UseD2DiagramOptions = {}) {
-	const fetcher = useFetcher<typeof action>();
+	const { submit, isLoading, data , fetcher} = useRenderD2();
 
+	// ? don't know why we need to use useCallback here
 	const renderD2 = useCallback(
 		(code: string) => {
-			fetcher.submit(
-				{ code },
-				{
-					method: "POST",
-					action: href("/api/d2-render"),
-					encType: "application/json",
+			submit({
+				values: {
+					code,
 				},
-			);
+			});
 		},
-		[fetcher],
+		[submit],
 	);
 
 	// Extract SVG from successful response
-	const svg = fetcher.data && "svg" in fetcher.data ? fetcher.data.svg : null;
+	const svg =
+		data && typeof data === "object" && "svg" in data
+			? (data as { svg: string }).svg
+			: null;
 
 	// Extract error from failed response
 	const error =
-		fetcher.data && "error" in fetcher.data
-			? typeof fetcher.data.error === "string"
-				? fetcher.data.error
-				: JSON.stringify(fetcher.data.error)
+		data && typeof data === "object" && "error" in data
+			? typeof (data as { error: string }).error === "string"
+				? (data as { error: string }).error
+				: JSON.stringify((data as { error: unknown }).error)
 			: null;
 
 	// Call callbacks when status changes
-	if (svg && options.onSuccess) {
-		options.onSuccess(svg);
-	}
-	if (error && options.onError) {
-		options.onError(error);
-	}
+		if (svg && options.onSuccess) {
+			options.onSuccess(svg);
+		}
+
+
+		if (error && options.onError) {
+			options.onError(error);
+		}
 
 	return {
 		renderD2,
 		svg,
-		loading: fetcher.state !== "idle",
+		loading: isLoading,
 		error,
 		state: fetcher.state,
 	};
@@ -120,9 +134,7 @@ export async function renderD2(code: string) {
 		body: JSON.stringify({ code }),
 	});
 
-	const data = (await response.json()) as Promise<
-		{ svg: string } | { error: string }
-	>;
+	const data = (await response.json()) as { svg: string } | { error: string };
 
 	return data;
 }

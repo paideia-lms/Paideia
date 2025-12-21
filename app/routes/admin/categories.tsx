@@ -65,7 +65,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/categories";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 
 export type { Route };
 
@@ -336,7 +335,7 @@ export default function AdminCategoriesPage({
 		parseAsInteger.withOptions({ shallow: false }),
 	);
 
-	const { reorderCategories, isLoading } = useReorderCategories();
+	const { submit: reorderCategories, isLoading } = useReorderCategories();
 
 	const tree = useTree<FlatNode>({
 		rootItemId: "root",
@@ -394,8 +393,10 @@ export default function AdminCategoriesPage({
 				newParent === null ? null : Number(newParent.substring(1));
 
 			await reorderCategories({
-				sourceId: Number(sourceId.substring(1)),
-				newParentId: mappedNewParentId,
+				values: {
+					sourceId: Number(sourceId.substring(1)),
+					newParentId: mappedNewParentId,
+				},
 			});
 		},
 		indent: 20,

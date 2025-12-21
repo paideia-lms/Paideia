@@ -18,7 +18,7 @@ import {
 	IconTrash,
 } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -27,16 +27,16 @@ import {
 } from "server/internal/analytics-settings";
 import { z } from "zod";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
-	badRequest,
 	ForbiddenResponse,
 	forbidden,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/analytics";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 
 type AnalyticsGlobal = {
 	id: number;
@@ -88,103 +88,95 @@ export async function loader({ context }: Route.LoaderArgs) {
 	return { settings: { additionalJsScripts: scripts } };
 }
 
-const inputSchema = z.object({
-	additionalJsScripts: z
-		.array(
-			z.object({
-				src: z.url("Must be a valid URL"),
-				defer: z.boolean().optional(),
-				async: z.boolean().optional(),
-				dataWebsiteId: z.string().optional(),
-				dataDomain: z.string().optional(),
-				dataSite: z.string().optional(),
-				dataMeasurementId: z.string().optional(),
-			}),
-		)
-		.optional(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdateAnalyticsSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		additionalJsScripts: z
+			.array(
+				z.object({
+					src: z.string().url("Must be a valid URL"),
+					defer: z.boolean().optional(),
+					async: z.boolean().optional(),
+					dataWebsiteId: z.string().optional(),
+					dataDomain: z.string().optional(),
+					dataSite: z.string().optional(),
+					dataMeasurementId: z.string().optional(),
+				}),
+			)
+			.optional(),
+	}),
+	method: "POST",
 });
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const getRouteUrl = () => {
+	return href("/admin/analytics");
+};
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
+const [updateAnalyticsSettingsAction, useUpdateAnalyticsSettings] =
+	createUpdateAnalyticsSettingsActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
 
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-	const { additionalJsScripts } = parsed.data;
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
+			if (currentUser.role !== "admin") {
+				return forbidden({ error: "Only admins can access this area" });
+			}
 
-	const updateResult = await tryUpdateAnalyticsSettings({
-		payload,
-		data: {
-			additionalJsScripts,
+			const updateResult = await tryUpdateAnalyticsSettings({
+				payload,
+				data: {
+					additionalJsScripts: formData.additionalJsScripts,
+				},
+				req: payloadRequest,
+			});
+
+			if (!updateResult.ok) {
+				return forbidden({ error: updateResult.error.message });
+			}
+
+			return ok({
+				success: true as const,
+				settings: updateResult.value as unknown as AnalyticsGlobal,
+			});
+		})!,
+		{
+			action: () => getRouteUrl(),
 		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
+	);
 
-	if (!updateResult.ok) {
-		return forbidden({ error: updateResult.error.message });
-	}
+// Export hook for use in components
+export { useUpdateAnalyticsSettings };
 
-	return ok({
-		success: true as const,
-		settings: updateResult.value as unknown as AnalyticsGlobal,
-	});
-}
+export const action = updateAnalyticsSettingsAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-	const res = await serverAction();
-	if (res?.status === 200) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Analytics settings updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Failed to update",
-			message: typeof res?.error === "string" ? res.error : "Unexpected error",
+			message: actionData.error,
 			color: "red",
 		});
 	}
-	return res;
-}
 
-export function useUpdateAnalyticsSettings() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const update = (data: {
-		additionalJsScripts: Array<{
-			src: string;
-			defer?: boolean;
-			async?: boolean;
-			dataWebsiteId?: string;
-			dataDomain?: string;
-			dataSite?: string;
-			dataMeasurementId?: string;
-		}>;
-	}) => {
-		fetcher.submit(data, {
-			method: "post",
-			action: href("/admin/analytics"),
-			encType: "application/json",
-		});
-	};
-	return { update, state: fetcher.state } as const;
+	return actionData;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -315,7 +307,8 @@ function AnalyticsScriptCard({
 }
 
 export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
-	const { state, update } = useUpdateAnalyticsSettings();
+	const { submit: updateAnalyticsSettings, isLoading } =
+		useUpdateAnalyticsSettings();
 	const {
 		settings: { additionalJsScripts },
 	} = loaderData;
@@ -477,8 +470,10 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 										: undefined,
 							}),
 						);
-					update({
-						additionalJsScripts: validScripts,
+					updateAnalyticsSettings({
+						values: {
+							additionalJsScripts: validScripts,
+						},
 					});
 				})}
 			>
@@ -508,7 +503,7 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 						</Text>
 					)}
 					<Group justify="flex-start" mt="sm">
-						<Button type="submit" loading={state !== "idle"}>
+						<Button type="submit" loading={isLoading}>
 							Save changes
 						</Button>
 					</Group>

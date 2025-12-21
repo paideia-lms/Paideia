@@ -1,75 +1,93 @@
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCategory } from "server/internal/course-category-management";
 import { CourseCategories } from "server/payload.config";
-import z from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { z } from "zod";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/category-reorder";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-const inputSchema = z.object({
-	sourceId: z.number(),
-	newParentId: z.number().nullable(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createReorderCategoriesActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		sourceId: z.coerce.number(),
+		newParentId: z.preprocess(
+			(val) => {
+				if (val === null || val === undefined || val === "") {
+					return null;
+				}
+				const num = Number(val);
+				return Number.isFinite(num) ? num : null;
+			},
+			z.number().nullable(),
+		),
+	}),
+	method: "POST",
 });
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "User not found" });
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = inputSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-
-	const { sourceId, newParentId } = parsed.data;
-
-	// Only admin can manage categories
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return badRequest({ error: "Only admins can manage categories" });
-	}
-
-	// Allow moving to top-level via null parent
-	if (newParentId !== null && !Number.isFinite(newParentId)) {
-		return badRequest({ error: "Invalid target parent" });
-	}
-
-	if (newParentId === null) {
-		await payload.update({
-			collection: CourseCategories.slug,
-			id: sourceId,
-			data: { parent: null },
-			req: request,
-		});
-		return ok({ success: true, message: "Category moved to top level" });
-	}
-
-	const result = await tryUpdateCategory({
-		payload,
-		categoryId: sourceId,
-		parent: newParentId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	});
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return ok({ success: true, message: "Category parent updated" });
+const getRouteUrl = () => {
+	return href("/api/category-reorder");
 };
+
+const [reorderCategoriesAction, useReorderCategories] =
+	createReorderCategoriesActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "User not found" });
+			}
+
+			const { sourceId, newParentId } = formData;
+
+			// Only admin can manage categories
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+			if (currentUser.role !== "admin") {
+				return badRequest({ error: "Only admins can manage categories" });
+			}
+
+			// Allow moving to top-level via null parent
+			if (newParentId !== null && !Number.isFinite(newParentId)) {
+				return badRequest({ error: "Invalid target parent" });
+			}
+
+			if (newParentId === null) {
+				await payload.update({
+					collection: CourseCategories.slug,
+					id: sourceId,
+					data: { parent: null },
+					req: payloadRequest,
+				});
+				return ok({ success: true, message: "Category moved to top level" });
+			}
+
+			const result = await tryUpdateCategory({
+				payload,
+				categoryId: sourceId,
+				parent: newParentId,
+				req: payloadRequest,
+			});
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return ok({ success: true, message: "Category parent updated" });
+		})!,
+		{
+			action: getRouteUrl,
+		},
+	);
+
+// Export hook for use in components
+export { useReorderCategories };
+
+export const action = reorderCategoriesAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -91,28 +109,4 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 
 	return actionData;
-}
-
-type ReorderOperation = z.infer<typeof inputSchema>;
-
-export function useReorderCategories() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const reorderCategories = async (op: ReorderOperation) => {
-		fetcher.submit(op, {
-			method: "POST",
-			action: href("/api/category-reorder"),
-			encType: "application/json",
-		});
-	};
-
-	return {
-		reorderCategories,
-		isLoading: fetcher.state !== "idle",
-		error:
-			fetcher.data?.status === StatusCode.BadRequest
-				? fetcher.data.error
-				: undefined,
-		success: fetcher.data?.status === StatusCode.Ok,
-	};
 }

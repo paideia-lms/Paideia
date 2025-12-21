@@ -1,71 +1,80 @@
-// TODO: Update this file to use the new course-sections system
+
 // This file previously managed course structure using a JSON field
 // Now it needs to be updated to work with the course-sections collection
 
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGeneralMove } from "server/internal/course-section-management";
-import z from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { z } from "zod";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/course-structure-tree";
 
-const inputSchema = z.object({
-	courseId: z.number(),
-	sourceId: z.number(),
-	sourceType: z.enum(["section", "activity-module"]),
-	targetId: z.number(),
-	targetType: z.enum(["section", "activity-module"]),
-	location: z.enum(["above", "below", "inside"]),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdateCourseStructureActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		courseId: z.coerce.number(),
+		sourceId: z.coerce.number(),
+		sourceType: z.enum(["section", "activity-module"]),
+		targetId: z.coerce.number(),
+		targetType: z.enum(["section", "activity-module"]),
+		location: z.enum(["above", "below", "inside"]),
+	}),
+	method: "POST",
 });
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const getRouteUrl = () => {
+	return href("/api/course-structure-tree");
+};
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "User not found" });
-	}
+const [updateCourseStructureAction, useUpdateCourseStructure] =
+	createUpdateCourseStructureActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "User not found" });
+			}
 
-	const { data, contentType } = await getDataAndContentTypeFromRequest(request);
+			const { sourceId, sourceType, targetId, targetType, location } = formData;
 
-	const parsed = inputSchema.safeParse(data);
+			console.log(
+				`Moving ${sourceType} ${sourceId} to ${location} ${targetType} ${targetId}`,
+			);
 
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
+			// Call tryGeneralMove with the parsed parameters
+			const result = await tryGeneralMove({
+				payload,
+				source: { id: sourceId, type: sourceType },
+				target: { id: targetId, type: targetType },
+				location,
+				req: payloadRequest,
+			});
 
-	const { courseId, sourceId, sourceType, targetId, targetType, location } =
-		parsed.data;
+			// ! we return error response in action because this route has a default page component
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
 
-	console.log(
-		`Moving ${sourceType} ${sourceId} to ${location} ${targetType} ${targetId}`,
+			return ok({
+				success: true,
+				message: "Course structure updated successfully",
+			});
+		})!,
+		{
+			action: getRouteUrl,
+		},
 	);
 
-	// Call tryGeneralMove with the parsed parameters
-	const result = await tryGeneralMove({
-		payload,
-		source: { id: sourceId, type: sourceType },
-		target: { id: targetId, type: targetType },
-		location,
-		req: payloadRequest,
-	});
+// Export hook for use in components
+export { useUpdateCourseStructure };
 
-	// ! we return error response in action because this route has a default page component
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return ok({
-		success: true,
-		message: "Course structure updated successfully",
-	});
-};
+export const action = updateCourseStructureAction;
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
@@ -86,29 +95,4 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 
 	return actionData;
-}
-
-type MoveOperation = z.infer<typeof inputSchema>;
-
-// Custom hook for updating course structure
-export function useUpdateCourseStructure() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateCourseStructure = async (op: MoveOperation) => {
-		fetcher.submit(op, {
-			method: "POST",
-			action: href("/api/course-structure-tree"),
-			encType: "application/json",
-		});
-	};
-
-	return {
-		updateCourseStructure,
-		isLoading: fetcher.state !== "idle",
-		error:
-			fetcher.data?.status === StatusCode.BadRequest
-				? fetcher.data.error
-				: undefined,
-		success: fetcher.data?.status === StatusCode.Ok,
-	};
 }

@@ -19,14 +19,19 @@ export function DeleteActivityModule({
 	moduleId,
 	hasLinkedCourses,
 }: DeleteActivityModuleProps) {
-	const { deleteModule, isLoading: isDeleting } = useDeleteActivityModule();
+	const { submit: deleteModule, isLoading: isDeleting } =
+		useDeleteActivityModule();
 
 	const handleDelete = () => {
 		const confirmed = window.confirm(
 			"Are you sure you want to delete this activity module? This action cannot be undone. The module must not be linked to any courses to be deleted.",
 		);
 		if (confirmed) {
-			deleteModule({ moduleId });
+			deleteModule({
+				values: {
+					moduleId,
+				},
+			});
 		}
 	};
 
