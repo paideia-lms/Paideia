@@ -244,6 +244,50 @@ const astPatterns = {
 		// Return true if export const action exists but import is missing (violation)
 		return !hasImport;
 	},
+
+	/**
+	 * Matches export const functionName = Result.wrap(...) pattern
+	 * This is the old pattern that should be replaced with:
+	 * export function functionName(args: ArgsType) {
+	 *   return Result.try(async () => { ... });
+	 * }
+	 * AST structure: VariableStatement -> VariableDeclarationList -> VariableDeclaration -> CallExpression -> PropertyAccessExpression
+	 */
+	resultWrapPattern: (node: ts.Node): boolean => {
+		if (ts.isVariableStatement(node)) {
+			// Check if it's exported
+			if (
+				node.modifiers?.some(
+					(modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+				)
+			) {
+				const declarationList = node.declarationList;
+				// Check if it's a const declaration
+				if (declarationList.flags & ts.NodeFlags.Const) {
+					// Check if any declaration has Result.wrap as initializer
+					return declarationList.declarations.some((declaration) => {
+						if (!declaration.initializer) {
+							return false;
+						}
+						// Check if initializer is a CallExpression
+						if (ts.isCallExpression(declaration.initializer)) {
+							const callExpression = declaration.initializer.expression;
+							// Check if it's Result.wrap
+							if (ts.isPropertyAccessExpression(callExpression)) {
+								return (
+									ts.isIdentifier(callExpression.expression) &&
+									callExpression.expression.text === "Result" &&
+									callExpression.name.text === "wrap"
+								);
+							}
+						}
+						return false;
+					});
+				}
+			}
+		}
+		return false;
+	},
 };
 
 // Log level configuration
@@ -328,6 +372,18 @@ export const rules: LintRule[] = [
 			{
 				name: "export const action without typeCreateActionRpc import",
 				matcher: astPatterns.exportConstActionWithoutImport,
+			},
+		],
+	},
+	{
+		name: "Ban Result.wrap pattern in internal functions",
+		description: "Internal functions should use 'export function name(args) { return Result.try(...) }' instead of 'export const name = Result.wrap(...)'",
+		includes: ["server/**/*.ts"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "export const functionName = Result.wrap(...) pattern",
+				matcher: astPatterns.resultWrapPattern,
 			},
 		],
 	},

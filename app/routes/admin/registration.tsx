@@ -17,7 +17,6 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/registration";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, payloadRequest } = context.get(globalContextKey);
