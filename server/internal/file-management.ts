@@ -28,139 +28,147 @@ export interface GetFileByIdArgs extends BaseInternalFunctionArgs {
 	id: number;
 }
 
-export const tryCreateFile = Result.wrap(
-	async (args: CreateFileArgs) => {
-		const {
-			payload,
-			media,
-			userId,
+export function tryCreateFile(args: CreateFileArgs) {
+	return Result.try(
+		async () => {
+			const {
+						payload,
+						media,
+						userId,
 
-			req,
-			overrideAccess = false,
-		} = args;
+						req,
+						overrideAccess = false,
+					} = args;
 
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
+					if (!userId) {
+						throw new InvalidArgumentError("User ID is required");
+					}
 
-		const file = await payload
-			.create({
-				collection: "files",
-				data: {
-					media: media && media.length > 0 ? media : undefined,
-					createdBy: userId,
-				},
-				req,
-				overrideAccess,
-				depth: 0,
-			})
-			.then(stripDepth<0, "create">());
+					const file = await payload
+						.create({
+							collection: "files",
+							data: {
+								media: media && media.length > 0 ? media : undefined,
+								createdBy: userId,
+							},
+							req,
+							overrideAccess,
+							depth: 0,
+						})
+						.then(stripDepth<0, "create">());
 
-		return file;
-	},
-	(error) => transformError(error) ?? new UnknownError("Failed to create file"),
-);
+					return file;
+		},
+		(error) => transformError(error) ?? new UnknownError("Failed to create file")
+	);
+}
 
-export const tryUpdateFile = Result.wrap(
-	async (args: UpdateFileArgs) => {
-		const {
-			payload,
-			id,
-			media,
+export function tryUpdateFile(args: UpdateFileArgs) {
+	return Result.try(
+		async () => {
+			const {
+						payload,
+						id,
+						media,
 
-			req,
-			overrideAccess = false,
-		} = args;
+						req,
+						overrideAccess = false,
+					} = args;
 
-		if (!id) {
-			throw new InvalidArgumentError("File ID is required");
-		}
+					if (!id) {
+						throw new InvalidArgumentError("File ID is required");
+					}
 
-		// Check if file exists
-		// const existingFile = await payload.findByID({
-		// 	collection: "files",
-		// 	id,
-		// 	req,
-		// 	overrideAccess,
-		// });
+					// Check if file exists
+					// const existingFile = await payload.findByID({
+					// 	collection: "files",
+					// 	id,
+					// 	req,
+					// 	overrideAccess,
+					// });
 
-		// if (!existingFile) {
-		// 	throw new NonExistingFileError("File not found");
-		// }
+					// if (!existingFile) {
+					// 	throw new NonExistingFileError("File not found");
+					// }
 
-		const file = await payload
-			.update({
-				collection: "files",
-				id,
-				data: {
-					...(media !== undefined && {
-						media: media && media.length > 0 ? media : [],
-					}),
-				},
-				req,
-				overrideAccess,
-				depth: 0,
-			})
-			.then(stripDepth<0, "update">());
+					const file = await payload
+						.update({
+							collection: "files",
+							id,
+							data: {
+								...(media !== undefined && {
+									media: media && media.length > 0 ? media : [],
+								}),
+							},
+							req,
+							overrideAccess,
+							depth: 0,
+						})
+						.then(stripDepth<0, "update">());
 
-		return file;
-	},
-	(error) => transformError(error) ?? new UnknownError("Failed to update file"),
-);
+					return file;
+		},
+		(error) => transformError(error) ?? new UnknownError("Failed to update file")
+	);
+}
 
-export const tryDeleteFile = Result.wrap(
-	async (args: DeleteFileArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryDeleteFile(args: DeleteFileArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		if (!id) {
-			throw new InvalidArgumentError("File ID is required");
-		}
+					if (!id) {
+						throw new InvalidArgumentError("File ID is required");
+					}
 
-		// Check if file exists
-		const existingFile = await payload.findByID({
-			collection: "files",
-			id,
-			req,
-			overrideAccess,
-		});
+					// Check if file exists
+					const existingFile = await payload.findByID({
+						collection: "files",
+						id,
+						req,
+						overrideAccess,
+					});
 
-		if (!existingFile) {
-			throw new NonExistingFileError("File not found");
-		}
+					if (!existingFile) {
+						throw new NonExistingFileError("File not found");
+					}
 
-		await payload.delete({
-			collection: "files",
-			id,
-			req,
-			overrideAccess,
-		});
+					await payload.delete({
+						collection: "files",
+						id,
+						req,
+						overrideAccess,
+					});
 
-		return { success: true };
-	},
-	(error) => transformError(error) ?? new UnknownError("Failed to delete file"),
-);
+					return { success: true };
+		},
+		(error) => transformError(error) ?? new UnknownError("Failed to delete file")
+	);
+}
 
-export const tryGetFileById = Result.wrap(
-	async (args: GetFileByIdArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryGetFileById(args: GetFileByIdArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		if (!id) {
-			throw new InvalidArgumentError("File ID is required");
-		}
+					if (!id) {
+						throw new InvalidArgumentError("File ID is required");
+					}
 
-		const file = await payload.findByID({
-			collection: "files",
-			id,
-			req,
-			overrideAccess,
-		});
+					const file = await payload.findByID({
+						collection: "files",
+						id,
+						req,
+						overrideAccess,
+					});
 
-		if (!file) {
-			throw new NonExistingFileError("File not found");
-		}
+					if (!file) {
+						throw new NonExistingFileError("File not found");
+					}
 
-		return file;
-	},
-	(error) =>
-		transformError(error) ?? new UnknownError("Failed to get file by ID"),
-);
+					return file;
+		},
+		(error) =>
+		transformError(error) ?? new UnknownError("Failed to get file by ID")
+	);
+}

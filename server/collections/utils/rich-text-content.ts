@@ -46,78 +46,80 @@ export interface ExtractMediaIdsFromRichTextArgs {
  * and returns an array of all unique media IDs found across all fields.
  * Supports multiple rich text fields in a single call.
  */
-export const tryExtractMediaIdsFromRichText = Result.wrap(
-	async (args: ExtractMediaIdsFromRichTextArgs): Promise<number[]> => {
-		const { payload, htmlContent, req } = args;
+export function tryExtractMediaIdsFromRichText(args: ExtractMediaIdsFromRichTextArgs) {
+	return Result.try(
+		async () => {
+			const { payload, htmlContent, req } = args;
 
-		if (!htmlContent || htmlContent.length === 0) {
-			return [];
+					if (!htmlContent || htmlContent.length === 0) {
+						return [];
+					}
+
+					// Collect all parsed IDs and filenames from all rich text fields
+					const allParsedIds = new Set<number>();
+					const allFilenames = new Set<string>();
+
+					for (const content of htmlContent) {
+						if (!content || content.trim().length === 0) {
+							continue;
+						}
+
+						// Parse media from HTML content
+						const mediaParseResult = tryParseMediaFromHtml(content);
+						if (!mediaParseResult.ok) {
+							throw mediaParseResult.error;
+						}
+
+						const { ids: parsedIds, filenames } = mediaParseResult.value;
+
+						// Add to sets (automatically handles duplicates)
+						for (const id of parsedIds) {
+							allParsedIds.add(id);
+						}
+						for (const filename of filenames) {
+							allFilenames.add(filename);
+						}
+					}
+
+					// Resolve all filenames to IDs in a single query
+
+					const resolvedIds =
+						allFilenames.size > 0
+							? await payload
+									.find({
+										collection: "media",
+										where: {
+											filename: {
+												in: Array.from(allFilenames),
+											},
+										},
+										limit: allFilenames.size,
+										depth: 0,
+										pagination: false,
+										// ! this is a server request
+										overrideAccess: true,
+										req: req?.transactionID
+											? { ...req, transactionID: req.transactionID }
+											: req,
+									})
+									.then(stripDepth<0, "find">())
+									.catch((error) => {
+										interceptPayloadError({
+											error,
+											functionNamePrefix: "tryExtractMediaIdsFromRichText",
+											args,
+										});
+										throw error;
+									})
+									.then((r) => r.docs?.map((doc) => doc.id) ?? [])
+							: [];
+
+					// Combine parsed IDs and resolved IDs, remove duplicates
+					const allMediaIds = new Set([...allParsedIds, ...resolvedIds]);
+					return Array.from(allMediaIds);
 		}
-
-		// Collect all parsed IDs and filenames from all rich text fields
-		const allParsedIds = new Set<number>();
-		const allFilenames = new Set<string>();
-
-		for (const content of htmlContent) {
-			if (!content || content.trim().length === 0) {
-				continue;
-			}
-
-			// Parse media from HTML content
-			const mediaParseResult = tryParseMediaFromHtml(content);
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
-
-			// Add to sets (automatically handles duplicates)
-			for (const id of parsedIds) {
-				allParsedIds.add(id);
-			}
-			for (const filename of filenames) {
-				allFilenames.add(filename);
-			}
-		}
-
-		// Resolve all filenames to IDs in a single query
-
-		const resolvedIds =
-			allFilenames.size > 0
-				? await payload
-						.find({
-							collection: "media",
-							where: {
-								filename: {
-									in: Array.from(allFilenames),
-								},
-							},
-							limit: allFilenames.size,
-							depth: 0,
-							pagination: false,
-							// ! this is a server request
-							overrideAccess: true,
-							req: req?.transactionID
-								? { ...req, transactionID: req.transactionID }
-								: req,
-						})
-						.then(stripDepth<0, "find">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: "tryExtractMediaIdsFromRichText",
-								args,
-							});
-							throw error;
-						})
-						.then((r) => r.docs?.map((doc) => doc.id) ?? [])
-				: [];
-
-		// Combine parsed IDs and resolved IDs, remove duplicates
-		const allMediaIds = new Set([...allParsedIds, ...resolvedIds]);
-		return Array.from(allMediaIds);
-	},
-);
+	);
+}
 
 export interface ProcessRichTextMediaResult<T extends Record<string, unknown>> {
 	/**

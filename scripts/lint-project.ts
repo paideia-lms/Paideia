@@ -19,11 +19,21 @@ import { styleText } from "node:util";
 export type ASTPatternMatcher = (node: ts.Node, sourceFile: ts.SourceFile) => boolean;
 
 /**
+ * AST pattern fix function
+ * Receives a TypeScript node and source file, returns the replacement text or null if fix is not applicable
+ */
+export type ASTPatternFix = (
+	node: ts.Node,
+	sourceFile: ts.SourceFile,
+) => string | null;
+
+/**
  * AST pattern configuration
  */
 export interface ASTPattern {
 	name: string;
 	matcher: ASTPatternMatcher;
+	fix?: ASTPatternFix;
 }
 
 export type LintRule =
@@ -99,6 +109,8 @@ interface Violation {
 	column: number;
 	match: string;
 	level: "error" | "warning";
+	node?: ts.Node; // Store node for fixing
+	astPattern?: ASTPattern; // Store pattern for fixing
 }
 
 /**
@@ -292,6 +304,8 @@ function findASTViolations(
 					column,
 					match,
 					level: rule.level || "error",
+					node,
+					astPattern,
 				});
 			}
 		}
@@ -329,14 +343,72 @@ function findViolations(
 }
 
 /**
+ * Apply fixes to a file
+ */
+async function applyFixes(
+	filePath: string,
+	content: string,
+	violations: Violation[],
+): Promise<{ fixed: boolean; newContent: string }> {
+	const fileViolations = violations.filter((v) => v.file === filePath);
+	if (fileViolations.length === 0) {
+		return { fixed: false, newContent: content };
+	}
+
+	// Group violations by their start position (descending) to apply fixes from end to start
+	const fixableViolations = fileViolations.filter(
+		(v) => v.node && v.astPattern?.fix,
+	);
+
+	if (fixableViolations.length === 0) {
+		return { fixed: false, newContent: content };
+	}
+
+	// Sort by position (descending) to apply fixes from end to start
+	fixableViolations.sort((a, b) => {
+		const posA = a.node!.getStart();
+		const posB = b.node!.getStart();
+		return posB - posA;
+	});
+
+	let newContent = content;
+	const sourceFile = getSourceFile(filePath, content);
+
+	for (const violation of fixableViolations) {
+		if (!violation.node || !violation.astPattern?.fix) continue;
+
+		try {
+			const replacement = violation.astPattern.fix(violation.node, sourceFile);
+			if (replacement !== null) {
+				const start = violation.node.getStart();
+				const end = violation.node.getEnd();
+				newContent =
+					newContent.slice(0, start) + replacement + newContent.slice(end);
+				// Update source file cache after modification
+				astCache.delete(filePath);
+			}
+		} catch (error) {
+			console.warn(
+				`Warning: Failed to apply fix for ${filePath} at line ${violation.line}: ${error}`,
+			);
+		}
+	}
+
+	return { fixed: fixableViolations.length > 0, newContent };
+}
+
+/**
  * Main linting function
  */
-async function lint(): Promise<{
+async function lint(
+	applyAutoFix = false,
+): Promise<{
 	violations: Violation[];
 	hasErrors: boolean;
 	hasWarnings: boolean;
+	fixedFiles: string[];
 }> {
-	const violations: Violation[] = [];
+	let violations: Violation[] = [];
 
 	// Load configuration
 	configModule = await loadConfig();
@@ -371,8 +443,10 @@ async function lint(): Promise<{
 	);
 
 	// Process each file, checking all applicable rules
+	const fileContentMap = new Map<string, string>();
 	for (const { filePath, content, error } of fileContents) {
 		if (error || !content) continue;
+		fileContentMap.set(filePath, content);
 
 		// Check all rules that apply to this file
 		for (const rule of rules) {
@@ -381,6 +455,40 @@ async function lint(): Promise<{
 				const fileViolations = findViolations(filePath, content, rule);
 				violations.push(...fileViolations);
 			}
+		}
+	}
+
+	// Apply fixes if requested
+	const fixedFiles: string[] = [];
+	if (applyAutoFix) {
+		const { writeFile } = await import("node:fs/promises");
+		for (const [filePath, content] of fileContentMap) {
+			const { fixed, newContent } = await applyFixes(
+				filePath,
+				content,
+				violations,
+			);
+			if (fixed) {
+				await writeFile(filePath, newContent, "utf-8");
+				fixedFiles.push(filePath);
+				// Update content map for re-checking violations
+				fileContentMap.set(filePath, newContent);
+			}
+		}
+
+		// Re-check violations after fixes (only if files were fixed)
+		if (fixedFiles.length > 0) {
+			const newViolations: Violation[] = [];
+			for (const [filePath, content] of fileContentMap) {
+				for (const rule of rules) {
+					const ruleFiles = ruleFileMap.get(rule)!;
+					if (ruleFiles.has(filePath)) {
+						const fileViolations = findViolations(filePath, content, rule);
+						newViolations.push(...fileViolations);
+					}
+				}
+			}
+			violations = newViolations;
 		}
 	}
 
@@ -394,6 +502,7 @@ async function lint(): Promise<{
 		violations: filteredViolations,
 		hasErrors: errors.length > 0,
 		hasWarnings: warnings.length > 0,
+		fixedFiles,
 	};
 }
 
@@ -505,9 +614,23 @@ async function printViolationsByLevel(violations: Violation[]): Promise<void> {
 
 // Main execution
 if (import.meta.main) {
+	const applyAutoFix = process.argv.includes("--fix");
+	
+	if (applyAutoFix) {
+		console.log("🔧 Auto-fix mode enabled\n");
+	}
+
 	const startTime = performance.now();
-	const result = await lint();
+	const result = await lint(applyAutoFix);
 	const lintTime = performance.now() - startTime;
+	
+	if (result.fixedFiles.length > 0) {
+		console.log(`✅ Auto-fixed ${result.fixedFiles.length} file(s):`);
+		for (const file of result.fixedFiles) {
+			console.log(`   - ${file}`);
+		}
+		console.log("");
+	}
 	
 	await printViolations(result.violations);
 	

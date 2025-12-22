@@ -527,315 +527,317 @@ export { testData };
  * Seeds the development database with initial data
  * Only runs if the database is fresh (no users exist)
  */
-export const tryRunSeed = Result.wrap(
-	async (args: RunSeedArgs) => {
-		const { payload, seedData } = args;
-		const data = seedData ?? testData;
+export function tryRunSeed(args: RunSeedArgs) {
+	return Result.try(
+		async () => {
+			const { payload, seedData } = args;
+					const data = seedData ?? testData;
 
-		console.log("🌱 Checking if database needs seeding...");
+					console.log("🌱 Checking if database needs seeding...");
 
-		const userCount = await tryGetUserCount({
-			payload,
-			overrideAccess: true,
-		}).getOrThrow();
+					const userCount = await tryGetUserCount({
+						payload,
+						overrideAccess: true,
+					}).getOrThrow();
 
-		const needsSeeding = userCount === 0;
+					const needsSeeding = userCount === 0;
 
-		if (!needsSeeding) {
-			console.log("✅ Database already has users, skipping seed");
-			return;
-		}
+					if (!needsSeeding) {
+						console.log("✅ Database already has users, skipping seed");
+						return;
+					}
 
-		console.log("🌱 Database is fresh, starting seed process...");
+					console.log("🌱 Database is fresh, starting seed process...");
 
-		const mockRequest = new Request("http://localhost:3000");
+					const mockRequest = new Request("http://localhost:3000");
 
-		// Create users
-		console.log("👤 Creating admin user...");
-		const adminUser = await createAdminUser(payload, mockRequest, data.admin);
-		console.log(`✅ Admin user created with ID: ${adminUser.id}`);
+					// Create users
+					console.log("👤 Creating admin user...");
+					const adminUser = await createAdminUser(payload, mockRequest, data.admin);
+					console.log(`✅ Admin user created with ID: ${adminUser.id}`);
 
-		console.log("👤 Creating student user...");
-		const studentUser = await createUserWithAvatar(
-			payload,
-			mockRequest,
-			{ ...data.users.student, role: "student" },
-			"fixture/gem.png",
-			"gem.png",
-		);
-		if (!studentUser) {
-			throw new Error("Failed to create student user");
-		}
-		console.log(`✅ Student user created with ID: ${studentUser.id}`);
+					console.log("👤 Creating student user...");
+					const studentUser = await createUserWithAvatar(
+						payload,
+						mockRequest,
+						{ ...data.users.student, role: "student" },
+						"fixture/gem.png",
+						"gem.png",
+					);
+					if (!studentUser) {
+						throw new Error("Failed to create student user");
+					}
+					console.log(`✅ Student user created with ID: ${studentUser.id}`);
 
-		console.log("👤 Creating teacher user...");
-		const teacherUser = await createUserWithAvatar(
-			payload,
-			mockRequest,
-			{ ...data.users.teacher, role: "student" },
-			null,
-			null,
-		);
-		if (!teacherUser) {
-			throw new Error("Failed to create teacher user");
-		}
-		console.log(`✅ Teacher user created with ID: ${teacherUser.id}`);
+					console.log("👤 Creating teacher user...");
+					const teacherUser = await createUserWithAvatar(
+						payload,
+						mockRequest,
+						{ ...data.users.teacher, role: "student" },
+						null,
+						null,
+					);
+					if (!teacherUser) {
+						throw new Error("Failed to create teacher user");
+					}
+					console.log(`✅ Teacher user created with ID: ${teacherUser.id}`);
 
-		console.log("👤 Creating TA user...");
-		const taUser = await createUserWithAvatar(
-			payload,
-			mockRequest,
-			{ ...data.users.ta, role: "student" },
-			null,
-			null,
-		);
-		if (!taUser) {
-			throw new Error("Failed to create TA user");
-		}
-		console.log(`✅ TA user created with ID: ${taUser.id}`);
+					console.log("👤 Creating TA user...");
+					const taUser = await createUserWithAvatar(
+						payload,
+						mockRequest,
+						{ ...data.users.ta, role: "student" },
+						null,
+						null,
+					);
+					if (!taUser) {
+						throw new Error("Failed to create TA user");
+					}
+					console.log(`✅ TA user created with ID: ${taUser.id}`);
 
-		console.log("👤 Creating additional students...");
-		const additionalStudents: Awaited<
-			ReturnType<typeof tryCreateUser>
-		>["value"][] = [];
-		for (const studentData of data.users.additionalStudents) {
-			const student = await createUserWithAvatar(
-				payload,
-				mockRequest,
-				{ ...studentData, role: "student" },
-				null,
-				null,
-			);
-			if (student) {
-				additionalStudents.push(student);
-				console.log(`✅ Additional student created with ID: ${student.id}`);
-			}
-		}
+					console.log("👤 Creating additional students...");
+					const additionalStudents: Awaited<
+						ReturnType<typeof tryCreateUser>
+					>["value"][] = [];
+					for (const studentData of data.users.additionalStudents) {
+						const student = await createUserWithAvatar(
+							payload,
+							mockRequest,
+							{ ...studentData, role: "student" },
+							null,
+							null,
+						);
+						if (student) {
+							additionalStudents.push(student);
+							console.log(`✅ Additional student created with ID: ${student.id}`);
+						}
+					}
 
-		// Create categories
-		console.log("🏷️  Creating course categories...");
-		const categories = await createCategories(payload, mockRequest);
-		for (const cat of categories) {
-			console.log(`✅ Category created: ${cat.name} (ID: ${cat.id})`);
-		}
+					// Create categories
+					console.log("🏷️  Creating course categories...");
+					const categories = await createCategories(payload, mockRequest);
+					for (const cat of categories) {
+						console.log(`✅ Category created: ${cat.name} (ID: ${cat.id})`);
+					}
 
-		// Create courses
-		console.log("📚 Creating courses...");
-		const courses = await createCourses(
-			payload,
-			data.courses as readonly SeedData["courses"][number][],
-			adminUser.id,
-			categories,
-		);
-		for (const createdCourse of courses) {
-			if (createdCourse) {
-				console.log(`✅ Course created with ID: ${createdCourse.id}`);
-			}
-		}
+					// Create courses
+					console.log("📚 Creating courses...");
+					const courses = await createCourses(
+						payload,
+						data.courses as readonly SeedData["courses"][number][],
+						adminUser.id,
+						categories,
+					);
+					for (const createdCourse of courses) {
+						if (createdCourse) {
+							console.log(`✅ Course created with ID: ${createdCourse.id}`);
+						}
+					}
 
-		if (courses.length === 0) {
-			throw new Error(
-				"No courses were created, cannot proceed with enrollments",
-			);
-		}
+					if (courses.length === 0) {
+						throw new Error(
+							"No courses were created, cannot proceed with enrollments",
+						);
+					}
 
-		const course = courses[0];
-		if (!course) {
-			throw new Error("First course is undefined");
-		}
+					const course = courses[0];
+					if (!course) {
+						throw new Error("First course is undefined");
+					}
 
-		// Create enrollments
-		console.log("🎓 Enrolling users in course...");
-		const studentEnrollment = await createEnrollment(
-			payload,
-			mockRequest,
-			studentUser.id,
-			course.id,
-			"student",
-			"active",
-		);
-		if (!studentEnrollment) {
-			throw new Error("Failed to create student enrollment");
-		}
-		console.log(
-			`✅ Student enrollment created with ID: ${studentEnrollment.id}`,
-		);
+					// Create enrollments
+					console.log("🎓 Enrolling users in course...");
+					const studentEnrollment = await createEnrollment(
+						payload,
+						mockRequest,
+						studentUser.id,
+						course.id,
+						"student",
+						"active",
+					);
+					if (!studentEnrollment) {
+						throw new Error("Failed to create student enrollment");
+					}
+					console.log(
+						`✅ Student enrollment created with ID: ${studentEnrollment.id}`,
+					);
 
-		const teacherEnrollment = await createEnrollment(
-			payload,
-			mockRequest,
-			teacherUser.id,
-			course.id,
-			"teacher",
-			"active",
-		);
-		if (!teacherEnrollment) {
-			throw new Error("Failed to create teacher enrollment");
-		}
-		console.log(
-			`✅ Teacher enrollment created with ID: ${teacherEnrollment.id}`,
-		);
+					const teacherEnrollment = await createEnrollment(
+						payload,
+						mockRequest,
+						teacherUser.id,
+						course.id,
+						"teacher",
+						"active",
+					);
+					if (!teacherEnrollment) {
+						throw new Error("Failed to create teacher enrollment");
+					}
+					console.log(
+						`✅ Teacher enrollment created with ID: ${teacherEnrollment.id}`,
+					);
 
-		const taEnrollment = await createEnrollment(
-			payload,
-			mockRequest,
-			taUser.id,
-			course.id,
-			"ta",
-			"active",
-		);
-		if (!taEnrollment) {
-			throw new Error("Failed to create TA enrollment");
-		}
-		console.log(`✅ TA enrollment created with ID: ${taEnrollment.id}`);
+					const taEnrollment = await createEnrollment(
+						payload,
+						mockRequest,
+						taUser.id,
+						course.id,
+						"ta",
+						"active",
+					);
+					if (!taEnrollment) {
+						throw new Error("Failed to create TA enrollment");
+					}
+					console.log(`✅ TA enrollment created with ID: ${taEnrollment.id}`);
 
-		if (courses.length > 1) {
-			const secondCourse = courses[1];
-			if (secondCourse) {
-				console.log("🧑‍💼 Enrolling admin as manager...");
-				await createEnrollment(
-					payload,
-					mockRequest,
-					adminUser.id,
-					secondCourse.id,
-					"manager",
-					"active",
-				);
-				console.log(
-					`✅ Admin enrolled as manager in course ID: ${secondCourse.id}`,
-				);
-			}
-		}
+					if (courses.length > 1) {
+						const secondCourse = courses[1];
+						if (secondCourse) {
+							console.log("🧑‍💼 Enrolling admin as manager...");
+							await createEnrollment(
+								payload,
+								mockRequest,
+								adminUser.id,
+								secondCourse.id,
+								"manager",
+								"active",
+							);
+							console.log(
+								`✅ Admin enrolled as manager in course ID: ${secondCourse.id}`,
+							);
+						}
+					}
 
-		console.log("🎓 Enrolling additional students...");
-		const additionalEnrollments: Awaited<
-			ReturnType<typeof tryCreateEnrollment>
-		>["value"][] = [];
-		for (let i = 0; i < additionalStudents.length; i++) {
-			const student = additionalStudents[i];
-			if (!student) continue;
+					console.log("🎓 Enrolling additional students...");
+					const additionalEnrollments: Awaited<
+						ReturnType<typeof tryCreateEnrollment>
+					>["value"][] = [];
+					for (let i = 0; i < additionalStudents.length; i++) {
+						const student = additionalStudents[i];
+						if (!student) continue;
 
-			const status =
-				data.enrollmentStatuses[i % data.enrollmentStatuses.length]!;
-			const enrollment = await createEnrollment(
-				payload,
-				mockRequest,
-				student.id,
-				course.id,
-				"student",
-				status,
-			);
-			if (enrollment) {
-				additionalEnrollments.push(enrollment);
-				console.log(
-					`✅ Additional student enrollment created with ID: ${enrollment.id}`,
-				);
-			}
-		}
+						const status =
+							data.enrollmentStatuses[i % data.enrollmentStatuses.length]!;
+						const enrollment = await createEnrollment(
+							payload,
+							mockRequest,
+							student.id,
+							course.id,
+							"student",
+							status,
+						);
+						if (enrollment) {
+							additionalEnrollments.push(enrollment);
+							console.log(
+								`✅ Additional student enrollment created with ID: ${enrollment.id}`,
+							);
+						}
+					}
 
-		// Create activity modules
-		console.log("📄 Creating activity modules...");
-		const { pageModule, additionalModules } = await createActivityModules(
-			payload,
-			{
-				page: data.modules.page,
-				additional: data.modules
-					.additional as readonly SeedData["modules"]["additional"][number][],
-			},
-			adminUser.id,
-			mockRequest,
-		);
-		if (!pageModule) {
-			throw new Error("Failed to create page module");
-		}
-		console.log(`✅ Page module created with ID: ${pageModule.id}`);
-		console.log(
-			`✅ Additional modules created: ${additionalModules.length} modules`,
-		);
+					// Create activity modules
+					console.log("📄 Creating activity modules...");
+					const { pageModule, additionalModules } = await createActivityModules(
+						payload,
+						{
+							page: data.modules.page,
+							additional: data.modules
+								.additional as readonly SeedData["modules"]["additional"][number][],
+						},
+						adminUser.id,
+						mockRequest,
+					);
+					if (!pageModule) {
+						throw new Error("Failed to create page module");
+					}
+					console.log(`✅ Page module created with ID: ${pageModule.id}`);
+					console.log(
+						`✅ Additional modules created: ${additionalModules.length} modules`,
+					);
 
-		// Create sections
-		console.log("📁 Creating course sections...");
-		const sections = await createSections(
-			payload,
-			data.sections as readonly SeedData["sections"][number][],
-			course.id,
-		);
-		for (const section of sections) {
-			if (section) {
-				console.log(`✅ Course section created with ID: ${section.id}`);
-			}
-		}
+					// Create sections
+					console.log("📁 Creating course sections...");
+					const sections = await createSections(
+						payload,
+						data.sections as readonly SeedData["sections"][number][],
+						course.id,
+					);
+					for (const section of sections) {
+						if (section) {
+							console.log(`✅ Course section created with ID: ${section.id}`);
+						}
+					}
 
-		// Link modules to sections
-		console.log("🔗 Linking modules to course sections...");
-		const allModules = [pageModule, ...additionalModules];
-		const links = await linkModulesToSections(
-			payload,
-			mockRequest,
-			course.id,
-			allModules,
-			sections,
-		);
-		for (const link of links) {
-			if (link) {
-				console.log(`✅ Module linked to section (ID: ${link.id})`);
-			}
-		}
+					// Link modules to sections
+					console.log("🔗 Linking modules to course sections...");
+					const allModules = [pageModule, ...additionalModules];
+					const links = await linkModulesToSections(
+						payload,
+						mockRequest,
+						course.id,
+						allModules,
+						sections,
+					);
+					for (const link of links) {
+						if (link) {
+							console.log(`✅ Module linked to section (ID: ${link.id})`);
+						}
+					}
 
-		// Summary
-		console.log("🎉 Seed process completed successfully!");
-		console.log("📊 Summary:");
-		console.log(`   - Admin user: ${adminUser.email} (ID: ${adminUser.id})`);
-		console.log(
-			`   - Student user: ${studentUser.email} (ID: ${studentUser.id})`,
-		);
-		console.log(
-			`   - Teacher user: ${teacherUser.email} (ID: ${teacherUser.id})`,
-		);
-		console.log(`   - TA user: ${taUser.email} (ID: ${taUser.id})`);
-		console.log(
-			`   - Additional students: ${additionalStudents.length} created`,
-		);
-		console.log(`   - Courses: ${courses.length} created`);
-		console.log(`   - Main course: ${course.title} (ID: ${course.id})`);
-		console.log(
-			`   - Student enrollment: Student enrolled as ${studentEnrollment.role}`,
-		);
-		console.log(
-			`   - Teacher enrollment: Teacher enrolled as ${teacherEnrollment.role}`,
-		);
-		console.log(`   - TA enrollment: TA enrolled as ${taEnrollment.role}`);
-		console.log(
-			`   - Additional enrollments: ${additionalEnrollments.length} created`,
-		);
-		console.log(`   - Page module: ${pageModule.title} (ID: ${pageModule.id})`);
-		console.log(`   - Additional modules: ${additionalModules.length} created`);
-		console.log(`   - Course sections: ${sections.length} created`);
-		console.log(
-			`   - Course links: ${links.length} modules linked to sections`,
-		);
+					// Summary
+					console.log("🎉 Seed process completed successfully!");
+					console.log("📊 Summary:");
+					console.log(`   - Admin user: ${adminUser.email} (ID: ${adminUser.id})`);
+					console.log(
+						`   - Student user: ${studentUser.email} (ID: ${studentUser.id})`,
+					);
+					console.log(
+						`   - Teacher user: ${teacherUser.email} (ID: ${teacherUser.id})`,
+					);
+					console.log(`   - TA user: ${taUser.email} (ID: ${taUser.id})`);
+					console.log(
+						`   - Additional students: ${additionalStudents.length} created`,
+					);
+					console.log(`   - Courses: ${courses.length} created`);
+					console.log(`   - Main course: ${course.title} (ID: ${course.id})`);
+					console.log(
+						`   - Student enrollment: Student enrolled as ${studentEnrollment.role}`,
+					);
+					console.log(
+						`   - Teacher enrollment: Teacher enrolled as ${teacherEnrollment.role}`,
+					);
+					console.log(`   - TA enrollment: TA enrolled as ${taEnrollment.role}`);
+					console.log(
+						`   - Additional enrollments: ${additionalEnrollments.length} created`,
+					);
+					console.log(`   - Page module: ${pageModule.title} (ID: ${pageModule.id})`);
+					console.log(`   - Additional modules: ${additionalModules.length} created`);
+					console.log(`   - Course sections: ${sections.length} created`);
+					console.log(
+						`   - Course links: ${links.length} modules linked to sections`,
+					);
 
-		return {
-			adminUser,
-			studentUser,
-			teacherUser,
-			taUser,
-			additionalStudents,
-			courses,
-			course,
-			studentEnrollment,
-			teacherEnrollment,
-			taEnrollment,
-			additionalEnrollments,
-			pageModule,
-			additionalModules,
-			sections,
-			links,
-		};
-	},
-	(error) =>
+					return {
+						adminUser,
+						studentUser,
+						teacherUser,
+						taUser,
+						additionalStudents,
+						courses,
+						course,
+						studentEnrollment,
+						teacherEnrollment,
+						taEnrollment,
+						additionalEnrollments,
+						pageModule,
+						additionalModules,
+						sections,
+						links,
+					};
+		},
+		(error) =>
 		transformError(error) ??
 		new SeedDataLoadError(
 			`Seed process failed: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);
+		)
+	);
+}

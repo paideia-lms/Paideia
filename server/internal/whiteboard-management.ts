@@ -29,157 +29,165 @@ export interface GetWhiteboardByIdArgs extends BaseInternalFunctionArgs {
 	id: number;
 }
 
-export const tryCreateWhiteboard = Result.wrap(
-	async (args: CreateWhiteboardArgs) => {
-		const { payload, content, userId, req, overrideAccess = false } = args;
+export function tryCreateWhiteboard(args: CreateWhiteboardArgs) {
+	return Result.try(
+		async () => {
+			const { payload, content, userId, req, overrideAccess = false } = args;
 
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
+					if (!userId) {
+						throw new InvalidArgumentError("User ID is required");
+					}
 
-		const whiteboard = await payload
-			.create({
-				collection: "whiteboards",
-				data: {
-					content: content || "",
-					createdBy: userId,
-				},
-				req,
-				overrideAccess,
-				depth: 1,
-			})
-			.then(stripDepth<1, "create">())
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: "tryCreateWhiteboard",
-					args,
-				});
-				throw error;
-			});
+					const whiteboard = await payload
+						.create({
+							collection: "whiteboards",
+							data: {
+								content: content || "",
+								createdBy: userId,
+							},
+							req,
+							overrideAccess,
+							depth: 1,
+						})
+						.then(stripDepth<1, "create">())
+						.catch((error) => {
+							interceptPayloadError({
+								error,
+								functionNamePrefix: "tryCreateWhiteboard",
+								args,
+							});
+							throw error;
+						});
 
-		return whiteboard;
-	},
-	(error) =>
-		transformError(error) ?? new UnknownError("Failed to create whiteboard"),
-);
+					return whiteboard;
+		},
+		(error) =>
+		transformError(error) ?? new UnknownError("Failed to create whiteboard")
+	);
+}
 
-export const tryUpdateWhiteboard = Result.wrap(
-	async (args: UpdateWhiteboardArgs) => {
-		const {
-			payload,
-			id,
-			content,
+export function tryUpdateWhiteboard(args: UpdateWhiteboardArgs) {
+	return Result.try(
+		async () => {
+			const {
+						payload,
+						id,
+						content,
 
-			req,
-			overrideAccess = false,
-		} = args;
+						req,
+						overrideAccess = false,
+					} = args;
 
-		if (!id) {
-			throw new InvalidArgumentError("Whiteboard ID is required");
-		}
+					if (!id) {
+						throw new InvalidArgumentError("Whiteboard ID is required");
+					}
 
-		// Check if whiteboard exists
-		const existingWhiteboard = await payload
-			.findByID({
-				collection: "whiteboards",
-				id,
-				req,
-				overrideAccess,
-				depth: 0,
-			})
-			.then(stripDepth<0, "findByID">());
+					// Check if whiteboard exists
+					const existingWhiteboard = await payload
+						.findByID({
+							collection: "whiteboards",
+							id,
+							req,
+							overrideAccess,
+							depth: 0,
+						})
+						.then(stripDepth<0, "findByID">());
 
-		if (!existingWhiteboard) {
-			throw new NonExistingWhiteboardError("Whiteboard not found");
-		}
+					if (!existingWhiteboard) {
+						throw new NonExistingWhiteboardError("Whiteboard not found");
+					}
 
-		const whiteboard = await payload
-			.update({
-				collection: "whiteboards",
-				id,
-				data: {
-					content,
-				},
-				req,
-				overrideAccess,
-				depth: 0,
-			})
-			.then(stripDepth<0, "update">());
+					const whiteboard = await payload
+						.update({
+							collection: "whiteboards",
+							id,
+							data: {
+								content,
+							},
+							req,
+							overrideAccess,
+							depth: 0,
+						})
+						.then(stripDepth<0, "update">());
 
-		return whiteboard;
-	},
-	(error) =>
-		transformError(error) ?? new UnknownError("Failed to update whiteboard"),
-);
+					return whiteboard;
+		},
+		(error) =>
+		transformError(error) ?? new UnknownError("Failed to update whiteboard")
+	);
+}
 
-export const tryDeleteWhiteboard = Result.wrap(
-	async (args: DeleteWhiteboardArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryDeleteWhiteboard(args: DeleteWhiteboardArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		if (!id) {
-			throw new InvalidArgumentError("Whiteboard ID is required");
-		}
+					if (!id) {
+						throw new InvalidArgumentError("Whiteboard ID is required");
+					}
 
-		// Check if whiteboard exists
-		const existingWhiteboard = await payload
-			.findByID({
-				collection: "whiteboards",
-				id,
-				req,
-				overrideAccess,
-				depth: 0,
-			})
-			.then(stripDepth<0, "findByID">());
+					// Check if whiteboard exists
+					const existingWhiteboard = await payload
+						.findByID({
+							collection: "whiteboards",
+							id,
+							req,
+							overrideAccess,
+							depth: 0,
+						})
+						.then(stripDepth<0, "findByID">());
 
-		if (!existingWhiteboard) {
-			throw new NonExistingWhiteboardError("Whiteboard not found");
-		}
+					if (!existingWhiteboard) {
+						throw new NonExistingWhiteboardError("Whiteboard not found");
+					}
 
-		const deletedWhiteboard = await payload
-			.delete({
-				collection: "whiteboards",
-				id,
-				req,
-				overrideAccess,
-				depth: 0,
-			})
-			.then(stripDepth<0, "delete">());
+					const deletedWhiteboard = await payload
+						.delete({
+							collection: "whiteboards",
+							id,
+							req,
+							overrideAccess,
+							depth: 0,
+						})
+						.then(stripDepth<0, "delete">());
 
-		return { success: true, deletedWhiteboard };
-	},
-	(error) =>
-		transformError(error) ?? new UnknownError("Failed to delete whiteboard"),
-);
+					return { success: true, deletedWhiteboard };
+		},
+		(error) =>
+		transformError(error) ?? new UnknownError("Failed to delete whiteboard")
+	);
+}
 
-export const tryGetWhiteboardById = Result.wrap(
-	async (args: GetWhiteboardByIdArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryGetWhiteboardById(args: GetWhiteboardByIdArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		if (!id) {
-			throw new InvalidArgumentError("Whiteboard ID is required");
-		}
+					if (!id) {
+						throw new InvalidArgumentError("Whiteboard ID is required");
+					}
 
-		const whiteboard = await payload
-			.findByID({
-				collection: "whiteboards",
-				id,
-				req,
-				overrideAccess,
-				depth: 1,
-			})
-			.then(stripDepth<1, "findByID">())
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: "tryGetWhiteboardById",
-					args,
-				});
-				throw error;
-			});
+					const whiteboard = await payload
+						.findByID({
+							collection: "whiteboards",
+							id,
+							req,
+							overrideAccess,
+							depth: 1,
+						})
+						.then(stripDepth<1, "findByID">())
+						.catch((error) => {
+							interceptPayloadError({
+								error,
+								functionNamePrefix: "tryGetWhiteboardById",
+								args,
+							});
+							throw error;
+						});
 
-		return whiteboard;
-	},
-	(error) =>
-		transformError(error) ?? new UnknownError("Failed to get whiteboard by ID"),
-);
+					return whiteboard;
+		},
+		(error) =>
+		transformError(error) ?? new UnknownError("Failed to get whiteboard by ID")
+	);
+}

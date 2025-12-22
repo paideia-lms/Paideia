@@ -4,7 +4,7 @@
  */
 
 import * as ts from "typescript";
-import type { LintRule } from "./scripts/lint-project";
+import type { ASTPatternFix, LintRule } from "./scripts/lint-project";
 
 // Define AST pattern matchers
 const astPatterns = {
@@ -290,6 +290,147 @@ const astPatterns = {
 	},
 };
 
+/**
+ * Fix function for Result.wrap pattern
+ * Transforms: export const name = Result.wrap(async (args: Type) => { ... }, errorHandler)
+ * To: export function name(args: Type) { return Result.try(async () => { ... }, errorHandler); }
+ */
+const resultWrapFix: (
+	node: ts.Node,
+	sourceFile: ts.SourceFile,
+) => string | null = (node, sourceFile) => {
+	if (!ts.isVariableStatement(node)) {
+		return null;
+	}
+
+	const declarationList = node.declarationList;
+	if (!(declarationList.flags & ts.NodeFlags.Const)) {
+		return null;
+	}
+
+	// Find the declaration with Result.wrap
+	for (const declaration of declarationList.declarations) {
+		if (!declaration.initializer || !ts.isCallExpression(declaration.initializer)) {
+			continue;
+		}
+
+		const callExpr = declaration.initializer;
+		const callTarget = callExpr.expression;
+
+		if (
+			!ts.isPropertyAccessExpression(callTarget) ||
+			!ts.isIdentifier(callTarget.expression) ||
+			callTarget.expression.text !== "Result" ||
+			callTarget.name.text !== "wrap"
+		) {
+			continue;
+		}
+
+		// Get function name
+		if (!ts.isIdentifier(declaration.name)) {
+			continue;
+		}
+		const functionName = declaration.name.text;
+
+		// Get arguments to Result.wrap
+		const args = callExpr.arguments;
+		if (args.length === 0) {
+			continue;
+		}
+
+		// First argument should be the async function
+		const asyncFunction = args[0];
+		if (
+			!asyncFunction ||
+			(!ts.isArrowFunction(asyncFunction) && !ts.isFunctionExpression(asyncFunction))
+		) {
+			continue;
+		}
+
+		// Extract parameters
+		const parameters = asyncFunction.parameters;
+		if (parameters.length !== 1) {
+			continue;
+		}
+
+		const param = parameters[0];
+		if (!param) {
+			continue;
+		}
+
+		const paramName = ts.isIdentifier(param.name) ? param.name.text : null;
+		const paramType = param.type ? param.type.getText(sourceFile) : null;
+
+		if (!paramName) {
+			continue;
+		}
+
+		// Build parameter string
+		const paramString = paramType
+			? `${paramName}: ${paramType}`
+			: paramName;
+
+		// Extract function body
+		const body = asyncFunction.body;
+		if (!body) {
+			continue;
+		}
+
+		// Get body text - if it's a block, get the content; if it's an expression, wrap it
+		let bodyText: string;
+		if (ts.isBlock(body)) {
+			// Get the content inside the block (without the braces)
+			// Find the position after the opening brace and before the closing brace
+			const bodyStart = body.getStart(sourceFile);
+			const bodyEnd = body.getEnd();
+			const openBracePos = sourceFile.text.indexOf("{", bodyStart);
+			const closeBracePos = sourceFile.text.lastIndexOf("}", bodyEnd - 1);
+			
+			if (openBracePos !== -1 && closeBracePos !== -1 && closeBracePos > openBracePos) {
+				// Extract content between braces, preserving formatting
+				bodyText = sourceFile.text.slice(openBracePos + 1, closeBracePos).trim();
+			} else {
+				bodyText = "";
+			}
+		} else {
+			// Expression body - convert to return statement
+			bodyText = `return ${body.getText(sourceFile)};`;
+		}
+
+		// Get error handler (second argument, if present)
+		const errorHandler = args.length > 1 && args[1] ? args[1].getText(sourceFile) : null;
+
+		// Build the new function
+		let newFunction = `export function ${functionName}(${paramString}) {\n\treturn Result.try(\n\t\tasync () => {\n`;
+		
+		// Add body with proper indentation
+		if (bodyText) {
+			const bodyLines = bodyText.split("\n");
+			for (const line of bodyLines) {
+				if (line.trim()) {
+					// Add one more level of indentation (3 tabs total)
+					newFunction += `\t\t\t${line}\n`;
+				} else {
+					// Preserve empty lines
+					newFunction += "\n";
+				}
+			}
+		}
+		
+		newFunction += `\t\t}`;
+		
+		if (errorHandler) {
+			newFunction += `,\n\t\t${errorHandler}`;
+		}
+		
+		newFunction += `\n\t);\n}`;
+
+		return newFunction;
+	}
+
+	return null;
+};
+
 // Log level configuration
 // "error" - only show errors
 // "warning" - show warnings and errors
@@ -384,6 +525,7 @@ export const rules: LintRule[] = [
 			{
 				name: "export const functionName = Result.wrap(...) pattern",
 				matcher: astPatterns.resultWrapPattern,
+				fix: resultWrapFix,
 			},
 		],
 	},

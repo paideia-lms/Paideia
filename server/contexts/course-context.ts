@@ -177,163 +177,165 @@ export interface TryGetCourseContextArgs extends BaseInternalFunctionArgs {
 // export const courseContextKey =
 // 	"courseContext" as unknown as typeof courseContext;
 
-export const tryGetCourseContext = Result.wrap(
-	async ({ payload, req, courseId }: TryGetCourseContextArgs) => {
-		const user = req?.user;
-		if (Number.isNaN(courseId)) {
-			throw new InvalidArgumentError("Course ID is required");
-		}
-		// Get course
-		const course = await tryFindCourseById({
-			payload,
-			courseId,
-			req,
-		}).getOrThrow();
+export function tryGetCourseContext(args: TryGetCourseContextArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, courseId } = args;
+			const user = req?.user;
+			if (Number.isNaN(courseId)) {
+				throw new InvalidArgumentError("Course ID is required");
+			}
+			// Get course
+			const course = await tryFindCourseById({
+				payload,
+				courseId,
+				req,
+			}).getOrThrow();
 
-		// Check if user exists
-		if (!user) {
-			throw new CourseAccessDeniedError(
-				"User must be authenticated to access course",
-			);
-		}
+			// Check if user exists
+			if (!user) {
+				throw new CourseAccessDeniedError(
+					"User must be authenticated to access course",
+				);
+			}
 
-		// Check access
-		const hasAccess = canAccessCourse(
-			{
-				id: user.id,
-				role: user.role ?? "student",
-			},
-			course.enrollments.map((enrollment) => ({
-				id: enrollment.id,
-				userId: enrollment.user.id,
-				role: enrollment.role,
-			})),
-		).allowed;
+			// Check access
+			const hasAccess = canAccessCourse(
+				{
+					id: user.id,
+					role: user.role ?? "student",
+				},
+				course.enrollments.map((enrollment) => ({
+					id: enrollment.id,
+					userId: enrollment.user.id,
+					role: enrollment.role,
+				})),
+			).allowed;
 
-		if (!hasAccess) {
-			throw new CourseAccessDeniedError(
-				`User ${user.id} does not have access to course ${courseId}`,
-			);
-		}
+			if (!hasAccess) {
+				throw new CourseAccessDeniedError(
+					`User ${user.id} does not have access to course ${courseId}`,
+				);
+			}
 
-		// Fetch existing course-activity-module links and populate moduleLinks
-		const linksResult = await tryFindLinksByCourse({
-			payload,
-			courseId,
-			req,
-		});
-		const moduleLinks = linksResult.ok
-			? linksResult.value.map((link) => ({
-					id: link.id,
-					activityModule: {
-						id: link.activityModule.id,
-						title: link.activityModule.title || "",
-						description: link.activityModule.description || "",
-						type: link.activityModule.type as
-							| "page"
-							| "whiteboard"
-							| "assignment"
-							| "quiz"
-							| "discussion",
-						status: link.activityModule.status as
-							| "draft"
-							| "published"
-							| "archived",
-						createdBy: {
-							id: link.activityModule.createdBy.id,
-							email: link.activityModule.createdBy.email,
-							firstName: link.activityModule.createdBy.firstName,
-							lastName: link.activityModule.createdBy.lastName,
-							avatar: link.activityModule.createdBy.avatar ?? null,
+			// Fetch existing course-activity-module links and populate moduleLinks
+			const linksResult = await tryFindLinksByCourse({
+				payload,
+				courseId,
+				req,
+			});
+			const moduleLinks = linksResult.ok
+				? linksResult.value.map((link) => ({
+						id: link.id,
+						activityModule: {
+							id: link.activityModule.id,
+							title: link.activityModule.title || "",
+							description: link.activityModule.description || "",
+							type: link.activityModule.type as
+								| "page"
+								| "whiteboard"
+								| "assignment"
+								| "quiz"
+								| "discussion",
+							status: link.activityModule.status as
+								| "draft"
+								| "published"
+								| "archived",
+							createdBy: {
+								id: link.activityModule.createdBy.id,
+								email: link.activityModule.createdBy.email,
+								firstName: link.activityModule.createdBy.firstName,
+								lastName: link.activityModule.createdBy.lastName,
+								avatar: link.activityModule.createdBy.avatar ?? null,
+							},
+							updatedAt: link.activityModule.updatedAt,
+							createdAt: link.activityModule.createdAt,
 						},
-						updatedAt: link.activityModule.updatedAt,
-						createdAt: link.activityModule.createdAt,
-					},
-					settings: link.settings,
-					createdAt: link.createdAt,
-					updatedAt: link.updatedAt,
-				}))
-			: [];
+						settings: link.settings,
+						createdAt: link.createdAt,
+						updatedAt: link.updatedAt,
+					}))
+				: [];
 
-		// Update course with moduleLinks
-		const courseWithModuleLinks = {
-			...course,
-			moduleLinks,
-		};
+			// Update course with moduleLinks
+			const courseWithModuleLinks = {
+				...course,
+				moduleLinks,
+			};
 
-		// Fetch course structure
-		const [courseStructure, gradebook, allReps] = await Promise.all([
-			tryGetCourseStructure({
-				payload,
+			// Fetch course structure
+			const [courseStructure, gradebook, allReps] = await Promise.all([
+				tryGetCourseStructure({
+					payload,
+					courseId: course.id,
+					req,
+					overrideAccess: false,
+				}).then((r) => r.getOrThrow()),
+				tryGetGradebookByCourseWithDetails({
+					payload,
+					courseId,
+					req,
+				}).then((r) => r.getOrThrow()),
+				tryGetGradebookAllRepresentations({
+					payload,
+					courseId,
+					req,
+					overrideAccess: false,
+				}).then((r) => r.getOrThrow()),
+			]);
+			const courseStructureTree = generateCourseStructureTree(
+				courseStructure,
+				course.title,
+			);
+			const courseStructureTreeSimple = generateSimpleCourseStructureTree(
+				courseStructure,
+				course.title,
+			);
+
+			// Flatten categories from gradebook setup
+			const flattenedCategoriesData = flattenGradebookCategories(
+				allReps.ui.gradebook_setup.items,
+			);
+
+			const enrolment = courseWithModuleLinks.enrollments.find(
+				(enrolment) => enrolment.user.id === user.id,
+			);
+
+			return {
+				enrolment,
+				course: courseWithModuleLinks,
 				courseId: course.id,
-				req,
-				overrideAccess: false,
-			}).then((r) => r.getOrThrow()),
-			tryGetGradebookByCourseWithDetails({
-				payload,
-				courseId,
-				req,
-			}).then((r) => r.getOrThrow()),
-			tryGetGradebookAllRepresentations({
-				payload,
-				courseId,
-				req,
-				overrideAccess: false,
-			}).then((r) => r.getOrThrow()),
-		]);
-		const courseStructureTree = generateCourseStructureTree(
-			courseStructure,
-			course.title,
-		);
-		const courseStructureTreeSimple = generateSimpleCourseStructureTree(
-			courseStructure,
-			course.title,
-		);
-
-		// Flatten categories from gradebook setup
-		const flattenedCategoriesData = flattenGradebookCategories(
-			allReps.ui.gradebook_setup.items,
-		);
-
-		const enrolment = courseWithModuleLinks.enrollments.find(
-			(enrolment) => enrolment.user.id === user.id,
-		);
-
-		return {
-			enrolment,
-			course: courseWithModuleLinks,
-			courseId: course.id,
-			courseStructure,
-			courseStructureTree,
-			courseStructureTreeSimple,
-			gradebook,
-			gradebookJson: allReps.json,
-			gradebookYaml: allReps.yaml,
-			gradebookMarkdown: allReps.markdown,
-			gradebookSetupForUI: allReps.ui,
-			flattenedCategories: flattenedCategoriesData,
-			permissions: {
-				canSeeSettings: permissions.course.canSeeSettings(user, enrolment),
-				canEdit: permissions.course.canEdit(
-					user,
-					courseWithModuleLinks.enrollments.map((e) => ({
-						userId: e.user.id,
-						role: e.role,
-					})),
-				),
-			},
-		};
-	},
-	(error) => {
-		return (
-			transformError(error) ??
-			new UnknownError("Failed to get course context", {
-				cause: error,
-			})
-		);
-	},
-);
-
+				courseStructure,
+				courseStructureTree,
+				courseStructureTreeSimple,
+				gradebook,
+				gradebookJson: allReps.json,
+				gradebookYaml: allReps.yaml,
+				gradebookMarkdown: allReps.markdown,
+				gradebookSetupForUI: allReps.ui,
+				flattenedCategories: flattenedCategoriesData,
+				permissions: {
+					canSeeSettings: permissions.course.canSeeSettings(user, enrolment),
+					canEdit: permissions.course.canEdit(
+						user,
+						courseWithModuleLinks.enrollments.map((e) => ({
+							userId: e.user.id,
+							role: e.role,
+						})),
+					),
+				},
+			};
+		},
+		(error) => {
+			return (
+				transformError(error) ??
+				new UnknownError("Failed to get course context", {
+					cause: error,
+				})
+			);
+		},
+	);
+}
 /**
  * Flattens the gradebook category structure recursively to get all categories
  * including nested ones, with their hierarchy information

@@ -120,487 +120,497 @@ function validateFileAttachments(
 /**
  * Creates a new assignment submission using Payload local API
  */
-export const tryCreateAssignmentSubmission = Result.wrap(
-	async (args: CreateAssignmentSubmissionArgs) => {
-		const {
-			payload,
-			courseModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber = 1,
-			content,
-			attachments,
-			timeSpent,
-			req,
-			overrideAccess = false,
-		} = args;
-
-		// Validate required fields
-		if (!courseModuleLinkId) {
-			throw new InvalidArgumentError("Course module link ID is required");
-		}
-		if (!studentId) {
-			throw new InvalidArgumentError("Student ID is required");
-		}
-		if (!enrollmentId) {
-			throw new InvalidArgumentError("Enrollment ID is required");
-		}
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Check if submission already exists for this attempt
-			const existingSubmission = await payload
-				.find({
-					collection: "assignment-submissions",
-					where: {
-						and: [
-							{ courseModuleLink: { equals: courseModuleLinkId } },
-							{ student: { equals: studentId } },
-							{ attemptNumber: { equals: attemptNumber } },
-						],
-					},
-					req: reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "find">());
-
-			if (existingSubmission.docs.length > 0) {
-				throw new InvalidArgumentError(
-					`Submission already exists for attempt ${attemptNumber}`,
-				);
-			}
-
-			// Get course module link to access assignment
-			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
-				payload,
-				linkId: courseModuleLinkId,
-				req: reqWithTransaction,
-				overrideAccess,
-			}).getOrThrow();
-
-			// Get assignment from activity module (discriminated union)
-			const activityModule = courseModuleLink.activityModule;
-
-			// Extract assignment data for validation (only available for assignment type)
-			const assignmentForValidation =
-				activityModule.type === "assignment"
-					? {
-							allowedFileTypes: activityModule.allowedFileTypes ?? null,
-							maxFileSize: activityModule.maxFileSize ?? null,
-							maxFiles: activityModule.maxFiles ?? null,
-						}
-					: null;
-
-			// Validate file attachments if provided
-			if (attachments && attachments.length > 0) {
-				validateFileAttachments(attachments, assignmentForValidation);
-			}
-
-			const assignmentSettings =
-				courseModuleLink?.settings as unknown as AssignmentSettings;
-
-			const isLate = assignmentSettings?.dueDate
-				? new Date() > new Date(assignmentSettings.dueDate)
-				: false;
-
-			const now = new Date().toISOString();
-			const submission = await payload
-				.create({
-					collection: "assignment-submissions",
-					data: {
-						courseModuleLink: courseModuleLinkId,
-						student: studentId,
-						enrollment: enrollmentId,
-						attemptNumber,
-						// ! we don't support draft submissions yet
-						status: "submitted",
-						submittedAt: now,
+export function tryCreateAssignmentSubmission(args: CreateAssignmentSubmissionArgs) {
+	return Result.try(
+		async () => {
+			const {
+						payload,
+						courseModuleLinkId,
+						studentId,
+						enrollmentId,
+						attemptNumber = 1,
 						content,
-						attachments: attachments
-							? await Promise.all(
-									attachments.map(async (attachment) =>
-										tryCreateMedia({
-											payload,
-											file: Buffer.from(await attachment.arrayBuffer()),
-											filename: attachment.name,
-											mimeType: attachment.type,
-											alt: attachment.name,
-											caption: attachment.name,
-											userId: studentId,
-											req: reqWithTransaction,
-											overrideAccess,
-										})
-											.getOrThrow()
-											.then((result) => ({
-												file: result.media.id,
-												description: attachment.name,
-											})),
-									),
-								)
-							: [],
-						isLate,
+						attachments,
 						timeSpent,
-					},
-					req: reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "create">());
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
+						req,
+						overrideAccess = false,
+					} = args;
 
-			const courseModuleLinkRef = submission.courseModuleLink;
+					// Validate required fields
+					if (!courseModuleLinkId) {
+						throw new InvalidArgumentError("Course module link ID is required");
+					}
+					if (!studentId) {
+						throw new InvalidArgumentError("Student ID is required");
+					}
+					if (!enrollmentId) {
+						throw new InvalidArgumentError("Enrollment ID is required");
+					}
 
-			const student = submission.student;
+					const transactionInfo = await handleTransactionId(payload, req);
 
-			const enrollment = submission.enrollment;
+					return transactionInfo.tx(async ({ reqWithTransaction }) => {
+						// Check if submission already exists for this attempt
+						const existingSubmission = await payload
+							.find({
+								collection: "assignment-submissions",
+								where: {
+									and: [
+										{ courseModuleLink: { equals: courseModuleLinkId } },
+										{ student: { equals: studentId } },
+										{ attemptNumber: { equals: attemptNumber } },
+									],
+								},
+								req: reqWithTransaction,
+								overrideAccess,
+							})
+							.then(stripDepth<1, "find">());
 
-			return {
-				...submission,
-				courseModuleLink: courseModuleLinkRef,
-				student,
-				enrollment,
-			};
-		});
-	},
-	(error) =>
+						if (existingSubmission.docs.length > 0) {
+							throw new InvalidArgumentError(
+								`Submission already exists for attempt ${attemptNumber}`,
+							);
+						}
+
+						// Get course module link to access assignment
+						const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+							payload,
+							linkId: courseModuleLinkId,
+							req: reqWithTransaction,
+							overrideAccess,
+						}).getOrThrow();
+
+						// Get assignment from activity module (discriminated union)
+						const activityModule = courseModuleLink.activityModule;
+
+						// Extract assignment data for validation (only available for assignment type)
+						const assignmentForValidation =
+							activityModule.type === "assignment"
+								? {
+										allowedFileTypes: activityModule.allowedFileTypes ?? null,
+										maxFileSize: activityModule.maxFileSize ?? null,
+										maxFiles: activityModule.maxFiles ?? null,
+									}
+								: null;
+
+						// Validate file attachments if provided
+						if (attachments && attachments.length > 0) {
+							validateFileAttachments(attachments, assignmentForValidation);
+						}
+
+						const assignmentSettings =
+							courseModuleLink?.settings as unknown as AssignmentSettings;
+
+						const isLate = assignmentSettings?.dueDate
+							? new Date() > new Date(assignmentSettings.dueDate)
+							: false;
+
+						const now = new Date().toISOString();
+						const submission = await payload
+							.create({
+								collection: "assignment-submissions",
+								data: {
+									courseModuleLink: courseModuleLinkId,
+									student: studentId,
+									enrollment: enrollmentId,
+									attemptNumber,
+									// ! we don't support draft submissions yet
+									status: "submitted",
+									submittedAt: now,
+									content,
+									attachments: attachments
+										? await Promise.all(
+												attachments.map(async (attachment) =>
+													tryCreateMedia({
+														payload,
+														file: Buffer.from(await attachment.arrayBuffer()),
+														filename: attachment.name,
+														mimeType: attachment.type,
+														alt: attachment.name,
+														caption: attachment.name,
+														userId: studentId,
+														req: reqWithTransaction,
+														overrideAccess,
+													})
+														.getOrThrow()
+														.then((result) => ({
+															file: result.media.id,
+															description: attachment.name,
+														})),
+												),
+											)
+										: [],
+									isLate,
+									timeSpent,
+								},
+								req: reqWithTransaction,
+								overrideAccess,
+							})
+							.then(stripDepth<1, "create">());
+						////////////////////////////////////////////////////
+						// type narrowing
+						////////////////////////////////////////////////////
+
+						const courseModuleLinkRef = submission.courseModuleLink;
+
+						const student = submission.student;
+
+						const enrollment = submission.enrollment;
+
+						return {
+							...submission,
+							courseModuleLink: courseModuleLinkRef,
+							student,
+							enrollment,
+						};
+					});
+		},
+		(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to create assignment submission", {
 			cause: error,
-		}),
-);
+		})
+	);
+}
 
 /**
  * Get an assignment submission by ID
  */
-export const tryGetAssignmentSubmissionById = Result.wrap(
-	async (args: GetAssignmentSubmissionByIdArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryGetAssignmentSubmissionById(args: GetAssignmentSubmissionByIdArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Assignment submission ID is required");
-		}
+					// Validate ID
+					if (!id) {
+						throw new InvalidArgumentError("Assignment submission ID is required");
+					}
 
-		// Fetch the assignment submission
-		const submissionResult = await payload.find({
-			collection: "assignment-submissions",
-			where: {
-				and: [
-					{
-						id: { equals: id },
-					},
-				],
-			},
-			depth: 1, // Fetch related data
-			req,
-			overrideAccess,
-		});
+					// Fetch the assignment submission
+					const submissionResult = await payload.find({
+						collection: "assignment-submissions",
+						where: {
+							and: [
+								{
+									id: { equals: id },
+								},
+							],
+						},
+						depth: 1, // Fetch related data
+						req,
+						overrideAccess,
+					});
 
-		const submission = submissionResult.docs[0];
+					const submission = submissionResult.docs[0];
 
-		if (!submission) {
-			throw new NonExistingAssignmentSubmissionError(
-				`Assignment submission with id '${id}' not found`,
-			);
-		}
+					if (!submission) {
+						throw new NonExistingAssignmentSubmissionError(
+							`Assignment submission with id '${id}' not found`,
+						);
+					}
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
+					////////////////////////////////////////////////////
+					// type narrowing
+					////////////////////////////////////////////////////
 
-		const courseModuleLinkRef = submission.courseModuleLink;
-		assertZodInternal(
-			"tryGetAssignmentSubmissionById: Course module link is required",
-			courseModuleLinkRef,
-			z.object({ id: z.number() }),
-		);
+					const courseModuleLinkRef = submission.courseModuleLink;
+					assertZodInternal(
+						"tryGetAssignmentSubmissionById: Course module link is required",
+						courseModuleLinkRef,
+						z.object({ id: z.number() }),
+					);
 
-		const student = submission.student;
-		assertZodInternal(
-			"tryGetAssignmentSubmissionById: Student is required",
-			student,
-			z.object({ id: z.number() }),
-		);
+					const student = submission.student;
+					assertZodInternal(
+						"tryGetAssignmentSubmissionById: Student is required",
+						student,
+						z.object({ id: z.number() }),
+					);
 
-		const enrollment = submission.enrollment;
-		assertZodInternal(
-			"tryGetAssignmentSubmissionById: Enrollment is required",
-			enrollment,
-			z.object({ id: z.number() }),
-		);
+					const enrollment = submission.enrollment;
+					assertZodInternal(
+						"tryGetAssignmentSubmissionById: Enrollment is required",
+						enrollment,
+						z.object({ id: z.number() }),
+					);
 
-		return {
-			...submission,
-			courseModuleLink: courseModuleLinkRef,
-			student,
-			enrollment,
-		};
-	},
-	(error) =>
+					return {
+						...submission,
+						courseModuleLink: courseModuleLinkRef,
+						student,
+						enrollment,
+					};
+		},
+		(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get assignment submission", {
 			cause: error,
-		}),
-);
+		})
+	);
+}
 
 /**
  * Grades an assignment submission by updating the submission with grade and feedback
  * This does NOT update user-grades - use tryReleaseAssignmentGrade to release grades to gradebook
  */
-export const tryGradeAssignmentSubmission = Result.wrap(
-	async (args: GradeAssignmentSubmissionArgs) => {
-		const {
-			payload,
-			req,
-			id,
-			grade,
-			feedback,
-			gradedBy,
+export function tryGradeAssignmentSubmission(args: GradeAssignmentSubmissionArgs) {
+	return Result.try(
+		async () => {
+			const {
+						payload,
+						req,
+						id,
+						grade,
+						feedback,
+						gradedBy,
 
-			overrideAccess = false,
-		} = args;
+						overrideAccess = false,
+					} = args;
 
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Assignment submission ID is required");
-		}
+					// Validate ID
+					if (!id) {
+						throw new InvalidArgumentError("Assignment submission ID is required");
+					}
 
-		// Validate grade
-		if (grade < 0) {
-			throw new InvalidArgumentError("Grade cannot be negative");
-		}
+					// Validate grade
+					if (grade < 0) {
+						throw new InvalidArgumentError("Grade cannot be negative");
+					}
 
-		const transactionInfo = await handleTransactionId(payload, req);
+					const transactionInfo = await handleTransactionId(payload, req);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Get the current submission with depth to access course module link
-			const currentSubmission = await payload.findByID({
-				collection: AssignmentSubmissions.slug,
-				id,
-				depth: 1,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+					return transactionInfo.tx(async ({ reqWithTransaction }) => {
+						// Get the current submission with depth to access course module link
+						const currentSubmission = await payload.findByID({
+							collection: AssignmentSubmissions.slug,
+							id,
+							depth: 1,
+							req: reqWithTransaction,
+							overrideAccess,
+						});
 
-			if (!currentSubmission) {
-				throw new NonExistingAssignmentSubmissionError(
-					`Assignment submission with id '${id}' not found`,
-				);
-			}
+						if (!currentSubmission) {
+							throw new NonExistingAssignmentSubmissionError(
+								`Assignment submission with id '${id}' not found`,
+							);
+						}
 
-			if (currentSubmission.status !== "submitted") {
-				throw new InvalidArgumentError(
-					"Only submitted assignments can be graded",
-				);
-			}
+						if (currentSubmission.status !== "submitted") {
+							throw new InvalidArgumentError(
+								"Only submitted assignments can be graded",
+							);
+						}
 
-			// Optionally validate grade against gradebook item limits if gradebook item exists
-			const courseModuleLinkId =
-				typeof currentSubmission.courseModuleLink === "number"
-					? currentSubmission.courseModuleLink
-					: currentSubmission.courseModuleLink.id;
+						// Optionally validate grade against gradebook item limits if gradebook item exists
+						const courseModuleLinkId =
+							typeof currentSubmission.courseModuleLink === "number"
+								? currentSubmission.courseModuleLink
+								: currentSubmission.courseModuleLink.id;
 
-			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
-				payload,
-				req: reqWithTransaction,
-				overrideAccess,
-				courseModuleLinkId,
-			});
+						const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
+							payload,
+							req: reqWithTransaction,
+							overrideAccess,
+							courseModuleLinkId,
+						});
 
-			if (gradebookItemResult.ok) {
-				const gradebookItem = gradebookItemResult.value;
-				if (grade < gradebookItem.minGrade || grade > gradebookItem.maxGrade) {
-					throw new InvalidArgumentError(
-						`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
-					);
-				}
-			}
+						if (gradebookItemResult.ok) {
+							const gradebookItem = gradebookItemResult.value;
+							if (grade < gradebookItem.minGrade || grade > gradebookItem.maxGrade) {
+								throw new InvalidArgumentError(
+									`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+								);
+							}
+						}
 
-			const now = new Date().toISOString();
+						const now = new Date().toISOString();
 
-			// Update submission with grade, feedback, gradedBy, gradedAt, and status
-			// Note: Using Record<string, unknown> because Payload types haven't been regenerated yet
-			await payload.update({
-				collection: AssignmentSubmissions.slug,
-				id,
-				data: {
-					grade,
-					feedback,
-					gradedBy,
-					gradedAt: now,
-					status: "graded",
-				} as Record<string, unknown>,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+						// Update submission with grade, feedback, gradedBy, gradedAt, and status
+						// Note: Using Record<string, unknown> because Payload types haven't been regenerated yet
+						await payload.update({
+							collection: AssignmentSubmissions.slug,
+							id,
+							data: {
+								grade,
+								feedback,
+								gradedBy,
+								gradedAt: now,
+								status: "graded",
+							} as Record<string, unknown>,
+							req: reqWithTransaction,
+							overrideAccess,
+						});
 
-			// Fetch the updated submission with depth for return value
-			const updatedSubmission = await payload
-				.findByID({
-					collection: AssignmentSubmissions.slug,
-					id,
-					depth: 1,
-					req: reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "findByID">());
+						// Fetch the updated submission with depth for return value
+						const updatedSubmission = await payload
+							.findByID({
+								collection: AssignmentSubmissions.slug,
+								id,
+								depth: 1,
+								req: reqWithTransaction,
+								overrideAccess,
+							})
+							.then(stripDepth<1, "findByID">());
 
-			if (!updatedSubmission) {
-				throw new NonExistingAssignmentSubmissionError(
-					`Failed to fetch updated submission with id '${id}'`,
-				);
-			}
+						if (!updatedSubmission) {
+							throw new NonExistingAssignmentSubmissionError(
+								`Failed to fetch updated submission with id '${id}'`,
+							);
+						}
 
-			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
+						const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 
-			const student = updatedSubmission.student;
+						const student = updatedSubmission.student;
 
-			const enrollment = updatedSubmission.enrollment;
+						const enrollment = updatedSubmission.enrollment;
 
-			return {
-				...updatedSubmission,
-				courseModuleLink: courseModuleLinkRef,
-				student,
-				enrollment,
-			};
-		});
-	},
-	(error) =>
+						return {
+							...updatedSubmission,
+							courseModuleLink: courseModuleLinkRef,
+							student,
+							enrollment,
+						};
+					});
+		},
+		(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to grade assignment submission", {
 			cause: error,
-		}),
-);
+		})
+	);
+}
 
 /**
  * Lists assignment submissions with optional filtering
  */
-export const tryListAssignmentSubmissions = Result.wrap(
-	async (args: ListAssignmentSubmissionsArgs) => {
-		const {
-			payload,
-			courseModuleLinkId,
-			studentId,
-			enrollmentId,
-			status,
-			limit = 10,
-			page = 1,
+export function tryListAssignmentSubmissions(args: ListAssignmentSubmissionsArgs) {
+	return Result.try(
+		async () => {
+			const {
+						payload,
+						courseModuleLinkId,
+						studentId,
+						enrollmentId,
+						status,
+						limit = 10,
+						page = 1,
 
-			req,
-			overrideAccess = false,
-		} = args;
+						req,
+						overrideAccess = false,
+					} = args;
 
-		const where: Record<string, { equals: unknown }> = {};
+					const where: Record<string, { equals: unknown }> = {};
 
-		if (courseModuleLinkId) {
-			where.courseModuleLink = {
-				equals: courseModuleLinkId,
-			};
-		}
+					if (courseModuleLinkId) {
+						where.courseModuleLink = {
+							equals: courseModuleLinkId,
+						};
+					}
 
-		if (studentId) {
-			where.student = {
-				equals: studentId,
-			};
-		}
+					if (studentId) {
+						where.student = {
+							equals: studentId,
+						};
+					}
 
-		if (enrollmentId) {
-			where.enrollment = {
-				equals: enrollmentId,
-			};
-		}
+					if (enrollmentId) {
+						where.enrollment = {
+							equals: enrollmentId,
+						};
+					}
 
-		if (status) {
-			where.status = {
-				equals: status,
-			};
-		}
+					if (status) {
+						where.status = {
+							equals: status,
+						};
+					}
 
-		const result = await payload.find({
-			collection: "assignment-submissions",
-			where,
-			limit,
-			page,
-			sort: "-createdAt",
-			depth: 1, // Fetch related data
-			req,
-			overrideAccess,
-		});
+					const result = await payload.find({
+						collection: "assignment-submissions",
+						where,
+						limit,
+						page,
+						sort: "-createdAt",
+						depth: 1, // Fetch related data
+						req,
+						overrideAccess,
+					});
 
-		// type narrowing
-		const docs = result.docs.map((doc) => {
-			assertZodInternal(
-				"tryListAssignmentSubmissions: Course module link is required",
-				doc.courseModuleLink,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListAssignmentSubmissions: Student is required",
-				doc.student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListAssignmentSubmissions: Enrollment is required",
-				doc.enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			return {
-				...doc,
-				courseModuleLink: doc.courseModuleLink.id,
-				student: doc.student,
-				enrollment: doc.enrollment,
-			};
-		});
+					// type narrowing
+					const docs = result.docs.map((doc) => {
+						assertZodInternal(
+							"tryListAssignmentSubmissions: Course module link is required",
+							doc.courseModuleLink,
+							z.object({
+								id: z.number(),
+							}),
+						);
+						assertZodInternal(
+							"tryListAssignmentSubmissions: Student is required",
+							doc.student,
+							z.object({
+								id: z.number(),
+							}),
+						);
+						assertZodInternal(
+							"tryListAssignmentSubmissions: Enrollment is required",
+							doc.enrollment,
+							z.object({
+								id: z.number(),
+							}),
+						);
+						return {
+							...doc,
+							courseModuleLink: doc.courseModuleLink.id,
+							student: doc.student,
+							enrollment: doc.enrollment,
+						};
+					});
 
-		return {
-			docs,
-			totalDocs: result.totalDocs,
-			totalPages: result.totalPages,
-			page: result.page,
-			limit: result.limit,
-			hasNextPage: result.hasNextPage,
-			hasPrevPage: result.hasPrevPage,
-		};
-	},
-	(error) =>
+					return {
+						docs,
+						totalDocs: result.totalDocs,
+						totalPages: result.totalPages,
+						page: result.page,
+						limit: result.limit,
+						hasNextPage: result.hasNextPage,
+						hasPrevPage: result.hasPrevPage,
+					};
+		},
+		(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to list assignment submissions", {
 			cause: error,
-		}),
-);
+		})
+	);
+}
 
 /**
  * Deletes an assignment submission
  */
-export const tryDeleteAssignmentSubmission = Result.wrap(
-	async (args: DeleteAssignmentSubmissionArgs) => {
-		const { payload, id, req, overrideAccess = false } = args;
+export function tryDeleteAssignmentSubmission(args: DeleteAssignmentSubmissionArgs) {
+	return Result.try(
+		async () => {
+			const { payload, id, req, overrideAccess = false } = args;
 
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Assignment submission ID is required");
-		}
+					// Validate ID
+					if (!id) {
+						throw new InvalidArgumentError("Assignment submission ID is required");
+					}
 
-		const deletedSubmission = await payload.delete({
-			collection: "assignment-submissions",
-			id,
-			req,
-			overrideAccess,
-		});
+					const deletedSubmission = await payload.delete({
+						collection: "assignment-submissions",
+						id,
+						req,
+						overrideAccess,
+					});
 
-		return deletedSubmission;
-	},
-	(error) =>
+					return deletedSubmission;
+		},
+		(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete assignment submission", {
 			cause: error,
-		}),
-);
+		})
+	);
+}

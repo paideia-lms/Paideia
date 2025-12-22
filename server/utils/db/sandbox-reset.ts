@@ -260,47 +260,49 @@ async function deleteAllUserData(payload: Payload): Promise<void> {
  * Only runs if sandbox mode is enabled
  * Preserves system tables: payload-jobs, payload-jobs-log, payload-migrations, etc.
  */
-export const tryResetSandbox = Result.wrap(
-	async (payload: Payload): Promise<void> => {
-		// Check if sandbox mode is enabled
-		if (!envVars.SANDBOX_MODE.enabled) {
-			return;
-		}
+export function tryResetSandbox(payload: Payload) {
+	return Result.try(
+		async () => {
+			// Check if sandbox mode is enabled
+					if (!envVars.SANDBOX_MODE.enabled) {
+						return;
+					}
 
-		console.log("🔄 Sandbox mode enabled, resetting database...");
+					console.log("🔄 Sandbox mode enabled, resetting database...");
 
-		// Delete all user data while preserving system tables
-		await deleteAllUserData(payload);
+					// Delete all user data while preserving system tables
+					await deleteAllUserData(payload);
 
-		await Bun.sleep(1000);
+					await Bun.sleep(1000);
 
-		// Load seed data (falls back to testData if seed.json invalid/missing)
-		const seedDataResult = tryLoadSeedData();
-		if (!seedDataResult.ok) {
-			throw new SandboxResetError(
-				`Failed to load seed data: ${seedDataResult.error.message}`,
-			);
-		}
+					// Load seed data (falls back to testData if seed.json invalid/missing)
+					const seedDataResult = tryLoadSeedData();
+					if (!seedDataResult.ok) {
+						throw new SandboxResetError(
+							`Failed to load seed data: ${seedDataResult.error.message}`,
+						);
+					}
 
-		const seedData = seedDataResult.value;
+					const seedData = seedDataResult.value;
 
-		// Run seed with loaded data
-		const seedResult = await tryRunSeed({
-			payload,
-			seedData: seedData,
-		});
+					// Run seed with loaded data
+					const seedResult = await tryRunSeed({
+						payload,
+						seedData: seedData,
+					});
 
-		if (!seedResult.ok) {
-			throw new SeedDataLoadError(
-				`Failed to seed database: ${seedResult.error.message}`,
-			);
-		}
+					if (!seedResult.ok) {
+						throw new SeedDataLoadError(
+							`Failed to seed database: ${seedResult.error.message}`,
+						);
+					}
 
-		console.log("✅ Sandbox database reset completed successfully");
-	},
-	(error) =>
+					console.log("✅ Sandbox database reset completed successfully");
+		},
+		(error) =>
 		transformError(error) ??
 		new SandboxResetError(
 			`Sandbox reset failed: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);
+		)
+	);
+}
