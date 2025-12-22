@@ -25,54 +25,56 @@ export function tryGetRegistrationSettings(args: GetRegistrationSettingsArgs) {
 		async () => {
 			const { payload, req, overrideAccess = false } = args;
 
-					const raw = await payload
-						.findGlobal({
-							slug: RegistrationSettings.slug,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "findGlobal">());
+			const raw = await payload
+				.findGlobal({
+					slug: RegistrationSettings.slug,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findGlobal">());
 
-					return {
-						disableRegistration: raw.disableRegistration ?? false,
-						showRegistrationButton: raw.showRegistrationButton ?? true,
-					};
+			return {
+				disableRegistration: raw.disableRegistration ?? false,
+				showRegistrationButton: raw.showRegistrationButton ?? true,
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get registration settings", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to get registration settings", { cause: error }),
 	);
 }
 
 /**
  * Update registration settings in the RegistrationSettings global.
  */
-export function tryUpdateRegistrationSettings(args: UpdateRegistrationSettingsArgs) {
+export function tryUpdateRegistrationSettings(
+	args: UpdateRegistrationSettingsArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, req, data, overrideAccess = false } = args;
 
-					const updated = await payload
-						.updateGlobal({
-							slug: RegistrationSettings.slug,
-							data: {
-								disableRegistration: data.disableRegistration ?? undefined,
-								showRegistrationButton: data.showRegistrationButton ?? undefined,
-							},
-							req,
-							overrideAccess,
-							depth: 0,
-						})
-						.then(stripDepth<0, "updateGlobal">());
-					return {
-						disableRegistration: updated.disableRegistration ?? false,
-						showRegistrationButton: updated.showRegistrationButton ?? true,
-					};
+			const updated = await payload
+				.updateGlobal({
+					slug: RegistrationSettings.slug,
+					data: {
+						disableRegistration: data.disableRegistration ?? undefined,
+						showRegistrationButton: data.showRegistrationButton ?? undefined,
+					},
+					req,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "updateGlobal">());
+			return {
+				disableRegistration: updated.disableRegistration ?? false,
+				showRegistrationButton: updated.showRegistrationButton ?? true,
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update registration settings", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to update registration settings", {
+				cause: error,
+			}),
 	);
 }

@@ -134,7 +134,7 @@ const getRouteUrl = (id?: number) => {
 };
 
 const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
-	serverOnly$(async ({ context, formData, }) => {
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -239,9 +239,10 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
-							? "No notes"
-							: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${
+							value === null || value === 0
+								? "No notes"
+								: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}

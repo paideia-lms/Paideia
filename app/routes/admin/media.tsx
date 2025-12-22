@@ -442,7 +442,8 @@ const [deleteMediaAction, useDeleteMedia] = createDeleteMediaActionRpc(
 const [deleteOrphanedMediaAction, useDeleteOrphanedMedia] =
 	createDeleteOrphanedMediaActionRpc(
 		serverOnly$(async ({ context, formData }) => {
-			const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+			const { payload, s3Client, payloadRequest } =
+				context.get(globalContextKey);
 			const userSession = context.get(userContextKey);
 
 			if (!userSession?.isAuthenticated) {
@@ -457,7 +458,10 @@ const [deleteOrphanedMediaAction, useDeleteOrphanedMedia] =
 			}
 
 			// Handle transaction ID
-			const transactionInfo = await handleTransactionId(payload, payloadRequest);
+			const transactionInfo = await handleTransactionId(
+				payload,
+				payloadRequest,
+			);
 
 			return transactionInfo.tx(
 				async ({ reqWithTransaction }) => {
@@ -483,27 +487,28 @@ const [deleteOrphanedMediaAction, useDeleteOrphanedMedia] =
 						return badRequest({ error: result.error.message });
 					}
 
-				return ok({
-					message:
-						result.value.deletedCount === 1
-							? "Orphaned file deleted successfully"
-							: `${result.value.deletedCount} orphaned files deleted successfully`,
-				});
-			},
-			(result) => {
-				return result.data.status === StatusCode.BadRequest;
-			},
-		);
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
-	},
-);
+					return ok({
+						message:
+							result.value.deletedCount === 1
+								? "Orphaned file deleted successfully"
+								: `${result.value.deletedCount} orphaned files deleted successfully`,
+					});
+				},
+				(result) => {
+					return result.data.status === StatusCode.BadRequest;
+				},
+			);
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
 
 const [pruneAllOrphanedMediaAction, usePruneAllOrphanedMedia] =
 	createPruneAllOrphanedMediaActionRpc(
 		serverOnly$(async ({ context }) => {
-			const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+			const { payload, s3Client, payloadRequest } =
+				context.get(globalContextKey);
 			const userSession = context.get(userContextKey);
 
 			if (!userSession?.isAuthenticated) {
@@ -518,7 +523,10 @@ const [pruneAllOrphanedMediaAction, usePruneAllOrphanedMedia] =
 			}
 
 			// Handle transaction ID
-			const transactionInfo = await handleTransactionId(payload, payloadRequest);
+			const transactionInfo = await handleTransactionId(
+				payload,
+				payloadRequest,
+			);
 
 			return transactionInfo.tx(async ({ reqWithTransaction }) => {
 				const result = await tryPruneAllOrphanedMedia({
@@ -538,18 +546,23 @@ const [pruneAllOrphanedMediaAction, usePruneAllOrphanedMedia] =
 					});
 				}
 
-			return ok({
-				message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
+				return ok({
+					message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
+				});
 			});
-		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
-	},
-);
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
 
 // Export hooks for use in components
-export { useDeleteMedia, useUpdateMedia, useDeleteOrphanedMedia, usePruneAllOrphanedMedia };
+export {
+	useDeleteMedia,
+	useUpdateMedia,
+	useDeleteOrphanedMedia,
+	usePruneAllOrphanedMedia,
+};
 
 const actionMap = {
 	[Action.UpdateMedia]: updateMediaAction,
@@ -1749,8 +1762,11 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 	const { submit: updateMedia } = useUpdateMedia();
 	const { submit: deleteOrphanedMedia, fetcher: orphanedFetcher } =
 		useDeleteOrphanedMedia();
-	const { submit: pruneAllOrphaned, isLoading: isPruningAll, fetcher: pruneFetcher } =
-		usePruneAllOrphanedMedia();
+	const {
+		submit: pruneAllOrphaned,
+		isLoading: isPruningAll,
+		fetcher: pruneFetcher,
+	} = usePruneAllOrphanedMedia();
 
 	// Sync userId from loader data
 	const currentUserId = userId ?? initialUserId;
@@ -1886,10 +1902,7 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 
 	// Clear orphaned selection when fetcher completes successfully
 	useEffect(() => {
-		if (
-			orphanedFetcher.state === "idle" ||
-			pruneFetcher.state === "idle"
-		) {
+		if (orphanedFetcher.state === "idle" || pruneFetcher.state === "idle") {
 			if (selectedOrphanedFilenames.length > 0) {
 				setSelectedOrphanedFilenames([]);
 			}

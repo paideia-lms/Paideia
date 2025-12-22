@@ -58,65 +58,65 @@ export function tryCreateNote(args: CreateNoteArgs) {
 	return Result.try(
 		async () => {
 			const {
-						payload,
-						data: { content, createdBy, isPublic = false },
-						req,
-						overrideAccess = false,
-					} = args;
+				payload,
+				data: { content, createdBy, isPublic = false },
+				req,
+				overrideAccess = false,
+			} = args;
 
-					// Validate content is not empty
-					if (!content || content.trim().length === 0) {
-						throw new Error("Note content cannot be empty");
-					}
+			// Validate content is not empty
+			if (!content || content.trim().length === 0) {
+				throw new Error("Note content cannot be empty");
+			}
 
-					// Handle transaction
-					const transactionInfo = await handleTransactionId(payload, req);
+			// Handle transaction
+			const transactionInfo = await handleTransactionId(payload, req);
 
-					return await transactionInfo.tx(async (txInfo) => {
-						// // Extract media IDs from HTML content
-						// const mediaIds = await tryExtractMediaIdsFromRichText({
-						// 	payload,
-						// 	htmlContent: [content.trim()],
-						// 	req: txInfo.reqWithTransaction,
-						// }).getOrThrow();
+			return await transactionInfo.tx(async (txInfo) => {
+				// // Extract media IDs from HTML content
+				// const mediaIds = await tryExtractMediaIdsFromRichText({
+				// 	payload,
+				// 	htmlContent: [content.trim()],
+				// 	req: txInfo.reqWithTransaction,
+				// }).getOrThrow();
 
-						// Create note with access control
-						const newNote = await payload
-							.create({
-								collection: "notes",
-								data: {
-									...(await processRichTextMediaV2({
-										payload,
-										userId: createdBy,
-										req: txInfo.reqWithTransaction,
-										overrideAccess,
-										data: {
-											content: content.trim(),
-										},
-										fields: [
-											{
-												key: "content",
-												alt: "Note content image",
-											},
-										],
-									})),
-									createdBy,
-									isPublic,
-								},
+				// Create note with access control
+				const newNote = await payload
+					.create({
+						collection: "notes",
+						data: {
+							...(await processRichTextMediaV2({
+								payload,
+								userId: createdBy,
 								req: txInfo.reqWithTransaction,
 								overrideAccess,
-								depth: 0,
-							})
-							.then(stripDepth<0, "create">());
+								data: {
+									content: content.trim(),
+								},
+								fields: [
+									{
+										key: "content",
+										alt: "Note content image",
+									},
+								],
+							})),
+							createdBy,
+							isPublic,
+						},
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 0,
+					})
+					.then(stripDepth<0, "create">());
 
-						return newNote;
-					});
+				return newNote;
+			});
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to create note", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to create note", {
+				cause: error,
+			}),
 	);
 }
 
@@ -128,37 +128,37 @@ export function tryUpdateNote(args: UpdateNoteArgs) {
 		async () => {
 			const { payload, noteId, data, req, overrideAccess = false } = args;
 
-					// Handle transaction
-					const transactionInfo = await handleTransactionId(payload, req);
+			// Handle transaction
+			const transactionInfo = await handleTransactionId(payload, req);
 
-					return await transactionInfo.tx(async (txInfo) => {
-						const updatedNote = await payload
-							.update({
-								collection: "notes",
-								id: noteId,
-								data: {
-									...data,
-									content: data.content?.trim(),
-									contentMedia: await tryExtractMediaIdsFromRichText({
-										payload,
-										htmlContent: [data.content].filter(Boolean),
-										req: txInfo.reqWithTransaction,
-									}).getOrThrow(),
-								},
+			return await transactionInfo.tx(async (txInfo) => {
+				const updatedNote = await payload
+					.update({
+						collection: "notes",
+						id: noteId,
+						data: {
+							...data,
+							content: data.content?.trim(),
+							contentMedia: await tryExtractMediaIdsFromRichText({
+								payload,
+								htmlContent: [data.content].filter(Boolean),
 								req: txInfo.reqWithTransaction,
-								overrideAccess,
-								depth: 0,
-							})
-							.then(stripDepth<0, "update">());
+							}).getOrThrow(),
+						},
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 0,
+					})
+					.then(stripDepth<0, "update">());
 
-						return updatedNote;
-					});
+				return updatedNote;
+			});
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update note", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to update note", {
+				cause: error,
+			}),
 	);
 }
 
@@ -172,24 +172,24 @@ export function tryFindNoteById(args: FindNoteByIdArgs) {
 		async () => {
 			const { payload, noteId, req, overrideAccess = false } = args;
 
-					// Find note with access control
-					const note = await payload
-						.findByID({
-							collection: Notes.slug,
-							id: noteId,
-							req,
-							overrideAccess,
-							depth: 1,
-						})
-						.then(stripDepth<1, "findByID">());
+			// Find note with access control
+			const note = await payload
+				.findByID({
+					collection: Notes.slug,
+					id: noteId,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
 
-					return note;
+			return note;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to find note by ID", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to find note by ID", {
+				cause: error,
+			}),
 	);
 }
 
@@ -202,55 +202,55 @@ export function trySearchNotes(args: SearchNotesArgs) {
 	return Result.try(
 		async () => {
 			const {
-						payload,
-						filters = {},
+				payload,
+				filters = {},
 
-						req,
-						overrideAccess = false,
-					} = args;
+				req,
+				overrideAccess = false,
+			} = args;
 
-					const { createdBy, content, limit = 10, page = 1 } = filters;
+			const { createdBy, content, limit = 10, page = 1 } = filters;
 
-					const where: Record<string, { equals?: number; contains?: string }> = {};
+			const where: Record<string, { equals?: number; contains?: string }> = {};
 
-					if (createdBy) {
-						where.createdBy = {
-							equals: createdBy,
-						};
-					}
+			if (createdBy) {
+				where.createdBy = {
+					equals: createdBy,
+				};
+			}
 
-					if (content) {
-						where.content = {
-							contains: content,
-						};
-					}
+			if (content) {
+				where.content = {
+					contains: content,
+				};
+			}
 
-					// Search notes with access control
-					const notes = await payload.find({
-						collection: "notes",
-						where,
-						limit,
-						page,
-						sort: "-createdAt",
-						req,
-						overrideAccess,
-					});
+			// Search notes with access control
+			const notes = await payload.find({
+				collection: "notes",
+				where,
+				limit,
+				page,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+			});
 
-					return {
-						docs: notes.docs,
-						totalDocs: notes.totalDocs,
-						totalPages: notes.totalPages,
-						page: notes.page,
-						limit: notes.limit,
-						hasNextPage: notes.hasNextPage,
-						hasPrevPage: notes.hasPrevPage,
-					};
+			return {
+				docs: notes.docs,
+				totalDocs: notes.totalDocs,
+				totalPages: notes.totalPages,
+				page: notes.page,
+				limit: notes.limit,
+				hasNextPage: notes.hasNextPage,
+				hasPrevPage: notes.hasPrevPage,
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to search notes", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to search notes", {
+				cause: error,
+			}),
 	);
 }
 
@@ -264,21 +264,21 @@ export function tryDeleteNote(args: DeleteNoteArgs) {
 		async () => {
 			const { payload, noteId, req, overrideAccess = false } = args;
 
-					// Delete note with access control
-					const deletedNote = await payload.delete({
-						collection: "notes",
-						id: noteId,
-						req,
-						overrideAccess,
-					});
+			// Delete note with access control
+			const deletedNote = await payload.delete({
+				collection: "notes",
+				id: noteId,
+				req,
+				overrideAccess,
+			});
 
-					return deletedNote;
+			return deletedNote;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to delete note", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to delete note", {
+				cause: error,
+			}),
 	);
 }
 
@@ -291,35 +291,35 @@ export function tryFindNotesByUser(args: FindNotesByUserArgs) {
 	return Result.try(
 		async () => {
 			const {
-						payload,
-						userId,
-						limit = 10,
+				payload,
+				userId,
+				limit = 10,
 
-						req,
-						overrideAccess = false,
-					} = args;
+				req,
+				overrideAccess = false,
+			} = args;
 
-					// Find notes with access control
-					const notes = await payload.find({
-						collection: "notes",
-						where: {
-							createdBy: {
-								equals: userId,
-							},
-						},
-						limit,
-						sort: "-createdAt",
-						req,
-						overrideAccess,
-					});
+			// Find notes with access control
+			const notes = await payload.find({
+				collection: "notes",
+				where: {
+					createdBy: {
+						equals: userId,
+					},
+				},
+				limit,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+			});
 
-					return notes.docs;
+			return notes.docs;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to find notes by user", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to find notes by user", {
+				cause: error,
+			}),
 	);
 }
 
@@ -338,45 +338,45 @@ export function tryGenerateNoteHeatmap(args: GenerateNoteHeatmapArgs) {
 		async () => {
 			const { payload, userId, req, overrideAccess = false } = args;
 
-					// Fetch all notes for the user
-					const notes = await payload
-						.find({
-							collection: "notes",
-							where: {
-								createdBy: { equals: userId },
-							},
-							limit: MOCK_INFINITY,
-							sort: "-createdAt",
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<1, "find">());
+			// Fetch all notes for the user
+			const notes = await payload
+				.find({
+					collection: "notes",
+					where: {
+						createdBy: { equals: userId },
+					},
+					limit: MOCK_INFINITY,
+					sort: "-createdAt",
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
-					const heatmapData: Record<string, number> = {};
-					const availableYears: number[] = [];
+			const heatmapData: Record<string, number> = {};
+			const availableYears: number[] = [];
 
-					notes.docs.forEach((note) => {
-						const date = dayjs(note.createdAt).format("YYYY-MM-DD");
-						heatmapData[date] = (heatmapData[date] || 0) + 1;
+			notes.docs.forEach((note) => {
+				const date = dayjs(note.createdAt).format("YYYY-MM-DD");
+				heatmapData[date] = (heatmapData[date] || 0) + 1;
 
-						const year = dayjs(note.createdAt).year();
-						if (!availableYears.includes(year)) {
-							availableYears.push(year);
-						}
-					});
+				const year = dayjs(note.createdAt).year();
+				if (!availableYears.includes(year)) {
+					availableYears.push(year);
+				}
+			});
 
-					availableYears.sort((a, b) => b - a);
+			availableYears.sort((a, b) => b - a);
 
-					return {
-						heatmapData,
-						availableYears,
-						notes: notes.docs,
-					};
+			return {
+				heatmapData,
+				availableYears,
+				notes: notes.docs,
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to generate note heatmap", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to generate note heatmap", {
+				cause: error,
+			}),
 	);
 }

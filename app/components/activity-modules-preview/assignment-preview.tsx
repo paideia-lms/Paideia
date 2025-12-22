@@ -442,8 +442,9 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
-							} used`
+							? `${submittedCount} of ${maxAttempts} attempt${
+									maxAttempts !== 1 ? "s" : ""
+								} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
@@ -525,7 +526,7 @@ export function AssignmentPreview({
 			allSubmissions={allSubmissions}
 			submission={submission}
 			// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
-			onAddSubmission={() => { }}
+			onAddSubmission={() => {}}
 			canSubmit={canSubmit}
 			isStudent={isStudent}
 		/>

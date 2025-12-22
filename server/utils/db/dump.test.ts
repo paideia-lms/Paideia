@@ -95,4 +95,3 @@ describe("Database Dump", () => {
 		expect(result.error).toContain("PostgreSQL");
 	});
 });
-

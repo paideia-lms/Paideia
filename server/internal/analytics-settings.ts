@@ -23,32 +23,33 @@ export function tryGetAnalyticsSettings(args: GetAnalyticsSettingsArgs) {
 		async () => {
 			const { payload, req, overrideAccess = false } = args;
 
-					const raw = await payload
-						.findGlobal({
-							slug: AnalyticsSettings.slug,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "findGlobal">())
-						.then((result) => {
-							// type narrowing
+			const raw = await payload
+				.findGlobal({
+					slug: AnalyticsSettings.slug,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findGlobal">())
+				.then((result) => {
+					// type narrowing
+					return {
+						...result,
+						additionalJsScripts: result.additionalJsScripts?.map((script) => {
+							if (!script.id)
+								throw new DevelopmentError("Script ID is required");
 							return {
-								...result,
-								additionalJsScripts: result.additionalJsScripts?.map((script) => {
-									if (!script.id) throw new DevelopmentError("Script ID is required");
-									return {
-										...script,
-										id: script.id,
-									};
-								}),
+								...script,
+								id: script.id,
 							};
-						});
+						}),
+					};
+				});
 
-					return raw;
+			return raw;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get analytics settings", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to get analytics settings", { cause: error }),
 	);
 }
 
@@ -61,25 +62,25 @@ export function tryUpdateAnalyticsSettings(args: UpdateAnalyticsSettingsArgs) {
 		async () => {
 			const { payload, data, req, overrideAccess = false } = args;
 
-					const scripts = data.additionalJsScripts ?? [];
+			const scripts = data.additionalJsScripts ?? [];
 
-					const updated = await payload
-						.updateGlobal({
-							slug: AnalyticsSettings.slug,
-							data: {
-								additionalJsScripts: scripts,
-							},
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "updateGlobal">());
+			const updated = await payload
+				.updateGlobal({
+					slug: AnalyticsSettings.slug,
+					data: {
+						additionalJsScripts: scripts,
+					},
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "updateGlobal">());
 
-					return updated;
+			return updated;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update analytics settings", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to update analytics settings", {
+				cause: error,
+			}),
 	);
 }

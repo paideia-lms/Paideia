@@ -62,7 +62,8 @@ function DangerZone({ section, course }: DangerZoneProps) {
 			children: (
 				<Text size="sm">
 					Are you sure you want to delete this section? This action cannot be
-					undone. The section must not have any subsections or activity modules to be deleted.
+					undone. The section must not have any subsections or activity modules
+					to be deleted.
 				</Text>
 			),
 			labels: { confirm: "Delete", cancel: "Cancel" },
@@ -78,55 +79,55 @@ function DangerZone({ section, course }: DangerZoneProps) {
 		});
 	};
 
-	return <Paper
-		withBorder
-		shadow="sm"
-		p="xl"
-		style={{ borderColor: "var(--mantine-color-red-6)" }}
-	>
-		<Stack gap="md">
-			<div>
-				<Title order={3} c="red">
-					Danger Zone
-				</Title>
-				<Text size="sm" c="dimmed" mt="xs">
-					Irreversible and destructive actions
-				</Text>
-			</div>
-
-			<Divider color="red" />
-
-			<Group justify="space-between" align="flex-start">
-				<div style={{ flex: 1 }}>
-					<Text fw={500} mb="xs">
-						Delete this section
-					</Text>
-					<Text size="sm" c="dimmed">
-						Once you delete a section, there is no going back. Please be
-						certain. The section must not have any subsections or activity
-						modules to be deleted.
+	return (
+		<Paper
+			withBorder
+			shadow="sm"
+			p="xl"
+			style={{ borderColor: "var(--mantine-color-red-6)" }}
+		>
+			<Stack gap="md">
+				<div>
+					<Title order={3} c="red">
+						Danger Zone
+					</Title>
+					<Text size="sm" c="dimmed" mt="xs">
+						Irreversible and destructive actions
 					</Text>
 				</div>
-				<Button
-					color="red"
-					variant="light"
-					leftSection={<IconTrash size={16} />}
-					onClick={handleDelete}
-					loading={isDeleting}
-					style={{ minWidth: "150px" }}
-				>
-					Delete Section
-				</Button>
-			</Group>
-		</Stack>
-	</Paper>
+
+				<Divider color="red" />
+
+				<Group justify="space-between" align="flex-start">
+					<div style={{ flex: 1 }}>
+						<Text fw={500} mb="xs">
+							Delete this section
+						</Text>
+						<Text size="sm" c="dimmed">
+							Once you delete a section, there is no going back. Please be
+							certain. The section must not have any subsections or activity
+							modules to be deleted.
+						</Text>
+					</div>
+					<Button
+						color="red"
+						variant="light"
+						leftSection={<IconTrash size={16} />}
+						onClick={handleDelete}
+						loading={isDeleting}
+						style={{ minWidth: "150px" }}
+					>
+						Delete Section
+					</Button>
+				</Group>
+			</Stack>
+		</Paper>
+	);
 }
 
 export default function SectionEditPage({ loaderData }: Route.ComponentProps) {
 	const { section, course } = loaderData;
-	const { submit: updateSection, isLoading } =
-		useUpdateCourseSection();
-
+	const { submit: updateSection, isLoading } = useUpdateCourseSection();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -156,7 +157,6 @@ export default function SectionEditPage({ loaderData }: Route.ComponentProps) {
 			},
 		});
 	});
-
 
 	const title = `Edit ${section.title} | ${course.title} | Paideia LMS`;
 

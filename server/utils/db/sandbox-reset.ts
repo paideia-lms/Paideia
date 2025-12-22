@@ -264,45 +264,45 @@ export function tryResetSandbox(payload: Payload) {
 	return Result.try(
 		async () => {
 			// Check if sandbox mode is enabled
-					if (!envVars.SANDBOX_MODE.enabled) {
-						return;
-					}
+			if (!envVars.SANDBOX_MODE.enabled) {
+				return;
+			}
 
-					console.log("🔄 Sandbox mode enabled, resetting database...");
+			console.log("🔄 Sandbox mode enabled, resetting database...");
 
-					// Delete all user data while preserving system tables
-					await deleteAllUserData(payload);
+			// Delete all user data while preserving system tables
+			await deleteAllUserData(payload);
 
-					await Bun.sleep(1000);
+			await Bun.sleep(1000);
 
-					// Load seed data (falls back to testData if seed.json invalid/missing)
-					const seedDataResult = tryLoadSeedData();
-					if (!seedDataResult.ok) {
-						throw new SandboxResetError(
-							`Failed to load seed data: ${seedDataResult.error.message}`,
-						);
-					}
+			// Load seed data (falls back to testData if seed.json invalid/missing)
+			const seedDataResult = tryLoadSeedData();
+			if (!seedDataResult.ok) {
+				throw new SandboxResetError(
+					`Failed to load seed data: ${seedDataResult.error.message}`,
+				);
+			}
 
-					const seedData = seedDataResult.value;
+			const seedData = seedDataResult.value;
 
-					// Run seed with loaded data
-					const seedResult = await tryRunSeed({
-						payload,
-						seedData: seedData,
-					});
+			// Run seed with loaded data
+			const seedResult = await tryRunSeed({
+				payload,
+				seedData: seedData,
+			});
 
-					if (!seedResult.ok) {
-						throw new SeedDataLoadError(
-							`Failed to seed database: ${seedResult.error.message}`,
-						);
-					}
+			if (!seedResult.ok) {
+				throw new SeedDataLoadError(
+					`Failed to seed database: ${seedResult.error.message}`,
+				);
+			}
 
-					console.log("✅ Sandbox database reset completed successfully");
+			console.log("✅ Sandbox database reset completed successfully");
 		},
 		(error) =>
-		transformError(error) ??
-		new SandboxResetError(
-			`Sandbox reset failed: ${error instanceof Error ? error.message : String(error)}`,
-		)
+			transformError(error) ??
+			new SandboxResetError(
+				`Sandbox reset failed: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }

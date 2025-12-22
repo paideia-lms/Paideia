@@ -288,7 +288,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };

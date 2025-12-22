@@ -126,7 +126,8 @@ const [updatePreferenceAction, useUpdateUserPreference] =
 			return ok({ success: true });
 		})!,
 		{
-			action: (args) => getRouteUrl(args.params?.id ? Number(args.params.id) : undefined),
+			action: (args) =>
+				getRouteUrl(args.params?.id ? Number(args.params.id) : undefined),
 		},
 	);
 

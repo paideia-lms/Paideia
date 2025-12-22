@@ -22,7 +22,7 @@ import {
 } from "~/utils/file-types";
 import {
 	View,
-	getRouteUrl
+	getRouteUrl,
 } from "app/routes/course/module.$id.submissions/route";
 
 // ============================================================================
@@ -38,13 +38,13 @@ export interface SubmissionData {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}> | null;
 	grade?: {
@@ -63,13 +63,13 @@ function SubmissionAttachments({
 }: {
 	attachments: Array<{
 		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}>;
 }) {
@@ -213,7 +213,7 @@ export function SubmissionHistoryItem({
 								submission.grade?.baseGrade !== undefined && (
 									<Badge color="green" size="sm" variant="filled">
 										{submission.grade.maxGrade !== null &&
-											submission.grade.maxGrade !== undefined
+										submission.grade.maxGrade !== undefined
 											? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
 											: submission.grade.baseGrade}
 									</Badge>
@@ -353,7 +353,7 @@ export function SubmissionHistoryItem({
 							submission.grade?.baseGrade !== undefined && (
 								<Badge color="green" variant="filled">
 									{submission.grade.maxGrade !== null &&
-										submission.grade.maxGrade !== undefined
+									submission.grade.maxGrade !== undefined
 										? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
 										: submission.grade.baseGrade}
 								</Badge>
@@ -396,10 +396,13 @@ export function SubmissionHistoryItem({
 												// 	moduleLinkId: moduleLinkId.toString(),
 												// }) +
 												// `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
-												getRouteUrl({
-													view: View.GRADING,
-													submissionId: submission.id,
-												}, moduleLinkId)
+												getRouteUrl(
+													{
+														view: View.GRADING,
+														submissionId: submission.id,
+													},
+													moduleLinkId,
+												)
 											}
 											leftSection={<IconPencil size={16} />}
 										>

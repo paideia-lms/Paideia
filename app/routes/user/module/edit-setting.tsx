@@ -85,7 +85,6 @@ export const moduleUpdateSearchParams = {
 
 export const loadSearchParams = createLoader(moduleUpdateSearchParams);
 
-
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 const createUpdatePageActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -93,7 +92,9 @@ const createUpdatePageActionRpc = createActionRpc({
 		description: z.string().min(1),
 		status: z.enum(enum_activity_modules_status.enumValues),
 		content: z.string().min(1),
-	}), method: "POST", action: Action.UpdatePage
+	}),
+	method: "POST",
+	action: Action.UpdatePage,
 });
 const createUpdateWhiteboardActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -101,8 +102,9 @@ const createUpdateWhiteboardActionRpc = createActionRpc({
 		description: z.string().optional(),
 		status: z.enum(enum_activity_modules_status.enumValues),
 		whiteboardContent: z.string().optional(),
-	}), method: "POST",
-	action: Action.UpdateWhiteboard
+	}),
+	method: "POST",
+	action: Action.UpdateWhiteboard,
 });
 const createUpdateFileActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -112,7 +114,7 @@ const createUpdateFileActionRpc = createActionRpc({
 		fileMedia: z.array(z.coerce.number().or(z.file())).optional(),
 	}),
 	method: "POST",
-	action: Action.UpdateFile
+	action: Action.UpdateFile,
 });
 const createUpdateAssignmentActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -127,7 +129,7 @@ const createUpdateAssignmentActionRpc = createActionRpc({
 		assignmentMaxFiles: z.coerce.number().optional(),
 	}),
 	method: "POST",
-	action: Action.UpdateAssignment
+	action: Action.UpdateAssignment,
 });
 const createUpdateQuizActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -141,7 +143,7 @@ const createUpdateQuizActionRpc = createActionRpc({
 		rawQuizConfig: z.custom<QuizConfig>().optional(),
 	}),
 	method: "POST",
-	action: Action.UpdateQuiz
+	action: Action.UpdateQuiz,
 });
 const createUpdateDiscussionActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -155,7 +157,7 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 		discussionMinReplies: z.coerce.number().optional(),
 	}),
 	method: "POST",
-	action: Action.UpdateDiscussion
+	action: Action.UpdateDiscussion,
 });
 
 const getRouteUrl = (action: Action, moduleId: string) => {
@@ -166,222 +168,225 @@ const getRouteUrl = (action: Action, moduleId: string) => {
 	);
 };
 
-const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(serverOnly$(async ({
-	context,
-	params,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(
+	serverOnly$(async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-	const updateResult = await tryUpdatePageModule({
-		payload,
-		id: params.moduleId,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		content: formData.content,
-		req: payloadRequest,
-	});
-
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+		const updateResult = await tryUpdatePageModule({
+			payload,
+			id: params.moduleId,
+			title: formData.title,
+			description: formData.description,
+			status: formData.status,
+			content: formData.content,
+			req: payloadRequest,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: "Module updated successfully",
-	});
-})!, {
-	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
-});
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-const [updateWhiteboardAction, useUpdateWhiteboard] = createUpdateWhiteboardActionRpc(serverOnly$(async ({
-	context,
-	params,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	const updateResult = await tryUpdateWhiteboardModule({
-		payload,
-		id: params.moduleId,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		content: formData.whiteboardContent,
-		req: payloadRequest,
-		overrideAccess: false,
-	});
-
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, String(params.moduleId)),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Module updated successfully",
-	});
-})!, {
-	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
-});
+const [updateWhiteboardAction, useUpdateWhiteboard] =
+	createUpdateWhiteboardActionRpc(
+		serverOnly$(async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(serverOnly$(async ({
-	context,
-	params,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+			const updateResult = await tryUpdateWhiteboardModule({
+				payload,
+				id: params.moduleId,
+				title: formData.title,
+				description: formData.description,
+				status: formData.status,
+				content: formData.whiteboardContent,
+				req: payloadRequest,
+				overrideAccess: false,
+			});
 
-	// For file type, combine existing media IDs with newly uploaded media IDs
-	const existingMediaIds = formData.fileMedia ?? [];
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
 
-	const updateResult = await tryUpdateFileModule({
-		payload,
-		id: params.moduleId,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		media: existingMediaIds,
-		req: payloadRequest,
-		overrideAccess: false,
-	});
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, String(params.moduleId)),
+		},
+	);
 
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(
+	serverOnly$(async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		// For file type, combine existing media IDs with newly uploaded media IDs
+		const existingMediaIds = formData.fileMedia ?? [];
+
+		const updateResult = await tryUpdateFileModule({
+			payload,
+			id: params.moduleId,
+			title: formData.title,
+			description: formData.description,
+			status: formData.status,
+			media: existingMediaIds,
+			req: payloadRequest,
+			overrideAccess: false,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: "Module updated successfully",
-	});
-})!, {
-	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
-});
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-const [updateAssignmentAction, useUpdateAssignment] = createUpdateAssignmentActionRpc(serverOnly$(async ({
-	context,
-	params,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	const allowedFileTypes =
-		formData.assignmentAllowedFileTypes &&
-			formData.assignmentAllowedFileTypes.length > 0
-			? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
-			: undefined;
-
-	const updateResult = await tryUpdateAssignmentModule({
-		payload,
-		id: params.moduleId,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		instructions: formData.assignmentInstructions,
-		requireTextSubmission: formData.assignmentRequireTextSubmission,
-		requireFileSubmission: formData.assignmentRequireFileSubmission,
-		allowedFileTypes,
-		maxFileSize: formData.assignmentMaxFileSize,
-		maxFiles: formData.assignmentMaxFiles,
-		req: payloadRequest,
-	});
-
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, String(params.moduleId)),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Module updated successfully",
-	});
-})!, {
-	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
-});
+const [updateAssignmentAction, useUpdateAssignment] =
+	createUpdateAssignmentActionRpc(
+		serverOnly$(async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(serverOnly$(async ({
-	context,
-	params,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+			const allowedFileTypes =
+				formData.assignmentAllowedFileTypes &&
+				formData.assignmentAllowedFileTypes.length > 0
+					? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
+					: undefined;
 
-	const updateResult = await tryUpdateQuizModule({
-		payload,
-		id: params.moduleId,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		instructions: formData.quizInstructions,
-		points: formData.quizPoints,
-		timeLimit: formData.quizTimeLimit,
-		gradingType: formData.quizGradingType,
-		rawQuizConfig: formData.rawQuizConfig,
-		req: payloadRequest,
-		overrideAccess: false,
-	});
+			const updateResult = await tryUpdateAssignmentModule({
+				payload,
+				id: params.moduleId,
+				title: formData.title,
+				description: formData.description,
+				status: formData.status,
+				instructions: formData.assignmentInstructions,
+				requireTextSubmission: formData.assignmentRequireTextSubmission,
+				requireFileSubmission: formData.assignmentRequireFileSubmission,
+				allowedFileTypes,
+				maxFileSize: formData.assignmentMaxFileSize,
+				maxFiles: formData.assignmentMaxFiles,
+				req: payloadRequest,
+			});
 
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, String(params.moduleId)),
+		},
+	);
+
+const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(
+	serverOnly$(async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const updateResult = await tryUpdateQuizModule({
+			payload,
+			id: params.moduleId,
+			title: formData.title,
+			description: formData.description,
+			status: formData.status,
+			instructions: formData.quizInstructions,
+			points: formData.quizPoints,
+			timeLimit: formData.quizTimeLimit,
+			gradingType: formData.quizGradingType,
+			rawQuizConfig: formData.rawQuizConfig,
+			req: payloadRequest,
+			overrideAccess: false,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: "Module updated successfully",
-	});
-})!, {
-	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
-});
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-const [updateDiscussionAction, useUpdateDiscussion] = createUpdateDiscussionActionRpc(serverOnly$(async ({
-	context,
-	params,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	const updateResult = await tryUpdateDiscussionModule({
-		payload,
-		id: params.moduleId,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		instructions: formData.discussionInstructions,
-		dueDate: formData.discussionDueDate,
-		requireThread: formData.discussionRequireThread,
-		requireReplies: formData.discussionRequireReplies,
-		minReplies: formData.discussionMinReplies,
-		req: payloadRequest,
-	});
-
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, String(params.moduleId)),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Module updated successfully",
-	});
-})!, {
-	action: ({ params, searchParams }) => getRouteUrl(searchParams.action, String(params.moduleId)),
-});
+const [updateDiscussionAction, useUpdateDiscussion] =
+	createUpdateDiscussionActionRpc(
+		serverOnly$(async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+
+			const updateResult = await tryUpdateDiscussionModule({
+				payload,
+				id: params.moduleId,
+				title: formData.title,
+				description: formData.description,
+				status: formData.status,
+				instructions: formData.discussionInstructions,
+				dueDate: formData.discussionDueDate,
+				requireThread: formData.discussionRequireThread,
+				requireReplies: formData.discussionRequireReplies,
+				minReplies: formData.discussionMinReplies,
+				req: payloadRequest,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, String(params.moduleId)),
+		},
+	);
 
 const actionMap = {
 	[Action.UpdatePage]: updatePageAction,

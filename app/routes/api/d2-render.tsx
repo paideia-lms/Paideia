@@ -78,7 +78,7 @@ export interface UseD2DiagramOptions {
  * ```
  */
 export function useD2Diagram(options: UseD2DiagramOptions = {}) {
-	const { submit, isLoading, data , fetcher} = useRenderD2();
+	const { submit, isLoading, data, fetcher } = useRenderD2();
 
 	// ? don't know why we need to use useCallback here
 	const renderD2 = useCallback(
@@ -107,14 +107,13 @@ export function useD2Diagram(options: UseD2DiagramOptions = {}) {
 			: null;
 
 	// Call callbacks when status changes
-		if (svg && options.onSuccess) {
-			options.onSuccess(svg);
-		}
+	if (svg && options.onSuccess) {
+		options.onSuccess(svg);
+	}
 
-
-		if (error && options.onError) {
-			options.onError(error);
-		}
+	if (error && options.onError) {
+		options.onError(error);
+	}
 
 	return {
 		renderD2,

@@ -11,12 +11,7 @@ import {
 } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import {
-	href,
-	Link,
-	type LoaderFunctionArgs,
-	redirect,
-} from "react-router";
+import { href, Link, type LoaderFunctionArgs, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";

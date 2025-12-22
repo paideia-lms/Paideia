@@ -410,11 +410,7 @@ export function RegistrationClient({
 				required
 			/>
 
-			<Button
-				type="submit"
-				loading={isLoading}
-				style={{ marginTop: "16px" }}
-			>
+			<Button type="submit" loading={isLoading} style={{ marginTop: "16px" }}>
 				Create Account
 			</Button>
 		</form>

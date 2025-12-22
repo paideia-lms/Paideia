@@ -312,36 +312,38 @@ type TryFindGradebookCategoryByIdArgs = BaseInternalFunctionArgs & {
 /**
  * Finds a gradebook category by ID
  */
-export function tryFindGradebookCategoryById(args: TryFindGradebookCategoryByIdArgs) {
+export function tryFindGradebookCategoryById(
+	args: TryFindGradebookCategoryByIdArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, categoryId, req, overrideAccess = false } = args;
 
-					const category = await payload
-						.findByID({
-							collection: GradebookCategories.slug,
-							id: categoryId,
-							req,
-							overrideAccess,
-							depth: 1,
-						})
-						.then(stripDepth<1, "findByID">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: `tryFindGradebookCategoryById - to find gradebook category by ID ${categoryId}`,
-								args: { payload, req, overrideAccess },
-							});
-							throw error;
-						});
+			const category = await payload
+				.findByID({
+					collection: GradebookCategories.slug,
+					id: categoryId,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryFindGradebookCategoryById - to find gradebook category by ID ${categoryId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-					return category;
+			return category;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to find gradebook category by ID", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to find gradebook category by ID", {
+				cause: error,
+			}),
 	);
 }
 

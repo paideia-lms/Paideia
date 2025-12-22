@@ -121,7 +121,10 @@ export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
 		}
 
 		if (!params.id) {
-			return badRequest({ error: "Target user ID is required because you are impersonating other users" });
+			return badRequest({
+				error:
+					"Target user ID is required because you are impersonating other users",
+			});
 		}
 
 		if (params.id === currentUser.id) {
@@ -284,10 +287,9 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 									onClick={() =>
 										impersonate({
 											params: {
-												id: user.id
+												id: user.id,
 											},
-											values: {
-											},
+											values: {},
 										})
 									}
 									loading={isLoading}

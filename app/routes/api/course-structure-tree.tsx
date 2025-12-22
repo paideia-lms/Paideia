@@ -1,4 +1,3 @@
-
 // This file previously managed course structure using a JSON field
 // Now it needs to be updated to work with the course-sections collection
 

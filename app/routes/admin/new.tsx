@@ -415,11 +415,7 @@ export default function NewUserPage() {
 						/>
 
 						<Group justify="flex-end" mt="md">
-							<Button
-								type="submit"
-								loading={isLoading}
-								disabled={isLoading}
-							>
+							<Button type="submit" loading={isLoading} disabled={isLoading}>
 								Create User
 							</Button>
 						</Group>

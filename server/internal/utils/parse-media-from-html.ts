@@ -17,54 +17,54 @@ export function tryParseMediaFromHtml(html: string) {
 	return Result.try(
 		async () => {
 			if (!html || html.trim().length === 0) {
-						return {
-							ids: [],
-							filenames: [],
-						};
-					}
+				return {
+					ids: [],
+					filenames: [],
+				};
+			}
 
-					// Parse HTML with cheerio
-					const $ = cheerio.load(html);
-					const images = $("img");
-					const mediaIds = new Set<number>();
-					const mediaFilenames = new Set<string>();
+			// Parse HTML with cheerio
+			const $ = cheerio.load(html);
+			const images = $("img");
+			const mediaIds = new Set<number>();
+			const mediaFilenames = new Set<string>();
 
-					// Extract media references from image src attributes
-					for (let i = 0; i < images.length; i++) {
-						const img = images[i];
-						const src = $(img).attr("src");
+			// Extract media references from image src attributes
+			for (let i = 0; i < images.length; i++) {
+				const img = images[i];
+				const src = $(img).attr("src");
 
-						if (!src) {
-							continue;
-						}
+				if (!src) {
+					continue;
+				}
 
-						// Check if src matches /api/media/file/:filenameOrId pattern
-						const mediaFileMatch = src.match(/\/api\/media\/file\/([^?#]+)/);
-						if (!mediaFileMatch) {
-							continue;
-						}
+				// Check if src matches /api/media/file/:filenameOrId pattern
+				const mediaFileMatch = src.match(/\/api\/media\/file\/([^?#]+)/);
+				if (!mediaFileMatch) {
+					continue;
+				}
 
-						const filenameOrId = mediaFileMatch[1]!;
+				const filenameOrId = mediaFileMatch[1]!;
 
-						// Try to parse as number (media ID)
-						const parsedId = Number.parseInt(filenameOrId, 10);
-						if (!Number.isNaN(parsedId)) {
-							mediaIds.add(parsedId);
-						} else {
-							// Otherwise, treat as filename
-							mediaFilenames.add(filenameOrId);
-						}
-					}
+				// Try to parse as number (media ID)
+				const parsedId = Number.parseInt(filenameOrId, 10);
+				if (!Number.isNaN(parsedId)) {
+					mediaIds.add(parsedId);
+				} else {
+					// Otherwise, treat as filename
+					mediaFilenames.add(filenameOrId);
+				}
+			}
 
-					return {
-						ids: Array.from(mediaIds),
-						filenames: Array.from(mediaFilenames),
-					};
+			return {
+				ids: Array.from(mediaIds),
+				filenames: Array.from(mediaFilenames),
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to parse media from HTML", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to parse media from HTML", {
+				cause: error,
+			}),
 	);
 }

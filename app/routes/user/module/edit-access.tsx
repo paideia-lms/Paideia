@@ -107,7 +107,7 @@ const createRevokeAccessActionRpc = createActionRpc({
 
 const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
 	serverOnly$(async ({ context, params, formData }) => {
-		const { payload , payloadRequest } = context.get(globalContextKey);
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -154,7 +154,7 @@ const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
 
 const [revokeAccessAction, useRevokeAccess] = createRevokeAccessActionRpc(
 	serverOnly$(async ({ context, params, formData }) => {
-		const { payload , payloadRequest } = context.get(globalContextKey);
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -235,7 +235,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 	return actionData;
 }
-
 
 // Linked Courses Section Component
 interface LinkedCourse {
@@ -412,15 +411,19 @@ export function GrantAccessSection({
 	const isLoading = isGranting || isRevoking;
 	const fetcherState = isLoading ? "submitting" : "idle";
 
-	const handleGrantAccess = async  () => {
+	const handleGrantAccess = async () => {
 		if (selectedUsers.length > 0) {
-			await Promise.all(selectedUsers.map((u) => grantAccess({
-				params: { moduleId: Number(moduleId) },
-				values: {
-					userId: u.id,
-					notifyPeople,
-				},
-			})));
+			await Promise.all(
+				selectedUsers.map((u) =>
+					grantAccess({
+						params: { moduleId: Number(moduleId) },
+						values: {
+							userId: u.id,
+							notifyPeople,
+						},
+					}),
+				),
+			);
 			setSelectedUsers([]);
 			setNotifyPeople(false);
 		}
@@ -517,12 +520,14 @@ export function GrantAccessSection({
 											color="red"
 											size="xs"
 											leftSection={<IconTrash size={14} />}
-											onClick={() => revokeAccess({
-												params: { moduleId: Number(moduleId) },
-												values: {
-													userId: grant.grantedTo.id,
-												},
-											})}
+											onClick={() =>
+												revokeAccess({
+													params: { moduleId: Number(moduleId) },
+													values: {
+														userId: grant.grantedTo.id,
+													},
+												})
+											}
 											loading={fetcherState === "submitting"}
 										>
 											Remove

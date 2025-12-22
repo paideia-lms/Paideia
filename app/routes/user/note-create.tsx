@@ -74,10 +74,7 @@ const [createNoteAction, useCreateNoteRpc] = createCreateNoteActionRpc(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 		return await transactionInfo.tx(async (txInfo) => {
 			// Create note with updated content
 			const result = await tryCreateNote({

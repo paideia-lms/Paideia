@@ -24,7 +24,11 @@ import {
 	groupAndSortDiscussionSubmissions,
 	type DiscussionSubmissionType,
 } from "./helpers";
-import { type Route, View, getRouteUrl } from "app/routes/course/module.$id.submissions/route";
+import {
+	type Route,
+	View,
+	getRouteUrl,
+} from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
@@ -144,12 +148,13 @@ function DiscussionStudentSubmissionRow({
 							<Menu.Dropdown>
 								<Menu.Item
 									component={Link}
-									to={
-										getRouteUrl({
+									to={getRouteUrl(
+										{
 											view: View.GRADING,
 											submissionId: latestSubmission.id,
-										}, moduleLinkId)
-									}
+										},
+										moduleLinkId,
+									)}
 									leftSection={<IconPencil size={14} />}
 								>
 									Grade

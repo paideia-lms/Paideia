@@ -38,7 +38,7 @@ export const usersSearchParams = {
 export const loadSearchParams = createLoader(usersSearchParams);
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const {payload, payloadRequest} = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {

@@ -67,8 +67,8 @@ function AuthorInfo({
 	const profileHref =
 		typeof courseId === "number" && typeof authorId === "number"
 			? href("/course/:courseId/participants/profile", {
-				courseId: String(courseId),
-			}) + `?userId=${authorId}`
+					courseId: String(courseId),
+				}) + `?userId=${authorId}`
 			: "#";
 
 	return (

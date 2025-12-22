@@ -15,16 +15,13 @@ const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 const createReorderCategoriesActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		sourceId: z.coerce.number(),
-		newParentId: z.preprocess(
-			(val) => {
-				if (val === null || val === undefined || val === "") {
-					return null;
-				}
-				const num = Number(val);
-				return Number.isFinite(num) ? num : null;
-			},
-			z.number().nullable(),
-		),
+		newParentId: z.preprocess((val) => {
+			if (val === null || val === undefined || val === "") {
+				return null;
+			}
+			const num = Number(val);
+			return Number.isFinite(num) ? num : null;
+		}, z.number().nullable()),
 	}),
 	method: "POST",
 });

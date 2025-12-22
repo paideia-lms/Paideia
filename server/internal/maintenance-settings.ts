@@ -24,51 +24,53 @@ export function tryGetMaintenanceSettings(args: GetMaintenanceSettingsArgs) {
 		async () => {
 			const { payload, req, overrideAccess = false } = args;
 
-					const raw = await payload
-						.findGlobal({
-							slug: MaintenanceSettings.slug,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "findGlobal">());
+			const raw = await payload
+				.findGlobal({
+					slug: MaintenanceSettings.slug,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findGlobal">());
 
-					return {
-						maintenanceMode: raw.maintenanceMode ?? false,
-					};
+			return {
+				maintenanceMode: raw.maintenanceMode ?? false,
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get maintenance settings", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to get maintenance settings", { cause: error }),
 	);
 }
 
 /**
  * Update maintenance settings in the MaintenanceSettings global.
  */
-export function tryUpdateMaintenanceSettings(args: UpdateMaintenanceSettingsArgs) {
+export function tryUpdateMaintenanceSettings(
+	args: UpdateMaintenanceSettingsArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, req, data, overrideAccess = false } = args;
 
-					const updated = await payload
-						.updateGlobal({
-							slug: "maintenance-settings",
-							data: {
-								maintenanceMode: data.maintenanceMode ?? false,
-							},
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "updateGlobal">());
+			const updated = await payload
+				.updateGlobal({
+					slug: "maintenance-settings",
+					data: {
+						maintenanceMode: data.maintenanceMode ?? false,
+					},
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "updateGlobal">());
 
-					return {
-						maintenanceMode: updated.maintenanceMode ?? false,
-					};
+			return {
+				maintenanceMode: updated.maintenanceMode ?? false,
+			};
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update maintenance settings", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to update maintenance settings", {
+				cause: error,
+			}),
 	);
 }

@@ -21,7 +21,7 @@ import type {
 	DiscussionData,
 	DiscussionThread,
 } from "~/components/activity-modules-preview/discussion-preview";
-import { DiscussionActions, } from "../route";
+import { DiscussionActions } from "../route";
 import { CreateThreadFormWrapper } from "./create-thread-form-wrapper";
 import { ThreadUpvoteButton } from "./thread-upvote-button";
 
@@ -173,8 +173,8 @@ export function DiscussionThreadListView({
 											to={
 												courseId && thread.authorId
 													? href("/course/:courseId/participants/profile", {
-														courseId: String(courseId),
-													}) + `?userId=${thread.authorId}`
+															courseId: String(courseId),
+														}) + `?userId=${thread.authorId}`
 													: "#"
 											}
 											style={{ textDecoration: "none", color: "inherit" }}

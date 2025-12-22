@@ -1729,31 +1729,31 @@ export function tryDeleteQuizSubmission(args: TryDeleteQuizSubmissionArgs) {
 		async () => {
 			const { payload, id, req, overrideAccess = false } = args;
 
-					const deletedSubmission = await payload
-						.delete({
-							collection: "quiz-submissions",
-							id,
-							req,
-							overrideAccess,
-							depth: 0,
-						})
-						.then(stripDepth<0, "delete">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: `tryDeleteQuizSubmission - to delete quiz submission by ID ${id}`,
-								args: { payload, req, overrideAccess },
-							});
-							throw error;
-						});
+			const deletedSubmission = await payload
+				.delete({
+					collection: "quiz-submissions",
+					id,
+					req,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "delete">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryDeleteQuizSubmission - to delete quiz submission by ID ${id}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-					return deletedSubmission;
+			return deletedSubmission;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to delete quiz submission", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to delete quiz submission", {
+				cause: error,
+			}),
 	);
 }
 

@@ -10,7 +10,11 @@ export function CreateThreadFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: CreateThreadFormWrapperProps) {
-	const { submit: createThread, isLoading: isCreating, fetcher } = useCreateThread();
+	const {
+		submit: createThread,
+		isLoading: isCreating,
+		fetcher,
+	} = useCreateThread();
 
 	return (
 		<CreateThreadForm

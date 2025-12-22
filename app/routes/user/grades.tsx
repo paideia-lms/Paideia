@@ -6,10 +6,7 @@ import { tryFindUserById } from "server/internal/user-management";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/grades";
 
-export const loader = async ({
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 

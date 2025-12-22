@@ -7,9 +7,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateAssignmentSubmission,
-} from "server/internal/assignment-submission-management";
+import { tryCreateAssignmentSubmission } from "server/internal/assignment-submission-management";
 import {
 	tryCreateDiscussionSubmission,
 	tryRemoveUpvoteDiscussionSubmission,
@@ -47,7 +45,12 @@ import { QuizPreview } from "app/components/activity-modules-preview/quiz-previe
 import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
 import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsString, useQueryState } from "nuqs";
-import { createLoader, parseAsInteger, parseAsStringEnum, parseAsString as parseAsStringServer } from "nuqs/server";
+import {
+	createLoader,
+	parseAsInteger,
+	parseAsStringEnum,
+	parseAsString as parseAsStringServer,
+} from "nuqs/server";
 import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc } from "app/utils/action-utils";
@@ -87,11 +90,14 @@ type DiscussionAction =
 type QuizAction = (typeof QuizActions)[keyof typeof QuizActions];
 type ModuleAction = AssignmentAction | DiscussionAction | QuizAction;
 
-
 const getRouteUrl = (action: ModuleAction, moduleLinkId: number) => {
-	return href("/course/module/:moduleLinkId", {
-		moduleLinkId: String(moduleLinkId),
-	}) + "?" + stringify({ action });
+	return (
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}) +
+		"?" +
+		stringify({ action })
+	);
 };
 
 export const actionSearchParams = {
@@ -158,11 +164,11 @@ const createReplyActionRpc = createActionRpc({
 	method: "POST",
 	action: DiscussionActions.REPLY,
 	searchParams: {
-		/** 
+		/**
 		 * it is either "thread" or the comment id
 		 */
 		replyTo: parseAsStringServer.withDefault("thread"),
-	}
+	},
 });
 
 const createUpvoteThreadActionRpc = createActionRpc({
@@ -208,7 +214,6 @@ const createMarkQuizAttemptAsCompleteActionRpc = createActionRpc({
 });
 
 const createStartQuizAttemptActionRpc = createActionRpc({
-
 	method: "POST",
 	action: QuizActions.START_ATTEMPT,
 });
@@ -216,7 +221,7 @@ const createStartQuizAttemptActionRpc = createActionRpc({
 const createSubmitAssignmentActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		textContent: z.string().nullish(),
-		files: z.file().array()
+		files: z.file().array(),
 	}),
 	method: "POST",
 	action: AssignmentActions.SUBMIT_ASSIGNMENT,
@@ -242,7 +247,8 @@ const [createThreadAction, useCreateThread] = createThreadActionRpc(
 			return badRequest({ error: "Enrollment not found" });
 		}
 
-		const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 		if (!currentUser) {
 			return unauthorized({ error: "Unauthorized" });
 		}
@@ -259,7 +265,9 @@ const [createThreadAction, useCreateThread] = createThreadActionRpc(
 		}
 
 		// Check participation permissions
-		const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
+		const canParticipate = canParticipateInDiscussion(
+			enrolmentContext.enrolment,
+		);
 		if (!canParticipate.allowed) {
 			return unauthorized({ error: canParticipate.reason });
 		}
@@ -282,11 +290,12 @@ const [createThreadAction, useCreateThread] = createThreadActionRpc(
 		return redirect(
 			href("/course/module/:moduleLinkId", {
 				moduleLinkId: String(moduleLinkId),
-			}) + `?threadId=${createResult.value.id}`
+			}) + `?threadId=${createResult.value.id}`,
 		);
 	})!,
 	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
 	},
 );
 
@@ -320,43 +329,49 @@ const [upvoteThreadAction, useUpvoteThread] = createUpvoteThreadActionRpc(
 		return ok({ success: true, message: "Thread upvote added successfully" });
 	})!,
 	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
 	},
 );
 
-const [removeUpvoteThreadAction, useRemoveUpvoteThread] = createRemoveUpvoteThreadActionRpc(
-	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+const [removeUpvoteThreadAction, useRemoveUpvoteThread] =
+	createRemoveUpvoteThreadActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!currentUser) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (!currentUser) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
-			payload,
-			submissionId: formData.submissionId,
-			userId: currentUser.id,
-			req: payloadRequest,
-		});
+			const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
+				payload,
+				submissionId: formData.submissionId,
+				userId: currentUser.id,
+				req: payloadRequest,
+			});
 
-		if (!removeUpvoteResult.ok) {
-			return badRequest({ error: removeUpvoteResult.error.message });
-		}
+			if (!removeUpvoteResult.ok) {
+				return badRequest({ error: removeUpvoteResult.error.message });
+			}
 
-		return ok({ success: true, message: "Thread upvote removed successfully" });
-	})!,
-	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-	},
-);
+			return ok({
+				success: true,
+				message: "Thread upvote removed successfully",
+			});
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
 
 const [upvoteReplyAction, useUpvoteReply] = createUpvoteReplyActionRpc(
 	serverOnly$(async ({ context, formData }) => {
@@ -388,43 +403,49 @@ const [upvoteReplyAction, useUpvoteReply] = createUpvoteReplyActionRpc(
 		return ok({ success: true, message: "Reply upvote added successfully" });
 	})!,
 	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
 	},
 );
 
-const [removeUpvoteReplyAction, useRemoveUpvoteReply] = createRemoveUpvoteReplyActionRpc(
-	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+const [removeUpvoteReplyAction, useRemoveUpvoteReply] =
+	createRemoveUpvoteReplyActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!currentUser) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (!currentUser) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
-			payload,
-			req: payloadRequest,
-			submissionId: formData.submissionId,
-			userId: currentUser.id,
-		});
+			const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
+				payload,
+				req: payloadRequest,
+				submissionId: formData.submissionId,
+				userId: currentUser.id,
+			});
 
-		if (!removeUpvoteResult.ok) {
-			return badRequest({ error: removeUpvoteResult.error.message });
-		}
+			if (!removeUpvoteResult.ok) {
+				return badRequest({ error: removeUpvoteResult.error.message });
+			}
 
-		return ok({ success: true, message: "Reply upvote removed successfully" });
-	})!,
-	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-	},
-);
+			return ok({
+				success: true,
+				message: "Reply upvote removed successfully",
+			});
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
 
 const [createReplyAction, useCreateReply] = createReplyActionRpc(
 	serverOnly$(async ({ context, formData, params, searchParams }) => {
@@ -453,9 +474,10 @@ const [createReplyAction, useCreateReply] = createReplyActionRpc(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-
 		// Check if user can participate in discussions
-		const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
+		const canParticipate = canParticipateInDiscussion(
+			enrolmentContext.enrolment,
+		);
 		if (!canParticipate.allowed) {
 			throw new ForbiddenResponse(canParticipate.reason);
 		}
@@ -504,262 +526,271 @@ const [createReplyAction, useCreateReply] = createReplyActionRpc(
 		});
 	})!,
 	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
 	},
 );
 
-const [markQuizAttemptAsCompleteAction, useMarkQuizAttemptAsComplete] = createMarkQuizAttemptAsCompleteActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
-		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
+const [markQuizAttemptAsCompleteAction, useMarkQuizAttemptAsComplete] =
+	createMarkQuizAttemptAsCompleteActionRpc(
+		serverOnly$(async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const enrolmentContext = context.get(enrolmentContextKey);
+			const { moduleLinkId } = params;
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
-
-		if (!enrolmentContext?.enrolment) {
-			return badRequest({ error: "Enrollment not found" });
-		}
-
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
-
-		if (!currentUser) {
-			return unauthorized({ error: "Unauthorized" });
-		}
-
-		// Only students can submit assignments or start quizzes
-		if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
-			throw new ForbiddenResponse("Only students can submit assignments");
-		}
-
-		// Parse answers if provided
-		let answers:
-			| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-			}>
-			| undefined;
-
-		if (formData.answers) {
-			try {
-				answers = JSON.parse(formData.answers) as typeof answers;
-			} catch {
-				return badRequest({ error: "Invalid answers format" });
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
 			}
-		}
 
-		// Parse timeSpent if provided
-		let timeSpent: number | undefined;
-		if (formData.timeSpent) {
-			const parsed = Number.parseFloat(formData.timeSpent);
-			if (!Number.isNaN(parsed)) {
-				timeSpent = parsed;
+			if (!enrolmentContext?.enrolment) {
+				return badRequest({ error: "Enrollment not found" });
 			}
-		}
 
-		const submitResult = await tryMarkQuizAttemptAsComplete({
-			payload,
-			submissionId: formData.submissionId,
-			answers,
-			timeSpent,
-			req: payloadRequest,
-			overrideAccess: false,
-		});
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!submitResult.ok) {
-			return badRequest({ error: submitResult.error.message });
-		}
+			if (!currentUser) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		// Redirect to remove showQuiz parameter and show instructions view
-		return redirect(
-			href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}),
-		);
-	})!,
-	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-	},
-);
+			// Only students can submit assignments or start quizzes
+			if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+				throw new ForbiddenResponse("Only students can submit assignments");
+			}
 
-const [startQuizAttemptAction, useStartQuizAttempt] = createStartQuizAttemptActionRpc(
-	serverOnly$(async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
-		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
+			// Parse answers if provided
+			let answers:
+				| Array<{
+						questionId: string;
+						questionText: string;
+						questionType:
+							| "multiple_choice"
+							| "true_false"
+							| "short_answer"
+							| "essay"
+							| "fill_blank";
+						selectedAnswer?: string;
+						multipleChoiceAnswers?: Array<{
+							option: string;
+							isSelected: boolean;
+						}>;
+				  }>
+				| undefined;
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (formData.answers) {
+				try {
+					answers = JSON.parse(formData.answers) as typeof answers;
+				} catch {
+					return badRequest({ error: "Invalid answers format" });
+				}
+			}
 
-		if (!enrolmentContext?.enrolment) {
-			return badRequest({ error: "Enrollment not found" });
-		}
+			// Parse timeSpent if provided
+			let timeSpent: number | undefined;
+			if (formData.timeSpent) {
+				const parsed = Number.parseFloat(formData.timeSpent);
+				if (!Number.isNaN(parsed)) {
+					timeSpent = parsed;
+				}
+			}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+			const submitResult = await tryMarkQuizAttemptAsComplete({
+				payload,
+				submissionId: formData.submissionId,
+				answers,
+				timeSpent,
+				req: payloadRequest,
+				overrideAccess: false,
+			});
 
-		if (!currentUser) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (!submitResult.ok) {
+				return badRequest({ error: submitResult.error.message });
+			}
 
-		// Only students can submit assignments or start quizzes
-		if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
-			throw new ForbiddenResponse("Only students can submit assignments");
-		}
+			// Redirect to remove showQuiz parameter and show instructions view
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
 
-		// Check if there's already an in_progress submission
-		const checkResult = await tryCheckInProgressSubmission({
-			payload,
-			courseModuleLinkId: Number(moduleLinkId),
-			studentId: currentUser.id,
-			req: payloadRequest,
-			overrideAccess: false,
-		});
+const [startQuizAttemptAction, useStartQuizAttempt] =
+	createStartQuizAttemptActionRpc(
+		serverOnly$(async ({ context, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const enrolmentContext = context.get(enrolmentContextKey);
+			const { moduleLinkId } = params;
 
-		if (!checkResult.ok) {
-			return badRequest({ error: checkResult.error.message });
-		}
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		// If there's an in_progress submission, reuse it by redirecting with showQuiz parameter
-		if (checkResult.value.hasInProgress) {
+			if (!enrolmentContext?.enrolment) {
+				return badRequest({ error: "Enrollment not found" });
+			}
+
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
+
+			if (!currentUser) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			// Only students can submit assignments or start quizzes
+			if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+				throw new ForbiddenResponse("Only students can submit assignments");
+			}
+
+			// Check if there's already an in_progress submission
+			const checkResult = await tryCheckInProgressSubmission({
+				payload,
+				courseModuleLinkId: Number(moduleLinkId),
+				studentId: currentUser.id,
+				req: payloadRequest,
+				overrideAccess: false,
+			});
+
+			if (!checkResult.ok) {
+				return badRequest({ error: checkResult.error.message });
+			}
+
+			// If there's an in_progress submission, reuse it by redirecting with showQuiz parameter
+			if (checkResult.value.hasInProgress) {
+				return redirect(
+					href("/course/module/:moduleLinkId", {
+						moduleLinkId: String(moduleLinkId),
+					}) + "?showQuiz=true",
+				);
+			}
+
+			// No in_progress attempt exists, create a new one
+			// Get next attempt number
+			const nextAttemptResult = await tryGetNextAttemptNumber({
+				payload,
+				courseModuleLinkId: Number(moduleLinkId),
+				studentId: currentUser.id,
+				req: payloadRequest,
+				overrideAccess: false,
+			});
+
+			if (!nextAttemptResult.ok) {
+				return badRequest({ error: nextAttemptResult.error.message });
+			}
+
+			const startResult = await tryStartQuizAttempt({
+				payload,
+				courseModuleLinkId: Number(moduleLinkId),
+				studentId: currentUser.id,
+				enrollmentId: enrolmentContext.enrolment.id,
+				attemptNumber: nextAttemptResult.value,
+				req: payloadRequest,
+				overrideAccess: false,
+			});
+
+			if (!startResult.ok) {
+				return badRequest({ error: startResult.error.message });
+			}
+
+			// Redirect with showQuiz parameter to show the quiz preview
 			return redirect(
 				href("/course/module/:moduleLinkId", {
 					moduleLinkId: String(moduleLinkId),
 				}) + "?showQuiz=true",
 			);
-		}
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
 
-		// No in_progress attempt exists, create a new one
-		// Get next attempt number
-		const nextAttemptResult = await tryGetNextAttemptNumber({
-			payload,
-			courseModuleLinkId: Number(moduleLinkId),
-			studentId: currentUser.id,
-			req: payloadRequest,
-			overrideAccess: false,
-		});
+const [submitAssignmentAction, useSubmitAssignment] =
+	createSubmitAssignmentActionRpc(
+		serverOnly$(async ({ context, formData, params, request }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const courseModuleContext = context.get(courseModuleContextKey);
+			const enrolmentContext = context.get(enrolmentContextKey);
+			const { moduleLinkId } = params;
 
-		if (!nextAttemptResult.ok) {
-			return badRequest({ error: nextAttemptResult.error.message });
-		}
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		const startResult = await tryStartQuizAttempt({
-			payload,
-			courseModuleLinkId: Number(moduleLinkId),
-			studentId: currentUser.id,
-			enrollmentId: enrolmentContext.enrolment.id,
-			attemptNumber: nextAttemptResult.value,
-			req: payloadRequest,
-			overrideAccess: false,
-		});
+			if (!courseModuleContext) {
+				return badRequest({ error: "Module not found" });
+			}
 
-		if (!startResult.ok) {
-			return badRequest({ error: startResult.error.message });
-		}
+			if (!enrolmentContext?.enrolment) {
+				return badRequest({ error: "Enrollment not found" });
+			}
 
-		// Redirect with showQuiz parameter to show the quiz preview
-		return redirect(
-			href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + "?showQuiz=true",
-		);
-	})!,
-	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-	},
-);
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
 
-const [submitAssignmentAction, useSubmitAssignment] = createSubmitAssignmentActionRpc(
-	serverOnly$(async ({ context, formData, params, request }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
-		const courseModuleContext = context.get(courseModuleContextKey);
-		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
+			if (!currentUser) {
+				return unauthorized({ error: "Unauthorized" });
+			}
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			// Only students can submit assignments or start quizzes
+			if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+				throw new ForbiddenResponse("Only students can submit assignments");
+			}
 
-		if (!courseModuleContext) {
-			return badRequest({ error: "Module not found" });
-		}
+			// Handle assignment submission (existing logic)
+			if (courseModuleContext.type !== "assignment") {
+				return badRequest({ error: "Invalid module type for this action" });
+			}
 
-		if (!enrolmentContext?.enrolment) {
-			return badRequest({ error: "Enrollment not found" });
-		}
+			// Calculate next attempt number
+			const userSubmissions = courseModuleContext.submissions.filter(
+				(sub): sub is typeof sub & { attemptNumber: unknown } =>
+					sub.student.id === currentUser.id && "attemptNumber" in sub,
+			);
+			const maxAttemptNumber =
+				userSubmissions.length > 0
+					? Math.max(
+							...userSubmissions.map((sub) => sub.attemptNumber as number),
+						)
+					: 0;
+			const nextAttemptNumber = maxAttemptNumber + 1;
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+			// Create new submission (status will be "submitted" automatically)
+			const createResult = await tryCreateAssignmentSubmission({
+				payload,
+				courseModuleLinkId: Number(moduleLinkId),
+				studentId: currentUser.id,
+				enrollmentId: enrolmentContext.enrolment.id,
+				content: formData.textContent ?? "",
+				attachments: formData.files,
+				attemptNumber: nextAttemptNumber,
+				req: payloadRequest,
+				overrideAccess: false,
+			});
 
-		if (!currentUser) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+			if (!createResult.ok) {
+				return badRequest({ error: createResult.error.message });
+			}
 
-		// Only students can submit assignments or start quizzes
-		if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
-			throw new ForbiddenResponse("Only students can submit assignments");
-		}
-
-		// Handle assignment submission (existing logic)
-		if (courseModuleContext.type !== "assignment") {
-			return badRequest({ error: "Invalid module type for this action" });
-		}
-
-		// Calculate next attempt number
-		const userSubmissions = courseModuleContext.submissions.filter(
-			(sub): sub is typeof sub & { attemptNumber: unknown } =>
-				sub.student.id === currentUser.id && "attemptNumber" in sub,
-		);
-		const maxAttemptNumber =
-			userSubmissions.length > 0
-				? Math.max(...userSubmissions.map((sub) => sub.attemptNumber as number))
-				: 0;
-		const nextAttemptNumber = maxAttemptNumber + 1;
-
-		// Create new submission (status will be "submitted" automatically)
-		const createResult = await tryCreateAssignmentSubmission({
-			payload,
-			courseModuleLinkId: Number(moduleLinkId),
-			studentId: currentUser.id,
-			enrollmentId: enrolmentContext.enrolment.id,
-			content: formData.textContent ?? "",
-			attachments: formData.files,
-			attemptNumber: nextAttemptNumber,
-			req: payloadRequest,
-			overrideAccess: false,
-		});
-
-		if (!createResult.ok) {
-			return badRequest({ error: createResult.error.message });
-		}
-
-		return redirect(
-			href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}),
-		);
-	})!,
-	{
-		action: ({ params, searchParams }) => getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-	},
-);
+			return redirect(
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}),
+			);
+		})!,
+		{
+			action: ({ params, searchParams }) =>
+				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
+		},
+	);
 
 const actionMap = {
 	[DiscussionActions.REPLY]: createReplyAction,
@@ -771,7 +802,7 @@ const actionMap = {
 	[QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE]: markQuizAttemptAsCompleteAction,
 	[QuizActions.START_ATTEMPT]: startQuizAttemptAction,
 	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
-}
+};
 
 export {
 	useUpvoteThread,
@@ -783,7 +814,7 @@ export {
 	useCreateThread,
 	useCreateReply,
 	useMarkQuizAttemptAsComplete,
-}
+};
 
 export const action = async (args: Route.ActionArgs) => {
 	const { action: actionParam, replyTo: replyToParam } = loadSearchParams(
@@ -884,7 +915,8 @@ type AssignmentModuleViewProps = {
 };
 
 function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
-	const { submit: submitAssignment, isLoading: isSubmitting } = useSubmitAssignment();
+	const { submit: submitAssignment, isLoading: isSubmitting } =
+		useSubmitAssignment();
 
 	return (
 		<>
@@ -921,8 +953,12 @@ type QuizModuleViewProps = {
 };
 
 function QuizModuleView({ loaderData }: QuizModuleViewProps) {
-	const { submit: startQuizAttempt, isLoading: isStartingQuiz } = useStartQuizAttempt();
-	const { submit: markQuizAttemptAsComplete, isLoading: isMarkingQuizAttemptAsComplete } = useMarkQuizAttemptAsComplete();
+	const { submit: startQuizAttempt, isLoading: isStartingQuiz } =
+		useStartQuizAttempt();
+	const {
+		submit: markQuizAttemptAsComplete,
+		isLoading: isMarkingQuizAttemptAsComplete,
+	} = useMarkQuizAttemptAsComplete();
 	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
 
 	const quizConfig = loaderData.quiz.rawQuizConfig;
@@ -950,8 +986,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-				"status" in loaderData.userSubmission &&
-				loaderData.userSubmission.status === "in_progress"
+			"status" in loaderData.userSubmission &&
+			loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 

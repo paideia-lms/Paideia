@@ -83,7 +83,10 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	});
 
 	// categories for batch update select
-	const categoriesResult = await tryGetCategoryTree({ payload, req: payloadRequest });
+	const categoriesResult = await tryGetCategoryTree({
+		payload,
+		req: payloadRequest,
+	});
 	const flatCategories: { value: string; label: string }[] = [];
 	if (categoriesResult.ok) {
 		const visit = (nodes: CategoryTreeNode[], prefix: string) => {
@@ -103,7 +106,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-				createdBy.email
+					createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -329,8 +332,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																	(id) => id !== course.id,
-																),
+																		(id) => id !== course.id,
+																	),
 														)
 													}
 												/>
@@ -534,7 +537,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 										values: {
 											courseIds: selectedCourseIds,
 											status: selectedStatus as Course["status"],
-										}
+										},
 									});
 									setStatusModalOpened(false);
 								}}

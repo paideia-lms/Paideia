@@ -271,11 +271,7 @@ export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 						/>
 
 						<Group justify="flex-end" mt="md">
-							<Button
-								type="submit"
-								loading={isLoading}
-								disabled={isLoading}
-							>
+							<Button type="submit" loading={isLoading} disabled={isLoading}>
 								Create Course
 							</Button>
 						</Group>

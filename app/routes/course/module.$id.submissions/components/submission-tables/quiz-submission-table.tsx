@@ -23,7 +23,12 @@ import {
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
 import { groupSubmissionsByStudent } from "./helpers";
-import { type Route, Action, getRouteUrl, View } from "app/routes/course/module.$id.submissions/route";
+import {
+	type Route,
+	Action,
+	getRouteUrl,
+	View,
+} from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
@@ -98,19 +103,19 @@ function QuizSubmissionHistoryItem({
 										: "Returned"}
 						</Badge>
 						{submission.status === "graded" ||
-							submission.status === "returned" ? (
+						submission.status === "returned" ? (
 							<Badge color="green" variant="filled">
 								{submission.totalScore !== null &&
-									submission.totalScore !== undefined &&
-									submission.maxScore !== null &&
-									submission.maxScore !== undefined
+								submission.totalScore !== undefined &&
+								submission.maxScore !== null &&
+								submission.maxScore !== undefined
 									? `${submission.totalScore}/${submission.maxScore}`
 									: submission.totalScore !== null &&
-										submission.totalScore !== undefined
+											submission.totalScore !== undefined
 										? String(submission.totalScore)
 										: "-"}
 								{submission.percentage !== null &&
-									submission.percentage !== undefined
+								submission.percentage !== undefined
 									? ` (${submission.percentage.toFixed(1)}%)`
 									: ""}
 							</Badge>
@@ -167,10 +172,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
+				const attemptA = a.attemptNumber || 0;
+				const attemptB = b.attemptNumber || 0;
+				return attemptB - attemptA;
+			})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -200,7 +205,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-			gradedSubmissions.length
+				gradedSubmissions.length
 			: null;
 
 	return (
@@ -322,12 +327,13 @@ function QuizStudentSubmissionRow({
 								<Menu.Dropdown>
 									<Menu.Item
 										component={Link}
-										to={
-											getRouteUrl({
+										to={getRouteUrl(
+											{
 												view: View.GRADING,
 												submissionId: latestSubmission.id,
-											}, moduleLinkId)
-										}
+											},
+											moduleLinkId,
+										)}
 										leftSection={<IconPencil size={14} />}
 									>
 										Grade

@@ -137,10 +137,14 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized || actionData?.status === StatusCode.Forbidden) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Failed to update",
-			message:  actionData.error,
+			message: actionData.error,
 			color: "red",
 		});
 	}

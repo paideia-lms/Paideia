@@ -174,11 +174,7 @@ export default function NewCategoryPage({ loaderData }: Route.ComponentProps) {
 							clearable
 						/>
 						<Group justify="flex-end" mt="md">
-							<Button
-								type="submit"
-								loading={isLoading}
-								disabled={isLoading}
-							>
+							<Button type="submit" loading={isLoading} disabled={isLoading}>
 								Create Category
 							</Button>
 						</Group>

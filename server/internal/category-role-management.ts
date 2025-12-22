@@ -100,111 +100,111 @@ export function tryAssignCategoryRole(args: AssignCategoryRoleArgs) {
 	return Result.try(
 		async () => {
 			const {
-						payload,
-						userId,
-						categoryId,
-						role,
-						assignedBy,
-						notes,
-						req,
-						overrideAccess = false,
-					} = args;
+				payload,
+				userId,
+				categoryId,
+				role,
+				assignedBy,
+				notes,
+				req,
+				overrideAccess = false,
+			} = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
-					}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
 
-					if (!categoryId) {
-						throw new InvalidArgumentError("Category ID is required");
-					}
+			if (!categoryId) {
+				throw new InvalidArgumentError("Category ID is required");
+			}
 
-					if (!role) {
-						throw new InvalidArgumentError("Role is required");
-					}
+			if (!role) {
+				throw new InvalidArgumentError("Role is required");
+			}
 
-					const transactionInfo = await handleTransactionId(payload, req);
+			const transactionInfo = await handleTransactionId(payload, req);
 
-					return transactionInfo.tx(async (txInfo) => {
-						// Check if assignment already exists
-						const existing = await payload
-							.find({
-								collection: CategoryRoleAssignments.slug,
-								where: {
-									and: [
-										{ user: { equals: userId } },
-										{ category: { equals: categoryId } },
-									],
-								},
-								req: txInfo.reqWithTransaction,
-								overrideAccess,
-								depth: 1,
-							})
-							.then(stripDepth<1, "find">())
-							.catch((error) => {
-								interceptPayloadError({
-									error,
-									functionNamePrefix: "tryAssignCategoryRole",
-									args: { payload, req, overrideAccess },
-								});
-								throw error;
-							});
-
-						const assignment =
-							existing.docs.length > 0
-								? await payload
-										.update({
-											collection: CategoryRoleAssignments.slug,
-											id: existing.docs[0]!.id,
-											data: {
-												role,
-												assignedBy,
-												assignedAt: new Date().toISOString(),
-												notes,
-											},
-											overrideAccess,
-											depth: 1,
-											req: txInfo.reqWithTransaction,
-										})
-										.then(stripDepth<1, "update">())
-										.catch((error) => {
-											interceptPayloadError({
-												error,
-												functionNamePrefix: "tryAssignCategoryRole",
-												args: { payload, req, overrideAccess },
-											});
-											throw error;
-										})
-								: await payload
-										.create({
-											collection: CategoryRoleAssignments.slug,
-											data: {
-												user: userId,
-												category: categoryId,
-												role,
-												assignedBy,
-												assignedAt: new Date().toISOString(),
-												notes,
-											},
-											overrideAccess,
-											depth: 1,
-											req: txInfo.reqWithTransaction,
-										})
-										.then(stripDepth<1, "create">())
-										.catch((error) => {
-											interceptPayloadError({
-												error,
-												functionNamePrefix: "tryAssignCategoryRole",
-												args: { payload, req, overrideAccess },
-											});
-											throw error;
-										});
-
-						return assignment;
+			return transactionInfo.tx(async (txInfo) => {
+				// Check if assignment already exists
+				const existing = await payload
+					.find({
+						collection: CategoryRoleAssignments.slug,
+						where: {
+							and: [
+								{ user: { equals: userId } },
+								{ category: { equals: categoryId } },
+							],
+						},
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 1,
+					})
+					.then(stripDepth<1, "find">())
+					.catch((error) => {
+						interceptPayloadError({
+							error,
+							functionNamePrefix: "tryAssignCategoryRole",
+							args: { payload, req, overrideAccess },
+						});
+						throw error;
 					});
+
+				const assignment =
+					existing.docs.length > 0
+						? await payload
+								.update({
+									collection: CategoryRoleAssignments.slug,
+									id: existing.docs[0]!.id,
+									data: {
+										role,
+										assignedBy,
+										assignedAt: new Date().toISOString(),
+										notes,
+									},
+									overrideAccess,
+									depth: 1,
+									req: txInfo.reqWithTransaction,
+								})
+								.then(stripDepth<1, "update">())
+								.catch((error) => {
+									interceptPayloadError({
+										error,
+										functionNamePrefix: "tryAssignCategoryRole",
+										args: { payload, req, overrideAccess },
+									});
+									throw error;
+								})
+						: await payload
+								.create({
+									collection: CategoryRoleAssignments.slug,
+									data: {
+										user: userId,
+										category: categoryId,
+										role,
+										assignedBy,
+										assignedAt: new Date().toISOString(),
+										notes,
+									},
+									overrideAccess,
+									depth: 1,
+									req: txInfo.reqWithTransaction,
+								})
+								.then(stripDepth<1, "create">())
+								.catch((error) => {
+									interceptPayloadError({
+										error,
+										functionNamePrefix: "tryAssignCategoryRole",
+										args: { payload, req, overrideAccess },
+									});
+									throw error;
+								});
+
+				return assignment;
+			});
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to assign category role", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to assign category role", { cause: error }),
 	);
 }
 
@@ -216,51 +216,51 @@ export function tryRevokeCategoryRole(args: RevokeCategoryRoleArgs) {
 		async () => {
 			const { payload, userId, categoryId, req, overrideAccess = false } = args;
 
-					const transactionInfo = await handleTransactionId(payload, req);
+			const transactionInfo = await handleTransactionId(payload, req);
 
-					return transactionInfo.tx(async (txInfo) => {
-						// Find the assignment
-						const assignments = await payload.find({
-							collection: CategoryRoleAssignments.slug,
-							where: {
-								and: [
-									{ user: { equals: userId } },
-									{ category: { equals: categoryId } },
-								],
-							},
-							req: txInfo.reqWithTransaction,
+			return transactionInfo.tx(async (txInfo) => {
+				// Find the assignment
+				const assignments = await payload.find({
+					collection: CategoryRoleAssignments.slug,
+					where: {
+						and: [
+							{ user: { equals: userId } },
+							{ category: { equals: categoryId } },
+						],
+					},
+					req: txInfo.reqWithTransaction,
+				});
+
+				if (assignments.docs.length === 0) {
+					throw new InvalidArgumentError(
+						"No role assignment found for this user and category",
+					);
+				}
+
+				const deleted = await payload
+					.delete({
+						collection: CategoryRoleAssignments.slug,
+						id: assignments.docs[0]!.id,
+						req: txInfo.reqWithTransaction,
+						depth: 1,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "delete">())
+					.catch((error) => {
+						interceptPayloadError({
+							error,
+							functionNamePrefix: "tryRevokeCategoryRole",
+							args: { payload, req, overrideAccess },
 						});
-
-						if (assignments.docs.length === 0) {
-							throw new InvalidArgumentError(
-								"No role assignment found for this user and category",
-							);
-						}
-
-						const deleted = await payload
-							.delete({
-								collection: CategoryRoleAssignments.slug,
-								id: assignments.docs[0]!.id,
-								req: txInfo.reqWithTransaction,
-								depth: 1,
-								overrideAccess,
-							})
-							.then(stripDepth<1, "delete">())
-							.catch((error) => {
-								interceptPayloadError({
-									error,
-									functionNamePrefix: "tryRevokeCategoryRole",
-									args: { payload, req, overrideAccess },
-								});
-								throw error;
-							});
-
-						return deleted;
+						throw error;
 					});
+
+				return deleted;
+			});
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to revoke category role", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to revoke category role", { cause: error }),
 	);
 }
 
@@ -272,32 +272,32 @@ export function tryUpdateCategoryRole(args: UpdateCategoryRoleArgs) {
 		async () => {
 			const { payload, assignmentId, newRole, req } = args;
 
-					if (!assignmentId) {
-						throw new InvalidArgumentError("Assignment ID is required");
-					}
+			if (!assignmentId) {
+				throw new InvalidArgumentError("Assignment ID is required");
+			}
 
-					if (!newRole) {
-						throw new InvalidArgumentError("New role is required");
-					}
+			if (!newRole) {
+				throw new InvalidArgumentError("New role is required");
+			}
 
-					const transactionInfo = await handleTransactionId(payload, req);
+			const transactionInfo = await handleTransactionId(payload, req);
 
-					return transactionInfo.tx(async (txInfo) => {
-						const updated = (await payload.update({
-							collection: CategoryRoleAssignments.slug,
-							id: assignmentId,
-							data: {
-								role: newRole,
-							},
-							req: txInfo.reqWithTransaction,
-						})) as CategoryRoleAssignment;
+			return transactionInfo.tx(async (txInfo) => {
+				const updated = (await payload.update({
+					collection: CategoryRoleAssignments.slug,
+					id: assignmentId,
+					data: {
+						role: newRole,
+					},
+					req: txInfo.reqWithTransaction,
+				})) as CategoryRoleAssignment;
 
-						return updated;
-					});
+				return updated;
+			});
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update category role", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to update category role", { cause: error }),
 	);
 }
 
@@ -309,130 +309,134 @@ export function tryGetUserCategoryRoles(args: GetUserCategoryRolesArgs) {
 		async () => {
 			const { payload, userId, req, overrideAccess = false } = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
-					}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
 
-					const assignments = await payload
-						.find({
-							collection: CategoryRoleAssignments.slug,
-							where: {
-								user: { equals: userId },
-							},
-							depth: 1,
-							pagination: false,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<1, "find">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: "tryGetUserCategoryRoles",
-								args: { payload, req, overrideAccess },
-							});
-							throw error;
-						});
+			const assignments = await payload
+				.find({
+					collection: CategoryRoleAssignments.slug,
+					where: {
+						user: { equals: userId },
+					},
+					depth: 1,
+					pagination: false,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryGetUserCategoryRoles",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-					return assignments.docs;
+			return assignments.docs;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get user category roles", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to get user category roles", { cause: error }),
 	);
 }
 
 /**
  * Gets all role assignments for a category
  */
-export function tryGetCategoryRoleAssignments(args: GetCategoryRoleAssignmentsArgs) {
+export function tryGetCategoryRoleAssignments(
+	args: GetCategoryRoleAssignmentsArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, categoryId, req, overrideAccess = false } = args;
 
-					if (!categoryId) {
-						throw new InvalidArgumentError("Category ID is required");
-					}
+			if (!categoryId) {
+				throw new InvalidArgumentError("Category ID is required");
+			}
 
-					const assignments = await payload
-						.find({
-							collection: CategoryRoleAssignments.slug,
-							where: {
-								category: { equals: categoryId },
-							},
-							depth: 1,
-							pagination: false,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<1, "find">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: "tryGetCategoryRoleAssignments",
-								args: { payload, req, overrideAccess },
-							});
-							throw error;
-						});
+			const assignments = await payload
+				.find({
+					collection: CategoryRoleAssignments.slug,
+					where: {
+						category: { equals: categoryId },
+					},
+					depth: 1,
+					pagination: false,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryGetCategoryRoleAssignments",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-					return assignments.docs;
+			return assignments.docs;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get category role assignments", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to get category role assignments", {
+				cause: error,
+			}),
 	);
 }
 
 /**
  * Finds a specific category role assignment
  */
-export function tryFindCategoryRoleAssignment(args: FindCategoryRoleAssignmentArgs) {
+export function tryFindCategoryRoleAssignment(
+	args: FindCategoryRoleAssignmentArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, userId, categoryId, req, overrideAccess = false } = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
-					}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
 
-					if (!categoryId) {
-						throw new InvalidArgumentError("Category ID is required");
-					}
+			if (!categoryId) {
+				throw new InvalidArgumentError("Category ID is required");
+			}
 
-					const assignments = await payload
-						.find({
-							collection: CategoryRoleAssignments.slug,
-							where: {
-								and: [
-									{ user: { equals: userId } },
-									{ category: { equals: categoryId } },
-								],
-							},
-							depth: 1,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<1, "find">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: `tryFindCategoryRoleAssignment - to find category role assignment for user ${userId} and category ${categoryId}`,
-								args: { payload, req, overrideAccess },
-							});
-							throw error;
-						});
+			const assignments = await payload
+				.find({
+					collection: CategoryRoleAssignments.slug,
+					where: {
+						and: [
+							{ user: { equals: userId } },
+							{ category: { equals: categoryId } },
+						],
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryFindCategoryRoleAssignment - to find category role assignment for user ${userId} and category ${categoryId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-					const assignment = assignments.docs[0] ?? null;
+			const assignment = assignments.docs[0] ?? null;
 
-					return assignment;
+			return assignment;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to find category role assignment", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to find category role assignment", {
+				cause: error,
+			}),
 	);
 }
 
@@ -443,45 +447,45 @@ export function tryCheckUserCategoryRole(args: CheckUserCategoryRoleArgs) {
 	return Result.try(
 		async () => {
 			const {
-						payload,
-						userId,
-						categoryId,
-						requiredRole,
-						req,
-						overrideAccess = false,
-					} = args;
+				payload,
+				userId,
+				categoryId,
+				requiredRole,
+				req,
+				overrideAccess = false,
+			} = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
-					}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
 
-					if (!categoryId) {
-						throw new InvalidArgumentError("Category ID is required");
-					}
+			if (!categoryId) {
+				throw new InvalidArgumentError("Category ID is required");
+			}
 
-					const assignment = await tryFindCategoryRoleAssignment({
-						payload,
-						userId,
-						categoryId,
-						req,
-						overrideAccess,
-					});
+			const assignment = await tryFindCategoryRoleAssignment({
+				payload,
+				userId,
+				categoryId,
+				req,
+				overrideAccess,
+			});
 
-					if (!assignment.ok || !assignment.value) {
-						return null;
-					}
+			if (!assignment.ok || !assignment.value) {
+				return null;
+			}
 
-					const role = assignment.value.role as CategoryRole;
+			const role = assignment.value.role as CategoryRole;
 
-					if (requiredRole && role !== requiredRole) {
-						return null;
-					}
+			if (requiredRole && role !== requiredRole) {
+				return null;
+			}
 
-					return role;
+			return role;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to check user category role", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to check user category role", { cause: error }),
 	);
 }
 
@@ -489,218 +493,226 @@ export function tryCheckUserCategoryRole(args: CheckUserCategoryRoleArgs) {
  * Gets effective role by checking category and all ancestors
  * Returns the highest priority role found
  */
-export function tryGetEffectiveCategoryRole(args: GetEffectiveCategoryRoleArgs) {
+export function tryGetEffectiveCategoryRole(
+	args: GetEffectiveCategoryRoleArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, userId, categoryId, req, overrideAccess = false } = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
+
+			if (!categoryId) {
+				throw new InvalidArgumentError("Category ID is required");
+			}
+
+			const rolePriority: Record<CategoryRole, number> = {
+				"category-admin": 3,
+				"category-coordinator": 2,
+				"category-reviewer": 1,
+			};
+
+			let currentCategoryId: number | null = categoryId;
+			let highestRole: CategoryRole | null = null;
+			let highestPriority = 0;
+
+			// Traverse up the category hierarchy
+			while (currentCategoryId !== null) {
+				// Check for role assignment at current level
+				const assignments = await payload
+					.find({
+						collection: CategoryRoleAssignments.slug,
+						where: {
+							and: [
+								{ user: { equals: userId } },
+								{ category: { equals: currentCategoryId } },
+							],
+						},
+						depth: 0,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "find">())
+					.catch((error) => {
+						interceptPayloadError({
+							error,
+							functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
+							args: { payload, req, overrideAccess },
+						});
+						throw error;
+					});
+
+				if (assignments.docs.length > 0) {
+					const role = assignments.docs[0]!.role;
+					const priority = rolePriority[role] ?? 0;
+
+					if (priority > highestPriority) {
+						highestRole = role;
+						highestPriority = priority;
 					}
+				}
 
-					if (!categoryId) {
-						throw new InvalidArgumentError("Category ID is required");
-					}
+				// Move to parent category
+				const category: { id: number; parent?: number | null } = await payload
+					.findByID({
+						collection: "course-categories",
+						id: currentCategoryId,
+						depth: 0,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "findByID">())
+					.catch((error) => {
+						interceptPayloadError({
+							error,
+							functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
+							args: { payload, req, overrideAccess },
+						});
+						throw error;
+					});
 
-					const rolePriority: Record<CategoryRole, number> = {
-						"category-admin": 3,
-						"category-coordinator": 2,
-						"category-reviewer": 1,
-					};
+				currentCategoryId = category.parent ?? null;
+			}
 
-					let currentCategoryId: number | null = categoryId;
-					let highestRole: CategoryRole | null = null;
-					let highestPriority = 0;
-
-					// Traverse up the category hierarchy
-					while (currentCategoryId !== null) {
-						// Check for role assignment at current level
-						const assignments = await payload
-							.find({
-								collection: CategoryRoleAssignments.slug,
-								where: {
-									and: [
-										{ user: { equals: userId } },
-										{ category: { equals: currentCategoryId } },
-									],
-								},
-								depth: 0,
-								req,
-								overrideAccess,
-							})
-							.then(stripDepth<0, "find">())
-							.catch((error) => {
-								interceptPayloadError({
-									error,
-									functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
-									args: { payload, req, overrideAccess },
-								});
-								throw error;
-							});
-
-						if (assignments.docs.length > 0) {
-							const role = assignments.docs[0]!.role;
-							const priority = rolePriority[role] ?? 0;
-
-							if (priority > highestPriority) {
-								highestRole = role;
-								highestPriority = priority;
-							}
-						}
-
-						// Move to parent category
-						const category: { id: number; parent?: number | null } = await payload
-							.findByID({
-								collection: "course-categories",
-								id: currentCategoryId,
-								depth: 0,
-								req,
-								overrideAccess,
-							})
-							.then(stripDepth<0, "findByID">())
-							.catch((error) => {
-								interceptPayloadError({
-									error,
-									functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
-									args: { payload, req, overrideAccess },
-								});
-								throw error;
-							});
-
-						currentCategoryId = category.parent ?? null;
-					}
-
-					return highestRole;
+			return highestRole;
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get effective category role", { cause: error })
+			transformError(error) ??
+			new UnknownError("Failed to get effective category role", {
+				cause: error,
+			}),
 	);
 }
 
 /**
  * Gets all courses a user has access to via category roles
  */
-export function tryGetUserCoursesFromCategories(args: GetUserCoursesFromCategoriesArgs) {
+export function tryGetUserCoursesFromCategories(
+	args: GetUserCoursesFromCategoriesArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, userId, req, overrideAccess = false } = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
-					}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
 
-					// Get all categories where user has roles
-					const userRoles = await payload
-						.find({
-							collection: CategoryRoleAssignments.slug,
-							where: {
-								user: { equals: userId },
-							},
-							pagination: false,
-							req,
-							overrideAccess,
-							depth: 0,
-						})
-						.then(stripDepth<0, "find">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: `tryGetUserCoursesFromCategories - to get user courses from categories for user ${userId}`,
-								args: { payload, req, overrideAccess },
-							});
-							throw error;
-						});
+			// Get all categories where user has roles
+			const userRoles = await payload
+				.find({
+					collection: CategoryRoleAssignments.slug,
+					where: {
+						user: { equals: userId },
+					},
+					pagination: false,
+					req,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryGetUserCoursesFromCategories - to get user courses from categories for user ${userId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-					const coursesMap = new Map<number, CourseAccessInfo>();
+			const coursesMap = new Map<number, CourseAccessInfo>();
 
-					// For each category role, get all descendant courses
-					for (const roleAssignment of userRoles.docs) {
-						const categoryId = roleAssignment.category;
+			// For each category role, get all descendant courses
+			for (const roleAssignment of userRoles.docs) {
+				const categoryId = roleAssignment.category;
 
-						const courseIds = await getAllDescendantCourses({
-							payload,
+				const courseIds = await getAllDescendantCourses({
+					payload,
+					categoryId,
+					req,
+					overrideAccess,
+				});
+
+				for (const courseId of courseIds) {
+					if (!coursesMap.has(courseId)) {
+						coursesMap.set(courseId, {
+							courseId,
+							categoryRole: roleAssignment.role as CategoryRole,
 							categoryId,
-							req,
-							overrideAccess,
 						});
-
-						for (const courseId of courseIds) {
-							if (!coursesMap.has(courseId)) {
-								coursesMap.set(courseId, {
-									courseId,
-									categoryRole: roleAssignment.role as CategoryRole,
-									categoryId,
-								});
-							}
-						}
 					}
+				}
+			}
 
-					return Array.from(coursesMap.values());
+			return Array.from(coursesMap.values());
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get user courses from categories", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to get user courses from categories", {
+				cause: error,
+			}),
 	);
 }
 
 /**
  * Checks if user has access to a course via category role
  */
-export function tryCheckUserCourseAccessViaCategory(args: CheckUserCourseAccessViaCategoryArgs) {
+export function tryCheckUserCourseAccessViaCategory(
+	args: CheckUserCourseAccessViaCategoryArgs,
+) {
 	return Result.try(
 		async () => {
 			const { payload, userId, courseId, req, overrideAccess = false } = args;
 
-					if (!userId) {
-						throw new InvalidArgumentError("User ID is required");
-					}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
 
-					if (!courseId) {
-						throw new InvalidArgumentError("Course ID is required");
-					}
+			if (!courseId) {
+				throw new InvalidArgumentError("Course ID is required");
+			}
 
-					// Get the course's category
-					const course = await payload
-						.findByID({
-							collection: Courses.slug,
-							id: courseId,
-							depth: 0,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "findByID">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: `tryCheckUserCourseAccessViaCategory - to check user course access via category for course ${courseId}`,
-								args: { payload, req, overrideAccess },
-							});
-							return null;
-						});
+			// Get the course's category
+			const course = await payload
+				.findByID({
+					collection: Courses.slug,
+					id: courseId,
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findByID">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryCheckUserCourseAccessViaCategory - to check user course access via category for course ${courseId}`,
+						args: { payload, req, overrideAccess },
+					});
+					return null;
+				});
 
-					if (!course?.category) {
-						return null;
-					}
+			if (!course?.category) {
+				return null;
+			}
 
-					const courseCategoryId = course.category;
+			const courseCategoryId = course.category;
 
-					// Check if user has role on this category or any ancestor
-					return await tryGetEffectiveCategoryRole({
-						payload,
-						userId,
-						categoryId: courseCategoryId,
-						req,
-						overrideAccess,
-					}).getOrNull();
+			// Check if user has role on this category or any ancestor
+			return await tryGetEffectiveCategoryRole({
+				payload,
+				userId,
+				categoryId: courseCategoryId,
+				req,
+				overrideAccess,
+			}).getOrNull();
 		},
 		(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to check user course access via category", {
-			cause: error,
-		})
+			transformError(error) ??
+			new UnknownError("Failed to check user course access via category", {
+				cause: error,
+			}),
 	);
 }
 

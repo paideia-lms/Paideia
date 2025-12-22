@@ -107,21 +107,23 @@ const urlSchema = z
 
 const inputSchema = z.object({
 	additionalCssStylesheets: urlSchema.optional(),
-	color: z.enum([
-		"blue",
-		"pink",
-		"indigo",
-		"green",
-		"orange",
-		"gray",
-		"grape",
-		"cyan",
-		"lime",
-		"red",
-		"violet",
-		"teal",
-		"yellow",
-	]).optional(),
+	color: z
+		.enum([
+			"blue",
+			"pink",
+			"indigo",
+			"green",
+			"orange",
+			"gray",
+			"grape",
+			"cyan",
+			"lime",
+			"red",
+			"violet",
+			"teal",
+			"yellow",
+		])
+		.optional(),
 	radius: z.enum(["xs", "sm", "md", "lg", "xl"]).optional(),
 	logoLight: z.file().nullish(),
 	logoDark: z.file().nullish(),
@@ -251,7 +253,6 @@ export const action = async (args: Route.ActionArgs) => {
 		return badRequest({ error: "Action is required" });
 	}
 
-
 	return actionMap[actionType](args);
 };
 
@@ -333,8 +334,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: logo.filename,
-		})
+				filenameOrId: logo.filename,
+			})
 		: null;
 
 	return (

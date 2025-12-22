@@ -4,9 +4,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCourse } from "server/internal/course-management";
 import z from "zod";
-import {
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
+import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -18,7 +16,7 @@ import type { Route } from "./+types/batch-update-courses";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();	
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
 const inputSchema = z
 	.object({
@@ -30,59 +28,63 @@ const inputSchema = z
 		message: "Provide at least one of status or category",
 	});
 
-	const createBatchUpdateCoursesActionRpc = createActionRpc({
-		formDataSchema: inputSchema,
-		method: "POST",
-	});
-
-	const getRouteUrl = () => {
-		return href("/api/batch-update-courses");
-	};
-
- const [batchUpdateCoursesAction, useBatchUpdateCourses] = createBatchUpdateCoursesActionRpc(serverOnly$(async ({ request, context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "User not found" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can batch update courses");
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-
-	const { courseIds, status, category } = parsed.data;
-
-	// Perform per-course updates; keep simple and robust
-	for (const courseId of courseIds) {
-		const updateResult = await tryUpdateCourse({
-			payload,
-			courseId,
-			data: {
-				...(status ? { status } : {}),
-				...(category !== undefined ? { category: category ?? null } : {}),
-			},
-			req: payloadRequest,
-		});
-
-		if (!updateResult.ok) {
-			return badRequest({ error: updateResult.error.message });
-		}
-	}
-
-	return ok({ success: true });
-})!, {
-	action: getRouteUrl,
+const createBatchUpdateCoursesActionRpc = createActionRpc({
+	formDataSchema: inputSchema,
+	method: "POST",
 });
+
+const getRouteUrl = () => {
+	return href("/api/batch-update-courses");
+};
+
+const [batchUpdateCoursesAction, useBatchUpdateCourses] =
+	createBatchUpdateCoursesActionRpc(
+		serverOnly$(async ({ request, context }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "User not found" });
+			}
+
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			if (currentUser.role !== "admin") {
+				throw new ForbiddenResponse("Only admins can batch update courses");
+			}
+
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsed = inputSchema.safeParse(data);
+			if (!parsed.success) {
+				return badRequest({ error: z.prettifyError(parsed.error) });
+			}
+
+			const { courseIds, status, category } = parsed.data;
+
+			// Perform per-course updates; keep simple and robust
+			for (const courseId of courseIds) {
+				const updateResult = await tryUpdateCourse({
+					payload,
+					courseId,
+					data: {
+						...(status ? { status } : {}),
+						...(category !== undefined ? { category: category ?? null } : {}),
+					},
+					req: payloadRequest,
+				});
+
+				if (!updateResult.ok) {
+					return badRequest({ error: updateResult.error.message });
+				}
+			}
+
+			return ok({ success: true });
+		})!,
+		{
+			action: getRouteUrl,
+		},
+	);
 
 export const action = batchUpdateCoursesAction;
 export { useBatchUpdateCourses };

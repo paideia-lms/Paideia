@@ -164,204 +164,207 @@ const getRouteUrl = (action: Action) => {
 	return href("/user/module/new") + "?" + stringify({ action });
 };
 
-const [createPageAction, useCreatePage] = createCreatePageActionRpc(serverOnly$(async ({
-	context,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+const [createPageAction, useCreatePage] = createCreatePageActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-	const createResult = await tryCreatePageModule({
-		payload,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		content: formData.content,
-		req: payloadRequest,
-	});
-
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+		const createResult = await tryCreatePageModule({
+			payload,
+			title: formData.title,
+			description: formData.description,
+			status: formData.status,
+			content: formData.content,
+			req: payloadRequest,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: "Module created successfully",
-	});
-})!, {
-	action: ({ searchParams }) => getRouteUrl(searchParams.action),
-});
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-const [createWhiteboardAction, useCreateWhiteboard] = createCreateWhiteboardActionRpc(serverOnly$(async ({
-	context,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	const createResult = await tryCreateWhiteboardModule({
-		payload,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		content: formData.whiteboardContent,
-		req: payloadRequest,
-	});
-
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+		return ok({
+			success: true,
+			message: "Module created successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Module created successfully",
-	});
-})!, {
-	action: ({ searchParams }) => getRouteUrl(searchParams.action),
-});
+const [createWhiteboardAction, useCreateWhiteboard] =
+	createCreateWhiteboardActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-const [createFileAction, useCreateFile] = createCreateFileActionRpc(serverOnly$(async ({
-	context,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+			const createResult = await tryCreateWhiteboardModule({
+				payload,
+				title: formData.title,
+				description: formData.description,
+				status: formData.status,
+				content: formData.whiteboardContent,
+				req: payloadRequest,
+			});
 
-	const createResult = await tryCreateFileModule({
-		payload,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		media: formData.fileMedia,
-		req: payloadRequest,
-	});
+			if (!createResult.ok) {
+				return badRequest({
+					success: false,
+					error: createResult.error.message,
+				});
+			}
 
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+			return ok({
+				success: true,
+				message: "Module created successfully",
+			});
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
+
+const [createFileAction, useCreateFile] = createCreateFileActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const createResult = await tryCreateFileModule({
+			payload,
+			title: formData.title,
+			description: formData.description,
+			status: formData.status,
+			media: formData.fileMedia,
+			req: payloadRequest,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: "Module created successfully",
-	});
-})!, {
-	action: ({ searchParams }) => getRouteUrl(searchParams.action),
-});
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-const [createAssignmentAction, useCreateAssignment] = createCreateAssignmentActionRpc(serverOnly$(async ({
-	context,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	const allowedFileTypes =
-		formData.assignmentAllowedFileTypes &&
-			formData.assignmentAllowedFileTypes.length > 0
-			? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
-			: undefined;
-
-	const createResult = await tryCreateAssignmentModule({
-		payload,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		instructions: formData.assignmentInstructions,
-		requireTextSubmission: formData.assignmentRequireTextSubmission,
-		requireFileSubmission: formData.assignmentRequireFileSubmission,
-		allowedFileTypes,
-		maxFileSize: formData.assignmentMaxFileSize,
-		maxFiles: formData.assignmentMaxFiles,
-		req: payloadRequest,
-	});
-
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+		return ok({
+			success: true,
+			message: "Module created successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Module created successfully",
-	});
-})!, {
-	action: ({ searchParams }) => getRouteUrl(searchParams.action),
-});
+const [createAssignmentAction, useCreateAssignment] =
+	createCreateAssignmentActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(serverOnly$(async ({
-	context,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+			const allowedFileTypes =
+				formData.assignmentAllowedFileTypes &&
+				formData.assignmentAllowedFileTypes.length > 0
+					? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
+					: undefined;
 
-	const createResult = await tryCreateQuizModule({
-		payload,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		instructions: formData.quizInstructions,
-		points: formData.quizPoints,
-		timeLimit: formData.quizTimeLimit,
-		gradingType: formData.quizGradingType,
-		rawQuizConfig: formData.rawQuizConfig,
-		req: payloadRequest,
-	});
+			const createResult = await tryCreateAssignmentModule({
+				payload,
+				title: formData.title,
+				description: formData.description,
+				status: formData.status,
+				instructions: formData.assignmentInstructions,
+				requireTextSubmission: formData.assignmentRequireTextSubmission,
+				requireFileSubmission: formData.assignmentRequireFileSubmission,
+				allowedFileTypes,
+				maxFileSize: formData.assignmentMaxFileSize,
+				maxFiles: formData.assignmentMaxFiles,
+				req: payloadRequest,
+			});
 
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+			if (!createResult.ok) {
+				return badRequest({
+					success: false,
+					error: createResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module created successfully",
+			});
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
+
+const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const createResult = await tryCreateQuizModule({
+			payload,
+			title: formData.title,
+			description: formData.description,
+			status: formData.status,
+			instructions: formData.quizInstructions,
+			points: formData.quizPoints,
+			timeLimit: formData.quizTimeLimit,
+			gradingType: formData.quizGradingType,
+			rawQuizConfig: formData.rawQuizConfig,
+			req: payloadRequest,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: "Module created successfully",
-	});
-})!, {
-	action: ({ searchParams }) => getRouteUrl(searchParams.action),
-});
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-const [createDiscussionAction, useCreateDiscussion] = createCreateDiscussionActionRpc(serverOnly$(async ({
-	context,
-	formData,
-}) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-
-	const createResult = await tryCreateDiscussionModule({
-		payload,
-		title: formData.title,
-		description: formData.description,
-		status: formData.status,
-		instructions: formData.discussionInstructions,
-		dueDate: formData.discussionDueDate ?? undefined,
-		requireThread: formData.discussionRequireThread,
-		requireReplies: formData.discussionRequireReplies,
-		minReplies: formData.discussionMinReplies,
-		req: payloadRequest,
-	});
-
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+		return ok({
+			success: true,
+			message: "Module created successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
 
-	return ok({
-		success: true,
-		message: "Module created successfully",
-	});
-})!, {
-	action: ({ searchParams }) => getRouteUrl(searchParams.action),
-});
+const [createDiscussionAction, useCreateDiscussion] =
+	createCreateDiscussionActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+
+			const createResult = await tryCreateDiscussionModule({
+				payload,
+				title: formData.title,
+				description: formData.description,
+				status: formData.status,
+				instructions: formData.discussionInstructions,
+				dueDate: formData.discussionDueDate ?? undefined,
+				requireThread: formData.discussionRequireThread,
+				requireReplies: formData.discussionRequireReplies,
+				minReplies: formData.discussionMinReplies,
+				req: payloadRequest,
+			});
+
+			if (!createResult.ok) {
+				return badRequest({
+					success: false,
+					error: createResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module created successfully",
+			});
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
 
 const actionMap = {
 	[Action.CreatePage]: createPageAction,
@@ -399,7 +402,7 @@ export const clientAction = async ({
 		});
 		// Redirect after successful creation
 		// window.location.href = "/user/profile";
-		return redirect(href('/user/profile/:id?'));
+		return redirect(href("/user/profile/:id?"));
 	} else if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
@@ -431,7 +434,6 @@ function PageFormWrapper() {
 			initialValues={initialValues}
 			onSubmit={(values) =>
 				createPage({
-
 					values: {
 						title: values.title,
 						description: values.description,
@@ -466,7 +468,6 @@ function WhiteboardFormWrapper() {
 			initialValues={initialValues}
 			onSubmit={(values) =>
 				createWhiteboard({
-
 					values: {
 						title: values.title,
 						description: values.description,
@@ -500,7 +501,6 @@ function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
 			onSubmit={(values) => {
 				console.log(values);
 				createFile({
-
 					values: {
 						title: values.title,
 						description: values.description,
@@ -508,9 +508,8 @@ function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
 						// we don't care about fileMedia here, beacuse the create Form is all new files
 						fileMedia: values.fileFiles,
 					},
-				})
-			}
-			}
+				});
+			}}
 			uploadLimit={uploadLimit}
 			isLoading={isLoading}
 		/>
@@ -586,7 +585,6 @@ function QuizFormWrapper() {
 			initialValues={initialValues}
 			onSubmit={(values) =>
 				createQuiz({
-
 					values: {
 						title: values.title,
 						description: values.description,
@@ -629,7 +627,6 @@ function DiscussionFormWrapper() {
 			initialValues={initialValues}
 			onSubmit={(values) =>
 				createDiscussion({
-
 					values: {
 						title: values.title,
 						description: values.description,

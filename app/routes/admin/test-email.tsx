@@ -107,7 +107,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 const [sendTestEmailAction, useSendTestEmail] = createSendTestEmailActionRpc(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, platformInfo, payloadRequest } = context.get(globalContextKey);
+		const { payload, platformInfo, payloadRequest } =
+			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -245,17 +246,20 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 	});
 
 	const handleSubmit = async (values: typeof form.values) => {
-		async function sendMail() { 
+		async function sendMail() {
 			await sendTestEmail({
-				values: values.messageType === "custom" ? {
-					messageType: "custom",
-					recipient: values.recipient,
-					subject: values.subject,
-					body: values.body,
-				} : {
-					messageType: "predefined",
-					recipient: values.recipient,
-				},
+				values:
+					values.messageType === "custom"
+						? {
+								messageType: "custom",
+								recipient: values.recipient,
+								subject: values.subject,
+								body: values.body,
+							}
+						: {
+								messageType: "predefined",
+								recipient: values.recipient,
+							},
 			});
 		}
 		// If email is not configured, show confirmation modal

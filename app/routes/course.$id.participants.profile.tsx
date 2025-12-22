@@ -178,7 +178,10 @@ export default function CourseParticipantsProfilePage({
 										variant="light"
 										color="orange"
 										onClick={() =>
-											impersonate({ params: { id: selectedEnrollment.user.id }, values: { redirectTo: redirectPath } })
+											impersonate({
+												params: { id: selectedEnrollment.user.id },
+												values: { redirectTo: redirectPath },
+											})
 										}
 										loading={isLoading}
 										leftSection={<IconUserCheck size={16} />}
