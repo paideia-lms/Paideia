@@ -2,11 +2,6 @@ import * as cheerio from "cheerio";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 
-export interface ParseMediaFromHtmlResult {
-	ids: number[];
-	filenames: string[];
-}
-
 /**
  * Parses HTML content to extract media file references
  * Finds all <img> tags with src attributes pointing to /api/media/file/:filenameOrId
@@ -15,7 +10,7 @@ export interface ParseMediaFromHtmlResult {
  */
 export function tryParseMediaFromHtml(html: string) {
 	return Result.try(
-		async () => {
+		() => {
 			if (!html || html.trim().length === 0) {
 				return {
 					ids: [],

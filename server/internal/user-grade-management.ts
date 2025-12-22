@@ -305,12 +305,9 @@ export function tryCreateUserGrade(args: CreateUserGradeArgs) {
 				return newGrade;
 			});
 		},
-		(error) => {
+		(error) =>
 			transformError(error) ??
-				new UnknownError("Failed to create user grade", {
-					cause: error,
-				});
-		},
+			new UnknownError("Failed to create user grade", { cause: error }),
 	);
 }
 
@@ -445,12 +442,11 @@ export function tryUpdateUserGrade(args: UpdateUserGradeArgs) {
 
 			return updatedGrade as UserGrade;
 		},
-		(error) => {
+		(error) =>
 			transformError(error) ??
-				new UnknownError("Failed to update user grade", {
-					cause: error,
-				});
-		},
+			new UnknownError("Failed to update user grade", {
+				cause: error,
+			}),
 	);
 }
 
@@ -512,41 +508,43 @@ export function tryFindUserGradeByEnrollmentAndItem(
 				gradebookItemId,
 			} = args;
 
-			const grades = await payload.find({
-				collection: UserGrades.slug,
-				where: {
-					and: [
-						{
-							enrollment: {
-								equals: enrollmentId,
+			const grades = await payload
+				.find({
+					collection: UserGrades.slug,
+					where: {
+						and: [
+							{
+								enrollment: {
+									equals: enrollmentId,
+								},
 							},
-						},
-						{
-							gradebookItem: {
-								equals: gradebookItemId,
+							{
+								gradebookItem: {
+									equals: gradebookItemId,
+								},
 							},
-						},
-					],
-				},
-				limit: 1,
-				req,
-				overrideAccess,
-			});
+						],
+					},
+					limit: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
-			if (grades.docs.length === 0) {
+			const grade = grades.docs[0];
+
+			if (!grade) {
 				throw new UserGradeNotFoundError(
 					`Grade not found for enrollment ${enrollmentId} and item ${gradebookItemId}`,
 				);
 			}
-
-			return grades.docs[0] as UserGrade;
+			return grade;
 		},
-		(error) => {
+		(error) =>
 			transformError(error) ??
-				new UnknownError("Failed to find user grade by enrollment and item", {
-					cause: error,
-				});
-		},
+			new UnknownError("Failed to find user grade by enrollment and item", {
+				cause: error,
+			}),
 	);
 }
 

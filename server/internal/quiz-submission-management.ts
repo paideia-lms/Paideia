@@ -1,4 +1,3 @@
-import type { Payload } from "payload";
 import { QuizSubmissions } from "server/collections";
 import type { LatestQuizSettings } from "server/json";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";

@@ -70,7 +70,6 @@ export function tryGrantAccessToActivityModule(args: GrantAccessArgs) {
 				activityModuleId,
 				grantedToUserId,
 				grantedByUserId,
-
 				req,
 				overrideAccess = false,
 			} = args;

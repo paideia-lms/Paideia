@@ -2005,7 +2005,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 						collection: "users",
 						where: {
 							avatar: {
-								equals: normalizedMediaId,
+								in: [normalizedMediaId],
 							},
 						},
 						depth: 0,
@@ -2020,7 +2020,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 						collection: "courses",
 						where: {
 							thumbnail: {
-								equals: normalizedMediaId,
+								in: [normalizedMediaId],
 							},
 						},
 						depth: 0,
@@ -2037,7 +2037,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 							or: [
 								{
 									"attachments.file": {
-										intersects: [normalizedMediaId],
+										in: [normalizedMediaId],
 									},
 								},
 							],
@@ -2057,7 +2057,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 							or: [
 								{
 									"attachments.file": {
-										intersects: [normalizedMediaId],
+										in: [normalizedMediaId],
 									},
 								},
 							],
@@ -2077,7 +2077,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 							or: [
 								{
 									contentMedia: {
-										intersects: [normalizedMediaId],
+										in: [normalizedMediaId],
 									},
 								},
 							],
@@ -2096,7 +2096,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 							or: [
 								{
 									contentMedia: {
-										intersects: [normalizedMediaId],
+										in: [normalizedMediaId],
 									},
 								},
 							],
@@ -2115,12 +2115,12 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 							or: [
 								{
 									descriptionMedia: {
-										intersects: [normalizedMediaId],
+										in: [normalizedMediaId],
 									},
 								},
 								{
 									thumbnail: {
-										equals: normalizedMediaId,
+										in: [normalizedMediaId],
 									},
 								},
 							],
@@ -2139,7 +2139,7 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 							or: [
 								{
 									media: {
-										intersects: [normalizedMediaId],
+										in: [normalizedMediaId],
 									},
 								},
 							],

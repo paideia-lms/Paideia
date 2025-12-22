@@ -76,15 +76,15 @@ describe("Media Management", () => {
 		testUserId = userResult.value.id;
 	});
 
-	afterAll(async () => {
-		// Clean up any test data
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
-	});
+	// afterAll(async () => {
+	// 	// Clean up any test data
+	// 	try {
+	// 		await $`bun run migrate:fresh --force-accept-warning`;
+	// 		await $`bun scripts/clean-s3.ts`;
+	// 	} catch (error) {
+	// 		console.warn("Cleanup failed:", error);
+	// 	}
+	// });
 
 	test("should fail to create media with invalid data", async () => {
 		const result = await tryCreateMedia({
@@ -381,7 +381,7 @@ describe("Media Management", () => {
 		}
 	});
 
-	test.only("should delete a single media record", async () => {
+	test("should delete a single media record", async () => {
 		// First create a media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 		const createResult = await tryCreateMedia({

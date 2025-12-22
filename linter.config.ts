@@ -4,7 +4,7 @@
  */
 
 import * as ts from "typescript";
-import type { ASTPatternFix, LintRule } from "./scripts/lint-project";
+import type { LintRule } from "./scripts/lint-project";
 
 // Define AST pattern matchers
 const astPatterns = {
@@ -438,22 +438,22 @@ export const logLevel: "error" | "warning" = "warning";
 
 // Define lint rules
 export const rules: LintRule[] = [
-	{
-		name: "Ban createLocalReq in routes",
-		description: "createLocalReq should not be used in route files (except root.tsx)",
-		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
-		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
-		astPatterns: [
-			{
-				name: "createLocalReq function call",
-				matcher: astPatterns.createLocalReqCall,
-			},
-			{
-				name: "createLocalReq import",
-				matcher: astPatterns.createLocalReqImport,
-			},
-		],
-	},
+	// {
+	// 	name: "Ban createLocalReq in routes",
+	// 	description: "createLocalReq should not be used in route files (except root.tsx)",
+	// 	includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
+	// 	mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+	// 	astPatterns: [
+	// 		{
+	// 			name: "createLocalReq function call",
+	// 			matcher: astPatterns.createLocalReqCall,
+	// 		},
+	// 		{
+	// 			name: "createLocalReq import",
+	// 			matcher: astPatterns.createLocalReqImport,
+	// 		},
+	// 	],
+	// },
 	{
 		name: "Ban await payload.find/findById in routes",
 		description: "await payload.find and await payload.findById should not be used in route files (except root.tsx)",

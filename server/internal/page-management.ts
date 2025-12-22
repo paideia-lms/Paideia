@@ -36,13 +36,11 @@ export function tryCreatePage(args: CreatePageArgs) {
 			const { payload, content, userId, req, overrideAccess = false } = args;
 
 			// Parse media from HTML content
-			const mediaParseResult = tryParseMediaFromHtml(content || "");
+			const mediaParseResult = tryParseMediaFromHtml(
+				content || "",
+			).getOrThrow();
 
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
+			const { ids: parsedIds, filenames } = mediaParseResult;
 
 			// Resolve filenames to IDs in a single query
 			let resolvedIds: number[] = [];

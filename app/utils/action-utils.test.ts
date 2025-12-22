@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
 	MyFormData,
 	convertMyFormDataToObject,
-	NULL_MARKER,
 	normalizeBlobRef,
 } from "./action-utils";
 

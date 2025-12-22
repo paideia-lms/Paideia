@@ -45,8 +45,8 @@ const validColors = [
 const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
 
 const inputSchema = z.object({
-	color: z.enum([...validColors] as [string, ...string[]]).optional(),
-	radius: z.enum([...validRadius] as [string, ...string[]]).optional(),
+	color: z.enum([...validColors]).optional(),
+	radius: z.enum([...validRadius]).optional(),
 });
 
 export async function loader({ context }: Route.LoaderArgs) {

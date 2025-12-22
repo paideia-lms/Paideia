@@ -20,13 +20,13 @@ type OptionalIfEmpty<T, Key extends string> = keyof T extends never
 /**
  * Special marker used to represent explicit null values.
  */
-export const NULL_MARKER = "\0__FORM_NULL__\0";
+const NULL_MARKER = "\0__FORM_NULL__\0";
 
 /**
  * Prefix for keys used to store extracted Blobs in the FormData.
  * We use a null character and specific prefix to avoid collisions with user data.
  */
-export const BLOB_REF_PREFIX = "\0__BLOB_REF__:";
+const BLOB_REF_PREFIX = "\0__BLOB_REF__:";
 
 /**
  * Helper to generate a unique ID for blobs.

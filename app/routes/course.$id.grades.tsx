@@ -184,8 +184,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0 ||
-				gradebookSetupForUI.extraCreditCategories.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -411,11 +411,15 @@ const [getItemAction, useGetItem] = createGetItemActionRpc(
 
 const [getCategoryAction, useGetCategory] = createGetCategoryActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
-		const { payload } = context.get(globalContextKey);
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const categoryResult = await tryFindGradebookCategoryById(
-			payload,
-			formData.categoryId,
+			{
+				payload,
+				categoryId: formData.categoryId,
+				req: payloadRequest,
+				overrideAccess: false,
+			},
 		);
 
 		if (!categoryResult.ok) {
@@ -426,9 +430,7 @@ const [getCategoryAction, useGetCategory] = createGetCategoryActionRpc(
 
 		// Handle parent as number or object
 		const parentId =
-			typeof category.parent === "number"
-				? category.parent
-				: (category.parent?.id ?? null);
+			(category.parent?.id ?? null);
 
 		return ok({
 			success: true,

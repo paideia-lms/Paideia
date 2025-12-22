@@ -938,7 +938,11 @@ describe("Quiz Management - Full Workflow", () => {
 		const submissionId = createResult.value.id;
 
 		// Delete the submission
-		const deleteResult = await tryDeleteQuizSubmission(payload, submissionId);
+		const deleteResult = await tryDeleteQuizSubmission({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify submission is deleted
@@ -1074,7 +1078,11 @@ describe("Quiz Management - Full Workflow", () => {
 	});
 
 	test("should fail to delete non-existent submission", async () => {
-		const result = await tryDeleteQuizSubmission(payload, 99999);
+		const result = await tryDeleteQuizSubmission({
+			payload,
+			id: 99999,
+			overrideAccess: true,
+		});
 		expect(result.ok).toBe(false);
 	});
 

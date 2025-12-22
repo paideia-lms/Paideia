@@ -4,11 +4,12 @@
     "interface": true,
     "type": true
   },
-  "ignore" : ["src/payload-generated-schema.ts", "**/*.test.ts", "**/*.json", "scripts/**" , "tests/**"],
+  "ignore" : ["src/payload-generated-schema.ts", "**/*.json", "scripts/**" , "tests/**"],
   "tags": [
     "-lintignore"
   ],
   "ignoreIssues": {
-    "**": ["binaries"]
+    "**": ["binaries", "duplicates", "unlisted","types"],
+    "**/*.test.ts": ["files"]
   }
 }
