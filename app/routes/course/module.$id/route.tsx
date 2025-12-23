@@ -522,7 +522,7 @@ const [createReplyAction, useCreateReply] = createReplyActionRpc(
 			redirectTo:
 				href("/course/module/:moduleLinkId", {
 					moduleLinkId: String(moduleLinkId),
-				}) + `?threadId=${createResult.value.id}`,
+				}) + `?threadId=${actualParentThread}`,
 		});
 	})!,
 	{
@@ -562,20 +562,20 @@ const [markQuizAttemptAsCompleteAction, useMarkQuizAttemptAsComplete] =
 			// Parse answers if provided
 			let answers:
 				| Array<{
-						questionId: string;
-						questionText: string;
-						questionType:
-							| "multiple_choice"
-							| "true_false"
-							| "short_answer"
-							| "essay"
-							| "fill_blank";
-						selectedAnswer?: string;
-						multipleChoiceAnswers?: Array<{
-							option: string;
-							isSelected: boolean;
-						}>;
-				  }>
+					questionId: string;
+					questionText: string;
+					questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+					selectedAnswer?: string;
+					multipleChoiceAnswers?: Array<{
+						option: string;
+						isSelected: boolean;
+					}>;
+				}>
 				| undefined;
 
 			if (formData.answers) {
@@ -758,8 +758,8 @@ const [submitAssignmentAction, useSubmitAssignment] =
 			const maxAttemptNumber =
 				userSubmissions.length > 0
 					? Math.max(
-							...userSubmissions.map((sub) => sub.attemptNumber as number),
-						)
+						...userSubmissions.map((sub) => sub.attemptNumber as number),
+					)
 					: 0;
 			const nextAttemptNumber = maxAttemptNumber + 1;
 
@@ -986,8 +986,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-			"status" in loaderData.userSubmission &&
-			loaderData.userSubmission.status === "in_progress"
+				"status" in loaderData.userSubmission &&
+				loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 
