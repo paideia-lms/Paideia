@@ -18,16 +18,15 @@ import {
 } from "~/utils/error";
 import { envVars } from "../env";
 import type { Media } from "../payload-types";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import {
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import * as schemas from "src/payload-generated-schema";
+import { and, eq, sql } from "@payloadcms/db-postgres/drizzle";
+import { unionAll } from "drizzle-orm/pg-core";
 
 export interface CreateMediaArgs extends BaseInternalFunctionArgs {
 	file: Buffer;
@@ -1934,7 +1933,7 @@ export interface MediaUsage {
 }
 
 export interface FindMediaUsagesArgs extends BaseInternalFunctionArgs {
-	mediaId: number | string;
+	mediaId: number;
 }
 
 export interface FindMediaUsagesResult {
@@ -1961,14 +1960,6 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 				throw new InvalidArgumentError("Media ID is required");
 			}
 
-			// Normalize media ID to number for comparison
-			const normalizedMediaId =
-				typeof mediaId === "string" ? Number.parseInt(mediaId, 10) : mediaId;
-
-			if (Number.isNaN(normalizedMediaId)) {
-				throw new InvalidArgumentError("Invalid media ID format");
-			}
-
 			// Verify media exists
 			const _media = await tryGetMediaById({
 				payload,
@@ -1977,338 +1968,226 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 				overrideAccess,
 			}).getOrThrow();
 
-			// Helper function to extract media ID from logo field
-			const getLogoId = (logo: unknown): number | null => {
-				if (logo === null || logo === undefined) return null;
-				if (typeof logo === "number") return logo;
-				if (typeof logo === "object" && logo !== null && "id" in logo) {
-					return typeof logo.id === "number" ? logo.id : null;
-				}
-				return null;
-			};
+			// Build all queries (not executed yet)
+			const usersQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'users'`.as("collection"),
+					documentId: schemas.users.id,
+					fieldPath: sql<string>`'avatar'`.as("fieldPath"),
+				})
+				.from(schemas.users)
+				.where(eq(schemas.users.avatar, mediaId));
 
-			// Run all queries in parallel using Promise.all
-			const [
-				usersResult,
-				coursesThumbnailResult,
-				assignmentSubmissionsResult,
-				discussionSubmissionsResult,
-				notesResult,
-				pagesResult,
-				coursesMediaResult,
-				filesResult,
-				appearanceSettings,
-			] = await Promise.all([
-				// Search users collection for avatar field
-				payload
-					.find({
-						collection: "users",
-						where: {
-							avatar: {
-								in: [normalizedMediaId],
-							},
-						},
-						depth: 0,
-						limit: MOCK_INFINITY,
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "find">()),
-				// Search courses collection for thumbnail field
-				payload
-					.find({
-						collection: "courses",
-						where: {
-							thumbnail: {
-								in: [normalizedMediaId],
-							},
-						},
-						depth: 0,
-						limit: MOCK_INFINITY,
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "find">()),
-				// Search assignment-submissions collection for attachments array
-				payload
-					.find({
-						collection: "assignment-submissions",
-						where: {
-							or: [
-								{
-									"attachments.file": {
-										in: [normalizedMediaId],
-									},
-								},
-							],
-						},
-						depth: 0,
-						limit: MOCK_INFINITY, // ! we don't want to limit the number of assignment submissions
-						req,
-						overrideAccess,
-					})
-					.then((result) => result.docs.map(stripDepth<0, "find">())),
-				// Search discussion-submissions collection for attachments array
-				payload
-					.find({
-						collection: "discussion-submissions",
-						depth: 0,
-						where: {
-							or: [
-								{
-									"attachments.file": {
-										in: [normalizedMediaId],
-									},
-								},
-							],
-						},
-						limit: MOCK_INFINITY,
-						req,
-						overrideAccess,
-					})
-					.then((result) => result.docs.map(stripDepth<0, "find">())),
-				// Search notes collection for media array
-				payload
-					.find({
-						collection: "notes",
-						depth: 0,
-						limit: MOCK_INFINITY,
-						where: {
-							or: [
-								{
-									contentMedia: {
-										in: [normalizedMediaId],
-									},
-								},
-							],
-						},
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "find">()),
-				// Search pages collection for media array
-				payload
-					.find({
-						collection: "pages",
-						depth: 0,
-						limit: MOCK_INFINITY, // ! we don't want to limit the number of pages
-						where: {
-							or: [
-								{
-									contentMedia: {
-										in: [normalizedMediaId],
-									},
-								},
-							],
-						},
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "find">()),
-				// Search courses collection for media array
-				payload
-					.find({
-						collection: "courses",
-						depth: 0,
-						limit: MOCK_INFINITY, // ! we don't want to limit the number of courses
-						where: {
-							or: [
-								{
-									descriptionMedia: {
-										in: [normalizedMediaId],
-									},
-								},
-								{
-									thumbnail: {
-										in: [normalizedMediaId],
-									},
-								},
-							],
-						},
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "find">()),
-				// Search files collection for media array (file modules)
-				payload
-					.find({
-						collection: "files",
-						depth: 0,
-						limit: MOCK_INFINITY, // ! we don't want to limit the number of files
-						where: {
-							or: [
-								{
-									media: {
-										in: [normalizedMediaId],
-									},
-								},
-							],
-						},
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "find">()),
-				// Search appearance-settings global for logo fields
-				payload
-					.findGlobal({
-						slug: "appearance-settings",
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "findGlobal">()),
-			]);
+			const coursesThumbnailQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'courses'`.as("collection"),
+					documentId: schemas.courses.id,
+					fieldPath: sql<string>`'thumbnail'`.as("fieldPath"),
+				})
+				.from(schemas.courses)
+				.where(eq(schemas.courses.thumbnail, mediaId));
 
-			const usages: MediaUsage[] = [];
+			const assignmentSubmissionsQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'assignment-submissions'`.as("collection"),
+					documentId: schemas.assignment_submissions.id,
+					fieldPath:
+						sql<string>`'attachments.' || ${schemas.assignment_submissions_attachments._order}::text || '.file'`.as(
+							"fieldPath",
+						),
+				})
+				.from(schemas.assignment_submissions)
+				.innerJoin(
+					schemas.assignment_submissions_attachments,
+					eq(
+						schemas.assignment_submissions.id,
+						schemas.assignment_submissions_attachments._parentID,
+					),
+				)
+				.where(eq(schemas.assignment_submissions_attachments.file, mediaId));
 
-			// Process users collection results
-			for (const user of usersResult.docs) {
-				usages.push({
-					collection: "users",
-					documentId: user.id,
-					fieldPath: "avatar",
-				});
-			}
+			const discussionSubmissionsQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'discussion-submissions'`.as("collection"),
+					documentId: schemas.discussion_submissions.id,
+					fieldPath:
+						sql<string>`'attachments.' || ${schemas.discussion_submissions_attachments._order}::text || '.file'`.as(
+							"fieldPath",
+						),
+				})
+				.from(schemas.discussion_submissions)
+				.innerJoin(
+					schemas.discussion_submissions_attachments,
+					eq(
+						schemas.discussion_submissions.id,
+						schemas.discussion_submissions_attachments._parentID,
+					),
+				)
+				.where(eq(schemas.discussion_submissions_attachments.file, mediaId));
 
-			// Process courses collection thumbnail results
-			for (const course of coursesThumbnailResult.docs) {
-				usages.push({
-					collection: "courses",
-					documentId: course.id,
-					fieldPath: "thumbnail",
-				});
-			}
+			const notesQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'notes'`.as("collection"),
+					documentId: schemas.notes.id,
+					fieldPath:
+						sql<string>`'contentMedia.' || ${schemas.notes_rels.order}::text`.as(
+							"fieldPath",
+						),
+				})
+				.from(schemas.notes)
+				.innerJoin(
+					schemas.notes_rels,
+					eq(schemas.notes.id, schemas.notes_rels.parent),
+				)
+				.where(
+					and(
+						eq(schemas.notes_rels.mediaID, mediaId),
+						eq(schemas.notes_rels.path, "contentMedia"),
+					),
+				);
 
-			// Process assignment-submissions collection results
-			for (const submission of assignmentSubmissionsResult) {
-				if (submission.attachments && Array.isArray(submission.attachments)) {
-					for (let i = 0; i < submission.attachments.length; i++) {
-						const attachment = submission.attachments[i];
-						if (attachment) {
-							const fileId = attachment.file;
-							if (fileId === normalizedMediaId) {
-								usages.push({
-									collection: "assignment-submissions",
-									documentId: submission.id,
-									fieldPath: `attachments.${i}.file`,
-								});
-							}
-						}
-					}
-				}
-			}
+			const pagesQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'pages'`.as("collection"),
+					documentId: schemas.pages.id,
+					fieldPath:
+						sql<string>`'contentMedia.' || ${schemas.pages_rels.order}::text`.as(
+							"fieldPath",
+						),
+				})
+				.from(schemas.pages)
+				.innerJoin(
+					schemas.pages_rels,
+					eq(schemas.pages.id, schemas.pages_rels.parent),
+				)
+				.where(
+					and(
+						eq(schemas.pages_rels.mediaID, mediaId),
+						eq(schemas.pages_rels.path, "contentMedia"),
+					),
+				);
 
-			// Process discussion-submissions collection results
-			for (const submission of discussionSubmissionsResult) {
-				if (submission.attachments && Array.isArray(submission.attachments)) {
-					for (let i = 0; i < submission.attachments.length; i++) {
-						const attachment = submission.attachments[i];
-						if (attachment) {
-							const fileId = attachment.file;
-							if (fileId === normalizedMediaId) {
-								usages.push({
-									collection: "discussion-submissions",
-									documentId: submission.id,
-									fieldPath: `attachments.${i}.file`,
-								});
-							}
-						}
-					}
-				}
-			}
+			const coursesMediaQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'courses'`.as("collection"),
+					documentId: schemas.courses.id,
+					fieldPath:
+						sql<string>`'descriptionMedia.' || ${schemas.courses_rels.order}::text`.as(
+							"fieldPath",
+						),
+				})
+				.from(schemas.courses)
+				.innerJoin(
+					schemas.courses_rels,
+					eq(schemas.courses.id, schemas.courses_rels.parent),
+				)
+				.where(
+					and(
+						eq(schemas.courses_rels.mediaID, mediaId),
+						eq(schemas.courses_rels.path, "descriptionMedia"),
+					),
+				);
 
-			// Process notes collection results
-			for (const note of notesResult.docs) {
-				if (note.contentMedia && Array.isArray(note.contentMedia)) {
-					for (let i = 0; i < note.contentMedia.length; i++) {
-						const mediaId = note.contentMedia[i]!;
-						if (mediaId === normalizedMediaId) {
-							usages.push({
-								collection: "notes",
-								documentId: note.id,
-								fieldPath: `contentMedia.${i}`,
-							});
-						}
-					}
-				}
-			}
+			const filesQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'files'`.as("collection"),
+					documentId: schemas.files.id,
+					fieldPath:
+						sql<string>`'media.' || ${schemas.files_rels.order}::text`.as(
+							"fieldPath",
+						),
+				})
+				.from(schemas.files)
+				.innerJoin(
+					schemas.files_rels,
+					eq(schemas.files.id, schemas.files_rels.parent),
+				)
+				.where(
+					and(
+						eq(schemas.files_rels.mediaID, mediaId),
+						eq(schemas.files_rels.path, "media"),
+					),
+				);
 
-			// Process pages collection results
-			for (const page of pagesResult.docs) {
-				if (page.contentMedia && Array.isArray(page.contentMedia)) {
-					for (let i = 0; i < page.contentMedia.length; i++) {
-						const mediaId = page.contentMedia[i]!;
-						if (mediaId === normalizedMediaId) {
-							usages.push({
-								collection: "pages",
-								documentId: page.id,
-								fieldPath: `contentMedia.${i}`,
-							});
-						}
-					}
-				}
-			}
+			const appearanceSettingsLogoLightQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'appearance-settings'`.as("collection"),
+					documentId: schemas.appearance_settings.id,
+					fieldPath: sql<string>`'logoLight'`.as("fieldPath"),
+				})
+				.from(schemas.appearance_settings)
+				.where(eq(schemas.appearance_settings.logoLight, mediaId))
+				.limit(1);
 
-			// Process courses collection media array results
-			for (const course of coursesMediaResult.docs) {
-				if (course.descriptionMedia && Array.isArray(course.descriptionMedia)) {
-					for (let i = 0; i < course.descriptionMedia.length; i++) {
-						const mediaId = course.descriptionMedia[i]!;
-						if (mediaId === normalizedMediaId) {
-							usages.push({
-								collection: "courses",
-								documentId: course.id,
-								fieldPath: `descriptionMedia.${i}`,
-							});
-						}
-					}
-				}
-			}
+			const appearanceSettingsLogoDarkQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'appearance-settings'`.as("collection"),
+					documentId: schemas.appearance_settings.id,
+					fieldPath: sql<string>`'logoDark'`.as("fieldPath"),
+				})
+				.from(schemas.appearance_settings)
+				.where(eq(schemas.appearance_settings.logoDark, mediaId))
+				.limit(1);
 
-			// Process files collection results (file modules)
-			for (const file of filesResult.docs) {
-				if (file.media && Array.isArray(file.media)) {
-					for (let i = 0; i < file.media.length; i++) {
-						const mediaId = file.media[i]!;
-						if (mediaId === normalizedMediaId) {
-							usages.push({
-								collection: "files",
-								documentId: file.id,
-								fieldPath: `descriptionMedia.${i}`,
-							});
-						}
-					}
-				}
-			}
+			const appearanceSettingsCompactLogoLightQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'appearance-settings'`.as("collection"),
+					documentId: schemas.appearance_settings.id,
+					fieldPath: sql<string>`'compactLogoLight'`.as("fieldPath"),
+				})
+				.from(schemas.appearance_settings)
+				.where(eq(schemas.appearance_settings.compactLogoLight, mediaId))
+				.limit(1);
 
-			// Process appearance-settings global results
-			if (appearanceSettings) {
-				// Check all 6 logo fields
-				const logoFields = [
-					{ field: "logoLight", fieldPath: "logoLight" },
-					{ field: "logoDark", fieldPath: "logoDark" },
-					{ field: "compactLogoLight", fieldPath: "compactLogoLight" },
-					{ field: "compactLogoDark", fieldPath: "compactLogoDark" },
-					{ field: "faviconLight", fieldPath: "faviconLight" },
-					{ field: "faviconDark", fieldPath: "faviconDark" },
-				] as const;
+			const appearanceSettingsCompactLogoDarkQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'appearance-settings'`.as("collection"),
+					documentId: schemas.appearance_settings.id,
+					fieldPath: sql<string>`'compactLogoDark'`.as("fieldPath"),
+				})
+				.from(schemas.appearance_settings)
+				.where(eq(schemas.appearance_settings.compactLogoDark, mediaId))
+				.limit(1);
 
-				for (const { field, fieldPath } of logoFields) {
-					const logoId = getLogoId(
-						appearanceSettings[field as keyof typeof appearanceSettings],
-					);
-					if (logoId === normalizedMediaId) {
-						usages.push({
-							collection: "appearance-settings",
-							documentId: appearanceSettings.id,
-							fieldPath,
-						});
-					}
-				}
-			}
+			const appearanceSettingsFaviconLightQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'appearance-settings'`.as("collection"),
+					documentId: schemas.appearance_settings.id,
+					fieldPath: sql<string>`'faviconLight'`.as("fieldPath"),
+				})
+				.from(schemas.appearance_settings)
+				.where(eq(schemas.appearance_settings.faviconLight, mediaId))
+				.limit(1);
+
+			const appearanceSettingsFaviconDarkQuery = payload.db.drizzle
+				.select({
+					collection: sql<string>`'appearance-settings'`.as("collection"),
+					documentId: schemas.appearance_settings.id,
+					fieldPath: sql<string>`'faviconDark'`.as("fieldPath"),
+				})
+				.from(schemas.appearance_settings)
+				.where(eq(schemas.appearance_settings.faviconDark, mediaId))
+				.limit(1);
+
+			// Combine all queries using UNION ALL and execute as a single query
+			const allUsagesResult = await usersQuery
+				.unionAll(coursesThumbnailQuery)
+				.unionAll(assignmentSubmissionsQuery)
+				.unionAll(discussionSubmissionsQuery)
+				.unionAll(notesQuery)
+				.unionAll(pagesQuery)
+				.unionAll(coursesMediaQuery)
+				.unionAll(filesQuery)
+				.unionAll(appearanceSettingsLogoLightQuery)
+				.unionAll(appearanceSettingsLogoDarkQuery)
+				.unionAll(appearanceSettingsCompactLogoLightQuery)
+				.unionAll(appearanceSettingsCompactLogoDarkQuery)
+				.unionAll(appearanceSettingsFaviconLightQuery)
+				.unionAll(appearanceSettingsFaviconDarkQuery);
 
 			return {
-				usages,
-				totalUsages: usages.length,
+				usages: allUsagesResult,
+				totalUsages: allUsagesResult.length,
 			};
 		},
 		(error) =>
