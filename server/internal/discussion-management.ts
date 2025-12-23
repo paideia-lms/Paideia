@@ -13,11 +13,11 @@ import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-managem
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
-	Depth,
+	type Depth,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
-import { DiscussionSubmission } from "server/payload-types";
+import type { DiscussionSubmission } from "server/payload-types";
 
 export interface CreateDiscussionSubmissionArgs
 	extends BaseInternalFunctionArgs {

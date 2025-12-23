@@ -1,8 +1,6 @@
-import {
-	CategoryRoleAssignments,
-	CourseCategories,
-	Courses,
-} from "server/payload.config";
+import { CategoryRoleAssignments } from "../collections/category-role-assignments";
+import { CourseCategories } from "../collections/course-categories";
+import { Courses } from "../collections/courses";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,

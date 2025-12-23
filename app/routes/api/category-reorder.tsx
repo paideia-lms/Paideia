@@ -5,7 +5,6 @@ import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCategory } from "server/internal/course-category-management";
-import { CourseCategories } from "server/payload.config";
 import { z } from "zod";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/category-reorder";
@@ -52,16 +51,6 @@ const [reorderCategoriesAction, useReorderCategories] =
 			// Allow moving to top-level via null parent
 			if (newParentId !== null && !Number.isFinite(newParentId)) {
 				return badRequest({ error: "Invalid target parent" });
-			}
-
-			if (newParentId === null) {
-				await payload.update({
-					collection: CourseCategories.slug,
-					id: sourceId,
-					data: { parent: null },
-					req: payloadRequest,
-				});
-				return ok({ success: true, message: "Category moved to top level" });
 			}
 
 			const result = await tryUpdateCategory({

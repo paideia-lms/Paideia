@@ -54,27 +54,12 @@ import { sandboxReset } from "./tasks/sandbox-reset";
 import { customTranslations } from "./utils/db/custom-translations";
 import { RouterContextProvider } from "react-router";
 
-export * from "./collections";
-
-
-// extends the RequestContext type from payload 
-declare module "payload" {
-	interface RequestContext {
-		routerContext?: Readonly<RouterContextProvider>;
-	}
-}
-
-// extends the Request type for global
-declare global {
-	interface Request {
-		_c?: Readonly<RouterContextProvider>;
-	}
-}
 
 /**
  * Queue names used for Payload job scheduling
  * These queues are configured in the jobs.autoRun section
  */
+
 export enum JobQueue {
 	/** Queue that runs every second - used for processing waitUntil jobs */
 	SECONDLY = "secondly",
@@ -92,6 +77,21 @@ export enum JobQueue {
 	NIGHTLY = "nightly",
 	/** Default queue (not in autoRun, requires manual processing) */
 	DEFAULT = "default",
+}
+
+
+// extends the RequestContext type from payload 
+declare module "payload" {
+	interface RequestContext {
+		routerContext?: Readonly<RouterContextProvider>;
+	}
+}
+
+// extends the Request type for global
+declare global {
+	interface Request {
+		_c?: Readonly<RouterContextProvider>;
+	}
 }
 
 const pg = postgresAdapter({

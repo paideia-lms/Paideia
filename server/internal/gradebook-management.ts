@@ -1,4 +1,5 @@
-import { GradebookCategories, Gradebooks } from "server/payload.config";
+import { GradebookCategories } from "../collections/gradebook-categories";
+import { Gradebooks } from "../collections/gradebooks";
 import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import {

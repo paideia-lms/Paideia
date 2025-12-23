@@ -9,4 +9,3 @@ export const seedLogger = {
 	error: (message: string) => console.error(`❌ ${message}`),
 	section: (title: string) => console.log(`\n📦 ${title}`),
 };
-

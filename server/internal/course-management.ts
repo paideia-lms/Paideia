@@ -1,12 +1,10 @@
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
-import {
-	CourseCategories,
-	CourseSections,
-	Courses,
-	Gradebooks,
-	Groups,
-} from "server/payload.config";
+import { CourseCategories } from "../collections/course-categories";
+import { CourseSections } from "../collections/course-sections";
+import { Courses } from "../collections/courses";
+import { Gradebooks } from "../collections/gradebooks";
+import { Groups } from "../collections/groups";
 import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import {

@@ -1,4 +1,5 @@
-import { CourseCategories, Courses } from "server/payload.config";
+import { CourseCategories } from "../collections/course-categories";
+import { Courses } from "../collections/courses";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -21,7 +22,7 @@ export interface CreateCategoryArgs extends BaseInternalFunctionArgs {
 export interface UpdateCategoryArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
 	name?: string;
-	parent?: number;
+	parent?: number | null;
 }
 
 export interface CategoryTreeNode {
@@ -93,15 +94,14 @@ export function tryUpdateCategory(args: UpdateCategoryArgs) {
 			const transactionInfo = await handleTransactionId(payload, req);
 
 			return transactionInfo.tx(async (txInfo) => {
-				const updateData: { name?: string; parent?: number } = {};
-				if (name !== undefined) updateData.name = name;
-				if (parent !== undefined) updateData.parent = parent;
-
 				const updatedCategory = await payload
 					.update({
 						collection: CourseCategories.slug,
 						id: categoryId,
-						data: updateData,
+						data: {
+							name,
+							parent,
+						},
 						req: txInfo.reqWithTransaction,
 						depth: 0,
 					})

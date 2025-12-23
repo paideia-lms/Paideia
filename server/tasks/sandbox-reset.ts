@@ -33,7 +33,11 @@ export const sandboxReset: TaskConfig<"sandboxReset"> = {
 		},
 	],
 	handler: async ({ req }) => {
-		const resetResult = await tryResetSandbox(req.payload);
+		const resetResult = await tryResetSandbox({
+			payload: req.payload,
+			req: req,
+			overrideAccess: false,
+		});
 
 		if (!resetResult.ok) {
 			return {

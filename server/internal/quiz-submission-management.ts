@@ -1,7 +1,7 @@
 import { QuizSubmissions } from "server/collections";
 import type { LatestQuizSettings } from "server/json";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
-import { JobQueue } from "server/payload.config";
+import { JobQueue } from "../payload.config";
 import type { QuizSubmission } from "server/payload-types";
 import { Result } from "typescript-result";
 import {
@@ -750,7 +750,6 @@ export function tryCreateQuizSubmission(args: CreateQuizSubmissionArgs) {
 				attemptNumber = 1,
 				answers,
 				timeSpent,
-
 				req,
 				overrideAccess = false,
 			} = args;

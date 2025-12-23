@@ -1,8 +1,6 @@
 import type { Payload, PayloadRequest } from "payload";
-import {
-	CourseActivityModuleLinks,
-	CourseSections,
-} from "server/payload.config";
+import { CourseActivityModuleLinks } from "../collections/course-activity-module-links";
+import { CourseSections } from "../collections/course-sections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import { Result } from "typescript-result";

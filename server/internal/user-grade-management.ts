@@ -34,7 +34,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
-import { GradebookItems } from "server/payload.config";
+import { GradebookItems } from "../collections/gradebook-items";
 
 export interface CreateUserGradeArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;

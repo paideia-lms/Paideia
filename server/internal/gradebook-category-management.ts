@@ -1,6 +1,5 @@
-import type { Payload } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
-import { GradebookCategories } from "server/payload.config";
+import { GradebookCategories } from "../collections/gradebook-categories";
 import { Result } from "typescript-result";
 import {
 	GradebookCategoryNotFoundError,
