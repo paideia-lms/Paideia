@@ -15,7 +15,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Course, CourseCategory, Group } from "../payload-types";
+import type { Course, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
@@ -23,10 +23,8 @@ import {
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-	omitType,
 } from "./utils/internal-function-utils";
 import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
-import type { OmitDeep } from "type-fest";
 import { tryCreateMedia } from "./media-management";
 import { href } from "react-router";
 

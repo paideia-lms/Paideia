@@ -213,6 +213,7 @@ export function tryUpdateUser(args: UpdateUserArgs) {
 										alt: "User avatar",
 										caption: "User avatar",
 										req: reqWithTransaction,
+										overrideAccess,
 										userId,
 									})
 										.getOrThrow()

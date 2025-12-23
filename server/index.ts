@@ -58,18 +58,21 @@ async function startServer() {
 
 	console.log("Mode: ", process.env.NODE_ENV);
 
-	// console.log("Payload: ", payload)
 	if (process.env.NODE_ENV === "development") {
 		await tryRunSeed({ payload });
 	}
 	// Check if sandbox mode is enabled and reset database
 	else if (envVars.SANDBOX_MODE.enabled) {
 		console.log("🔄 Sandbox mode enabled, resetting database on startup...");
-		const resetResult = await tryResetSandbox(payload);
+		const resetResult = await tryResetSandbox({
+			payload,
+			// ! a mock request because this is a system command
+			req: new Request("http://localhost:3000"),
+		});
 		if (!resetResult.ok) {
 			// crash the server
 			console.error(
-				`❌ Failed to reset sandbox database: ${resetResult.error.message}`,
+				`❌ Failed to reset sandbox database: ${resetResult.error.message}. There can be bugs with this version. Please turn off sandbox mode and try the normal mode.`,
 			);
 			process.exit(1);
 		}

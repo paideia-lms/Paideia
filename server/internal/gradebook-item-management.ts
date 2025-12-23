@@ -9,7 +9,10 @@ import {
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import { tryGetGradebookAllRepresentations } from "./gradebook-management";
+import {
+	tryGetGradebookAllRepresentations,
+	tryGetGradebookByCourseWithDetails,
+} from "./gradebook-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
@@ -111,11 +114,25 @@ export function tryCreateGradebookItem(args: CreateGradebookItemArgs) {
 			const transactionInfo = await handleTransactionId(payload, req);
 
 			return transactionInfo.tx(async ({ reqWithTransaction }) => {
+				// Get the gradebook for this course to obtain the gradebook ID
+				const gradebookResult = await tryGetGradebookByCourseWithDetails({
+					payload,
+					courseId,
+					req: reqWithTransaction,
+					overrideAccess,
+				});
+
+				if (!gradebookResult.ok) {
+					throw new UnknownError(`Gradebook not found for course ${courseId}`);
+				}
+
+				const gradebookId = gradebookResult.value.id;
+
 				const newItem = await payload
 					.create({
 						collection: GradebookItems.slug,
 						data: {
-							gradebook: courseId,
+							gradebook: gradebookId,
 							category: categoryId,
 							name,
 							description,
