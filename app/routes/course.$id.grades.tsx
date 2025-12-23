@@ -1,9 +1,16 @@
 import { notifications } from "@mantine/notifications";
 import { useQueryState } from "nuqs";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
+import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "app/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import {
 	tryCreateGradebookCategory,
 	tryDeleteGradebookCategory,
@@ -20,23 +27,134 @@ import {
 } from "server/internal/gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
 import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
+import { z } from "zod";
 import { GraderReportView } from "~/components/gradebook/report-view";
-import { inputSchema } from "~/components/gradebook/schemas";
 import { GradebookSetupView } from "~/components/gradebook/setup-view";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
+
 export type { Route };
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
+enum Action {
+	CreateItem = "create-item",
+	CreateCategory = "create-category",
+	UpdateItem = "update-item",
+	UpdateCategory = "update-category",
+	DeleteItem = "delete-item",
+	DeleteCategory = "delete-category",
+	GetItem = "get-item",
+	GetCategory = "get-category",
+}
+
+export const gradesSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(gradesSearchParams);
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createCreateItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().min(1, "Name is required"),
+		description: z.string().optional(),
+		categoryId: z.coerce.number().optional().nullable(),
+		maxGrade: z.coerce.number().optional(),
+		minGrade: z.coerce.number().optional(),
+		weight: z.coerce.number().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.CreateItem,
+});
+
+const createCreateCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		name: z.string().min(1, "Name is required"),
+		description: z.string().optional(),
+		parentId: z.coerce.number().optional().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.CreateCategory,
+});
+
+const createUpdateItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		itemId: z.coerce.number(),
+		name: z.string().min(1, "Name is required").optional(),
+		description: z.string().optional(),
+		categoryId: z.coerce.number().optional().nullable(),
+		maxGrade: z.coerce.number().optional(),
+		minGrade: z.coerce.number().optional(),
+		weight: z.coerce.number().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.UpdateItem,
+});
+
+const createUpdateCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+		name: z.string().min(1, "Name is required").optional(),
+		description: z.string().optional(),
+		weight: z.coerce.number().nullable(),
+		extraCredit: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.UpdateCategory,
+});
+
+const createGetItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		itemId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.GetItem,
+});
+
+const createGetCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.GetCategory,
+});
+
+const createDeleteItemActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		itemId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.DeleteItem,
+});
+
+const createDeleteCategoryActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		categoryId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.DeleteCategory,
+});
+
+const getRouteUrl = (action: Action, courseId: number) => {
+	return (
+		href("/course/:courseId/grades", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+// ============================================================================
+// Loader
+// ============================================================================
+
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	// Get course view data using the course context
 	if (!courseContext) {
@@ -45,27 +163,13 @@ export const loader = async ({
 
 	const gradebookSetupForUI = courseContext.gradebookSetupForUI;
 
-	// Prepare user object for internal functions
-	const currentUser = userSession?.isAuthenticated
-		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
-
 	// Fetch user grades for the course
-	let userGrades = null;
-	const userGradesResult = await tryGetUserGradesJsonRepresentation({
-		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-		courseId: Number(courseId),
-	});
 
-	if (userGradesResult.ok) {
-		userGrades = userGradesResult.value;
-	}
+	const userGrades = await tryGetUserGradesJsonRepresentation({
+		payload,
+		req: payloadRequest,
+		courseId: courseContext.course.id,
+	}).getOrNull();
 
 	return {
 		course: courseContext.course,
@@ -91,85 +195,47 @@ export const loader = async ({
 	};
 };
 
-export const action = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
-	const { courseId } = params;
+const [createItemAction, useCreateItem] = createCreateItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!courseContext)
+			throw new ForbiddenResponse("Course not found or access denied");
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+		// Get gradebook
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
+			payload,
+			courseId: courseContext.course.id,
+			req: payloadRequest,
+		});
+		if (!gradebookResult.ok)
+			return badRequest({ error: "Gradebook not found for this course" });
+		const gradebook = gradebookResult.value;
 
-	// Get gradebook for this course
-	const gradebookResult = await tryGetGradebookByCourseWithDetails({
-		payload,
-		courseId: Number(courseId),
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-	if (!gradebookResult.ok) {
-		return badRequest({ error: "Gradebook not found for this course" });
-	}
-
-	const gradebook = gradebookResult.value;
-	const gradebookId = gradebook.id;
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsedData = inputSchema.safeParse(data);
-
-	if (!parsedData.success) {
-		return badRequest({ error: parsedData.error.message });
-	}
-
-	if (parsedData.data.intent === "create-item") {
 		// Get next sort order
 		const sortOrderResult = await tryGetNextItemSortOrder({
 			payload,
-			gradebookId,
-			categoryId: parsedData.data.categoryId ?? null,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			gradebookId: gradebook.id,
+			categoryId: formData.categoryId ?? null,
+			req: payloadRequest,
 		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
 		}
 
-		const sortOrder = sortOrderResult.value;
-
-		// Create gradebook item
 		const createResult = await tryCreateGradebookItem({
 			payload,
-			courseId: Number(courseId),
-			categoryId: parsedData.data.categoryId ?? null,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			maxGrade: parsedData.data.maxGrade,
-			minGrade: parsedData.data.minGrade,
-			weight: parsedData.data.weight,
-			extraCredit: parsedData.data.extraCredit ?? false,
-			sortOrder,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			courseId: courseContext.course.id,
+			categoryId: formData.categoryId ?? null,
+			name: formData.name,
+			description: formData.description,
+			maxGrade: formData.maxGrade,
+			minGrade: formData.minGrade,
+			weight: formData.weight,
+			extraCredit: formData.extraCredit ?? false,
+			sortOrder: sortOrderResult.value,
+			req: payloadRequest,
 		});
 
 		if (!createResult.ok) {
@@ -180,42 +246,50 @@ export const action = async ({
 			success: true,
 			message: "Gradebook item created successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "create-category") {
+const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!courseContext)
+			throw new ForbiddenResponse("Course not found or access denied");
+
+		// Get gradebook
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
+			payload,
+			courseId: courseContext.course.id,
+			req: payloadRequest,
+		});
+		if (!gradebookResult.ok)
+			return badRequest({ error: "Gradebook not found for this course" });
+		const gradebook = gradebookResult.value;
+
 		// Get next sort order
 		const sortOrderResult = await tryGetNextSortOrder({
 			payload,
-			gradebookId,
-			parentId: parsedData.data.parentId ?? null,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			gradebookId: gradebook.id,
+			parentId: formData.parentId ?? null,
+			req: payloadRequest,
 		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
 		}
 
-		const sortOrder = sortOrderResult.value;
-
-		// Create gradebook category
 		const createResult = await tryCreateGradebookCategory({
 			payload,
-			gradebookId,
-			parentId: parsedData.data.parentId ?? null,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			sortOrder,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			gradebookId: gradebook.id,
+			parentId: formData.parentId ?? null,
+			name: formData.name,
+			description: formData.description,
+			sortOrder: sortOrderResult.value,
+			req: payloadRequest,
 		});
 
 		if (!createResult.ok) {
@@ -225,25 +299,28 @@ export const action = async ({
 			success: true,
 			message: "Gradebook category created successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "update-item") {
+const [updateItemAction, useUpdateItem] = createUpdateItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
 		const updateResult = await tryUpdateGradebookItem({
 			payload,
-			itemId: parsedData.data.itemId,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			categoryId: parsedData.data.categoryId ?? null,
-			maxGrade: parsedData.data.maxGrade,
-			minGrade: parsedData.data.minGrade,
-			weight: parsedData.data.weight,
-			extraCredit: parsedData.data.extraCredit,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			itemId: formData.itemId,
+			name: formData.name,
+			description: formData.description,
+			categoryId: formData.categoryId ?? null,
+			maxGrade: formData.maxGrade,
+			minGrade: formData.minGrade,
+			weight: formData.weight,
+			extraCredit: formData.extraCredit,
+			req: payloadRequest,
 		});
 
 		if (!updateResult.ok) {
@@ -254,22 +331,25 @@ export const action = async ({
 			success: true,
 			message: "Gradebook item updated successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "update-category") {
+const [updateCategoryAction, useUpdateCategory] = createUpdateCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
 		const updateResult = await tryUpdateGradebookCategory({
 			payload,
-			categoryId: parsedData.data.categoryId,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			weight: parsedData.data.weight,
-			extraCredit: parsedData.data.extraCredit,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			categoryId: formData.categoryId,
+			name: formData.name,
+			description: formData.description,
+			weight: formData.weight,
+			extraCredit: formData.extraCredit,
+			req: payloadRequest,
 		});
 
 		if (!updateResult.ok) {
@@ -280,18 +360,21 @@ export const action = async ({
 			success: true,
 			message: "Gradebook category updated successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "get-item") {
+const [getItemAction, useGetItem] = createGetItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
 		const itemResult = await tryFindGradebookItemById({
 			payload,
-			itemId: parsedData.data.itemId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			itemId: formData.itemId,
+			req: payloadRequest,
 		});
 
 		if (!itemResult.ok) {
@@ -319,13 +402,23 @@ export const action = async ({
 				extraCredit: item.extraCredit ?? false,
 			},
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "get-category") {
-		const categoryResult = await tryFindGradebookCategoryById(
+const [getCategoryAction, useGetCategory] = createGetCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const categoryResult = await tryFindGradebookCategoryById({
 			payload,
-			parsedData.data.categoryId,
-		);
+			categoryId: formData.categoryId,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
 
 		if (!categoryResult.ok) {
 			return badRequest({ error: categoryResult.error.message });
@@ -334,10 +427,7 @@ export const action = async ({
 		const category = categoryResult.value;
 
 		// Handle parent as number or object
-		const parentId =
-			typeof category.parent === "number"
-				? category.parent
-				: (category.parent?.id ?? null);
+		const parentId = category.parent?.id ?? null;
 
 		return ok({
 			success: true,
@@ -349,18 +439,21 @@ export const action = async ({
 				weight: category.weight,
 			},
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "delete-item") {
+const [deleteItemAction, useDeleteItem] = createDeleteItemActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
 		const deleteResult = await tryDeleteGradebookItem({
 			payload,
-			itemId: parsedData.data.itemId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			itemId: formData.itemId,
+			req: payloadRequest,
 		});
 
 		if (!deleteResult.ok) {
@@ -371,18 +464,21 @@ export const action = async ({
 			success: true,
 			message: "Gradebook item deleted successfully",
 		});
-	}
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
 
-	if (parsedData.data.intent === "delete-category") {
+const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
 		const deleteResult = await tryDeleteGradebookCategory({
 			payload,
-			categoryId: parsedData.data.categoryId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			categoryId: formData.categoryId,
+			req: payloadRequest,
 		});
 
 		if (!deleteResult.ok) {
@@ -393,9 +489,58 @@ export const action = async ({
 			success: true,
 			message: "Gradebook category deleted successfully",
 		});
+	})!,
+	{
+		action: ({ searchParams, params }) =>
+			getRouteUrl(searchParams.action, Number(params.courseId)),
+	},
+);
+
+// Export hooks for use in components
+export {
+	useCreateItem,
+	useCreateCategory,
+	useUpdateItem,
+	useUpdateCategory,
+	useGetItem,
+	useGetCategory,
+	useDeleteItem,
+	useDeleteCategory,
+};
+
+const actionMap = {
+	[Action.CreateItem]: createItemAction,
+	[Action.CreateCategory]: createCategoryAction,
+	[Action.UpdateItem]: updateItemAction,
+	[Action.UpdateCategory]: updateCategoryAction,
+	[Action.DeleteItem]: deleteItemAction,
+	[Action.DeleteCategory]: deleteCategoryAction,
+	[Action.GetItem]: getItemAction,
+	[Action.GetCategory]: getCategoryAction,
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request, context } = args;
+	const userSession = context.get(userContextKey);
+	const courseContext = context.get(courseContextKey);
+
+	if (!courseContext) {
+		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	return badRequest({ error: "Invalid intent" });
+	if (!userSession?.isAuthenticated) {
+		return badRequest({ error: "Unauthorized" });
+	}
+
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -420,13 +565,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const {
-		hasExtraCredit,
-		displayTotal,
-		extraCreditItems,
-		extraCreditCategories,
-		totalMaxGrade,
-	} = loaderData;
 	const [activeTab] = useQueryState("tab", {
 		defaultValue: "report",
 	});
@@ -434,14 +572,7 @@ export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 	return (
 		<>
 			{activeTab === "setup" ? (
-				<GradebookSetupView
-					data={loaderData}
-					hasExtraCredit={hasExtraCredit}
-					displayTotal={displayTotal}
-					extraCreditItems={extraCreditItems}
-					extraCreditCategories={extraCreditCategories}
-					totalMaxGrade={totalMaxGrade}
-				/>
+				<GradebookSetupView data={loaderData} />
 			) : (
 				<GraderReportView data={loaderData} />
 			)}

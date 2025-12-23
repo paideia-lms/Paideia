@@ -56,6 +56,16 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
+	const canSeeSetting = canSeeCourseModuleSettings(
+		currentUser,
+		enrolmentContext?.enrolment,
+	).allowed;
+	const canSeeSubmissions = canSeeModuleSubmissions(
+		currentUser,
+		enrolmentContext?.enrolment,
+	).allowed;
+
+
 	return {
 		module: courseModuleContext.activityModule,
 		moduleSettings: courseModuleContext.settings,
@@ -64,6 +74,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser: currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,
+		canSeeSetting,
+		canSeeSubmissions,
 	};
 };
 
@@ -81,8 +93,8 @@ export default function CourseModuleLayout({
 		moduleSettings,
 		// moduleLinkId,
 		pageInfo,
-		currentUser,
-		enrolment,
+		canSeeSetting,
+		canSeeSubmissions,
 	} = loaderData;
 	const { moduleLinkId } = params;
 
@@ -115,14 +127,6 @@ export default function CourseModuleLayout({
 		}
 	};
 
-	const canSeeSetting = canSeeCourseModuleSettings(
-		currentUser,
-		enrolment,
-	).allowed;
-	const canSeeSubmissions = canSeeModuleSubmissions(
-		currentUser,
-		enrolment,
-	).allowed;
 
 	// Check if module type supports submissions
 	const hasSubmissions = ["assignment", "quiz", "discussion"].includes(

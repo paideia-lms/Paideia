@@ -1,4 +1,4 @@
-import type { Simplify } from "@payloadcms/db-postgres/drizzle";
+import type { Simplify } from "type-fest";
 
 // Quiz Resource - HTML rich text that can persist across multiple pages
 export interface QuizResource {

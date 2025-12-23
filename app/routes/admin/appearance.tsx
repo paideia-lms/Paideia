@@ -16,7 +16,7 @@ import {
 	IconTrash,
 } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -24,16 +24,17 @@ import {
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
 import { z } from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
 	forbidden,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/appearance";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 
 type AppearanceGlobal = {
 	id: number;
@@ -66,88 +67,91 @@ export async function loader({ context }: Route.LoaderArgs) {
 	return { settings: settings.value };
 }
 
-const inputSchema = z.object({
-	additionalCssStylesheets: z
-		.array(
-			z.object({
-				url: z.string().url("Must be a valid URL"),
-			}),
-		)
-		.optional(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdateAppearanceSettingsActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		additionalCssStylesheets: z
+			.array(
+				z.object({
+					url: z.url("Must be a valid URL"),
+				}),
+			)
+			.optional(),
+	}),
+	method: "POST",
 });
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const getRouteUrl = () => {
+	return href("/admin/appearance");
+};
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
+const [updateAppearanceSettingsAction, useUpdateAppearanceSettings] =
+	createUpdateAppearanceSettingsActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
 
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-	const { additionalCssStylesheets } = parsed.data;
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
+			if (currentUser.role !== "admin") {
+				return forbidden({ error: "Only admins can access this area" });
+			}
 
-	const updateResult = await tryUpdateAppearanceSettings({
-		payload,
-		data: {
-			additionalCssStylesheets,
+			const updateResult = await tryUpdateAppearanceSettings({
+				payload,
+				data: {
+					additionalCssStylesheets: formData.additionalCssStylesheets?.map(
+						(sheet) => sheet.url.toString(),
+					),
+				},
+				req: payloadRequest,
+			});
+
+			if (!updateResult.ok) {
+				return forbidden({ error: updateResult.error.message });
+			}
+
+			return ok({
+				success: true as const,
+				settings: updateResult.value as unknown as AppearanceGlobal,
+			});
+		})!,
+		{
+			action: () => getRouteUrl(),
 		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	});
+	);
 
-	if (!updateResult.ok) {
-		return forbidden({ error: updateResult.error.message });
-	}
+// Export hook for use in components
+export { useUpdateAppearanceSettings };
 
-	return ok({
-		success: true as const,
-		settings: updateResult.value as unknown as AppearanceGlobal,
-	});
-}
+export const action = updateAppearanceSettingsAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-	const res = await serverAction();
-	if (res?.status === 200) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Appearance settings updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Failed to update",
-			message: typeof res?.error === "string" ? res.error : "Unexpected error",
+			message: actionData.error,
 			color: "red",
 		});
 	}
-	return res;
-}
 
-export function useUpdateAppearanceSettings() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const update = (data: {
-		additionalCssStylesheets: Array<{ url: string }>;
-	}) => {
-		fetcher.submit(data, {
-			method: "post",
-			action: href("/admin/appearance"),
-			encType: "application/json",
-		});
-	};
-	return { update, state: fetcher.state } as const;
+	return actionData;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -155,7 +159,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
-	const { state, update } = useUpdateAppearanceSettings();
+	const { submit: updateAppearanceSettings, isLoading } =
+		useUpdateAppearanceSettings();
 	const {
 		settings: { additionalCssStylesheets },
 	} = loaderData;
@@ -191,6 +196,18 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
+	const handleSubmit = form.onSubmit((values) => {
+		// Filter out empty URLs
+		const validStylesheets = values.stylesheets.filter(
+			(sheet) => sheet.url && sheet.url.trim() !== "",
+		);
+		updateAppearanceSettings({
+			values: {
+				additionalCssStylesheets: validStylesheets,
+			},
+		});
+	});
+
 	return (
 		<Stack gap="md" my="lg">
 			<title>Additional CSS Stylesheets | Admin | Paideia LMS</title>
@@ -212,18 +229,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 				Stylesheets are loaded in the order listed, allowing you to control CSS
 				cascade precedence. Only HTTP and HTTPS URLs are supported.
 			</Text>
-			<form
-				method="post"
-				onSubmit={form.onSubmit((values) => {
-					// Filter out empty URLs
-					const validStylesheets = values.stylesheets.filter(
-						(sheet) => sheet.url && sheet.url.trim() !== "",
-					);
-					update({
-						additionalCssStylesheets: validStylesheets,
-					});
-				})}
-			>
+			<form method="post" onSubmit={handleSubmit}>
 				<Stack gap="sm">
 					{stylesheets.map(({ url }, index) => (
 						<Group
@@ -290,7 +296,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 						</Text>
 					)}
 					<Group justify="flex-start" mt="sm">
-						<Button type="submit" loading={state !== "idle"}>
+						<Button type="submit" loading={isLoading}>
 							Save changes
 						</Button>
 					</Group>

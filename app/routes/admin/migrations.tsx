@@ -10,18 +10,37 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type { Migration as MigrationType } from "payload";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { dumpDatabase } from "server/utils/db/dump";
 import { getMigrationStatus } from "server/utils/db/migration-status";
 import { migrations } from "src/migrations";
 import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
+	badRequest,
+	ForbiddenResponse,
+	ok,
+	StatusCode,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/migrations";
+
+enum Action {
+	Dump = "dump",
+}
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createDumpActionRpc = createActionRpc({
+	method: "POST",
+	action: Action.Dump,
+});
+
+const getRouteUrl = () => {
+	return href("/admin/migrations");
+};
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);
@@ -48,76 +67,57 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-export function useDumpPostgres() {
-	const fetcher = useFetcher<typeof clientAction>();
+const [dumpAction, useDumpPostgres] = createDumpActionRpc(
+	serverOnly$(async ({ context }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	const dumpPostgres = () => {
-		fetcher.submit(
-			{ intent: "dump" },
-			{
-				method: "post",
-				action: href("/admin/migrations"),
-				encType: ContentType.JSON,
-			},
-		);
-	};
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-	return {
-		dumpPostgres,
-		state: fetcher.state,
-		isLoading: fetcher.state !== "idle",
-	};
-}
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const userSession = context.get(userContextKey);
+		if (currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can dump database" });
+		}
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		const result = await dumpDatabase({ payload });
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		if (!result.success) {
+			return badRequest({ error: result.error || "Failed to dump database" });
+		}
 
-	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can dump database");
-	}
+		return ok({
+			success: true,
+			message: `Database dump completed: ${result.outputPath}`,
+			outputPath: result.outputPath,
+		});
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
+// Export hook for use in components
+export { useDumpPostgres };
 
-	if (
-		!data ||
-		typeof data !== "object" ||
-		!("intent" in data) ||
-		data.intent !== "dump"
-	) {
-		return badRequest({ error: "Invalid intent" });
-	}
-
-	const { payload } = context.get(globalContextKey);
-	const result = await dumpDatabase({ payload });
-
-	if (!result.success) {
-		return badRequest({ error: result.error || "Failed to dump database" });
-	}
-
-	return ok({
-		success: true,
-		message: `Database dump completed: ${result.outputPath}`,
-		outputPath: result.outputPath,
-	});
-};
+export const action = dumpAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData && "success" in actionData && actionData.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData && "error" in actionData) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,
@@ -129,7 +129,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function MigrationsPage({ loaderData }: Route.ComponentProps) {
 	const { statuses } = loaderData;
-	const { dumpPostgres, isLoading } = useDumpPostgres();
+	const { submit: dumpPostgres, isLoading } = useDumpPostgres();
 
 	const rows = statuses.map((status) => (
 		<Table.Tr key={status.Name}>
@@ -178,7 +178,7 @@ export default function MigrationsPage({ loaderData }: Route.ComponentProps) {
 				>
 					<Title order={1}>Database Migrations</Title>
 					<Button
-						onClick={dumpPostgres}
+						onClick={() => dumpPostgres({ values: {} })}
 						disabled={isLoading}
 						loading={isLoading}
 					>

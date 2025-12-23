@@ -13,21 +13,18 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
+import { typeCreateActionRpc } from "app/utils/action-utils";
 import { createLoader, parseAsStringEnum } from "nuqs/server";
 import prettyBytes from "pretty-bytes";
-import { stringify } from "qs";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryClearLogo,
-	tryGetAppearanceSettings,
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import type { Media } from "server/payload-types";
-import { ContentType } from "~/utils/get-content-type";
-import { handleUploadError } from "~/utils/handle-upload-errors";
+import { serverOnly$ } from "vite-env-only/macros";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -36,9 +33,9 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/logo";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { z } from "zod";
+import { stringify } from "qs";
 
 enum Action {
 	Clear = "clear",
@@ -60,14 +57,6 @@ export const logoSearchParams = {
 };
 
 export const loadSearchParams = createLoader(logoSearchParams);
-
-type LogoField =
-	| "logoLight"
-	| "logoDark"
-	| "compactLogoLight"
-	| "compactLogoDark"
-	| "faviconLight"
-	| "faviconDark";
 
 type LogoData = {
 	logoLight?: Media | null;
@@ -109,154 +98,126 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-const clearAction = async ({
-	request,
-	context,
-	searchParams,
-}: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
-	const { field } = searchParams;
-	const { payload, systemGlobals } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const urlSchema = z
+	.url()
+	.refine((url) => url.startsWith("http") || url.startsWith("https"), {
+		message: "URL must start with http or https",
+	})
+	.array();
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+const inputSchema = z.object({
+	additionalCssStylesheets: urlSchema.optional(),
+	color: z
+		.enum([
+			"blue",
+			"pink",
+			"indigo",
+			"green",
+			"orange",
+			"gray",
+			"grape",
+			"cyan",
+			"lime",
+			"red",
+			"violet",
+			"teal",
+			"yellow",
+		])
+		.optional(),
+	radius: z.enum(["xs", "sm", "md", "lg", "xl"]).optional(),
+	logoLight: z.file().nullish(),
+	logoDark: z.file().nullish(),
+	compactLogoLight: z.file().nullish(),
+	compactLogoDark: z.file().nullish(),
+	faviconLight: z.file().nullish(),
+	faviconDark: z.file().nullish(),
+});
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const createClearActionRpc = createActionRpc({
+	searchParams: logoSearchParams,
+	method: "POST",
+	action: Action.Clear,
+});
 
-	const clearResult = await tryClearLogo({
-		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		field,
-	});
+const createUploadActionRpc = createActionRpc({
+	formDataSchema: inputSchema,
+	searchParams: logoSearchParams,
+	method: "POST",
+	action: Action.Upload,
+});
 
-	if (!clearResult.ok) {
-		return badRequest({ error: clearResult.error.message });
-	}
+const [clearAction, useClearLogoRpc] = createClearActionRpc(
+	serverOnly$(async ({ context, searchParams }) => {
+		const { field } = searchParams;
+		if (!field) {
+			return badRequest({ error: "Field is required" });
+		}
 
-	return ok({
-		message: "Logo cleared successfully",
-		logoField: field,
-	});
-};
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const uploadAction = async ({
-	request,
-	context,
-	searchParams,
-}: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
-	const { field: _field } = searchParams;
-	const { payload, systemGlobals } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+		if (currentUser.role !== "admin") {
+			return forbidden({ error: "Only admins can access this area" });
+		}
 
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
-
-	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	);
-
-	return await transactionInfo.tx(async (txInfo) => {
-		let logoField: LogoField | null = null;
-
-		// Parse form data with media upload handler
-		const parseResult = await tryParseFormDataWithMediaUpload({
+		const clearResult = await tryClearLogo({
 			payload,
-			request,
-			userId: currentUser.id,
-			req: txInfo.reqWithTransaction,
-			maxFileSize,
-			maxFiles: 1,
-			fields: [
-				{
-					fieldName: (fieldName) => {
-						const validFields: LogoField[] = [
-							"logoLight",
-							"logoDark",
-							"compactLogoLight",
-							"compactLogoDark",
-							"faviconLight",
-							"faviconDark",
-						];
-						return validFields.includes(fieldName as LogoField);
-					},
-					alt: (fieldName) => `${fieldName} image`,
-					onUpload: (fieldName, _mediaId, _filename) => {
-						logoField = fieldName as LogoField;
-					},
-				},
-			],
-			validateFile: (fileUpload) => {
-				// Validate MIME type is an image
-				if (!fileUpload.type.startsWith("image/")) {
-					throw new Error("File must be an image");
-				}
-			},
+			req: payloadRequest,
+			field,
 		});
 
-		if (!parseResult.ok) {
-			return handleUploadError(
-				parseResult.error,
-				maxFileSize,
-				"Failed to parse form data",
+		if (!clearResult.ok) {
+			return badRequest({ error: clearResult.error.message });
+		}
+
+		return ok({
+			message: "Logo cleared successfully",
+			logoField: field,
+		});
+	})!,
+	{
+		action: ({ searchParams }) => {
+			if (!searchParams.field) {
+				throw new Error("Field is required");
+			}
+			return (
+				href("/admin/appearance/logo") +
+				"?" +
+				stringify({ action: searchParams.action, field: searchParams.field })
 			);
+		},
+	},
+);
+
+const [uploadAction, useUploadLogoRpc] = createUploadActionRpc(
+	serverOnly$(async ({ context, formData, searchParams: _searchParams }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const { uploadedMedia } = parseResult.value;
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (uploadedMedia.length === 0 || !logoField) {
-			return badRequest({
-				error: "No file uploaded or invalid field name",
-			});
+		if (currentUser.role !== "admin") {
+			return forbidden({ error: "Only admins can access this area" });
 		}
-
-		// Get current appearance settings
-		const currentSettings = await tryGetAppearanceSettings({
-			payload,
-			overrideAccess: true,
-			req: txInfo.reqWithTransaction,
-		});
-
-		if (!currentSettings.ok) {
-			return badRequest({ error: "Failed to get current settings" });
-		}
-
-		// Update appearance settings with the new logo
-		const updateData: {
-			[K in LogoField]?: number | null;
-		} = {
-			[logoField]: uploadedMedia[0]!.mediaId,
-		};
 
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
-			data: updateData,
-			req: txInfo.reqWithTransaction,
+			data: formData,
+			req: payloadRequest,
 			overrideAccess: false,
 		});
 
@@ -266,43 +227,33 @@ const uploadAction = async ({
 
 		return ok({
 			message: "Logo uploaded successfully",
-			logoField,
 		});
-	});
-};
+	})!,
+	{
+		action: ({ searchParams }) => {
+			return (
+				href("/admin/appearance/logo") +
+				"?" +
+				stringify({ action: searchParams.action })
+			);
+		},
+	},
+);
 
-const getActionUrl = (action: Action, field: Field) => {
-	return href("/admin/appearance/logo") + "?" + stringify({ action, field });
+const actionMap = {
+	[Action.Clear]: clearAction,
+	[Action.Upload]: uploadAction,
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const { request, context } = args;
-	// Handle clear logo action
-	const { action: actionType, field: fieldParam } = loadSearchParams(request);
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
 
-	if (!actionType || !fieldParam) {
-		return badRequest({ error: "Action and field are required" });
+	if (!actionType) {
+		return badRequest({ error: "Action is required" });
 	}
 
-	if (actionType === "clear") {
-		return clearAction({
-			...args,
-			searchParams: {
-				action: actionType,
-				field: fieldParam,
-			},
-		});
-	} else if (actionType === "upload") {
-		return uploadAction({
-			...args,
-			searchParams: {
-				action: actionType,
-				field: fieldParam,
-			},
-		});
-	}
-
-	return badRequest({ error: "Invalid action" });
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -330,38 +281,36 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export function useUploadLogo(field: Field) {
-	const fetcher = useFetcher<typeof clientAction>();
+	const { submit, isLoading, fetcher } = useUploadLogoRpc();
 
 	const uploadLogo = (file: File) => {
-		const formData = new FormData();
-		formData.append(field, file);
-		fetcher.submit(formData, {
-			method: "POST",
-			encType: ContentType.MULTIPART,
-			action: getActionUrl(Action.Upload, field),
+		submit({
+			searchParams: { field },
+			values: {
+				[field]: file,
+			},
 		});
 	};
 
 	return {
 		uploadLogo,
-		isLoading: fetcher.state !== "idle",
+		isLoading,
 		fetcher,
 	};
 }
 
 export function useClearLogo(field: Field) {
-	const fetcher = useFetcher<typeof clientAction>();
+	const { submit, isLoading, fetcher } = useClearLogoRpc();
 
 	const clearLogo = () => {
-		fetcher.submit(null, {
-			method: "POST",
-			action: getActionUrl(Action.Clear, field),
+		submit({
+			searchParams: { field },
 		});
 	};
 
 	return {
 		clearLogo,
-		isLoading: fetcher.state !== "idle",
+		isLoading,
 		fetcher,
 	};
 }

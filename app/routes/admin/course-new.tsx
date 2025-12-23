@@ -11,26 +11,50 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { redirect, useFetcher } from "react-router";
+import { href, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCourse } from "server/internal/course-management";
+import { tryFindAllCategories } from "server/internal/course-category-management";
 import type { Course } from "server/payload-types";
-import z from "zod";
+import { z } from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
+	InternalServerErrorResponse,
 	ok,
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course-new";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { getDataAndContentTypeFromRequest } from "app/utils/get-content-type";
-import { Result } from "node_modules/typescript-result/dist";
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createCreateCourseActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		title: z.string().min(1, "Title is required"),
+		slug: z
+			.string()
+			.min(1, "Slug is required")
+			.regex(
+				/^[a-z0-9-]+$/,
+				"Slug must contain only lowercase letters, numbers, and hyphens",
+			),
+		description: z.string().min(1, "Description is required"),
+		status: z.enum(["draft", "published", "archived"]),
+		category: z.coerce.number().optional().nullable(),
+	}),
+	method: "POST",
+});
+
+const getRouteUrl = () => {
+	return href("/admin/course/new");
+};
+
+export const loader = async ({ context }: Route.LoaderArgs) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.authenticatedUser) {
@@ -47,100 +71,74 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	}
 
 	// Fetch categories for the dropdown
-	const categories = await payload.find({
-		collection: "course-categories",
-		limit: 100,
+	const categoriesResult = await tryFindAllCategories({
+		payload,
+		req: payloadRequest,
 		sort: "name",
 	});
 
+	if (!categoriesResult.ok) {
+		throw new InternalServerErrorResponse(categoriesResult.error.message);
+	}
+
 	return {
 		success: true,
-		categories: categories.docs.map((cat) => ({
+		categories: categoriesResult.value.map((cat) => ({
 			value: cat.id.toString(),
 			label: cat.name,
 		})),
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
+const [createCourseAction, useCreateCourse] = createCreateCourseActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		// Create course
+		const createResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: formData.title,
+				slug: formData.slug,
+				description: formData.description,
+				status: formData.status,
+				createdBy: currentUser.id,
+				category: formData.category ?? undefined,
+			},
+			req: payloadRequest,
 		});
-	}
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Wrap this with try because it is possible to throw error
-	const result = await Result.try(() =>
-		getDataAndContentTypeFromRequest(request),
-	);
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	if (!result.ok)
-		return badRequest({
-			success: false,
-			error: result.error.message,
+		return ok({
+			success: true,
+			message: "Course created successfully",
+			id: createResult.value.id,
 		});
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
 
-	const { data } = result.value;
+// Export hook for use in components
+export { useCreateCourse };
 
-	const parsed = z
-		.object({
-			title: z.string().min(1, "Title is required"),
-			slug: z
-				.string()
-				.min(1, "Slug is required")
-				.regex(
-					/^[a-z0-9-]+$/,
-					"Slug must contain only lowercase letters, numbers, and hyphens",
-				),
-			description: z.string().min(1, "Description is required"),
-			status: z.enum(["draft", "published", "archived"]),
-			category: z.coerce.number().nullish(),
-		})
-		.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({
-			success: false,
-			error: parsed.error.issues[0]?.message ?? "Validation error",
-		});
-	}
-
-	// Create course
-	const createResult = await tryCreateCourse({
-		payload,
-		data: {
-			title: parsed.data.title,
-			slug: parsed.data.slug,
-			description: parsed.data.description,
-			status: parsed.data.status,
-			createdBy: currentUser.id,
-			category: parsed.data.category ?? undefined,
-		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	});
-
-	if (!createResult.ok) {
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
-
-	return ok({
-		success: true,
-		message: "Course created successfully",
-		id: createResult.value.id,
-	});
-};
+export const action = createCourseAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -169,11 +167,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
-	const fetcher = useFetcher<typeof action>();
+	const { submit: createCourse, isLoading } = useCreateCourse();
 
 	const form = useForm({
 		mode: "uncontrolled",
-		cascadeUpdates: true,
 		initialValues: {
 			title: "",
 			slug: "",
@@ -195,21 +192,17 @@ export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleSubmit = (values: typeof form.values) => {
-		const formData = new FormData();
-		formData.append("title", values.title);
-		formData.append("slug", values.slug);
-		formData.append("description", values.description);
-		formData.append("status", values.status ?? "draft");
-
-		if (values.category) {
-			formData.append("category", values.category);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
+	const handleSubmit = form.onSubmit((values) => {
+		createCourse({
+			values: {
+				title: values.title,
+				slug: values.slug,
+				description: values.description,
+				status: values.status ?? "draft",
+				...(values.category && { category: Number(values.category) }),
+			},
 		});
-	};
+	});
 
 	return (
 		<Container size="sm" py="xl">
@@ -226,7 +219,7 @@ export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 					Create New Course
 				</Title>
 
-				<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
+				<form method="POST" onSubmit={handleSubmit}>
 					<Stack gap="lg">
 						<TextInput
 							{...form.getInputProps("title")}
@@ -278,16 +271,12 @@ export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 						/>
 
 						<Group justify="flex-end" mt="md">
-							<Button
-								type="submit"
-								loading={fetcher.state !== "idle"}
-								disabled={fetcher.state !== "idle"}
-							>
+							<Button type="submit" loading={isLoading} disabled={isLoading}>
 								Create Course
 							</Button>
 						</Group>
 					</Stack>
-				</fetcher.Form>
+				</form>
 			</Paper>
 		</Container>
 	);

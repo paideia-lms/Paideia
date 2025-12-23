@@ -1,13 +1,10 @@
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCourse } from "server/internal/course-management";
 import z from "zod";
-import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
+import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -16,7 +13,10 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/batch-update-courses";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
 const inputSchema = z
 	.object({
@@ -28,52 +28,66 @@ const inputSchema = z
 		message: "Provide at least one of status or category",
 	});
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const createBatchUpdateCoursesActionRpc = createActionRpc({
+	formDataSchema: inputSchema,
+	method: "POST",
+});
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "User not found" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can batch update courses");
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-
-	const { courseIds, status, category } = parsed.data;
-
-	// Perform per-course updates; keep simple and robust
-	for (const courseId of courseIds) {
-		const updateResult = await tryUpdateCourse({
-			payload,
-			courseId,
-			data: {
-				...(status ? { status } : {}),
-				...(category !== undefined ? { category: category ?? null } : {}),
-			},
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-		});
-
-		if (!updateResult.ok) {
-			return badRequest({ error: updateResult.error.message });
-		}
-	}
-
-	return ok({ success: true });
+const getRouteUrl = () => {
+	return href("/api/batch-update-courses");
 };
+
+const [batchUpdateCoursesAction, useBatchUpdateCourses] =
+	createBatchUpdateCoursesActionRpc(
+		serverOnly$(async ({ request, context }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "User not found" });
+			}
+
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			if (currentUser.role !== "admin") {
+				throw new ForbiddenResponse("Only admins can batch update courses");
+			}
+
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsed = inputSchema.safeParse(data);
+			if (!parsed.success) {
+				return badRequest({ error: z.prettifyError(parsed.error) });
+			}
+
+			const { courseIds, status, category } = parsed.data;
+
+			// Perform per-course updates; keep simple and robust
+			for (const courseId of courseIds) {
+				const updateResult = await tryUpdateCourse({
+					payload,
+					courseId,
+					data: {
+						...(status ? { status } : {}),
+						...(category !== undefined ? { category: category ?? null } : {}),
+					},
+					req: payloadRequest,
+				});
+
+				if (!updateResult.ok) {
+					return badRequest({ error: updateResult.error.message });
+				}
+			}
+
+			return ok({ success: true });
+		})!,
+		{
+			action: getRouteUrl,
+		},
+	);
+
+export const action = batchUpdateCoursesAction;
+export { useBatchUpdateCourses };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -95,30 +109,4 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 
 	return actionData;
-}
-
-export function useBatchUpdateCourses() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const batchUpdateCourses = (data: {
-		courseIds: number[];
-		status?: "draft" | "published" | "archived";
-		category?: number | null;
-	}) => {
-		fetcher.submit(data, {
-			method: "POST",
-			action: href("/api/batch-update-courses"),
-			encType: ContentType.JSON,
-		});
-	};
-
-	return {
-		batchUpdateCourses,
-		isLoading: fetcher.state !== "idle",
-		error:
-			fetcher.data?.status === StatusCode.BadRequest
-				? fetcher.data.error
-				: undefined,
-		success: fetcher.data?.status === StatusCode.Ok,
-	};
 }

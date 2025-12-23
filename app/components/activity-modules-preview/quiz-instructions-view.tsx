@@ -8,7 +8,12 @@ import {
 	Title,
 	Typography,
 } from "@mantine/core";
-import { IconClock, IconInfoCircle, IconPlayerPlay } from "@tabler/icons-react";
+import {
+	IconClock,
+	IconEye,
+	IconInfoCircle,
+	IconPlayerPlay,
+} from "@tabler/icons-react";
 import prettyMs from "pretty-ms";
 import { canStartQuizAttempt } from "server/utils/permissions";
 
@@ -38,6 +43,7 @@ interface QuizInstructionsViewProps {
 	onStartQuiz: () => void;
 	canSubmit?: boolean;
 	quizRemainingTime?: number; // Remaining time in seconds for in-progress attempts
+	canPreview?: boolean; // Whether user can preview the quiz
 }
 
 // ============================================================================
@@ -50,6 +56,7 @@ export function QuizInstructionsView({
 	onStartQuiz,
 	canSubmit = true,
 	quizRemainingTime,
+	canPreview = false,
 }: QuizInstructionsViewProps) {
 	if (!quiz) {
 		return (
@@ -105,21 +112,34 @@ export function QuizInstructionsView({
 			<Stack gap="lg">
 				<Group justify="space-between" align="flex-start">
 					<Title order={3}>Quiz Instructions</Title>
-					{canSubmit && canStartMore && (
-						<Button
-							leftSection={<IconPlayerPlay size={16} />}
-							onClick={onStartQuiz}
-						>
-							{hasInProgressAttempt
-								? `Continue Quiz (Attempt ${attemptCount})`
-								: completedCount > 0
-									? "Start New Attempt"
-									: "Start Quiz"}
-						</Button>
-					)}
+					<Group gap="sm">
+						{canPreview && (
+							<Button
+								leftSection={<IconEye size={16} />}
+								variant="light"
+								onClick={() => {
+									// Mock preview action - no effect for now
+								}}
+							>
+								Preview Quiz
+							</Button>
+						)}
+						{canSubmit && canStartMore && (
+							<Button
+								leftSection={<IconPlayerPlay size={16} />}
+								onClick={onStartQuiz}
+							>
+								{hasInProgressAttempt
+									? `Continue Quiz (Attempt ${attemptCount})`
+									: completedCount > 0
+										? "Start New Attempt"
+										: "Start Quiz"}
+							</Button>
+						)}
+					</Group>
 				</Group>
 
-				{canSubmit && maxAttempts && (
+				{Boolean(canSubmit && maxAttempts) && (
 					<Alert
 						color={canStartMore ? "blue" : "yellow"}
 						icon={<IconInfoCircle size={16} />}
@@ -130,7 +150,7 @@ export function QuizInstructionsView({
 					</Alert>
 				)}
 
-				{effectiveTimeLimit && (
+				{effectiveTimeLimit ? (
 					<Alert color="blue" icon={<IconClock size={16} />}>
 						<Text size="sm" fw={500}>
 							Time Limit: {formatTimeLimit(effectiveTimeLimit)}
@@ -139,6 +159,8 @@ export function QuizInstructionsView({
 							The timer will start when you begin the quiz and cannot be paused.
 						</Text>
 					</Alert>
+				) : (
+					<Text c="dimmed">No time limit.</Text>
 				)}
 
 				{quiz.points && (

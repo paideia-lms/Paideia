@@ -5,9 +5,11 @@ import {
 	MultiSelect,
 	NumberInput,
 	Paper,
+	Select,
 	Stack,
 	Text,
 	Textarea,
+	TextInput,
 	Title,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
@@ -22,26 +24,31 @@ import {
 } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
-import { CommonFields } from "./common-fields";
+import type { AssignmentFormInitialValues as NewAssignmentFormInitialValues } from "app/routes/user/module/new";
+import type { AssignmentFormInitialValues as EditAssignmentFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { Simplify, UnionToIntersection } from "type-fest";
+
+type AssignmentFormData = Simplify<
+	UnionToIntersection<
+		NewAssignmentFormInitialValues | EditAssignmentFormInitialValues
+	>
+>;
 
 interface AssignmentFormProps {
-	initialValues?: Partial<AssignmentModuleFormValues>;
-	onSubmit: (values: AssignmentModuleFormValues) => void;
+	initialValues?: Partial<AssignmentFormData>;
+	onSubmit: (values: AssignmentFormData) => void;
 	isLoading?: boolean;
 }
 
-export function AssignmentForm({
-	initialValues,
-	onSubmit,
-	isLoading,
-}: AssignmentFormProps) {
-	const form = useForm<AssignmentModuleFormValues>({
+const useAssignmentForm = (
+	initialValues: Partial<AssignmentModuleFormValues>,
+) => {
+	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
 			title: initialValues?.title || "",
 			description: initialValues?.description || "",
-			type: "assignment" as const,
 			status: initialValues?.status || "draft",
 			assignmentInstructions: initialValues?.assignmentInstructions || "",
 			assignmentRequireTextSubmission:
@@ -58,16 +65,43 @@ export function AssignmentForm({
 				value.trim().length === 0 ? "Title is required" : null,
 		},
 	});
+
+	return form;
+};
+
+export function AssignmentForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: AssignmentFormProps) {
+	const form = useAssignmentForm(initialValues ?? {});
 	const requireFileSubmission = useFormWatchForceUpdate(
 		form,
-		"assignmentRequireFileSubmission" as const,
+		"assignmentRequireFileSubmission",
 	);
 
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields
-					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
+				/>
+
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
 				/>
 
 				<Textarea
@@ -137,12 +171,9 @@ export function AssignmentForm({
 function InstructionsEditor({
 	form,
 }: {
-	form: UseFormReturnType<AssignmentModuleFormValues>;
+	form: UseFormReturnType<AssignmentFormData>;
 }) {
-	const instructions = useFormWatchForceUpdate(
-		form,
-		"assignmentInstructions" as const,
-	);
+	const instructions = useFormWatchForceUpdate(form, "assignmentInstructions");
 
 	return (
 		<Input.Wrapper label="Instructions">
@@ -160,11 +191,11 @@ function InstructionsEditor({
 function FileSubmissionSettings({
 	form,
 }: {
-	form: UseFormReturnType<AssignmentModuleFormValues>;
+	form: UseFormReturnType<AssignmentFormData>;
 }) {
 	const selectedFileTypes = useFormWatchForceUpdate(
 		form,
-		"assignmentAllowedFileTypes" as const,
+		"assignmentAllowedFileTypes",
 	);
 
 	// Get file type details for display
@@ -174,55 +205,42 @@ function FileSubmissionSettings({
 			: [];
 
 	return (
-		<Paper withBorder p="md" mt="md">
-			<Stack gap="md">
-				<Title order={5}>File Submission Configuration</Title>
+		<Stack gap="md">
+			<Title order={5}>File Submission Configuration</Title>
 
-				<MultiSelect
-					{...form.getInputProps("assignmentAllowedFileTypes")}
-					key={form.key("assignmentAllowedFileTypes")}
-					label="Allowed File Types"
-					description="Select file types students can submit"
-					placeholder="Select file types"
-					data={PRESET_FILE_TYPE_OPTIONS.map((opt) => ({
-						value: opt.value,
-						label: opt.label,
-					}))}
-					searchable
-					clearable
-				/>
+			<MultiSelect
+				{...form.getInputProps("assignmentAllowedFileTypes")}
+				key={form.key("assignmentAllowedFileTypes")}
+				label="Allowed File Types"
+				description={`Select file types students can submit. ${fileTypeDetails.length > 0 ? `Selected: ${fileTypeDetails.length} file type(s)` : ""}`}
+				placeholder="Select file types"
+				data={PRESET_FILE_TYPE_OPTIONS.map((opt) => ({
+					value: opt.value,
+					label: opt.label,
+				}))}
+				searchable
+				clearable
+			/>
 
-				{fileTypeDetails.length > 0 && (
-					<Paper withBorder p="sm">
-						<Text size="sm" fw={500} mb="xs">
-							Selected: {fileTypeDetails.length} file type(s)
-						</Text>
-						<Text size="xs" c="dimmed">
-							{fileTypeDetails.map((ft) => ft.extension).join(", ")}
-						</Text>
-					</Paper>
-				)}
+			<NumberInput
+				{...form.getInputProps("assignmentMaxFileSize")}
+				key={form.key("assignmentMaxFileSize")}
+				label="Maximum File Size (MB)"
+				description="Maximum size for each uploaded file"
+				placeholder="10"
+				min={1}
+				max={100}
+			/>
 
-				<NumberInput
-					{...form.getInputProps("assignmentMaxFileSize")}
-					key={form.key("assignmentMaxFileSize")}
-					label="Maximum File Size (MB)"
-					description="Maximum size for each uploaded file"
-					placeholder="10"
-					min={1}
-					max={100}
-				/>
-
-				<NumberInput
-					{...form.getInputProps("assignmentMaxFiles")}
-					key={form.key("assignmentMaxFiles")}
-					label="Maximum Number of Files"
-					description="Maximum number of files students can upload"
-					placeholder="5"
-					min={1}
-					max={20}
-				/>
-			</Stack>
-		</Paper>
+			<NumberInput
+				{...form.getInputProps("assignmentMaxFiles")}
+				key={form.key("assignmentMaxFiles")}
+				label="Maximum Number of Files"
+				description="Maximum number of files students can upload"
+				placeholder="5"
+				min={1}
+				max={20}
+			/>
+		</Stack>
 	);
 }

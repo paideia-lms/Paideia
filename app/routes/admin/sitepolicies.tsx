@@ -10,7 +10,9 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -18,16 +20,13 @@ import {
 	tryUpdateSitePolicies,
 } from "server/internal/site-policies";
 import { z } from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
-	badRequest,
 	ForbiddenResponse,
 	forbidden,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/sitepolicies";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 type SitePoliciesGlobal = {
 	id: number;
@@ -35,8 +34,8 @@ type SitePoliciesGlobal = {
 	siteUploadLimit?: number | null;
 };
 
-export async function loader({ context, request }: Route.LoaderArgs) {
-	const { payload } = context.get(globalContextKey);
+export async function loader({ context }: Route.LoaderArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -50,11 +49,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 	const settings = await tryGetSitePolicies({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!settings.ok) {
@@ -64,7 +59,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	return { settings: settings.value };
 }
 
-const inputSchema = z.object({
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const formDataSchema = z.object({
 	userMediaStorageTotal: z.preprocess((val) => {
 		if (val === "" || val === null || val === undefined) {
 			return null;
@@ -87,47 +84,56 @@ const inputSchema = z.object({
 	}, z.number().min(0).nullable().optional()),
 });
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const createUpdateSitePoliciesActionRpc = createActionRpc({
+	formDataSchema,
+	method: "POST",
+});
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-	const { userMediaStorageTotal, siteUploadLimit } = parsed.data;
+const getRouteUrl = () => {
+	return href("/admin/sitepolicies");
+};
 
-	const updateResult = await tryUpdateSitePolicies({
-		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		data: {
-			userMediaStorageTotal,
-			siteUploadLimit,
+const [updateSitePoliciesAction, useUpdateSitePolicies] =
+	createUpdateSitePoliciesActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
+			if (currentUser.role !== "admin") {
+				return forbidden({ error: "Only admins can access this area" });
+			}
+
+			const updateResult = await tryUpdateSitePolicies({
+				payload,
+				req: payloadRequest,
+				data: {
+					userMediaStorageTotal: formData.userMediaStorageTotal,
+					siteUploadLimit: formData.siteUploadLimit,
+				},
+			});
+
+			if (!updateResult.ok) {
+				return forbidden({ error: updateResult.error.message });
+			}
+
+			return ok({
+				success: true as const,
+				settings: updateResult.value as unknown as SitePoliciesGlobal,
+			});
+		})!,
+		{
+			action: getRouteUrl,
 		},
-	});
+	);
 
-	if (!updateResult.ok) {
-		return forbidden({ error: updateResult.error.message });
-	}
+// Export hook for use in components
+export { useUpdateSitePolicies };
 
-	return ok({
-		success: true as const,
-		settings: updateResult.value as unknown as SitePoliciesGlobal,
-	});
-}
+export const action = updateSitePoliciesAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const res = await serverAction();
@@ -147,34 +153,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		});
 	}
 	return res;
-}
-
-export function useUpdateSitePolicies() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const update = (data: {
-		userMediaStorageTotal: number | null;
-		siteUploadLimit: number | null;
-	}) => {
-		const formData = new FormData();
-		if (
-			data.userMediaStorageTotal !== null &&
-			data.userMediaStorageTotal !== undefined
-		) {
-			formData.set("userMediaStorageTotal", String(data.userMediaStorageTotal));
-		} else {
-			formData.set("userMediaStorageTotal", "");
-		}
-		if (data.siteUploadLimit !== null && data.siteUploadLimit !== undefined) {
-			formData.set("siteUploadLimit", String(data.siteUploadLimit));
-		} else {
-			formData.set("siteUploadLimit", "");
-		}
-		fetcher.submit(formData, {
-			method: "post",
-			action: href("/admin/sitepolicies"),
-		});
-	};
-	return { update, state: fetcher.state } as const;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -211,7 +189,7 @@ const uploadLimitOptions = [
 export default function AdminSitePolicies({
 	loaderData,
 }: Route.ComponentProps) {
-	const { state, update } = useUpdateSitePolicies();
+	const { submit: update, isLoading } = useUpdateSitePolicies();
 	const {
 		settings: { userMediaStorageTotal, siteUploadLimit },
 	} = loaderData;
@@ -269,16 +247,18 @@ export default function AdminSitePolicies({
 				method="post"
 				onSubmit={form.onSubmit((values) => {
 					update({
-						userMediaStorageTotal:
-							values.userMediaStorageTotal !== undefined &&
-							values.userMediaStorageTotal !== null
-								? values.userMediaStorageTotal
-								: null,
-						siteUploadLimit:
-							values.siteUploadLimit !== undefined &&
-							values.siteUploadLimit !== null
-								? values.siteUploadLimit
-								: null,
+						values: {
+							userMediaStorageTotal:
+								values.userMediaStorageTotal !== undefined &&
+								values.userMediaStorageTotal !== null
+									? values.userMediaStorageTotal
+									: null,
+							siteUploadLimit:
+								values.siteUploadLimit !== undefined &&
+								values.siteUploadLimit !== null
+									? values.siteUploadLimit
+									: null,
+						},
 					});
 				})}
 			>
@@ -368,7 +348,7 @@ export default function AdminSitePolicies({
 					)}
 
 					<Group justify="flex-start" mt="sm">
-						<Button type="submit" loading={state !== "idle"}>
+						<Button type="submit" loading={isLoading}>
 							Save changes
 						</Button>
 					</Group>

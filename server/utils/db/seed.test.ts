@@ -34,5 +34,34 @@ describe("Database Seeding", () => {
 	test("should successfully seed database without errors", async () => {
 		const result = await tryRunSeed({ payload });
 		expect(result.ok).toBe(true);
+
+		if (!result.ok) {
+			return;
+		}
+
+		const seedResult = result.value;
+
+		if (seedResult === "user-exists") throw new Error("User already exists");
+
+		// Test users
+		expect(seedResult.users.additional.length).toBe(5);
+
+		// Test categories
+		expect(seedResult.categories.length).toBe(4);
+
+		// Test courses
+		expect(seedResult.courses.length).toBe(7);
+
+		// Test enrollments
+		expect(seedResult.enrollments.additional.length).toBe(5);
+
+		// Test modules
+		expect(seedResult.modules.additional.length).toBe(8);
+
+		// Test sections
+		expect(seedResult.sections.length).toBe(4);
+
+		// Test links (1 page module + 8 additional modules = 9 total)
+		expect(seedResult.links.length).toBe(9);
 	});
 });

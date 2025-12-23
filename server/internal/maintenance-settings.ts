@@ -19,52 +19,58 @@ export interface UpdateMaintenanceSettingsArgs
  * Read maintenance settings from the MaintenanceSettings global.
  * Falls back to sensible defaults when unset/partial.
  */
-export const tryGetMaintenanceSettings = Result.wrap(
-	async (args: GetMaintenanceSettingsArgs) => {
-		const { payload, req, overrideAccess = false } = args;
+export function tryGetMaintenanceSettings(args: GetMaintenanceSettingsArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, overrideAccess = false } = args;
 
-		const raw = await payload
-			.findGlobal({
-				slug: MaintenanceSettings.slug,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<0, "findGlobal">());
+			const raw = await payload
+				.findGlobal({
+					slug: MaintenanceSettings.slug,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findGlobal">());
 
-		return {
-			maintenanceMode: raw.maintenanceMode ?? false,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get maintenance settings", { cause: error }),
-);
+			return {
+				maintenanceMode: raw.maintenanceMode ?? false,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get maintenance settings", { cause: error }),
+	);
+}
 
 /**
  * Update maintenance settings in the MaintenanceSettings global.
  */
-export const tryUpdateMaintenanceSettings = Result.wrap(
-	async (args: UpdateMaintenanceSettingsArgs) => {
-		const { payload, req, data, overrideAccess = false } = args;
+export function tryUpdateMaintenanceSettings(
+	args: UpdateMaintenanceSettingsArgs,
+) {
+	return Result.try(
+		async () => {
+			const { payload, req, data, overrideAccess = false } = args;
 
-		const updated = await payload
-			.updateGlobal({
-				slug: "maintenance-settings",
-				data: {
-					maintenanceMode: data.maintenanceMode ?? false,
-				},
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<0, "updateGlobal">());
+			const updated = await payload
+				.updateGlobal({
+					slug: "maintenance-settings",
+					data: {
+						maintenanceMode: data.maintenanceMode ?? false,
+					},
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "updateGlobal">());
 
-		return {
-			maintenanceMode: updated.maintenanceMode ?? false,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update maintenance settings", {
-			cause: error,
-		}),
-);
+			return {
+				maintenanceMode: updated.maintenanceMode ?? false,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update maintenance settings", {
+				cause: error,
+			}),
+	);
+}

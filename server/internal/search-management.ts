@@ -64,66 +64,68 @@ export interface SearchResult {
  * "John" in:courses -> will search for "John" in the courses collection
  * "John" in:users,courses -> will search for "John" in the users and courses collections
  */
-export const tryGlobalSearch = Result.wrap(
-	async (args: SearchArgs) => {
-		const { payload, query, limit = 10, page = 1 } = args;
+export function tryGlobalSearch(args: SearchArgs) {
+	return Result.try(
+		async () => {
+			const { payload, query, limit = 10, page = 1 } = args;
 
-		const { text, in: collections } = parseQuery(query ?? "");
+			const { text, in: collections } = parseQuery(query ?? "");
 
-		const where: Where = {};
+			const where: Where = {};
 
-		where.and = [
-			{
-				or: text
-					? [
-							{
-								title: {
-									contains: text,
+			where.and = [
+				{
+					or: text
+						? [
+								{
+									title: {
+										contains: text,
+									},
 								},
-							},
-							{
-								meta: {
-									contains: text,
+								{
+									meta: {
+										contains: text,
+									},
 								},
-							},
-						]
-					: [],
-			},
-		];
-		if (collections.length > 0) {
-			where.and.push({
-				or: collections.map((collection) => ({
-					"doc.relationTo": {
-						equals: collection,
-					},
-				})),
+							]
+						: [],
+				},
+			];
+			if (collections.length > 0) {
+				where.and.push({
+					or: collections.map((collection) => ({
+						"doc.relationTo": {
+							equals: collection,
+						},
+					})),
+				});
+			}
+
+			const results = await payload.find({
+				collection: "search",
+				where,
+				limit,
+				page,
+				sort: "-createdAt",
 			});
-		}
 
-		const results = await payload.find({
-			collection: "search",
-			where,
-			limit,
-			page,
-			sort: "-createdAt",
-		});
-
-		return {
-			docs: results.docs.map((doc) => ({
-				...doc,
-				meta: doc.meta ? JSON.parse(doc.meta) : null,
-			})),
-			totalDocs: results.totalDocs,
-			totalPages: results.totalPages,
-			page: results.page,
-			limit: results.limit,
-			hasNextPage: results.hasNextPage,
-			hasPrevPage: results.hasPrevPage,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to search", {
-			cause: error,
-		}),
-);
+			return {
+				docs: results.docs.map((doc) => ({
+					...doc,
+					meta: doc.meta ? JSON.parse(doc.meta) : null,
+				})),
+				totalDocs: results.totalDocs,
+				totalPages: results.totalPages,
+				page: results.page,
+				limit: results.limit,
+				hasNextPage: results.hasNextPage,
+				hasPrevPage: results.hasPrevPage,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to search", {
+				cause: error,
+			}),
+	);
+}

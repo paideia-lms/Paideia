@@ -11,7 +11,6 @@ import {
 import {
 	tryCreateAssignmentSubmission,
 	tryGradeAssignmentSubmission,
-	trySubmitAssignment,
 } from "./assignment-submission-management";
 import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
@@ -981,18 +980,6 @@ describe("User Grade Management", () => {
 			throw new Error("Failed to create assignment submission");
 		}
 		const submission = submissionResult.value;
-
-		// Submit the assignment
-		const submitResult = await trySubmitAssignment({
-			payload,
-			submissionId: submission.id,
-			req: { user: student as typeof student & { collection: "users" } },
-			overrideAccess: false,
-		});
-		expect(submitResult.ok).toBe(true);
-		if (!submitResult.ok) {
-			throw new Error("Failed to submit assignment");
-		}
 
 		// Grade the assignment submission (only updates submission, doesn't create user-grade)
 		const gradeResult = await tryGradeAssignmentSubmission({

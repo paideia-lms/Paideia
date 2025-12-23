@@ -20,7 +20,10 @@ import {
 	getFileType,
 	getFileTypeLabel,
 } from "~/utils/file-types";
-import { AssignmentActions } from "~/utils/module-actions";
+import {
+	View,
+	getRouteUrl,
+} from "app/routes/course/module.$id.submissions/route";
 
 // ============================================================================
 // Types
@@ -389,10 +392,17 @@ export function SubmissionHistoryItem({
 										<Menu.Item
 											component={Link}
 											to={
-												href("/course/module/:moduleLinkId/submissions", {
-													moduleLinkId: moduleLinkId.toString(),
-												}) +
-												`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
+												// href("/course/module/:moduleLinkId/submissions", {
+												// 	moduleLinkId: moduleLinkId.toString(),
+												// }) +
+												// `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
+												getRouteUrl(
+													{
+														view: View.GRADING,
+														submissionId: submission.id,
+													},
+													moduleLinkId,
+												)
 											}
 											leftSection={<IconPencil size={16} />}
 										>

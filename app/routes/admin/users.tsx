@@ -24,7 +24,6 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/users";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	getUserRoleBadgeColor,
 	getUserRoleLabel,
@@ -39,7 +38,7 @@ export const usersSearchParams = {
 export const loadSearchParams = createLoader(usersSearchParams);
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -49,9 +48,6 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	if (userSession.authenticatedUser.role !== "admin") {
 		throw new ForbiddenResponse("Only admins can view users");
 	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get search params from URL
 	const { query, page } = loadSearchParams(request);
@@ -63,11 +59,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		overrideAccess: false,
 	});
 

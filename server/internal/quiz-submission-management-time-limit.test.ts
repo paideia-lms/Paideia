@@ -18,7 +18,7 @@ import {
 	type StartQuizAttemptArgs,
 	tryCreateQuiz,
 	tryStartQuizAttempt,
-	trySubmitQuiz,
+	tryMarkQuizAttemptAsComplete,
 } from "./quiz-submission-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
@@ -280,7 +280,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		});
 
 		// Try to submit - should fail due to time limit
-		const submitResult = await trySubmitQuiz({
+		const submitResult = await tryMarkQuizAttemptAsComplete({
 			payload,
 			submissionId: quickSubmissionId,
 			overrideAccess: true,

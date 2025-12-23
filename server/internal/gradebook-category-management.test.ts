@@ -166,10 +166,14 @@ describe("Gradebook Category Management", () => {
 			expect(parentId).toBe(testCategory.id);
 
 			// Verify the category can be found after creation
-			const findResult = await tryFindGradebookCategoryById(
+			const findResult = await tryFindGradebookCategoryById({
 				payload,
-				result.value.id,
-			);
+				categoryId: result.value.id,
+				req: {
+					user: instructor as typeof instructor & { collection: "users" },
+				},
+				overrideAccess: false,
+			});
 			expect(findResult.ok).toBe(true);
 			if (findResult.ok) {
 				const foundParentId =
@@ -237,10 +241,14 @@ describe("Gradebook Category Management", () => {
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		// Verify the nested category can be found by ID
-		const findNestedResult = await tryFindGradebookCategoryById(
+		const findNestedResult = await tryFindGradebookCategoryById({
 			payload,
-			nestedCategory.id,
-		);
+			categoryId: nestedCategory.id,
+			req: {
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
+		});
 		expect(findNestedResult.ok).toBe(true);
 		if (!findNestedResult.ok) {
 			throw new Error("Nested category not found after creation");
@@ -283,7 +291,14 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should find gradebook category by ID", async () => {
-		const result = await tryFindGradebookCategoryById(payload, testCategory.id);
+		const result = await tryFindGradebookCategoryById({
+			payload,
+			categoryId: testCategory.id,
+			req: {
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -383,10 +398,14 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should not find deleted category", async () => {
-		const result = await tryFindGradebookCategoryById(
+		const result = await tryFindGradebookCategoryById({
 			payload,
-			testSubCategory.id,
-		);
+			categoryId: testSubCategory.id,
+			req: {
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
+		});
 
 		expect(result.ok).toBe(false);
 	});

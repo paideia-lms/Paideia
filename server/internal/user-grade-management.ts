@@ -34,7 +34,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
-import { GradebookItems } from "server/payload.config";
+import { GradebookItems } from "../collections/gradebook-items";
 
 export interface CreateUserGradeArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
@@ -160,295 +160,295 @@ export interface SingleUserGradesJsonRepresentation {
 /**
  * Creates a new user grade using Payload local API
  */
-export const tryCreateUserGrade = Result.wrap(
-	async (args: CreateUserGradeArgs) => {
-		const {
-			payload,
-			req,
-			overrideAccess = false,
-			enrollmentId,
-			gradebookItemId,
-			baseGrade,
-			baseGradeSource = "manual",
-			submission,
-			submissionType = "manual",
-			feedback,
-			gradedBy,
-			submittedAt,
-		} = args;
+export function tryCreateUserGrade(args: CreateUserGradeArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				req,
+				overrideAccess = false,
+				enrollmentId,
+				gradebookItemId,
+				baseGrade,
+				baseGradeSource = "manual",
+				submission,
+				submissionType = "manual",
+				feedback,
+				gradedBy,
+				submittedAt,
+			} = args;
 
-		// Check if enrollment exists
-		const enrollment = await payload.findByID({
-			collection: "enrollments",
-			id: enrollmentId,
-			req,
-			overrideAccess,
-		});
-
-		if (!enrollment) {
-			throw new EnrollmentNotFoundError(
-				`Enrollment with ID ${enrollmentId} not found`,
-			);
-		}
-
-		// Check if gradebook item exists
-		const gradebookItem = await payload
-			.findByID({
-				collection: "gradebook-items",
-				id: gradebookItemId,
-				depth: 1,
+			// Check if enrollment exists
+			const enrollment = await payload.findByID({
+				collection: "enrollments",
+				id: enrollmentId,
 				req,
 				overrideAccess,
-			})
-			.then(stripDepth<1, "findByID">())
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: `tryCreateUserGrade - to find gradebook item ${gradebookItemId}`,
-					args,
-				});
-				throw error;
 			});
 
-		// Validate base grade value if provided
-		if (baseGrade !== null && baseGrade !== undefined) {
-			if (
-				baseGrade < gradebookItem.minGrade ||
-				baseGrade > gradebookItem.maxGrade
-			) {
-				throw new InvalidGradeValueError(
-					`Base grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+			if (!enrollment) {
+				throw new EnrollmentNotFoundError(
+					`Enrollment with ID ${enrollmentId} not found`,
 				);
 			}
-		}
 
-		// Check if grade already exists for this enrollment and item
-		const existingGrade = await payload
-			.find({
-				collection: UserGrades.slug,
-				where: {
-					and: [
-						{
-							enrollment: {
-								equals: enrollmentId,
-							},
-						},
-						{
-							gradebookItem: {
-								equals: gradebookItemId,
-							},
-						},
-					],
-				},
-				limit: 1,
-				depth: 1,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">())
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: `tryCreateUserGrade - to find existing grade for enrollment ${enrollmentId} and item ${gradebookItemId}`,
-					args,
-				});
-				throw error;
-			});
-
-		if (existingGrade.docs.length > 0) {
-			throw new DuplicateUserGradeError(
-				`Grade already exists for enrollment ${enrollmentId} and item ${gradebookItemId}`,
-			);
-		}
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const now = new Date().toISOString();
-			const newGrade = await payload
-				.create({
-					collection: UserGrades.slug,
-					data: {
-						enrollment: enrollmentId,
-						gradebookItem: gradebookItemId,
-						baseGrade,
-						baseGradeSource,
-						submission: submission
-							? {
-									relationTo:
-										submissionType === "assignment"
-											? "assignment-submissions"
-											: submissionType === "quiz"
-												? "quiz-submissions"
-												: "discussion-submissions",
-									value: submission,
-								}
-							: undefined,
-						submissionType,
-						feedback,
-						gradedBy,
-						gradedAt:
-							baseGrade !== null && baseGrade !== undefined ? now : undefined,
-						submittedAt,
-						status:
-							baseGrade !== null && baseGrade !== undefined
-								? "graded"
-								: "draft",
-					},
-					depth: 0,
-					req: reqWithTransaction,
+			// Check if gradebook item exists
+			const gradebookItem = await payload
+				.findByID({
+					collection: "gradebook-items",
+					id: gradebookItemId,
+					depth: 1,
+					req,
 					overrideAccess,
 				})
-				.then(stripDepth<0, "create">());
+				.then(stripDepth<1, "findByID">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryCreateUserGrade - to find gradebook item ${gradebookItemId}`,
+						args,
+					});
+					throw error;
+				});
 
-			return newGrade;
-		});
-	},
-	(error) => {
-		transformError(error) ??
-			new UnknownError("Failed to create user grade", {
-				cause: error,
+			// Validate base grade value if provided
+			if (baseGrade !== null && baseGrade !== undefined) {
+				if (
+					baseGrade < gradebookItem.minGrade ||
+					baseGrade > gradebookItem.maxGrade
+				) {
+					throw new InvalidGradeValueError(
+						`Base grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					);
+				}
+			}
+
+			// Check if grade already exists for this enrollment and item
+			const existingGrade = await payload
+				.find({
+					collection: UserGrades.slug,
+					where: {
+						and: [
+							{
+								enrollment: {
+									equals: enrollmentId,
+								},
+							},
+							{
+								gradebookItem: {
+									equals: gradebookItemId,
+								},
+							},
+						],
+					},
+					limit: 1,
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryCreateUserGrade - to find existing grade for enrollment ${enrollmentId} and item ${gradebookItemId}`,
+						args,
+					});
+					throw error;
+				});
+
+			if (existingGrade.docs.length > 0) {
+				throw new DuplicateUserGradeError(
+					`Grade already exists for enrollment ${enrollmentId} and item ${gradebookItemId}`,
+				);
+			}
+
+			const transactionInfo = await handleTransactionId(payload, req);
+
+			return transactionInfo.tx(async ({ reqWithTransaction }) => {
+				const now = new Date().toISOString();
+				const newGrade = await payload
+					.create({
+						collection: UserGrades.slug,
+						data: {
+							enrollment: enrollmentId,
+							gradebookItem: gradebookItemId,
+							baseGrade,
+							baseGradeSource,
+							submission: submission
+								? {
+										relationTo:
+											submissionType === "assignment"
+												? "assignment-submissions"
+												: submissionType === "quiz"
+													? "quiz-submissions"
+													: "discussion-submissions",
+										value: submission,
+									}
+								: undefined,
+							submissionType,
+							feedback,
+							gradedBy,
+							gradedAt:
+								baseGrade !== null && baseGrade !== undefined ? now : undefined,
+							submittedAt,
+							status:
+								baseGrade !== null && baseGrade !== undefined
+									? "graded"
+									: "draft",
+						},
+						depth: 0,
+						req: reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "create">());
+
+				return newGrade;
 			});
-	},
-);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to create user grade", { cause: error }),
+	);
+}
 
 /**
  * Updates an existing user grade using Payload local API
  */
-export const tryUpdateUserGrade = Result.wrap(
-	async (args: UpdateUserGradeArgs) => {
-		const {
-			payload,
-			req,
-			overrideAccess = false,
-			gradeId,
-			baseGrade,
-			feedback,
-			gradedBy,
-			submittedAt,
-			submission,
-			submissionType,
-			isOverridden,
-			overrideGrade,
-			overrideReason,
-			overriddenBy,
-		} = args;
+export function tryUpdateUserGrade(args: UpdateUserGradeArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				req,
+				overrideAccess = false,
+				gradeId,
+				baseGrade,
+				feedback,
+				gradedBy,
+				submittedAt,
+				submission,
+				submissionType,
+				isOverridden,
+				overrideGrade,
+				overrideReason,
+				overriddenBy,
+			} = args;
 
-		// Check if grade exists
-		const existingGrade = await payload.findByID({
-			collection: UserGrades.slug,
-			id: gradeId,
-			req,
-			overrideAccess,
-		});
-
-		if (!existingGrade) {
-			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
-		}
-
-		// Get gradebook item to validate grade value
-		const gradebookItem = await payload.findByID({
-			collection: "gradebook-items",
-			id:
-				typeof existingGrade.gradebookItem === "number"
-					? existingGrade.gradebookItem
-					: existingGrade.gradebookItem.id,
-			req,
-			overrideAccess,
-		});
-
-		if (!gradebookItem) {
-			throw new GradebookItemNotFoundError(
-				"Associated gradebook item not found",
-			);
-		}
-
-		// Validate base grade value if provided
-		if (baseGrade !== undefined && baseGrade !== null) {
-			if (
-				baseGrade < gradebookItem.minGrade ||
-				baseGrade > gradebookItem.maxGrade
-			) {
-				throw new InvalidGradeValueError(
-					`Base grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
-				);
-			}
-		}
-
-		const now = new Date().toISOString();
-		const updateData: Record<string, unknown> = {};
-
-		if (baseGrade !== undefined) {
-			updateData.baseGrade = baseGrade;
-		}
-		if (feedback !== undefined) {
-			updateData.feedback = feedback;
-		}
-		if (gradedBy !== undefined) {
-			updateData.gradedBy = gradedBy;
-		}
-		if (submittedAt !== undefined) {
-			updateData.submittedAt = submittedAt;
-		}
-		if (submission !== undefined && submissionType !== undefined) {
-			updateData.submission = {
-				relationTo:
-					submissionType === "assignment"
-						? "assignment-submissions"
-						: submissionType === "quiz"
-							? "quiz-submissions"
-							: "discussion-submissions",
-				value: submission,
-			};
-			updateData.submissionType = submissionType;
-		}
-		if (isOverridden !== undefined) {
-			updateData.isOverridden = isOverridden;
-		}
-		if (overrideGrade !== undefined) {
-			updateData.overrideGrade = overrideGrade;
-		}
-		if (overrideReason !== undefined) {
-			updateData.overrideReason = overrideReason;
-		}
-		if (overriddenBy !== undefined) {
-			updateData.overriddenBy = overriddenBy;
-		}
-
-		// Set gradedAt if base grade is being set
-		if (baseGrade !== undefined && baseGrade !== null) {
-			updateData.gradedAt = now;
-			updateData.status = "graded";
-		}
-
-		const updatedGrade = await payload
-			.update({
+			// Check if grade exists
+			const existingGrade = await payload.findByID({
 				collection: UserGrades.slug,
 				id: gradeId,
-				data: updateData,
-				depth: 0,
 				req,
 				overrideAccess,
-			})
-			.then(stripDepth<1, "update">())
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: `tryUpdateUserGrade - to update grade ${gradeId}`,
-					args,
-				});
-				throw error;
 			});
 
-		return updatedGrade as UserGrade;
-	},
-	(error) => {
-		transformError(error) ??
+			if (!existingGrade) {
+				throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+			}
+
+			// Get gradebook item to validate grade value
+			const gradebookItem = await payload.findByID({
+				collection: "gradebook-items",
+				id:
+					typeof existingGrade.gradebookItem === "number"
+						? existingGrade.gradebookItem
+						: existingGrade.gradebookItem.id,
+				req,
+				overrideAccess,
+			});
+
+			if (!gradebookItem) {
+				throw new GradebookItemNotFoundError(
+					"Associated gradebook item not found",
+				);
+			}
+
+			// Validate base grade value if provided
+			if (baseGrade !== undefined && baseGrade !== null) {
+				if (
+					baseGrade < gradebookItem.minGrade ||
+					baseGrade > gradebookItem.maxGrade
+				) {
+					throw new InvalidGradeValueError(
+						`Base grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					);
+				}
+			}
+
+			const now = new Date().toISOString();
+			const updateData: Record<string, unknown> = {};
+
+			if (baseGrade !== undefined) {
+				updateData.baseGrade = baseGrade;
+			}
+			if (feedback !== undefined) {
+				updateData.feedback = feedback;
+			}
+			if (gradedBy !== undefined) {
+				updateData.gradedBy = gradedBy;
+			}
+			if (submittedAt !== undefined) {
+				updateData.submittedAt = submittedAt;
+			}
+			if (submission !== undefined && submissionType !== undefined) {
+				updateData.submission = {
+					relationTo:
+						submissionType === "assignment"
+							? "assignment-submissions"
+							: submissionType === "quiz"
+								? "quiz-submissions"
+								: "discussion-submissions",
+					value: submission,
+				};
+				updateData.submissionType = submissionType;
+			}
+			if (isOverridden !== undefined) {
+				updateData.isOverridden = isOverridden;
+			}
+			if (overrideGrade !== undefined) {
+				updateData.overrideGrade = overrideGrade;
+			}
+			if (overrideReason !== undefined) {
+				updateData.overrideReason = overrideReason;
+			}
+			if (overriddenBy !== undefined) {
+				updateData.overriddenBy = overriddenBy;
+			}
+
+			// Set gradedAt if base grade is being set
+			if (baseGrade !== undefined && baseGrade !== null) {
+				updateData.gradedAt = now;
+				updateData.status = "graded";
+			}
+
+			const updatedGrade = await payload
+				.update({
+					collection: UserGrades.slug,
+					id: gradeId,
+					data: updateData,
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryUpdateUserGrade - to update grade ${gradeId}`,
+						args,
+					});
+					throw error;
+				});
+
+			return updatedGrade as UserGrade;
+		},
+		(error) =>
+			transformError(error) ??
 			new UnknownError("Failed to update user grade", {
 				cause: error,
-			});
-	},
-);
+			}),
+	);
+}
 
 export interface FindUserGradeByIdArgs extends BaseInternalFunctionArgs {
 	gradeId: number;
@@ -457,32 +457,34 @@ export interface FindUserGradeByIdArgs extends BaseInternalFunctionArgs {
 /**
  * Finds a user grade by ID
  */
-export const tryFindUserGradeById = Result.wrap(
-	async (args: FindUserGradeByIdArgs) => {
-		const { payload, req, overrideAccess = false, gradeId } = args;
+export function tryFindUserGradeById(args: FindUserGradeByIdArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, overrideAccess = false, gradeId } = args;
 
-		const grade = await payload.findByID({
-			collection: UserGrades.slug,
-			id: gradeId,
-			req,
-			overrideAccess,
-		});
+			const grade = await payload.findByID({
+				collection: UserGrades.slug,
+				id: gradeId,
+				req,
+				overrideAccess,
+			});
 
-		if (!grade) {
-			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
-		}
+			if (!grade) {
+				throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+			}
 
-		return grade as UserGrade;
-	},
-	(error) => {
-		if (error instanceof UserGradeNotFoundError) {
-			return error;
-		}
-		return new Error(
-			`Failed to find user grade by ID: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	},
-);
+			return grade as UserGrade;
+		},
+		(error) => {
+			if (error instanceof UserGradeNotFoundError) {
+				return error;
+			}
+			return new Error(
+				`Failed to find user grade by ID: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		},
+	);
+}
 
 export interface FindUserGradeByEnrollmentAndItemArgs
 	extends BaseInternalFunctionArgs {
@@ -493,52 +495,58 @@ export interface FindUserGradeByEnrollmentAndItemArgs
 /**
  * Finds a user grade by enrollment and gradebook item
  */
-export const tryFindUserGradeByEnrollmentAndItem = Result.wrap(
-	async (args: FindUserGradeByEnrollmentAndItemArgs) => {
-		const {
-			payload,
-			req,
-			overrideAccess = false,
-			enrollmentId,
-			gradebookItemId,
-		} = args;
+export function tryFindUserGradeByEnrollmentAndItem(
+	args: FindUserGradeByEnrollmentAndItemArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				req,
+				overrideAccess = false,
+				enrollmentId,
+				gradebookItemId,
+			} = args;
 
-		const grades = await payload.find({
-			collection: UserGrades.slug,
-			where: {
-				and: [
-					{
-						enrollment: {
-							equals: enrollmentId,
-						},
+			const grades = await payload
+				.find({
+					collection: UserGrades.slug,
+					where: {
+						and: [
+							{
+								enrollment: {
+									equals: enrollmentId,
+								},
+							},
+							{
+								gradebookItem: {
+									equals: gradebookItemId,
+								},
+							},
+						],
 					},
-					{
-						gradebookItem: {
-							equals: gradebookItemId,
-						},
-					},
-				],
-			},
-			limit: 1,
-			req,
-			overrideAccess,
-		});
+					limit: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
-		if (grades.docs.length === 0) {
-			throw new UserGradeNotFoundError(
-				`Grade not found for enrollment ${enrollmentId} and item ${gradebookItemId}`,
-			);
-		}
+			const grade = grades.docs[0];
 
-		return grades.docs[0] as UserGrade;
-	},
-	(error) => {
-		transformError(error) ??
+			if (!grade) {
+				throw new UserGradeNotFoundError(
+					`Grade not found for enrollment ${enrollmentId} and item ${gradebookItemId}`,
+				);
+			}
+			return grade;
+		},
+		(error) =>
+			transformError(error) ??
 			new UnknownError("Failed to find user grade by enrollment and item", {
 				cause: error,
-			});
-	},
-);
+			}),
+	);
+}
 
 export interface FindUserGradesBySubmissionIdsArgs
 	extends BaseInternalFunctionArgs {
@@ -551,19 +559,34 @@ export interface FindUserGradesBySubmissionIdsArgs
  * Note: Since we can't query polymorphic relationships directly with "in",
  * we query by submissionType and filter in memory
  */
-export const tryFindUserGradesBySubmissionIds = Result.wrap(
-	async (args: FindUserGradesBySubmissionIdsArgs) => {
-		const {
-			payload,
+export function tryFindUserGradesBySubmissionIds(
+	args: FindUserGradesBySubmissionIdsArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			submissionIds,
-			submissionType,
-		} = args;
+				req,
+				overrideAccess = false,
+				submissionIds,
+				submissionType,
+			} = args;
 
-		if (submissionIds.length === 0) {
-			return new Map<
+			if (submissionIds.length === 0) {
+				return new Map<
+					number,
+					{
+						baseGrade: number | null;
+						maxGrade: number | null;
+						gradedAt: string | null;
+						feedback: string | null;
+					}
+				>();
+			}
+
+			const submissionIdsSet = new Set(submissionIds);
+			const gradesBySubmissionId = new Map<
 				number,
 				{
 					baseGrade: number | null;
@@ -572,66 +595,55 @@ export const tryFindUserGradesBySubmissionIds = Result.wrap(
 					feedback: string | null;
 				}
 			>();
-		}
 
-		const submissionIdsSet = new Set(submissionIds);
-		const gradesBySubmissionId = new Map<
-			number,
-			{
-				baseGrade: number | null;
-				maxGrade: number | null;
-				gradedAt: string | null;
-				feedback: string | null;
-			}
-		>();
-
-		// Query user grades by submissionType since we can't query polymorphic relationships directly
-		const userGradesResult = await payload.find({
-			collection: UserGrades.slug,
-			where: {
-				submissionType: {
-					equals: submissionType,
+			// Query user grades by submissionType since we can't query polymorphic relationships directly
+			const userGradesResult = await payload.find({
+				collection: UserGrades.slug,
+				where: {
+					submissionType: {
+						equals: submissionType,
+					},
 				},
-			},
-			limit: 1000,
-			depth: 1,
-			req,
-			overrideAccess,
-		});
+				limit: 1000,
+				depth: 1,
+				req,
+				overrideAccess,
+			});
 
-		for (const grade of userGradesResult.docs) {
-			const submission =
-				grade.submission?.relationTo === `${submissionType}-submissions`
-					? grade.submission.value
-					: null;
-			if (submission) {
-				const submissionId =
-					typeof submission === "number" ? submission : submission.id;
-				// Only include grades for submissions we're interested in
-				if (submissionIdsSet.has(submissionId)) {
-					gradesBySubmissionId.set(submissionId, {
-						baseGrade:
-							grade.isOverridden &&
-							grade.overrideGrade !== null &&
-							grade.overrideGrade !== undefined
-								? grade.overrideGrade
-								: (grade.baseGrade ?? null),
-						maxGrade: grade.maxGrade ?? null,
-						gradedAt: grade.gradedAt ?? null,
-						feedback: grade.feedback ?? null,
-					});
+			for (const grade of userGradesResult.docs) {
+				const submission =
+					grade.submission?.relationTo === `${submissionType}-submissions`
+						? grade.submission.value
+						: null;
+				if (submission) {
+					const submissionId =
+						typeof submission === "number" ? submission : submission.id;
+					// Only include grades for submissions we're interested in
+					if (submissionIdsSet.has(submissionId)) {
+						gradesBySubmissionId.set(submissionId, {
+							baseGrade:
+								grade.isOverridden &&
+								grade.overrideGrade !== null &&
+								grade.overrideGrade !== undefined
+									? grade.overrideGrade
+									: (grade.baseGrade ?? null),
+							maxGrade: grade.maxGrade ?? null,
+							gradedAt: grade.gradedAt ?? null,
+							feedback: grade.feedback ?? null,
+						});
+					}
 				}
 			}
-		}
 
-		return gradesBySubmissionId;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to find user grades by submission IDs", {
-			cause: error,
-		}),
-);
+			return gradesBySubmissionId;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to find user grades by submission IDs", {
+				cause: error,
+			}),
+	);
+}
 
 export interface DeleteUserGradeArgs extends BaseInternalFunctionArgs {
 	gradeId: number;
@@ -640,25 +652,27 @@ export interface DeleteUserGradeArgs extends BaseInternalFunctionArgs {
 /**
  * Deletes a user grade by ID
  */
-export const tryDeleteUserGrade = Result.wrap(
-	async (args: DeleteUserGradeArgs) => {
-		const { payload, req, overrideAccess = false, gradeId } = args;
+export function tryDeleteUserGrade(args: DeleteUserGradeArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, overrideAccess = false, gradeId } = args;
 
-		const deletedGrade = await payload.delete({
-			collection: UserGrades.slug,
-			id: gradeId,
-			req,
-			overrideAccess,
-		});
+			const deletedGrade = await payload.delete({
+				collection: UserGrades.slug,
+				id: gradeId,
+				req,
+				overrideAccess,
+			});
 
-		return deletedGrade as UserGrade;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to delete user grade", {
-			cause: error,
-		}),
-);
+			return deletedGrade as UserGrade;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to delete user grade", {
+				cause: error,
+			}),
+	);
+}
 
 export interface GetUserGradesForGradebookArgs
 	extends BaseInternalFunctionArgs {
@@ -669,81 +683,85 @@ export interface GetUserGradesForGradebookArgs
 /**
  * Gets all grades for a specific enrollment in a gradebook
  */
-export const tryGetUserGradesForGradebook = Result.wrap(
-	async (args: GetUserGradesForGradebookArgs) => {
-		const {
-			payload,
+export function tryGetUserGradesForGradebook(
+	args: GetUserGradesForGradebookArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			enrollmentId,
-			gradebookId,
-		} = args;
+				req,
+				overrideAccess = false,
+				enrollmentId,
+				gradebookId,
+			} = args;
 
-		// First get all items in the gradebook
-		const items = await payload
-			.find({
-				collection: "gradebook-items",
-				where: {
-					gradebook: {
-						equals: gradebookId,
+			// First get all items in the gradebook
+			const items = await payload
+				.find({
+					collection: "gradebook-items",
+					where: {
+						gradebook: {
+							equals: gradebookId,
+						},
 					},
-				},
-				limit: MOCK_INFINITY,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">())
-			.catch((e) => {
-				interceptPayloadError({
-					error: e,
+					limit: MOCK_INFINITY,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((e) => {
+					interceptPayloadError({
+						error: e,
 
-					functionNamePrefix: `tryGetUserGradesForGradebook - to get gradebook items`,
-					args,
+						functionNamePrefix: `tryGetUserGradesForGradebook - to get gradebook items`,
+						args,
+					});
+					throw e;
 				});
-				throw e;
-			});
 
-		const itemIds = items.docs.map((item) => item.id);
+			const itemIds = items.docs.map((item) => item.id);
 
-		// Then get all grades for this enrollment and these items
-		const grades = await payload
-			.find({
-				collection: UserGrades.slug,
-				where: {
-					and: [
-						{
-							enrollment: {
-								equals: enrollmentId,
+			// Then get all grades for this enrollment and these items
+			const grades = await payload
+				.find({
+					collection: UserGrades.slug,
+					where: {
+						and: [
+							{
+								enrollment: {
+									equals: enrollmentId,
+								},
 							},
-						},
-						{
-							gradebookItem: {
-								in: itemIds,
+							{
+								gradebookItem: {
+									in: itemIds,
+								},
 							},
-						},
-					],
-				},
-				depth: 1, // Get gradebook item details
-				limit: 999999,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">())
-			.catch((e) => {
-				throw new UserGradeNotFoundError("Failed to get user grades", {
-					cause: e,
+						],
+					},
+					depth: 1, // Get gradebook item details
+					limit: 999999,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((e) => {
+					throw new UserGradeNotFoundError("Failed to get user grades", {
+						cause: e,
+					});
 				});
-			});
 
-		return grades.docs as UserGrade[];
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get user grades for gradebook", {
-			cause: error,
-		}),
-);
+			return grades.docs as UserGrade[];
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get user grades for gradebook", {
+				cause: error,
+			}),
+	);
+}
 
 export interface GetGradesForItemArgs extends BaseInternalFunctionArgs {
 	gradebookItemId: number;
@@ -752,37 +770,39 @@ export interface GetGradesForItemArgs extends BaseInternalFunctionArgs {
 /**
  * Gets all grades for a specific gradebook item
  */
-export const tryGetGradesForItem = Result.wrap(
-	async (args: GetGradesForItemArgs) => {
-		const {
-			payload,
+export function tryGetGradesForItem(args: GetGradesForItemArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			gradebookItemId,
-		} = args;
+				req,
+				overrideAccess = false,
+				gradebookItemId,
+			} = args;
 
-		const grades = await payload.find({
-			collection: UserGrades.slug,
-			where: {
-				gradebookItem: {
-					equals: gradebookItemId,
+			const grades = await payload.find({
+				collection: UserGrades.slug,
+				where: {
+					gradebookItem: {
+						equals: gradebookItemId,
+					},
 				},
-			},
-			depth: 1, // Get user details
-			limit: 999999,
-			req,
-			overrideAccess,
-		});
+				depth: 1, // Get user details
+				limit: 999999,
+				req,
+				overrideAccess,
+			});
 
-		return grades.docs as UserGrade[];
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get grades for item", {
-			cause: error,
-		}),
-);
+			return grades.docs as UserGrade[];
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get grades for item", {
+				cause: error,
+			}),
+	);
+}
 
 export interface CalculateUserFinalGradeArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
@@ -792,290 +812,298 @@ export interface CalculateUserFinalGradeArgs extends BaseInternalFunctionArgs {
 /**
  * Calculates final grade for a user in a gradebook
  */
-export const tryCalculateUserFinalGrade = Result.wrap(
-	async (args: CalculateUserFinalGradeArgs) => {
-		const {
-			payload,
+export function tryCalculateUserFinalGrade(args: CalculateUserFinalGradeArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			enrollmentId,
-			gradebookId,
-		} = args;
+				req,
+				overrideAccess = false,
+				enrollmentId,
+				gradebookId,
+			} = args;
 
-		// Get all grades for the enrollment in this gradebook
-		const grades = await tryGetUserGradesForGradebook({
-			payload,
-			req,
-			overrideAccess,
-			enrollmentId,
-			gradebookId,
-		});
-
-		if (!grades.ok) {
-			throw new UnknownError("Failed to get user grades", {
-				cause: grades.error,
+			// Get all grades for the enrollment in this gradebook
+			const grades = await tryGetUserGradesForGradebook({
+				payload,
+				req,
+				overrideAccess,
+				enrollmentId,
+				gradebookId,
 			});
-		}
 
-		const userGrades = grades.value;
-
-		// Calculate weighted average
-		let totalWeight = 0;
-		let weightedSum = 0;
-		let hasGradedItems = false;
-
-		for (const grade of userGrades) {
-			const gradebookItem =
-				typeof grade.gradebookItem === "number"
-					? await payload.findByID({
-							collection: "gradebook-items",
-							id: grade.gradebookItem,
-						})
-					: grade.gradebookItem;
-
-			if (!gradebookItem) {
-				continue;
-			}
-
-			// Calculate final grade: use override if set, otherwise use base grade + adjustments
-			let finalGrade = grade.baseGrade || 0;
-
-			// Add adjustments if any
-			if (grade.adjustments && grade.adjustments.length > 0) {
-				const activeAdjustments = grade.adjustments
-					.filter((adj) => adj.isActive)
-					.reduce((sum, adj) => sum + (adj.points || 0), 0);
-				finalGrade += activeAdjustments;
-			}
-
-			// Use override if set
-			if (
-				grade.isOverridden &&
-				grade.overrideGrade !== null &&
-				grade.overrideGrade !== undefined
-			) {
-				finalGrade = grade.overrideGrade;
-			}
-
-			if (finalGrade === null || finalGrade === undefined) {
-				continue;
-			}
-
-			// Calculate effective weight: item weight * category weight (if item is in category)
-			let effectiveWeight = gradebookItem.weight;
-
-			if (gradebookItem.category) {
-				const categoryId =
-					typeof gradebookItem.category === "number"
-						? gradebookItem.category
-						: gradebookItem.category.id;
-
-				const category = await payload.findByID({
-					collection: "gradebook-categories",
-					id: categoryId,
+			if (!grades.ok) {
+				throw new UnknownError("Failed to get user grades", {
+					cause: grades.error,
 				});
-
-				if (category?.weight) {
-					// Item weight is a percentage of the category weight
-					effectiveWeight =
-						((gradebookItem.weight ?? 0) / 100) * category.weight;
-				}
 			}
 
-			hasGradedItems = true;
-			totalWeight += effectiveWeight ?? 0;
-			weightedSum += finalGrade * (effectiveWeight ?? 0);
-		}
+			const userGrades = grades.value;
 
-		if (!hasGradedItems || totalWeight === 0) {
-			return { finalGrade: null, totalWeight: 0, gradedItems: 0 };
-		}
+			// Calculate weighted average
+			let totalWeight = 0;
+			let weightedSum = 0;
+			let hasGradedItems = false;
 
-		const finalGrade = weightedSum / totalWeight;
+			for (const grade of userGrades) {
+				const gradebookItem =
+					typeof grade.gradebookItem === "number"
+						? await payload.findByID({
+								collection: "gradebook-items",
+								id: grade.gradebookItem,
+							})
+						: grade.gradebookItem;
 
-		return {
-			finalGrade: Math.round(finalGrade * 100) / 100, // Round to 2 decimal places
-			totalWeight,
-			gradedItems: userGrades.filter(
-				(g) => g.baseGrade !== null && g.baseGrade !== undefined,
-			).length,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to calculate user final grade", {
-			cause: error,
-		}),
-);
+				if (!gradebookItem) {
+					continue;
+				}
+
+				// Calculate final grade: use override if set, otherwise use base grade + adjustments
+				let finalGrade = grade.baseGrade || 0;
+
+				// Add adjustments if any
+				if (grade.adjustments && grade.adjustments.length > 0) {
+					const activeAdjustments = grade.adjustments
+						.filter((adj) => adj.isActive)
+						.reduce((sum, adj) => sum + (adj.points || 0), 0);
+					finalGrade += activeAdjustments;
+				}
+
+				// Use override if set
+				if (
+					grade.isOverridden &&
+					grade.overrideGrade !== null &&
+					grade.overrideGrade !== undefined
+				) {
+					finalGrade = grade.overrideGrade;
+				}
+
+				if (finalGrade === null || finalGrade === undefined) {
+					continue;
+				}
+
+				// Calculate effective weight: item weight * category weight (if item is in category)
+				let effectiveWeight = gradebookItem.weight;
+
+				if (gradebookItem.category) {
+					const categoryId =
+						typeof gradebookItem.category === "number"
+							? gradebookItem.category
+							: gradebookItem.category.id;
+
+					const category = await payload.findByID({
+						collection: "gradebook-categories",
+						id: categoryId,
+					});
+
+					if (category?.weight) {
+						// Item weight is a percentage of the category weight
+						effectiveWeight =
+							((gradebookItem.weight ?? 0) / 100) * category.weight;
+					}
+				}
+
+				hasGradedItems = true;
+				totalWeight += effectiveWeight ?? 0;
+				weightedSum += finalGrade * (effectiveWeight ?? 0);
+			}
+
+			if (!hasGradedItems || totalWeight === 0) {
+				return { finalGrade: null, totalWeight: 0, gradedItems: 0 };
+			}
+
+			const finalGrade = weightedSum / totalWeight;
+
+			return {
+				finalGrade: Math.round(finalGrade * 100) / 100, // Round to 2 decimal places
+				totalWeight,
+				gradedItems: userGrades.filter(
+					(g) => g.baseGrade !== null && g.baseGrade !== undefined,
+				).length,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to calculate user final grade", {
+				cause: error,
+			}),
+	);
+}
 
 /**
  * Adds an adjustment to a user grade
  */
-export const tryAddAdjustment = Result.wrap(
-	async (args: AddAdjustmentArgs) => {
-		const {
-			payload,
+export function tryAddAdjustment(args: AddAdjustmentArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			gradeId,
-			type,
-			points,
-			reason,
-			appliedBy,
-		} = args;
+				req,
+				overrideAccess = false,
+				gradeId,
+				type,
+				points,
+				reason,
+				appliedBy,
+			} = args;
 
-		// Check if grade exists
-		const existingGrade = await payload.findByID({
-			collection: UserGrades.slug,
-			id: gradeId,
-			req,
-			overrideAccess,
-		});
+			// Check if grade exists
+			const existingGrade = await payload.findByID({
+				collection: UserGrades.slug,
+				id: gradeId,
+				req,
+				overrideAccess,
+			});
 
-		if (!existingGrade) {
-			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
-		}
+			if (!existingGrade) {
+				throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+			}
 
-		// Create new adjustment
-		const newAdjustment = {
-			type,
-			points,
-			reason,
-			appliedBy,
-			appliedAt: new Date().toISOString(),
-			isActive: true,
-			id: `adj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-		};
+			// Create new adjustment
+			const newAdjustment = {
+				type,
+				points,
+				reason,
+				appliedBy,
+				appliedAt: new Date().toISOString(),
+				isActive: true,
+				id: `adj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+			};
 
-		// Add adjustment to existing adjustments
-		const currentAdjustments = existingGrade.adjustments || [];
-		const updatedAdjustments = [...currentAdjustments, newAdjustment];
+			// Add adjustment to existing adjustments
+			const currentAdjustments = existingGrade.adjustments || [];
+			const updatedAdjustments = [...currentAdjustments, newAdjustment];
 
-		const updatedGrade = await payload.update({
-			collection: UserGrades.slug,
-			id: gradeId,
-			data: {
-				adjustments: updatedAdjustments,
-			},
-			req,
-			overrideAccess,
-		});
+			const updatedGrade = await payload.update({
+				collection: UserGrades.slug,
+				id: gradeId,
+				data: {
+					adjustments: updatedAdjustments,
+				},
+				req,
+				overrideAccess,
+			});
 
-		return updatedGrade as UserGrade;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to add adjustment", {
-			cause: error,
-		}),
-);
+			return updatedGrade as UserGrade;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to add adjustment", {
+				cause: error,
+			}),
+	);
+}
 
 /**
  * Removes an adjustment from a user grade
  */
-export const tryRemoveAdjustment = Result.wrap(
-	async (args: RemoveAdjustmentArgs) => {
-		const {
-			payload,
+export function tryRemoveAdjustment(args: RemoveAdjustmentArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			gradeId,
-			adjustmentId,
-		} = args;
+				req,
+				overrideAccess = false,
+				gradeId,
+				adjustmentId,
+			} = args;
 
-		// Check if grade exists
-		const existingGrade = await payload.findByID({
-			collection: UserGrades.slug,
-			id: gradeId,
-			req,
-			overrideAccess,
-		});
+			// Check if grade exists
+			const existingGrade = await payload.findByID({
+				collection: UserGrades.slug,
+				id: gradeId,
+				req,
+				overrideAccess,
+			});
 
-		if (!existingGrade) {
-			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
-		}
+			if (!existingGrade) {
+				throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+			}
 
-		// Remove adjustment
-		const currentAdjustments = existingGrade.adjustments || [];
-		const updatedAdjustments = currentAdjustments.filter(
-			(adj) => adj.id !== adjustmentId,
-		);
+			// Remove adjustment
+			const currentAdjustments = existingGrade.adjustments || [];
+			const updatedAdjustments = currentAdjustments.filter(
+				(adj) => adj.id !== adjustmentId,
+			);
 
-		const updatedGrade = await payload.update({
-			collection: UserGrades.slug,
-			id: gradeId,
-			data: {
-				adjustments: updatedAdjustments,
-			},
-			req,
-			overrideAccess,
-		});
+			const updatedGrade = await payload.update({
+				collection: UserGrades.slug,
+				id: gradeId,
+				data: {
+					adjustments: updatedAdjustments,
+				},
+				req,
+				overrideAccess,
+			});
 
-		return updatedGrade as UserGrade;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to remove adjustment", {
-			cause: error,
-		}),
-);
+			return updatedGrade as UserGrade;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to remove adjustment", {
+				cause: error,
+			}),
+	);
+}
 
 /**
  * Toggles an adjustment's active status
  */
-export const tryToggleAdjustment = Result.wrap(
-	async (args: ToggleAdjustmentArgs) => {
-		const {
-			payload,
+export function tryToggleAdjustment(args: ToggleAdjustmentArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			gradeId,
-			adjustmentId,
-		} = args;
+				req,
+				overrideAccess = false,
+				gradeId,
+				adjustmentId,
+			} = args;
 
-		// Check if grade exists
-		const existingGrade = await payload.findByID({
-			collection: UserGrades.slug,
-			id: gradeId,
-			req,
-			overrideAccess,
-		});
+			// Check if grade exists
+			const existingGrade = await payload.findByID({
+				collection: UserGrades.slug,
+				id: gradeId,
+				req,
+				overrideAccess,
+			});
 
-		if (!existingGrade) {
-			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
-		}
-
-		// Toggle adjustment active status
-		const currentAdjustments = existingGrade.adjustments || [];
-		const updatedAdjustments = currentAdjustments.map((adj) => {
-			if (adj.id === adjustmentId) {
-				return { ...adj, isActive: !adj.isActive };
+			if (!existingGrade) {
+				throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
 			}
-			return adj;
-		});
 
-		const updatedGrade = await payload.update({
-			collection: UserGrades.slug,
-			id: gradeId,
-			data: {
-				adjustments: updatedAdjustments,
-			},
-			req,
-			overrideAccess,
-		});
+			// Toggle adjustment active status
+			const currentAdjustments = existingGrade.adjustments || [];
+			const updatedAdjustments = currentAdjustments.map((adj) => {
+				if (adj.id === adjustmentId) {
+					return { ...adj, isActive: !adj.isActive };
+				}
+				return adj;
+			});
 
-		return updatedGrade as UserGrade;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to toggle adjustment", {
-			cause: error,
-		}),
-);
+			const updatedGrade = await payload.update({
+				collection: UserGrades.slug,
+				id: gradeId,
+				data: {
+					adjustments: updatedAdjustments,
+				},
+				req,
+				overrideAccess,
+			});
+
+			return updatedGrade as UserGrade;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to toggle adjustment", {
+				cause: error,
+			}),
+	);
+}
 
 export interface BuildUserGradeRepresentationArgs
 	extends BaseInternalFunctionArgs {
@@ -1247,111 +1275,115 @@ export interface GetUserGradesJsonRepresentationArgs
 /**
  * Constructs a JSON representation of user grades for a course
  */
-export const tryGetUserGradesJsonRepresentation = Result.wrap(
-	async (args: GetUserGradesJsonRepresentationArgs) => {
-		const { payload, req, overrideAccess = false, courseId } = args;
+export function tryGetUserGradesJsonRepresentation(
+	args: GetUserGradesJsonRepresentationArgs,
+) {
+	return Result.try(
+		async () => {
+			const { payload, req, overrideAccess = false, courseId } = args;
 
-		// Get all enrollments for the course
-		const enrollments = await payload
-			.find({
-				collection: "enrollments",
-				where: {
-					course: {
-						equals: courseId,
+			// Get all enrollments for the course
+			const enrollments = await payload
+				.find({
+					collection: "enrollments",
+					where: {
+						course: {
+							equals: courseId,
+						},
 					},
-				},
-				depth: 1, // Get user details
-				limit: 999999,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">());
+					depth: 1, // Get user details
+					limit: 999999,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
-		// Get all gradebook items for the gradebook
-		const gradebookItems = await payload
-			.find({
-				collection: "gradebook-items",
-				where: {
-					gradebook: {
-						equals: courseId,
+			// Get all gradebook items for the gradebook
+			const gradebookItems = await payload
+				.find({
+					collection: "gradebook-items",
+					where: {
+						gradebook: {
+							equals: courseId,
+						},
 					},
-				},
-				depth: 1, // Get category details
-				limit: MOCK_INFINITY,
-				sort: "sortOrder",
-				pagination: false,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">())
-			.then(({ docs }) => {
-				// type narrowing
-				return docs;
-			});
-		// Get all user grades for this gradebook
-		const userGrades = await payload
-			.find({
-				collection: UserGrades.slug,
-				where: {
-					gradebookItem: {
-						in: gradebookItems.map((item) => item.id),
+					depth: 1, // Get category details
+					limit: MOCK_INFINITY,
+					sort: "sortOrder",
+					pagination: false,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.then(({ docs }) => {
+					// type narrowing
+					return docs;
+				});
+			// Get all user grades for this gradebook
+			const userGrades = await payload
+				.find({
+					collection: UserGrades.slug,
+					where: {
+						gradebookItem: {
+							in: gradebookItems.map((item) => item.id),
+						},
 					},
-				},
-				depth: 2, // Get enrollment and gradebook item details
-				limit: MOCK_INFINITY,
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<2, "find">());
-		// Group grades by enrollment
-		const gradesByEnrollment = new Map<number, Depth<UserGrade, 2>[]>();
-		for (const grade of userGrades.docs) {
-			const enrollmentId = grade.enrollment.id;
+					depth: 2, // Get enrollment and gradebook item details
+					limit: MOCK_INFINITY,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<2, "find">());
+			// Group grades by enrollment
+			const gradesByEnrollment = new Map<number, Depth<UserGrade, 2>[]>();
+			for (const grade of userGrades.docs) {
+				const enrollmentId = grade.enrollment.id;
 
-			if (!gradesByEnrollment.has(enrollmentId)) {
-				gradesByEnrollment.set(enrollmentId, []);
+				if (!gradesByEnrollment.has(enrollmentId)) {
+					gradesByEnrollment.set(enrollmentId, []);
+				}
+				const grades = gradesByEnrollment.get(enrollmentId);
+				if (grades) {
+					grades.push(grade);
+				}
 			}
-			const grades = gradesByEnrollment.get(enrollmentId);
-			if (grades) {
-				grades.push(grade);
+
+			// Build the representation
+			const enrollmentRepresentations: UserGradeEnrollment[] = [];
+
+			for (const enrollment of enrollments.docs) {
+				const enrollmentRepResult = await tryBuildUserGradeRepresentation({
+					payload,
+					enrollment: {
+						id: enrollment.id,
+						userId: enrollment.user.id,
+					},
+					gradebookId: courseId,
+					gradebookItems: gradebookItems,
+					gradesByEnrollment,
+					req,
+					overrideAccess,
+				});
+
+				if (enrollmentRepResult.ok) {
+					enrollmentRepresentations.push(enrollmentRepResult.value);
+				}
 			}
-		}
 
-		// Build the representation
-		const enrollmentRepresentations: UserGradeEnrollment[] = [];
+			const result: UserGradesJsonRepresentation = {
+				course_id: courseId,
+				enrollments: enrollmentRepresentations,
+			};
 
-		for (const enrollment of enrollments.docs) {
-			const enrollmentRepResult = await tryBuildUserGradeRepresentation({
-				payload,
-				enrollment: {
-					id: enrollment.id,
-					userId: enrollment.user.id,
-				},
-				gradebookId: courseId,
-				gradebookItems: gradebookItems,
-				gradesByEnrollment,
-				req,
-				overrideAccess,
-			});
-
-			if (enrollmentRepResult.ok) {
-				enrollmentRepresentations.push(enrollmentRepResult.value);
-			}
-		}
-
-		const result: UserGradesJsonRepresentation = {
-			course_id: courseId,
-			enrollments: enrollmentRepresentations,
-		};
-
-		return result;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get user grades JSON representation", {
-			cause: error,
-		}),
-);
+			return result;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get user grades JSON representation", {
+				cause: error,
+			}),
+	);
+}
 
 export interface GetSingleUserGradesJsonRepresentationArgs
 	extends BaseInternalFunctionArgs {
@@ -1362,160 +1394,164 @@ export interface GetSingleUserGradesJsonRepresentationArgs
 /**
  * Constructs a JSON representation of a single user's grades in a course
  */
-export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
-	async (args: GetSingleUserGradesJsonRepresentationArgs) => {
-		const {
-			payload,
+export function tryGetSingleUserGradesJsonRepresentation(
+	args: GetSingleUserGradesJsonRepresentationArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
 
-			req,
-			overrideAccess = false,
-			courseId,
-			enrollmentId,
-		} = args;
-
-		// Get the gradebook for the course
-		const gradebook = await payload
-			.find({
-				collection: "gradebooks",
-				where: {
-					course: {
-						equals: courseId,
-					},
-				},
-				limit: 1,
 				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">());
+				overrideAccess = false,
+				courseId,
+				enrollmentId,
+			} = args;
 
-		const gradebookDoc = gradebook.docs[0];
-		if (!gradebookDoc) {
-			throw new GradebookNotFoundError(
-				`No gradebook found for course ${courseId}`,
-			);
-		}
-		const gradebookId = gradebookDoc.id;
-
-		// Get the specific enrollment
-		const enrollment = await payload
-			.findByID({
-				collection: "enrollments",
-				id: enrollmentId,
-				depth: 1, // Get user details
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "findByID">());
-
-		if (!enrollment) {
-			throw new EnrollmentNotFoundError(
-				`Enrollment with ID ${enrollmentId} not found`,
-			);
-		}
-
-		// Verify the enrollment belongs to the course
-		const enrollmentCourseId = enrollment.course.id;
-
-		if (enrollmentCourseId !== courseId) {
-			throw new EnrollmentCourseMismatchError(
-				`Enrollment ${enrollmentId} does not belong to course ${courseId}`,
-			);
-		}
-
-		// Get all gradebook items for the gradebook
-		const gradebookItems = await payload
-			.find({
-				collection: GradebookItems.slug,
-				where: {
-					gradebook: {
-						equals: gradebookId,
-					},
-				},
-				depth: 1, // Get category details
-				limit: MOCK_INFINITY,
-				pagination: false,
-				sort: "sortOrder",
-				req,
-				overrideAccess,
-			})
-			.then(stripDepth<1, "find">())
-			.then(({ docs }) => docs);
-
-		// Get all user grades for this enrollment
-		const userGrades = await payload
-			.find({
-				collection: UserGrades.slug,
-				where: {
-					and: [
-						{
-							enrollment: {
-								equals: enrollmentId,
-							},
+			// Get the gradebook for the course
+			const gradebook = await payload
+				.find({
+					collection: "gradebooks",
+					where: {
+						course: {
+							equals: courseId,
 						},
-						{
-							gradebookItem: {
-								in: gradebookItems.map((item) => item.id),
-							},
+					},
+					limit: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
+
+			const gradebookDoc = gradebook.docs[0];
+			if (!gradebookDoc) {
+				throw new GradebookNotFoundError(
+					`No gradebook found for course ${courseId}`,
+				);
+			}
+			const gradebookId = gradebookDoc.id;
+
+			// Get the specific enrollment
+			const enrollment = await payload
+				.findByID({
+					collection: "enrollments",
+					id: enrollmentId,
+					depth: 1, // Get user details
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (!enrollment) {
+				throw new EnrollmentNotFoundError(
+					`Enrollment with ID ${enrollmentId} not found`,
+				);
+			}
+
+			// Verify the enrollment belongs to the course
+			const enrollmentCourseId = enrollment.course.id;
+
+			if (enrollmentCourseId !== courseId) {
+				throw new EnrollmentCourseMismatchError(
+					`Enrollment ${enrollmentId} does not belong to course ${courseId}`,
+				);
+			}
+
+			// Get all gradebook items for the gradebook
+			const gradebookItems = await payload
+				.find({
+					collection: GradebookItems.slug,
+					where: {
+						gradebook: {
+							equals: gradebookId,
 						},
-					],
+					},
+					depth: 1, // Get category details
+					limit: MOCK_INFINITY,
+					pagination: false,
+					sort: "sortOrder",
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">())
+				.then(({ docs }) => docs);
+
+			// Get all user grades for this enrollment
+			const userGrades = await payload
+				.find({
+					collection: UserGrades.slug,
+					where: {
+						and: [
+							{
+								enrollment: {
+									equals: enrollmentId,
+								},
+							},
+							{
+								gradebookItem: {
+									in: gradebookItems.map((item) => item.id),
+								},
+							},
+						],
+					},
+					depth: 1, // Get gradebook item details
+					limit: MOCK_INFINITY,
+					// ! we don't care about performance for now
+					pagination: false,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
+
+			// Group grades by enrollment (single enrollment in this case)
+			const gradesByEnrollment = new Map<number, Depth<UserGrade, 1>[]>();
+			for (const grade of userGrades.docs) {
+				const enrollmentId = grade.enrollment.id;
+
+				if (!gradesByEnrollment.has(enrollmentId)) {
+					gradesByEnrollment.set(enrollmentId, []);
+				}
+				const grades = gradesByEnrollment.get(enrollmentId);
+				if (grades) {
+					grades.push(grade);
+				}
+			}
+
+			// Build the single user representation
+			const enrollmentRepResult = await tryBuildUserGradeRepresentation({
+				payload,
+				enrollment: {
+					id: enrollment.id,
+					userId: enrollment.user.id,
 				},
-				depth: 1, // Get gradebook item details
-				limit: MOCK_INFINITY,
-				// ! we don't care about performance for now
-				pagination: false,
+				gradebookId,
+				gradebookItems: gradebookItems,
+				gradesByEnrollment,
 				req,
 				overrideAccess,
-			})
-			.then(stripDepth<1, "find">());
+			});
 
-		// Group grades by enrollment (single enrollment in this case)
-		const gradesByEnrollment = new Map<number, Depth<UserGrade, 1>[]>();
-		for (const grade of userGrades.docs) {
-			const enrollmentId = grade.enrollment.id;
-
-			if (!gradesByEnrollment.has(enrollmentId)) {
-				gradesByEnrollment.set(enrollmentId, []);
+			if (!enrollmentRepResult.ok) {
+				throw enrollmentRepResult.error;
 			}
-			const grades = gradesByEnrollment.get(enrollmentId);
-			if (grades) {
-				grades.push(grade);
-			}
-		}
 
-		// Build the single user representation
-		const enrollmentRepResult = await tryBuildUserGradeRepresentation({
-			payload,
-			enrollment: {
-				id: enrollment.id,
-				userId: enrollment.user.id,
-			},
-			gradebookId,
-			gradebookItems: gradebookItems,
-			gradesByEnrollment,
-			req,
-			overrideAccess,
-		});
+			const enrollmentRep = enrollmentRepResult.value;
 
-		if (!enrollmentRepResult.ok) {
-			throw enrollmentRepResult.error;
-		}
+			const result: SingleUserGradesJsonRepresentation = {
+				course_id: courseId,
+				gradebook_id: gradebookId,
+				enrollment: enrollmentRep,
+			};
 
-		const enrollmentRep = enrollmentRepResult.value;
-
-		const result: SingleUserGradesJsonRepresentation = {
-			course_id: courseId,
-			gradebook_id: gradebookId,
-			enrollment: enrollmentRep,
-		};
-
-		return result;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get single user grades JSON representation", {
-			cause: error,
-		}),
-);
+			return result;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get single user grades JSON representation", {
+				cause: error,
+			}),
+	);
+}
 
 export interface GetAdjustedSingleUserGradesJsonRepresentationArgs
 	extends BaseInternalFunctionArgs {
@@ -1559,91 +1595,95 @@ function findItemById(
  * This version uses GradebookSetupForUI to get accurate weights (overall_weight)
  * instead of the raw weights from the database
  */
-export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
-	async (args: GetAdjustedSingleUserGradesJsonRepresentationArgs) => {
-		const {
-			payload,
-			req,
-			overrideAccess = false,
-			courseId,
-			enrollmentId,
-		} = args;
+export function tryGetAdjustedSingleUserGradesJsonRepresentation(
+	args: GetAdjustedSingleUserGradesJsonRepresentationArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				req,
+				overrideAccess = false,
+				courseId,
+				enrollmentId,
+			} = args;
 
-		// Get the base representation
-		const baseResult = await tryGetSingleUserGradesJsonRepresentation({
-			payload,
-			req,
-			overrideAccess,
-			courseId,
-			enrollmentId,
-		});
+			// Get the base representation
+			const baseResult = await tryGetSingleUserGradesJsonRepresentation({
+				payload,
+				req,
+				overrideAccess,
+				courseId,
+				enrollmentId,
+			});
 
-		if (!baseResult.ok) {
-			throw baseResult.error;
-		}
-
-		const baseData = baseResult.value;
-
-		const allRepsResult = await tryGetGradebookAllRepresentations({
-			payload,
-			courseId: baseData.course_id,
-			req,
-			overrideAccess,
-		});
-
-		if (!allRepsResult.ok) {
-			throw allRepsResult.error;
-		}
-
-		const gradebookSetup = allRepsResult.value.ui;
-
-		// Adjust weights for each item using overall_weight from GradebookSetupForUI
-		const adjustedItems = baseData.enrollment.items.map((item) => {
-			const setupItem = findItemById(
-				gradebookSetup.gradebook_setup.items,
-				item.item_id,
-			);
-
-			if (setupItem && setupItem.overall_weight !== null) {
-				return {
-					...item,
-					weight: setupItem.overall_weight,
-				};
+			if (!baseResult.ok) {
+				throw baseResult.error;
 			}
 
-			// If not found or overall_weight is null, keep original weight
-			return item;
-		});
+			const baseData = baseResult.value;
 
-		// Recalculate total_weight based on adjusted weights
-		const adjustedTotalWeight = adjustedItems.reduce(
-			(sum, item) => sum + item.weight,
-			0,
-		);
+			const allRepsResult = await tryGetGradebookAllRepresentations({
+				payload,
+				courseId: baseData.course_id,
+				req,
+				overrideAccess,
+			});
 
-		// Build adjusted enrollment representation
-		const adjustedEnrollment: UserGradeEnrollment = {
-			...baseData.enrollment,
-			items: adjustedItems,
-			total_weight: adjustedTotalWeight,
-		};
+			if (!allRepsResult.ok) {
+				throw allRepsResult.error;
+			}
 
-		const result: SingleUserGradesJsonRepresentation = {
-			...baseData,
-			enrollment: adjustedEnrollment,
-		};
+			const gradebookSetup = allRepsResult.value.ui;
 
-		return result;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(
-			"Failed to get adjusted single user grades JSON representation",
-			{
-				cause: error,
-			},
-		),
-);
+			// Adjust weights for each item using overall_weight from GradebookSetupForUI
+			const adjustedItems = baseData.enrollment.items.map((item) => {
+				const setupItem = findItemById(
+					gradebookSetup.gradebook_setup.items,
+					item.item_id,
+				);
+
+				if (setupItem && setupItem.overall_weight !== null) {
+					return {
+						...item,
+						weight: setupItem.overall_weight,
+					};
+				}
+
+				// If not found or overall_weight is null, keep original weight
+				return item;
+			});
+
+			// Recalculate total_weight based on adjusted weights
+			const adjustedTotalWeight = adjustedItems.reduce(
+				(sum, item) => sum + item.weight,
+				0,
+			);
+
+			// Build adjusted enrollment representation
+			const adjustedEnrollment: UserGradeEnrollment = {
+				...baseData.enrollment,
+				items: adjustedItems,
+				total_weight: adjustedTotalWeight,
+			};
+
+			const result: SingleUserGradesJsonRepresentation = {
+				...baseData,
+				enrollment: adjustedEnrollment,
+			};
+
+			return result;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError(
+				"Failed to get adjusted single user grades JSON representation",
+				{
+					cause: error,
+				},
+			),
+	);
+}
 
 export interface GetAdjustedSingleUserGradesArgs
 	extends BaseInternalFunctionArgs {
@@ -1705,139 +1745,143 @@ function getTypeDisplayNameForMarkdown(type: string): string {
  * Constructs JSON, YAML, and Markdown representations of a single user's grades in a course
  * This is more efficient than calling separate functions as it only queries the database once
  */
-export const tryGetAdjustedSingleUserGrades = Result.wrap(
-	async (
-		args: GetAdjustedSingleUserGradesArgs,
-	): Promise<AdjustedSingleUserGradesResult> => {
-		// Get JSON representation first (this does the database queries)
-		const jsonResult = await tryGetAdjustedSingleUserGradesJsonRepresentation({
-			payload: args.payload,
-			req: args.req,
-			overrideAccess: args.overrideAccess,
-			courseId: args.courseId,
-			enrollmentId: args.enrollmentId,
-		});
-
-		if (!jsonResult.ok) {
-			throw jsonResult.error;
-		}
-
-		const jsonData = jsonResult.value;
-		const { enrollment, course_id, gradebook_id } = jsonData;
-
-		// Convert JSON to YAML using Bun.YAML.stringify
-		const yamlString = Bun.YAML?.stringify(jsonData, null, 2);
-		if (!yamlString) {
-			throw new UnknownError("Bun.YAML is not available");
-		}
-
-		// Get course information for markdown
-		const course = await args.payload
-			.findByID({
-				collection: "courses",
-				id: course_id,
-				depth: 0,
-				req: args.req,
-				overrideAccess: args.overrideAccess,
-			})
-			.then(stripDepth<0, "findByID">());
-
-		if (!course) {
-			throw new Error(`Course with ID ${course_id} not found`);
-		}
-
-		// Calculate total grade (sum of all base_grade values)
-		const totalGrade = enrollment.items.reduce((sum, item) => {
-			return (
-				sum +
-				(item.base_grade !== null && item.base_grade !== undefined
-					? item.base_grade
-					: 0)
+export function tryGetAdjustedSingleUserGrades(
+	args: GetAdjustedSingleUserGradesArgs,
+) {
+	return Result.try(
+		async () => {
+			// Get JSON representation first (this does the database queries)
+			const jsonResult = await tryGetAdjustedSingleUserGradesJsonRepresentation(
+				{
+					payload: args.payload,
+					req: args.req,
+					overrideAccess: args.overrideAccess,
+					courseId: args.courseId,
+					enrollmentId: args.enrollmentId,
+				},
 			);
-		}, 0);
 
-		// Calculate total max grade
-		const totalMaxGrade = enrollment.items.reduce((sum, item) => {
-			return sum + (item.max_grade ?? 0);
-		}, 0);
+			if (!jsonResult.ok) {
+				throw jsonResult.error;
+			}
 
-		// Build header
-		const header = `# Single User Grade Report
+			const jsonData = jsonResult.value;
+			const { enrollment, course_id, gradebook_id } = jsonData;
 
-**Course:** ${course.title || `Course ID ${course_id}`}
+			// Convert JSON to YAML using Bun.YAML.stringify
+			const yamlString = Bun.YAML?.stringify(jsonData, null, 2);
+			if (!yamlString) {
+				throw new UnknownError("Bun.YAML is not available");
+			}
 
-**Gradebook ID:** ${gradebook_id}
+			// Get course information for markdown
+			const course = await args.payload
+				.findByID({
+					collection: "courses",
+					id: course_id,
+					depth: 0,
+					req: args.req,
+					overrideAccess: args.overrideAccess,
+				})
+				.then(stripDepth<0, "findByID">());
 
-**Student:** ${enrollment.user_name} (${enrollment.user_email})
+			if (!course) {
+				throw new Error(`Course with ID ${course_id} not found`);
+			}
 
-**Enrollment ID:** ${enrollment.enrollment_id}
+			// Calculate total grade (sum of all base_grade values)
+			const totalGrade = enrollment.items.reduce((sum, item) => {
+				return (
+					sum +
+					(item.base_grade !== null && item.base_grade !== undefined
+						? item.base_grade
+						: 0)
+				);
+			}, 0);
 
-## Grade Summary
+			// Calculate total max grade
+			const totalMaxGrade = enrollment.items.reduce((sum, item) => {
+				return sum + (item.max_grade ?? 0);
+			}, 0);
 
-| Item Name | Type | Weight | Max Grade | Base Grade | Override Grade | Status |
-|-----------|------|--------|-----------|------------|----------------|--------|`;
+			// Build header
+			const header = `# Single User Grade Report
 
-		// Build grade items rows
-		const itemRows = enrollment.items.map((item) => {
-			const itemName = item.item_name;
-			const typeStr = getTypeDisplayNameForMarkdown(item.item_type);
-			const weightStr = formatPercentageForMarkdown(item.weight);
-			const maxGradeStr = formatNumberForMarkdown(item.max_grade);
-			const baseGradeStr =
-				item.base_grade !== null && item.base_grade !== undefined
-					? formatNumberForMarkdown(item.base_grade)
-					: "-";
-			const overrideGradeStr =
-				item.is_overridden &&
-				item.override_grade !== null &&
-				item.override_grade !== undefined
-					? formatNumberForMarkdown(item.override_grade)
-					: "-";
-			const statusStr =
-				item.status === "graded"
-					? "Graded"
-					: item.status === "draft"
-						? "Draft"
-						: item.status;
+			**Course:** ${course.title || `Course ID ${course_id}`}
 
-			return `| ${itemName} | ${typeStr} | ${weightStr} | ${maxGradeStr} | ${baseGradeStr} | ${overrideGradeStr} | ${statusStr} |`;
-		});
+			**Gradebook ID:** ${gradebook_id}
 
-		const itemsSection = [header, ...itemRows].join("\n");
+			**Student:** ${enrollment.user_name} (${enrollment.user_email})
 
-		// Build totals section
-		const totalsSection = `
-## Totals
+			**Enrollment ID:** ${enrollment.enrollment_id}
 
-| Metric | Value |
-|--------|-------|
-| Total Grade | ${totalGrade > 0 ? formatNumberForMarkdown(totalGrade) : "-"} |
-| Total Max Grade | ${formatNumberForMarkdown(totalMaxGrade)} |
-| Final Grade | ${
-			enrollment.final_grade !== null && enrollment.final_grade !== undefined
-				? formatNumberForMarkdown(enrollment.final_grade)
-				: "-"
-		} |
-| Total Weight | ${formatPercentageForMarkdown(enrollment.total_weight)} |
-| Graded Items | ${enrollment.graded_items} / ${enrollment.items.length} |`;
+			## Grade Summary
 
-		// Combine all sections
-		const rawMarkdown = [itemsSection, totalsSection].join("\n");
+			| Item Name | Type | Weight | Max Grade | Base Grade | Override Grade | Status |
+			|-----------|------|--------|-----------|------------|----------------|--------|`;
 
-		const markdown = prettifyMarkdown(rawMarkdown);
+			// Build grade items rows
+			const itemRows = enrollment.items.map((item) => {
+				const itemName = item.item_name;
+				const typeStr = getTypeDisplayNameForMarkdown(item.item_type);
+				const weightStr = formatPercentageForMarkdown(item.weight);
+				const maxGradeStr = formatNumberForMarkdown(item.max_grade);
+				const baseGradeStr =
+					item.base_grade !== null && item.base_grade !== undefined
+						? formatNumberForMarkdown(item.base_grade)
+						: "-";
+				const overrideGradeStr =
+					item.is_overridden &&
+					item.override_grade !== null &&
+					item.override_grade !== undefined
+						? formatNumberForMarkdown(item.override_grade)
+						: "-";
+				const statusStr =
+					item.status === "graded"
+						? "Graded"
+						: item.status === "draft"
+							? "Draft"
+							: item.status;
 
-		return {
-			json: jsonData,
-			yaml: yamlString,
-			markdown,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get adjusted single user grades", {
-			cause: error,
-		}),
-);
+				return `| ${itemName} | ${typeStr} | ${weightStr} | ${maxGradeStr} | ${baseGradeStr} | ${overrideGradeStr} | ${statusStr} |`;
+			});
+
+			const itemsSection = [header, ...itemRows].join("\n");
+
+			// Build totals section
+			const totalsSection = `
+			## Totals
+
+			| Metric | Value |
+			|--------|-------|
+			| Total Grade | ${totalGrade > 0 ? formatNumberForMarkdown(totalGrade) : "-"} |
+			| Total Max Grade | ${formatNumberForMarkdown(totalMaxGrade)} |
+			| Final Grade | ${
+				enrollment.final_grade !== null && enrollment.final_grade !== undefined
+					? formatNumberForMarkdown(enrollment.final_grade)
+					: "-"
+			} |
+			| Total Weight | ${formatPercentageForMarkdown(enrollment.total_weight)} |
+			| Graded Items | ${enrollment.graded_items} / ${enrollment.items.length} |`;
+
+			// Combine all sections
+			const rawMarkdown = [itemsSection, totalsSection].join("\n");
+
+			const markdown = prettifyMarkdown(rawMarkdown);
+
+			return {
+				json: jsonData,
+				yaml: yamlString,
+				markdown,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get adjusted single user grades", {
+				cause: error,
+			}),
+	);
+}
 
 export interface ReleaseAssignmentGradeArgs extends BaseInternalFunctionArgs {
 	courseActivityModuleLinkId: number;
@@ -1848,199 +1892,201 @@ export interface ReleaseAssignmentGradeArgs extends BaseInternalFunctionArgs {
  * Releases a grade from the latest assignment submission to the user-grade
  * Finds the latest graded submission for a student + assignment and updates the user-grade
  */
-export const tryReleaseAssignmentGrade = Result.wrap(
-	async (args: ReleaseAssignmentGradeArgs) => {
-		const {
-			payload,
-
-			req,
-			overrideAccess = false,
-			courseActivityModuleLinkId,
-			enrollmentId,
-		} = args;
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		try {
-			// Get enrollment to get student ID
-			const enrollment = await payload
-				.findByID({
-					collection: "enrollments",
-					id: enrollmentId,
-					depth: 1,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "findByID">());
-
-			if (!enrollment) {
-				throw new EnrollmentNotFoundError(
-					`Enrollment with ID ${enrollmentId} not found`,
-				);
-			}
-
-			const studentId =
-				typeof enrollment.user === "number"
-					? enrollment.user
-					: enrollment.user.id;
-
-			// Find latest submission for this student + assignment
-			const submissionsResult = await payload
-				.find({
-					collection: AssignmentSubmissions.slug,
-					where: {
-						and: [
-							{
-								courseModuleLink: {
-									equals: courseActivityModuleLinkId,
-								},
-							},
-							{
-								student: {
-									equals: studentId,
-								},
-							},
-							{
-								enrollment: {
-									equals: enrollmentId,
-								},
-							},
-							{
-								status: {
-									equals: "graded",
-								},
-							},
-						],
-					},
-					sort: "-gradedAt", // Get latest graded submission
-					limit: 1,
-					depth: 1,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "find">());
-
-			if (submissionsResult.docs.length === 0) {
-				throw new NonExistingAssignmentSubmissionError(
-					`No graded submission found for enrollment ${enrollmentId} and assignment ${courseActivityModuleLinkId}`,
-				);
-			}
-
-			const latestSubmissionRaw = submissionsResult.docs[0];
-			const latestSubmission =
-				latestSubmissionRaw as typeof latestSubmissionRaw & {
-					grade?: number | null;
-					feedback?: string | null;
-					gradedBy?: number | { id: number } | null;
-				};
-
-			// Check if submission has a grade
-			if (
-				latestSubmission.grade === null ||
-				latestSubmission.grade === undefined
-			) {
-				throw new InvalidGradeValueError(
-					"Latest submission does not have a grade",
-				);
-			}
-
-			// Find gradebook item by course module link
-			const gradebookItem = await tryFindGradebookItemByCourseModuleLink({
+export function tryReleaseAssignmentGrade(args: ReleaseAssignmentGradeArgs) {
+	return Result.try(
+		async () => {
+			const {
 				payload,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-				courseModuleLinkId: courseActivityModuleLinkId,
-			}).getOrThrow();
 
-			// Validate grade against gradebook item limits
-			if (
-				latestSubmission.grade < gradebookItem.minGrade ||
-				latestSubmission.grade > gradebookItem.maxGrade
-			) {
-				throw new InvalidGradeValueError(
-					`Grade ${latestSubmission.grade} must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
-				);
-			}
-
-			// Check if user grade already exists
-			const existingGradeResult = await tryFindUserGradeByEnrollmentAndItem({
-				payload,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
+				req,
+				overrideAccess = false,
+				courseActivityModuleLinkId,
 				enrollmentId,
-				gradebookItemId: gradebookItem.id,
-			});
+			} = args;
 
-			let userGrade: UserGrade;
+			const transactionInfo = await handleTransactionId(payload, req);
 
-			if (existingGradeResult.ok) {
-				// Update existing grade with latest submission's data
-				const updateResult = await tryUpdateUserGrade({
+			try {
+				// Get enrollment to get student ID
+				const enrollment = await payload
+					.findByID({
+						collection: "enrollments",
+						id: enrollmentId,
+						depth: 1,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">());
+
+				if (!enrollment) {
+					throw new EnrollmentNotFoundError(
+						`Enrollment with ID ${enrollmentId} not found`,
+					);
+				}
+
+				const studentId =
+					typeof enrollment.user === "number"
+						? enrollment.user
+						: enrollment.user.id;
+
+				// Find latest submission for this student + assignment
+				const submissionsResult = await payload
+					.find({
+						collection: AssignmentSubmissions.slug,
+						where: {
+							and: [
+								{
+									courseModuleLink: {
+										equals: courseActivityModuleLinkId,
+									},
+								},
+								{
+									student: {
+										equals: studentId,
+									},
+								},
+								{
+									enrollment: {
+										equals: enrollmentId,
+									},
+								},
+								{
+									status: {
+										equals: "graded",
+									},
+								},
+							],
+						},
+						sort: "-gradedAt", // Get latest graded submission
+						limit: 1,
+						depth: 1,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "find">());
+
+				if (submissionsResult.docs.length === 0) {
+					throw new NonExistingAssignmentSubmissionError(
+						`No graded submission found for enrollment ${enrollmentId} and assignment ${courseActivityModuleLinkId}`,
+					);
+				}
+
+				const latestSubmissionRaw = submissionsResult.docs[0];
+				const latestSubmission =
+					latestSubmissionRaw as typeof latestSubmissionRaw & {
+						grade?: number | null;
+						feedback?: string | null;
+						gradedBy?: number | { id: number } | null;
+					};
+
+				// Check if submission has a grade
+				if (
+					latestSubmission.grade === null ||
+					latestSubmission.grade === undefined
+				) {
+					throw new InvalidGradeValueError(
+						"Latest submission does not have a grade",
+					);
+				}
+
+				// Find gradebook item by course module link
+				const gradebookItem = await tryFindGradebookItemByCourseModuleLink({
 					payload,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
-					gradeId: existingGradeResult.value.id,
-					baseGrade: latestSubmission.grade,
-					feedback: latestSubmission.feedback || undefined,
-					gradedBy:
-						typeof latestSubmission.gradedBy === "number"
-							? latestSubmission.gradedBy
-							: latestSubmission.gradedBy?.id,
-					submittedAt: latestSubmission.submittedAt || undefined,
-					submission: latestSubmission.id,
-					submissionType: "assignment",
-				});
+					courseModuleLinkId: courseActivityModuleLinkId,
+				}).getOrThrow();
 
-				if (!updateResult.ok) {
-					throw new UnknownError("Failed to update user grade", {
-						cause: updateResult.error,
-					});
+				// Validate grade against gradebook item limits
+				if (
+					latestSubmission.grade < gradebookItem.minGrade ||
+					latestSubmission.grade > gradebookItem.maxGrade
+				) {
+					throw new InvalidGradeValueError(
+						`Grade ${latestSubmission.grade} must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					);
 				}
 
-				userGrade = updateResult.value;
-			} else {
-				// Create new grade
-				const createResult = await tryCreateUserGrade({
+				// Check if user grade already exists
+				const existingGradeResult = await tryFindUserGradeByEnrollmentAndItem({
 					payload,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 					enrollmentId,
 					gradebookItemId: gradebookItem.id,
-					baseGrade: latestSubmission.grade,
-					baseGradeSource: "submission",
-					submission: latestSubmission.id,
-					submissionType: "assignment",
-					feedback: latestSubmission.feedback || undefined,
-					gradedBy: latestSubmission.gradedBy?.id,
-					submittedAt: latestSubmission.submittedAt || undefined,
 				});
 
-				if (!createResult.ok) {
-					throw new UnknownError("Failed to create user grade", {
-						cause: createResult.error,
+				let userGrade: UserGrade;
+
+				if (existingGradeResult.ok) {
+					// Update existing grade with latest submission's data
+					const updateResult = await tryUpdateUserGrade({
+						payload,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+						gradeId: existingGradeResult.value.id,
+						baseGrade: latestSubmission.grade,
+						feedback: latestSubmission.feedback || undefined,
+						gradedBy:
+							typeof latestSubmission.gradedBy === "number"
+								? latestSubmission.gradedBy
+								: latestSubmission.gradedBy?.id,
+						submittedAt: latestSubmission.submittedAt || undefined,
+						submission: latestSubmission.id,
+						submissionType: "assignment",
 					});
+
+					if (!updateResult.ok) {
+						throw new UnknownError("Failed to update user grade", {
+							cause: updateResult.error,
+						});
+					}
+
+					userGrade = updateResult.value;
+				} else {
+					// Create new grade
+					const createResult = await tryCreateUserGrade({
+						payload,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+						enrollmentId,
+						gradebookItemId: gradebookItem.id,
+						baseGrade: latestSubmission.grade,
+						baseGradeSource: "submission",
+						submission: latestSubmission.id,
+						submissionType: "assignment",
+						feedback: latestSubmission.feedback || undefined,
+						gradedBy: latestSubmission.gradedBy?.id,
+						submittedAt: latestSubmission.submittedAt || undefined,
+					});
+
+					if (!createResult.ok) {
+						throw new UnknownError("Failed to create user grade", {
+							cause: createResult.error,
+						});
+					}
+
+					userGrade = createResult.value;
 				}
 
-				userGrade = createResult.value;
+				await commitTransactionIfCreated(payload, transactionInfo);
+
+				return {
+					submission: latestSubmission,
+					userGrade,
+				};
+			} catch (error) {
+				await rollbackTransactionIfCreated(payload, transactionInfo);
+				throw error;
 			}
-
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return {
-				submission: latestSubmission,
-				userGrade,
-			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to release assignment grade", {
-			cause: error,
-		}),
-);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to release assignment grade", {
+				cause: error,
+			}),
+	);
+}
 
 export interface ReleaseDiscussionGradeArgs extends BaseInternalFunctionArgs {
 	courseActivityModuleLinkId: number;
@@ -2051,219 +2097,222 @@ export interface ReleaseDiscussionGradeArgs extends BaseInternalFunctionArgs {
  * Releases discussion grades to the user-grade
  * Calculates average grade from all graded discussion posts and updates the user-grade
  */
-export const tryReleaseDiscussionGrade = Result.wrap(
-	async (args: ReleaseDiscussionGradeArgs) => {
-		const {
-			payload,
-
-			req,
-			overrideAccess = false,
-			courseActivityModuleLinkId,
-			enrollmentId,
-		} = args;
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		try {
-			// Get enrollment to get student ID
-			const enrollment = await payload
-				.findByID({
-					collection: "enrollments",
-					id: enrollmentId,
-					depth: 1,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "findByID">());
-
-			if (!enrollment) {
-				throw new EnrollmentNotFoundError(
-					`Enrollment with ID ${enrollmentId} not found`,
-				);
-			}
-
-			const studentId =
-				typeof enrollment.user === "number"
-					? enrollment.user
-					: enrollment.user.id;
-
-			const submissionsResult = await tryListDiscussionSubmissions({
+export function tryReleaseDiscussionGrade(args: ReleaseDiscussionGradeArgs) {
+	return Result.try(
+		async () => {
+			const {
 				payload,
-				courseModuleLinkId: courseActivityModuleLinkId,
-				studentId,
+
+				req,
+				overrideAccess = false,
+				courseActivityModuleLinkId,
 				enrollmentId,
-				status: "published",
-				limit: 999999,
-				page: 1,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			} = args;
 
-			if (!submissionsResult.ok) {
-				throw new UnknownError("Failed to get discussion submissions", {
-					cause: submissionsResult.error,
-				});
-			}
+			const transactionInfo = await handleTransactionId(payload, req);
 
-			const submissions = submissionsResult.value;
+			try {
+				// Get enrollment to get student ID
+				const enrollment = await payload
+					.findByID({
+						collection: "enrollments",
+						id: enrollmentId,
+						depth: 1,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">());
 
-			// Filter to only graded submissions and calculate average
-			const gradedSubmissions = submissions.filter((sub) => {
-				return sub.grade !== null && sub.grade !== undefined;
-			});
+				if (!enrollment) {
+					throw new EnrollmentNotFoundError(
+						`Enrollment with ID ${enrollmentId} not found`,
+					);
+				}
 
-			if (gradedSubmissions.length === 0) {
-				throw new InvalidGradeValueError(
-					`No graded discussion posts found for enrollment ${enrollmentId} and discussion ${courseActivityModuleLinkId}`,
-				);
-			}
+				const studentId =
+					typeof enrollment.user === "number"
+						? enrollment.user
+						: enrollment.user.id;
 
-			// Calculate average grade (sum of all grades / count of graded posts)
-			const totalGrade = gradedSubmissions.reduce((sum, sub) => {
-				const subWithGrade = sub as typeof sub & {
-					grade?: number | null;
-				};
-				return sum + (subWithGrade.grade || 0);
-			}, 0);
-			const averageGrade = totalGrade / gradedSubmissions.length;
-
-			// Get the latest graded submission for feedback and gradedBy
-			const latestGradedSubmission = gradedSubmissions.sort((a, b) => {
-				const aWithGrade = a as typeof a & { gradedAt?: string | null };
-				const bWithGrade = b as typeof b & { gradedAt?: string | null };
-				const aDate = aWithGrade.gradedAt
-					? new Date(aWithGrade.gradedAt).getTime()
-					: 0;
-				const bDate = bWithGrade.gradedAt
-					? new Date(bWithGrade.gradedAt).getTime()
-					: 0;
-				return bDate - aDate;
-			})[0];
-
-			const latestWithGrade =
-				latestGradedSubmission as typeof latestGradedSubmission & {
-					feedback?: string | null;
-					gradedBy?: number | { id: number } | null;
-					gradedAt?: string | null;
-				};
-
-			// Combine feedback from all graded submissions
-			const allFeedback = gradedSubmissions
-				.map((sub) => {
-					const subWithFeedback = sub as typeof sub & {
-						feedback?: string | null;
-					};
-					return subWithFeedback.feedback;
-				})
-				.filter((fb) => fb && fb.trim() !== "")
-				.join("\n\n");
-
-			// Find gradebook item by course module link
-			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
-				payload,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-				courseModuleLinkId: courseActivityModuleLinkId,
-			});
-
-			if (!gradebookItemResult.ok) {
-				throw new GradebookItemNotFoundError(
-					`Failed to find gradebook item: ${gradebookItemResult.error.message}`,
-				);
-			}
-
-			const gradebookItem = gradebookItemResult.value;
-
-			// Validate average grade against gradebook item limits
-			if (
-				averageGrade < gradebookItem.minGrade ||
-				averageGrade > gradebookItem.maxGrade
-			) {
-				throw new InvalidGradeValueError(
-					`Average grade ${averageGrade} must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
-				);
-			}
-
-			// Check if user grade already exists
-			const existingGradeResult = await tryFindUserGradeByEnrollmentAndItem({
-				payload,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-				enrollmentId,
-				gradebookItemId: gradebookItem.id,
-			});
-
-			let userGrade: UserGrade;
-
-			if (existingGradeResult.ok) {
-				// Update existing grade with average grade
-				const updateResult = await tryUpdateUserGrade({
+				const submissionsResult = await tryListDiscussionSubmissions({
 					payload,
+					courseModuleLinkId: courseActivityModuleLinkId,
+					studentId,
+					enrollmentId,
+					status: "published",
+					limit: 999999,
+					page: 1,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
-					gradeId: existingGradeResult.value.id,
-					baseGrade: averageGrade,
-					feedback: allFeedback || undefined,
-					gradedBy:
-						typeof latestWithGrade.gradedBy === "number"
-							? latestWithGrade.gradedBy
-							: latestWithGrade.gradedBy?.id,
-					submissionType: "discussion",
 				});
 
-				if (!updateResult.ok) {
-					throw new UnknownError("Failed to update user grade", {
-						cause: updateResult.error,
+				if (!submissionsResult.ok) {
+					throw new UnknownError("Failed to get discussion submissions", {
+						cause: submissionsResult.error,
 					});
 				}
 
-				userGrade = updateResult.value;
-			} else {
-				// Create new grade
-				const createResult = await tryCreateUserGrade({
+				const submissions = submissionsResult.value;
+
+				// Filter to only graded submissions and calculate average
+				const gradedSubmissions = submissions.filter((sub) => {
+					return sub.grade !== null && sub.grade !== undefined;
+				});
+
+				if (gradedSubmissions.length === 0) {
+					throw new InvalidGradeValueError(
+						`No graded discussion posts found for enrollment ${enrollmentId} and discussion ${courseActivityModuleLinkId}`,
+					);
+				}
+
+				// Calculate average grade (sum of all grades / count of graded posts)
+				const totalGrade = gradedSubmissions.reduce((sum, sub) => {
+					const subWithGrade = sub as typeof sub & {
+						grade?: number | null;
+					};
+					return sum + (subWithGrade.grade || 0);
+				}, 0);
+				const averageGrade = totalGrade / gradedSubmissions.length;
+
+				// Get the latest graded submission for feedback and gradedBy
+				const latestGradedSubmission = gradedSubmissions.sort((a, b) => {
+					const aWithGrade = a as typeof a & { gradedAt?: string | null };
+					const bWithGrade = b as typeof b & { gradedAt?: string | null };
+					const aDate = aWithGrade.gradedAt
+						? new Date(aWithGrade.gradedAt).getTime()
+						: 0;
+					const bDate = bWithGrade.gradedAt
+						? new Date(bWithGrade.gradedAt).getTime()
+						: 0;
+					return bDate - aDate;
+				})[0];
+
+				const latestWithGrade =
+					latestGradedSubmission as typeof latestGradedSubmission & {
+						feedback?: string | null;
+						gradedBy?: number | { id: number } | null;
+						gradedAt?: string | null;
+					};
+
+				// Combine feedback from all graded submissions
+				const allFeedback = gradedSubmissions
+					.map((sub) => {
+						const subWithFeedback = sub as typeof sub & {
+							feedback?: string | null;
+						};
+						return subWithFeedback.feedback;
+					})
+					.filter((fb) => fb && fb.trim() !== "")
+					.join("\n\n");
+
+				// Find gradebook item by course module link
+				const gradebookItemResult =
+					await tryFindGradebookItemByCourseModuleLink({
+						payload,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+						courseModuleLinkId: courseActivityModuleLinkId,
+					});
+
+				if (!gradebookItemResult.ok) {
+					throw new GradebookItemNotFoundError(
+						`Failed to find gradebook item: ${gradebookItemResult.error.message}`,
+					);
+				}
+
+				const gradebookItem = gradebookItemResult.value;
+
+				// Validate average grade against gradebook item limits
+				if (
+					averageGrade < gradebookItem.minGrade ||
+					averageGrade > gradebookItem.maxGrade
+				) {
+					throw new InvalidGradeValueError(
+						`Average grade ${averageGrade} must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					);
+				}
+
+				// Check if user grade already exists
+				const existingGradeResult = await tryFindUserGradeByEnrollmentAndItem({
 					payload,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 					enrollmentId,
 					gradebookItemId: gradebookItem.id,
-					baseGrade: averageGrade,
-					baseGradeSource: "submission",
-					submissionType: "discussion",
-					feedback: allFeedback || undefined,
-					gradedBy:
-						typeof latestWithGrade.gradedBy === "number"
-							? latestWithGrade.gradedBy
-							: latestWithGrade.gradedBy?.id,
 				});
 
-				if (!createResult.ok) {
-					throw new UnknownError("Failed to create user grade", {
-						cause: createResult.error,
+				let userGrade: UserGrade;
+
+				if (existingGradeResult.ok) {
+					// Update existing grade with average grade
+					const updateResult = await tryUpdateUserGrade({
+						payload,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+						gradeId: existingGradeResult.value.id,
+						baseGrade: averageGrade,
+						feedback: allFeedback || undefined,
+						gradedBy:
+							typeof latestWithGrade.gradedBy === "number"
+								? latestWithGrade.gradedBy
+								: latestWithGrade.gradedBy?.id,
+						submissionType: "discussion",
 					});
+
+					if (!updateResult.ok) {
+						throw new UnknownError("Failed to update user grade", {
+							cause: updateResult.error,
+						});
+					}
+
+					userGrade = updateResult.value;
+				} else {
+					// Create new grade
+					const createResult = await tryCreateUserGrade({
+						payload,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+						enrollmentId,
+						gradebookItemId: gradebookItem.id,
+						baseGrade: averageGrade,
+						baseGradeSource: "submission",
+						submissionType: "discussion",
+						feedback: allFeedback || undefined,
+						gradedBy:
+							typeof latestWithGrade.gradedBy === "number"
+								? latestWithGrade.gradedBy
+								: latestWithGrade.gradedBy?.id,
+					});
+
+					if (!createResult.ok) {
+						throw new UnknownError("Failed to create user grade", {
+							cause: createResult.error,
+						});
+					}
+
+					userGrade = createResult.value;
 				}
 
-				userGrade = createResult.value;
+				await commitTransactionIfCreated(payload, transactionInfo);
+
+				return {
+					averageGrade,
+					gradedPostsCount: gradedSubmissions.length,
+					totalPostsCount: submissions.length,
+					userGrade,
+				};
+			} catch (error) {
+				await rollbackTransactionIfCreated(payload, transactionInfo);
+				throw error;
 			}
-
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return {
-				averageGrade,
-				gradedPostsCount: gradedSubmissions.length,
-				totalPostsCount: submissions.length,
-				userGrade,
-			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to release discussion grade", {
-			cause: error,
-		}),
-);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to release discussion grade", {
+				cause: error,
+			}),
+	);
+}
 
 export interface ReleaseQuizGradeArgs extends BaseInternalFunctionArgs {
 	courseActivityModuleLinkId: number;
@@ -2274,13 +2323,17 @@ export interface ReleaseQuizGradeArgs extends BaseInternalFunctionArgs {
  * Releases quiz grade to the user-grade
  * Currently not implemented
  */
-export const tryReleaseQuizGrade = Result.wrap(
-	async (_args: ReleaseQuizGradeArgs) => {
-		throw new NotImplementedError("Quiz grade release is not yet implemented");
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to release quiz grade", {
-			cause: error,
-		}),
-);
+export function tryReleaseQuizGrade(_args: ReleaseQuizGradeArgs) {
+	return Result.try(
+		async () => {
+			throw new NotImplementedError(
+				"Quiz grade release is not yet implemented",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to release quiz grade", {
+				cause: error,
+			}),
+	);
+}

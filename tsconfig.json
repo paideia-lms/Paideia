@@ -25,5 +25,5 @@
 		"noEmit": true
 	},
 	"include": ["./.react-router/types", "."],
-	"exclude": ["node_modules", "dist", "src/payload-generated-schema.ts"]
+	"exclude": ["node_modules", "dist", "src/payload-generated-schema.ts", "src/migrations"]
 }

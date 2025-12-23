@@ -327,6 +327,13 @@ export class NotImplementedError extends Error {
 	}
 }
 
+export class VersionCheckError extends Error {
+	static readonly type = "VersionCheckError";
+	get type() {
+		return VersionCheckError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	// we don't know the error so we want to it log it out in development and test environments
 	if (
@@ -382,6 +389,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof EnrollmentCourseMismatchError) return error;
 	else if (error instanceof FailedToCreateUserGradeError) return error;
 	else if (error instanceof NotImplementedError) return error;
+	else if (error instanceof VersionCheckError) return error;
 	else if (error instanceof UnknownError) return error;
 	// ! we let user handle the unknown error
 	else {

@@ -1,6 +1,8 @@
 import {
+	Alert,
 	Badge,
 	Box,
+	Code,
 	Container,
 	Group,
 	Paper,
@@ -13,6 +15,7 @@ import { useInterval } from "@mantine/hooks";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { tryGetLatestVersion } from "server/internal/version-management";
 import { detectSystemResources } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/system";
@@ -49,6 +52,12 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Get server timezone
 	const serverTimezone = getServerTimezone();
 
+	// Check for latest version from Docker Hub
+	const versionInfo = await tryGetLatestVersion({
+		payload: context.get(globalContextKey).payload,
+		currentVersion: packageVersion,
+	}).getOrNull();
+
 	return {
 		platformInfo,
 		systemResources,
@@ -56,6 +65,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		bunRevision,
 		packageVersion,
 		serverTimezone,
+		versionInfo,
 	};
 };
 
@@ -509,6 +519,7 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 		bunRevision,
 		packageVersion,
 		serverTimezone,
+		versionInfo,
 	} = loaderData;
 	const revalidator = useRevalidator();
 
@@ -553,6 +564,57 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 					)} */}
 				</Group>
 
+				{versionInfo?.isUpdateAvailable && (
+					<Alert
+						title="Update Available"
+						color="blue"
+						variant="light"
+						radius="md"
+					>
+						<Stack gap="xs">
+							<Text size="sm">
+								A newer version of Paideia LMS is available. Current version:{" "}
+								<Code>{packageVersion}</Code>, Latest version:{" "}
+								<Code>{versionInfo.latestVersion}</Code>
+							</Text>
+							<Box>
+								<Text size="sm" fw={500} mb="xs">
+									To update:
+								</Text>
+								<Stack gap="xs">
+									<Text size="sm" component="div">
+										<strong>Docker users:</strong>
+									</Text>
+									<Code block>
+										docker compose pull{`\n`}
+										docker compose up -d{`\n`}
+										docker image prune -f
+									</Code>
+									<Text size="sm" component="div" mt="xs">
+										<strong>Other deployments:</strong> Please check{" "}
+										<a
+											href="https://docs.paideialms.com/en/upgrade/"
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											https://docs.paideialms.com/en/upgrade/
+										</a>
+									</Text>
+								</Stack>
+							</Box>
+						</Stack>
+					</Alert>
+				)}
+
+				{versionInfo && !versionInfo.isUpdateAvailable && (
+					<Alert title="Up to Date" color="green" variant="light" radius="md">
+						<Text size="sm">
+							You are running the latest version of Paideia LMS (
+							<Code>{packageVersion}</Code>).
+						</Text>
+					</Alert>
+				)}
+
 				<PlatformInfoSection platformInfo={platformInfo} />
 				<SystemResourcesSection
 					systemResources={systemResources}
@@ -585,7 +647,14 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<Stack gap="md">
-						<Title order={2}>Application</Title>
+						<Group justify="space-between">
+							<Title order={2}>Application</Title>
+							{versionInfo && !versionInfo.isUpdateAvailable && (
+								<Badge color="green" variant="light">
+									Latest
+								</Badge>
+							)}
+						</Group>
 						<Box>
 							<Text size="xs" c="dimmed">
 								Version

@@ -15,9 +15,10 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useId, useRef, useState } from "react";
-import { href, redirect, useFetcher } from "react-router";
+import { href, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -27,8 +28,6 @@ import {
 import { tryUpdateCourse } from "server/internal/course-management";
 
 import type { Course } from "server/payload-types";
-import type { UseFormReturnType } from "@mantine/form";
-import { canSeeCourseSettings } from "server/utils/permissions";
 import type { RichTextEditorRef } from "~/components/rich-text-editor";
 import { RichTextEditor } from "~/components/rich-text-editor";
 import {
@@ -39,12 +38,10 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.settings";
-import { ContentType } from "app/utils/get-content-type";
-import { convertMyFormDataToObject, MyFormData } from "~/utils/action-utils";
-import { isUndefined, omitBy } from "es-toolkit";
+import { omitBy } from "es-toolkit";
 import { z } from "zod";
 
-export const actionInputSchema = z.looseObject({
+export const actionInputSchema = z.object({
 	title: z.string().min(1, "Title is required").optional(),
 	slug: z
 		.string()
@@ -80,11 +77,80 @@ export const actionInputSchema = z.looseObject({
 		),
 });
 
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdateCourseActionRpc = createActionRpc({
+	formDataSchema: actionInputSchema,
+	method: "POST",
+});
+
+const getRouteUrl = (courseId: number) => {
+	return href("/course/:courseId/settings", {
+		courseId: String(courseId),
+	});
+};
+
+const [updateCourseAction, useEditCourse] = createUpdateCourseActionRpc(
+	serverOnly$(async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+		if (!courseContext) {
+			return badRequest({
+				success: false,
+				error: "Invalid course ID",
+			});
+		}
+
+		const courseId = courseContext.course.id;
+
+		if (!courseContext.permissions.canEdit.allowed) {
+			return unauthorized({
+				success: false,
+				error: "You don't have permission to edit this course",
+			});
+		}
+
+		// Update course using the internal function
+		const updateResult = await tryUpdateCourse({
+			payload,
+			courseId: Number(courseId),
+			data: formData,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "Course updated successfully",
+			id: courseId,
+		});
+	})!,
+	{
+		action: ({ params }) => getRouteUrl(Number(params.courseId)),
+	},
+);
+
+// Export hook for use in component
+export { useEditCourse };
+
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -95,20 +161,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 	const { course } = courseContext;
 
-	// Check if user can edit this course
-	const canEdit = canSeeCourseSettings(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrolmentContext?.enrolment,
-	);
-
-	if (!canEdit) {
+	if (!courseContext.permissions.canEdit.allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to edit this course",
 		);
@@ -140,8 +195,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {
@@ -159,89 +214,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const enrollmentContext = context.get(enrolmentContextKey);
-	const { courseId: _courseId } = params;
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
-
-	const courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
-
-	if (!courseId) {
-		return badRequest({
-			success: false,
-			error: "Invalid course ID",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	// Check if user has permission to edit settings
-	const canEdit = canSeeCourseSettings(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrollmentContext?.enrolment,
-	);
-
-	if (!canEdit) {
-		return unauthorized({
-			success: false,
-			error: "You don't have permission to edit this course",
-		});
-	}
-
-	// Get form data and convert to object
-	const formDataObj = convertMyFormDataToObject<ActionData>(
-		await request.formData(),
-	);
-
-	const parse = actionInputSchema.safeParse(formDataObj);
-
-	if (!parse.success) {
-		return badRequest({
-			success: false,
-			error: z.prettifyError(parse.error),
-		});
-	}
-
-	// Prepare data for tryupdateCourseWithFile
-	const parsedData = parse.data;
-
-	// Update course using the internal function
-	const updateResult = await tryUpdateCourse({
-		payload,
-		courseId: Number(courseId),
-		data: parsedData,
-		req: payloadRequest,
-		overrideAccess: false,
-	});
-
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	return ok({
-		success: true,
-		message: "Course updated successfully",
-		id: courseId,
-	});
-};
+export const action = updateCourseAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -269,29 +242,12 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-type ActionData = {
-	title?: string;
-	slug?: string;
-	description?: string;
-	status?: "draft" | "published" | "archived" | undefined;
-	category?: string | null;
-	thumbnail?: File | null;
-	redirectTo?: string;
-};
-
 // ============================================================================
 // THUMBNAIL DROPZONE COMPONENT
 // ============================================================================
 
 export interface ThumbnailDropzoneProps {
-	form: UseFormReturnType<{
-		title: string;
-		slug: string;
-		status: Course["status"];
-		category: string;
-		description: string;
-		thumbnail: File | null;
-	}>;
+	form: EditCourseForm;
 	initialPreviewUrl?: string | null;
 }
 
@@ -403,29 +359,9 @@ export function ThumbnailDropzone({
 	);
 }
 
-export function useEditCourse() {
-	const fetcher = useFetcher<typeof action>();
-	const editCourse = async (courseId: number, data: ActionData) => {
-		const finalData = omitBy(data, isUndefined);
-		const formData = new MyFormData(finalData);
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: href("/course/:courseId/settings", {
-				courseId: String(courseId),
-			}),
-			encType: ContentType.MULTIPART,
-		});
-	};
-	return { editCourse, isLoading: fetcher.state !== "idle", fetcher };
-}
-
-export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
-	const { course, categories } = loaderData;
-	const { editCourse, isLoading, fetcher } = useEditCourse();
-	const descriptionId = useId();
-	const richTextEditorRef = useRef<RichTextEditorRef>(null);
-
+const useEditCourseForm = (
+	course: Route.ComponentProps["loaderData"]["course"],
+) => {
 	// Initialize form with default values (hooks must be called unconditionally)
 	const form = useForm({
 		mode: "uncontrolled",
@@ -434,7 +370,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			title: course.title,
 			slug: course.slug,
 			status: course.status as Course["status"],
-			category: course.category?.id?.toString() ?? "",
+			category: course.category?.id ?? null,
 			description: course.description,
 			thumbnail: null as File | null,
 		},
@@ -452,6 +388,19 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
+	return form;
+};
+
+type EditCourseForm = ReturnType<typeof useEditCourseForm>;
+
+export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
+	const { course, categories } = loaderData;
+	const { submit: editCourse, isLoading } = useEditCourse();
+	const descriptionId = useId();
+	const richTextEditorRef = useRef<RichTextEditorRef>(null);
+
+	const form = useEditCourseForm(course);
+
 	const handleSubmit = async (values: typeof form.values) => {
 		if (!form.isDirty()) {
 			notifications.show({
@@ -462,13 +411,16 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		// Build the data object
-		const data: ActionData = omitBy(
+		// we only want the changed values
+		const data = omitBy(
 			values,
 			(value, key) => form.getInitialValues()[key] === value,
 		);
 
-		await editCourse(course.id, data);
+		await editCourse({
+			values: data,
+			params: { courseId: course.id },
+		});
 	};
 
 	return (
@@ -483,7 +435,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 					Edit Course
 				</Title>
 
-				<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
+				<form onSubmit={form.onSubmit(handleSubmit)}>
 					<Stack gap="lg">
 						<TextInput
 							{...form.getInputProps("title")}
@@ -554,7 +506,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							</Button>
 						</Group>
 					</Stack>
-				</fetcher.Form>
+				</form>
 			</Paper>
 		</Container>
 	);

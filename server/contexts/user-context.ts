@@ -3,25 +3,17 @@
  * this context is available when user is logged in
  */
 
-import {
-	executeAuthStrategies,
-	type TypedUser as PayloadUser,
-	parseCookies,
-} from "payload";
+import { executeAuthStrategies, parseCookies } from "payload";
 import { createContext } from "react-router";
 import { tryHandleImpersonation } from "server/internal/user-management";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "server/internal/utils/internal-function-utils";
 
-export type User = PayloadUser;
-
-export interface UserSession {
-	authenticatedUser: User; // The actual logged-in user (admin)
-	effectiveUser?: User | null; // The user being impersonated, or null when not impersonating
-	// authenticatedUserPermissions: string[]; // Permissions for authenticatedUser (admin's real permissions)
-	// effectiveUserPermissions?: string[] | null; // Permissions for effectiveUser, or null when not impersonating
-	isImpersonating: boolean; // true when admin is viewing as another user
-	isAuthenticated: boolean;
-}
+export type UserSession = NonNullable<
+	Awaited<ReturnType<typeof tryGetUserContext>>
+>;
 
 export const userContext = createContext<UserSession | null>(null);
 
@@ -29,7 +21,7 @@ export { userContextKey } from "./utils/context-keys";
 
 export const tryGetUserContext = async (
 	args: Pick<BaseInternalFunctionArgs, "payload" | "req">,
-): Promise<UserSession | null> => {
+) => {
 	const { payload, req } = args;
 	const headers = req?.headers ?? new Headers();
 	// Get the authenticated user
@@ -37,7 +29,7 @@ export const tryGetUserContext = async (
 		headers,
 		canSetHeaders: true,
 		payload,
-	});
+	}).then(stripDepth<1, "find">());
 
 	if (!authenticatedUser) {
 		// No authenticated user, don't set context - let it use default null value
@@ -50,33 +42,33 @@ export const tryGetUserContext = async (
 		`${payload.config.cookiePrefix}-impersonate`,
 	);
 
-	let effectiveUser: User | null = null;
-	let isImpersonating = false;
+	const impersonationResult =
+		impersonateUserId && authenticatedUser.role === "admin"
+			? await tryHandleImpersonation({
+					payload,
+					impersonateUserId,
+					req,
+				})
+			: null;
 
-	// If impersonation cookie exists and user is admin
-	if (impersonateUserId && authenticatedUser.role === "admin") {
-		const impersonationResult = await tryHandleImpersonation({
-			payload,
-			impersonateUserId,
-			req,
-		});
-
-		if (impersonationResult.ok && impersonationResult.value) {
-			effectiveUser = {
-				...impersonationResult.value.targetUser,
-				collection: "users",
-			};
-			isImpersonating = true;
-		}
-	}
+	const { effectiveUser, isImpersonating } =
+		impersonationResult?.ok && impersonationResult.value
+			? {
+					effectiveUser: {
+						...impersonationResult.value.targetUser,
+						collection: "users" as const,
+					},
+					isImpersonating: true,
+				}
+			: {
+					effectiveUser: null,
+					isImpersonating: false,
+				};
 
 	return {
 		authenticatedUser: {
 			...authenticatedUser,
-			avatar:
-				typeof authenticatedUser.avatar === "object"
-					? authenticatedUser.avatar
-					: null,
+			avatar: authenticatedUser.avatar?.id ?? null,
 			direction: authenticatedUser.direction ?? "ltr",
 		},
 		effectiveUser: effectiveUser,

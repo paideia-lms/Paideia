@@ -2,23 +2,29 @@ import {
 	Button,
 	Input,
 	NumberInput,
+	Select,
 	Stack,
 	Textarea,
+	TextInput,
 	Title,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
-import type {
-	ActivityModuleFormValues,
-	DiscussionModuleFormValues,
-} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
-import { CommonFields } from "./common-fields";
+import type { DiscussionFormInitialValues as EditDiscussionFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { DiscussionFormInitialValues as NewDiscussionFormInitialValues } from "app/routes/user/module/new";
+import type { Simplify, UnionToIntersection } from "type-fest";
+
+type DiscussionFormData = Simplify<
+	UnionToIntersection<
+		NewDiscussionFormInitialValues | EditDiscussionFormInitialValues
+	>
+>;
 
 interface DiscussionFormProps {
-	initialValues?: Partial<DiscussionModuleFormValues>;
-	onSubmit: (values: DiscussionModuleFormValues) => void;
+	initialValues?: Partial<DiscussionFormData>;
+	onSubmit: (values: DiscussionFormData) => void;
 	isLoading?: boolean;
 }
 
@@ -27,20 +33,19 @@ export function DiscussionForm({
 	onSubmit,
 	isLoading,
 }: DiscussionFormProps) {
-	const form = useForm<DiscussionModuleFormValues>({
+	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
-			title: initialValues?.title || "",
-			description: initialValues?.description || "",
-			type: "discussion" as const,
-			status: initialValues?.status || "draft",
-			discussionInstructions: initialValues?.discussionInstructions || "",
-			discussionDueDate: initialValues?.discussionDueDate || null,
-			discussionRequireThread: initialValues?.discussionRequireThread || false,
+			title: initialValues?.title ?? "",
+			description: initialValues?.description ?? "",
+			status: initialValues?.status ?? "draft",
+			discussionInstructions: initialValues?.discussionInstructions ?? "",
+			discussionDueDate: initialValues?.discussionDueDate ?? null,
+			discussionRequireThread: initialValues?.discussionRequireThread ?? false,
 			discussionRequireReplies:
-				initialValues?.discussionRequireReplies || false,
-			discussionMinReplies: initialValues?.discussionMinReplies || 1,
+				initialValues?.discussionRequireReplies ?? false,
+			discussionMinReplies: initialValues?.discussionMinReplies ?? 1,
 		},
 		validate: {
 			title: (value) =>
@@ -51,10 +56,26 @@ export function DiscussionForm({
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields
-					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
 				/>
 
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
+				/>
 				<Textarea
 					{...form.getInputProps("description")}
 					key={form.key("description")}
@@ -106,7 +127,7 @@ export function DiscussionForm({
 function InstructionsEditor({
 	form,
 }: {
-	form: UseFormReturnType<DiscussionModuleFormValues>;
+	form: UseFormReturnType<DiscussionFormData>;
 }) {
 	const instructions = useFormWatchForceUpdate(
 		form,
@@ -129,7 +150,7 @@ function InstructionsEditor({
 function _MinimumRepliesInput({
 	form,
 }: {
-	form: UseFormReturnType<DiscussionModuleFormValues>;
+	form: UseFormReturnType<DiscussionFormData>;
 }) {
 	useFormWatchForceUpdate(form, "discussionRequireReplies");
 	const discussionRequireReplies = form.getValues().discussionRequireReplies;

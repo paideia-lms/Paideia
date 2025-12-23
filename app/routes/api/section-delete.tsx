@@ -1,59 +1,65 @@
 import { notifications } from "@mantine/notifications";
-import { href, redirect, useFetcher } from "react-router";
+import { href, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryDeleteSection } from "server/internal/course-section-management";
-import z from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { z } from "zod";
 import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/section-delete";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-const inputSchema = z.object({
-	sectionId: z.number(),
-	courseId: z.number(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createDeleteSectionActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		sectionId: z.coerce.number(),
+		courseId: z.coerce.number(),
+	}),
+	method: "POST",
 });
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "User not found" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsed = inputSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-
-	const { sectionId, courseId } = parsed.data;
-
-	// Call tryDeleteSection with the parsed parameters
-	const result = await tryDeleteSection({
-		payload,
-		sectionId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	// Redirect to course root after successful deletion
-	return redirect(href("/course/:courseId", { courseId: courseId.toString() }));
+const getRouteUrl = () => {
+	return href("/api/section-delete");
 };
+
+const [deleteSectionAction, useDeleteCourseSection] =
+	createDeleteSectionActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "User not found" });
+			}
+
+			// Call tryDeleteSection with the parsed parameters
+			const result = await tryDeleteSection({
+				payload,
+				sectionId: formData.sectionId,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			// Redirect to course root after successful deletion
+			return redirect(
+				href("/course/:courseId", {
+					courseId: formData.courseId.toString(),
+				}),
+			);
+		})!,
+		{
+			action: getRouteUrl,
+		},
+	);
+
+// Export hook for use in components
+export { useDeleteCourseSection };
+
+export const action = deleteSectionAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -67,28 +73,4 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 
 	return actionData;
-}
-
-type DeleteSectionOperation = z.infer<typeof inputSchema>;
-
-// Custom hook for deleting a course section
-export function useDeleteCourseSection() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const deleteSection = async (op: DeleteSectionOperation) => {
-		fetcher.submit(op, {
-			method: "POST",
-			action: href("/api/section-delete"),
-			encType: "application/json",
-		});
-	};
-
-	return {
-		deleteSection,
-		isLoading: fetcher.state !== "idle",
-		error:
-			fetcher.data?.status === StatusCode.BadRequest
-				? fetcher.data.error
-				: undefined,
-	};
 }

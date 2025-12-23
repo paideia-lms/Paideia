@@ -1,11 +1,9 @@
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetMediaStreamFromFilename,
 	tryGetMediaStreamFromId,
 } from "server/internal/media-management";
 import type { Route } from "./+types/file.$filenameOrId";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import { badRequest, notFound } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
@@ -23,20 +21,7 @@ export const loader = async ({
 		return badRequest({ error: "Filename or ID is required" });
 	}
 
-	const payload = context.get(globalContextKey).payload;
-	const s3Client = context.get(globalContextKey).s3Client;
-
-	// Try to get user from context if available (optional for public media access)
-	const userSession = context.get(userContextKey);
-	const currentUser = userSession?.isAuthenticated
-		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
-
-	const payloadRequest = createLocalReq({
-		request,
-		user: currentUser,
-		context: { routerContext: context },
-	});
+	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 
 	// Check if download is requested via query parameter
 	const url = new URL(request.url);

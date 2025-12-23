@@ -13,32 +13,40 @@ import {
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import { href, Link, redirect, useFetcher } from "react-router";
+import { href, Link, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
 import {
+	tryGetUserCount,
 	tryRegisterFirstUser,
 	tryRegisterUser,
 } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import {
+	badRequest,
+	ForbiddenResponse,
+	InternalServerErrorResponse,
+} from "~/utils/responses";
 import type { Route } from "./+types/registration";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
-	const users = await payload.find({
-		collection: "users",
-		limit: 1,
+	const userCount = await tryGetUserCount({
+		payload,
+		// ! this is a system request, we don't care about access control
+		overrideAccess: true,
+	}).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get user count");
 	});
 
-	const isFirstUser = users.docs.length === 0;
+	const isFirstUser = userCount === 0;
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 	// Respect registration settings unless creating the first user
@@ -75,57 +83,101 @@ export async function loader({ context }: Route.LoaderArgs) {
 	};
 }
 
-const formSchema = z.object({
-	email: z.email(),
-	password: z.string().min(8),
-	firstName: z.string(),
-	lastName: z.string(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createRegisterActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		email: z.email(),
+		password: z.string().min(8),
+		firstName: z.string().min(1),
+		lastName: z.string().min(1),
+	}),
+	method: "POST",
 });
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload, requestInfo, envVars } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const getRouteUrl = () => {
+	return href("/registration");
+};
 
-	// Determine if first user
-	const existing = await payload.find({ collection: "users", limit: 1 });
-	const isFirstUser = existing.docs.length === 0;
-	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
+const [registerAction, useRegister] = createRegisterActionRpc(
+	serverOnly$(async ({ context, formData, request }) => {
+		const { payload, requestInfo, envVars } = context.get(globalContextKey);
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsed = formSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({ success: false, error: parsed.error.message });
-	}
-
-	// Respect registration settings unless creating the first user
-	const currentUser =
-		userSession?.effectiveUser ?? userSession?.authenticatedUser;
-	const settingsResult = await tryGetRegistrationSettings({
-		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		// ! this has override access because it is a system request, we don't care about access control
-		overrideAccess: true,
-	});
-	if (
-		settingsResult.ok &&
-		settingsResult.value.disableRegistration &&
-		!isFirstUser
-	) {
-		return badRequest({ success: false, error: "Registration is disabled" });
-	}
-
-	// For first user, register as admin; otherwise regular registration
-	if (isFirstUser) {
-		const result = await tryRegisterFirstUser({
+		// Determine if first user
+		const userCountResult = await tryGetUserCount({
 			payload,
-			...parsed.data,
-			req: request,
+			// ! this is a system request, we don't care about access control
+			overrideAccess: true,
+		});
+		if (!userCountResult.ok) {
+			return badRequest({
+				success: false,
+				error: userCountResult.error.message,
+			});
+		}
+		const userCount = userCountResult.value;
+		const isFirstUser = userCount === 0;
+		const isSandboxMode = envVars.SANDBOX_MODE.enabled;
+
+		// Respect registration settings unless creating the first user
+		const settingsResult = await tryGetRegistrationSettings({
+			payload,
+			// ! this has override access because it is a system request, we don't care about access control
+			overrideAccess: true,
+		});
+		if (
+			settingsResult.ok &&
+			settingsResult.value.disableRegistration &&
+			!isFirstUser
+		) {
+			return badRequest({
+				success: false,
+				error: "Registration is disabled",
+			});
+		}
+
+		// For first user, register as admin; otherwise regular registration
+		if (isFirstUser) {
+			const result = await tryRegisterFirstUser({
+				payload,
+				email: formData.email,
+				password: formData.password,
+				firstName: formData.firstName,
+				lastName: formData.lastName,
+				// ! this is a system request, we don't care about access control
+				overrideAccess: true,
+			});
+
+			if (!result.ok) {
+				return badRequest({ success: false, error: result.error.message });
+			}
+
+			const { token, exp } = result.value;
+			return redirect(href("/"), {
+				headers: {
+					"Set-Cookie": setCookie(
+						token,
+						exp,
+						requestInfo.domainUrl,
+						request.headers,
+						payload,
+					),
+				},
+			});
+		}
+
+		// In sandbox mode, all registrations get admin role
+		const registrationRole = isSandboxMode ? "admin" : "student";
+
+		const result = await tryRegisterUser({
+			payload,
+			email: formData.email,
+			password: formData.password,
+			firstName: formData.firstName,
+			lastName: formData.lastName,
+			role: registrationRole,
+			// ! this is a system request, we don't care about access control
+			overrideAccess: true,
 		});
 
 		if (!result.ok) {
@@ -144,35 +196,16 @@ export async function action({ request, context }: Route.ActionArgs) {
 				),
 			},
 		});
-	}
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
 
-	// In sandbox mode, all registrations get admin role
-	const registrationRole = isSandboxMode ? "admin" : "student";
+// Export hook for use in component
+export { useRegister };
 
-	const result = await tryRegisterUser({
-		payload,
-		...parsed.data,
-		role: registrationRole,
-		req: request,
-	});
-
-	if (!result.ok) {
-		return badRequest({ success: false, error: result.error.message });
-	}
-
-	const { token, exp } = result.value;
-	return redirect(href("/"), {
-		headers: {
-			"Set-Cookie": setCookie(
-				token,
-				exp,
-				requestInfo.domainUrl,
-				request.headers,
-				payload,
-			),
-		},
-	});
-}
+export const action = registerAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -279,7 +312,7 @@ export function RegistrationClient({
 	NODE_ENV: string | undefined;
 	DEV_CONSTANTS: typeof devConstants;
 }) {
-	const fetcher = useFetcher<typeof action>();
+	const { submit: register, isLoading } = useRegister();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -312,10 +345,16 @@ export function RegistrationClient({
 	};
 
 	return (
-		<fetcher.Form
-			method="POST"
-			onSubmit={form.onSubmit((values) => {
-				fetcher.submit(values, { method: "POST", encType: "application/json" });
+		<form
+			onSubmit={form.onSubmit(async (values) => {
+				await register({
+					values: {
+						email: values.email,
+						password: values.password,
+						firstName: values.firstName,
+						lastName: values.lastName,
+					},
+				});
 			})}
 			style={{ display: "flex", flexDirection: "column", gap: "16px" }}
 		>
@@ -371,13 +410,9 @@ export function RegistrationClient({
 				required
 			/>
 
-			<Button
-				type="submit"
-				loading={fetcher.state !== "idle"}
-				style={{ marginTop: "16px" }}
-			>
+			<Button type="submit" loading={isLoading} style={{ marginTop: "16px" }}>
 				Create Account
 			</Button>
-		</fetcher.Form>
+		</form>
 	);
 }

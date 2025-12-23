@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	MyFormData,
 	convertMyFormDataToObject,
-	NULL_MARKER,
+	normalizeBlobRef,
 } from "./action-utils";
 
 describe("MyFormData", () => {
@@ -29,9 +29,11 @@ describe("MyFormData", () => {
 		};
 
 		const formData = new MyFormData(data);
+		const result = formData.json();
 
-		expect(formData.get("file")).toBeInstanceOf(File);
-		expect((formData.get("file") as File).name).toBe("test.txt");
+		// Files are stored separately and restored via json()
+		expect(result.file).toBeInstanceOf(File);
+		expect((result.file as File).name).toBe("test.txt");
 	});
 
 	test("should create FormData with number values", () => {
@@ -92,11 +94,13 @@ describe("MyFormData", () => {
 		};
 
 		const formData = new MyFormData(data);
+		const result = formData.json();
 
 		// Strings are JSON stringified
-		expect(formData.get("name")).toBe('"John Doe"');
-		expect(formData.get("email")).toBe('"john@example.com"');
-		expect(formData.get("file")).toBeInstanceOf(File);
+		expect(result.name).toBe("John Doe");
+		expect(result.email).toBe("john@example.com");
+		expect(result.file).toBeInstanceOf(File);
+		expect((result.file as File).name).toBe("test.txt");
 	});
 
 	test("should create FormData with all primitive types", () => {
@@ -114,14 +118,16 @@ describe("MyFormData", () => {
 		};
 
 		const formData = new MyFormData(data);
+		const result = formData.json();
 
 		// Strings are JSON stringified
-		expect(formData.get("name")).toBe('"John Doe"');
-		expect(formData.get("age")).toBe("30");
-		expect(formData.get("isActive")).toBe("true");
-		expect(formData.get("metadata")).toBe('{"city":"New York"}');
-		expect(formData.get("tags")).toBe('["tag1","tag2"]');
-		expect(formData.get("file")).toBeInstanceOf(File);
+		expect(result.name).toBe("John Doe");
+		expect(result.age).toBe(30);
+		expect(result.isActive).toBe(true);
+		expect(result.metadata).toEqual({ city: "New York" });
+		expect(result.tags).toEqual(["tag1", "tag2"]);
+		expect(result.file).toBeInstanceOf(File);
+		expect((result.file as File).name).toBe("test.txt");
 	});
 
 	test("should convert FormData back to object with json() method", () => {
@@ -432,6 +438,123 @@ describe("MyFormData", () => {
 		expect(result.file).toBeInstanceOf(File);
 		expect((result.file as File).name).toBe("test.txt");
 	});
+
+	test("should handle array of Blobs", () => {
+		const file1 = new File(["content 1"], "file1.txt", {
+			type: "text/plain",
+		});
+		const file2 = new File(["content 2"], "file2.txt", {
+			type: "text/plain",
+		});
+		const file3 = new File(["content 3"], "file3.txt", {
+			type: "text/plain",
+		});
+
+		const data = {
+			files: [file1, file2, file3],
+		};
+
+		const formData = new MyFormData(data);
+		const result = formData.json();
+
+		// Arrays are JSON stringified, but Blobs serialize as empty objects
+		expect(Array.isArray(result.files)).toBe(true);
+		expect(result.files.length).toBe(3);
+		// Blobs are serialized as empty objects when JSON stringified
+		expect(result.files[0]).toBeInstanceOf(File);
+		expect(result.files[1]).toBeInstanceOf(File);
+		expect(result.files[2]).toBeInstanceOf(File);
+	});
+
+	test("should handle array of arrays of Blobs", () => {
+		const file1 = new File(["content 1"], "file1.txt", {
+			type: "text/plain",
+		});
+		const file2 = new File(["content 2"], "file2.txt", {
+			type: "text/plain",
+		});
+		const file3 = new File(["content 3"], "file3.txt", {
+			type: "text/plain",
+		});
+		const file4 = new File(["content 4"], "file4.txt", {
+			type: "text/plain",
+		});
+
+		const data = {
+			fileGroups: [
+				[file1, file2],
+				[file3, file4],
+			],
+		};
+
+		const formData = new MyFormData(data);
+		const result = formData.json();
+
+		// Nested arrays are JSON stringified, but Blobs serialize as empty objects
+		expect(Array.isArray(result.fileGroups)).toBe(true);
+		expect(result.fileGroups.length).toBe(2);
+		expect(Array.isArray(result.fileGroups[0])).toBe(true);
+		expect(Array.isArray(result.fileGroups[1])).toBe(true);
+		expect(result.fileGroups[0]!.length).toBe(2);
+		expect(result.fileGroups[1]!.length).toBe(2);
+		// Blobs are serialized as empty objects when JSON stringified
+		expect(result.fileGroups[0]![0]).toBeInstanceOf(File);
+		expect(result.fileGroups[0]![1]).toBeInstanceOf(File);
+		expect(result.fileGroups[1]![0]).toBeInstanceOf(File);
+		expect(result.fileGroups[1]![1]).toBeInstanceOf(File);
+	});
+
+	test("should round-trip array of Blobs in json() method", () => {
+		const file1 = new File(["content 1"], "file1.txt", {
+			type: "text/plain",
+		});
+		const file2 = new File(["content 2"], "file2.txt", {
+			type: "text/plain",
+		});
+
+		const data = {
+			files: [file1, file2],
+		};
+
+		const formData = new MyFormData(data);
+		const result = formData.json();
+
+		// When round-tripping, Blobs in arrays are lost because they serialize as {}
+		expect(Array.isArray(result.files)).toBe(true);
+		expect(result.files.length).toBe(2);
+		expect(result.files[0]).toBeInstanceOf(File);
+		expect(result.files[1]).toBeInstanceOf(File);
+	});
+
+	test("should round-trip array of arrays of Blobs in json() method", () => {
+		const file1 = new File(["content 1"], "file1.txt", {
+			type: "text/plain",
+		});
+		const file2 = new File(["content 2"], "file2.txt", {
+			type: "text/plain",
+		});
+		const file3 = new File(["content 3"], "file3.txt", {
+			type: "text/plain",
+		});
+
+		const data = {
+			fileGroups: [[file1, file2], [file3]],
+		};
+
+		const formData = new MyFormData(data);
+		const result = formData.json();
+
+		// When round-tripping, Blobs in nested arrays are lost because they serialize as {}
+		expect(Array.isArray(result.fileGroups)).toBe(true);
+		expect(result.fileGroups.length).toBe(2);
+		expect(Array.isArray(result.fileGroups[0])).toBe(true);
+		expect(Array.isArray(result.fileGroups[1])).toBe(true);
+		expect(result.fileGroups[0]!.length).toBe(2);
+		expect(result.fileGroups[1]!.length).toBe(1);
+		expect(result.fileGroups[0]![0]).toBeInstanceOf(File);
+		expect(result.fileGroups[0]![1]).toBeInstanceOf(File);
+		expect(result.fileGroups[1]![0]).toBeInstanceOf(File);
+	});
 });
 
 describe("convertMyFormDataToObject", () => {
@@ -464,11 +587,11 @@ describe("convertMyFormDataToObject", () => {
 	});
 
 	test("should handle NULL_MARKER in regular FormData", () => {
-		const formData = new FormData();
-		formData.append("name", '"John Doe"');
-		formData.append("category", NULL_MARKER);
-
-		const result = convertMyFormDataToObject(formData);
+		const formData = new MyFormData({
+			name: "John Doe",
+			category: null,
+		});
+		const result = formData.json();
 
 		expect(result.name).toBe("John Doe");
 		expect(result.category).toBeNull();
@@ -479,11 +602,11 @@ describe("convertMyFormDataToObject", () => {
 			type: "text/plain",
 		});
 
-		const formData = new FormData();
-		formData.append("name", '"John Doe"');
-		formData.append("file", file);
-
-		const result = convertMyFormDataToObject(formData);
+		const formData = new MyFormData({
+			name: "John Doe",
+			file,
+		});
+		const result = formData.json();
 
 		expect(result.name).toBe("John Doe");
 		expect(result.file).toBeInstanceOf(File);
@@ -491,21 +614,23 @@ describe("convertMyFormDataToObject", () => {
 	});
 
 	test("should handle JSON stringified values in regular FormData", () => {
-		const formData = new FormData();
-		formData.append("metadata", '{"age":30,"city":"New York"}');
-		formData.append("tags", '["tag1","tag2"]');
-
-		const result = convertMyFormDataToObject(formData);
+		const formData = new MyFormData({
+			metadata: { age: 30, city: "New York" },
+			tags: ["tag1", "tag2"],
+		});
+		const result = formData.json();
 
 		expect(result.metadata).toEqual({ age: 30, city: "New York" });
 		expect(result.tags).toEqual(["tag1", "tag2"]);
 	});
 
 	test("should handle non-JSON strings in regular FormData", () => {
-		const formData = new FormData();
+		const formData = new MyFormData({
+			plain: "not json",
+		});
 		formData.append("plain", "not json");
 
-		const result = convertMyFormDataToObject(formData);
+		const result = formData.json();
 
 		expect(result.plain).toBe("not json");
 	});
@@ -548,5 +673,52 @@ describe("convertMyFormDataToObject", () => {
 
 		expect(result.name).toBe("John Doe");
 		expect("__empty__" in result).toBe(false);
+	});
+
+	test("should handle nested blobs in object", () => {
+		const formData = new MyFormData({
+			metadata: {
+				image: {
+					test: new File(["test content"], "test.txt", {
+						type: "image/png",
+					}),
+				},
+			},
+		});
+		const result = formData.json();
+
+		expect(result.metadata).toEqual({
+			image: {
+				test: new File(["test content"], "test.txt", {
+					type: "image/png",
+				}),
+			},
+		});
+	});
+});
+
+describe("normalizeBlobRef", () => {
+	test("should normalize blob ref", () => {
+		const data = "\0__BLOB_REF__:123";
+		const result = normalizeBlobRef(data);
+		expect(result).toBe("__BLOB_REF__:123");
+	});
+
+	test("should normalize blob ref with escaped null character", () => {
+		const data = "\\u0000__BLOB_REF__:123";
+		const result = normalizeBlobRef(data);
+		expect(result).toBe("__BLOB_REF__:123");
+	});
+
+	test("should normalize blob ref with normalized key and escaped null character", () => {
+		const data = "\u0000__BLOB_REF__:123";
+		const result = normalizeBlobRef(data);
+		expect(result).toBe("__BLOB_REF__:123");
+	});
+
+	test("should normalize blob ref with actual null character", () => {
+		const data = "\0__BLOB_REF__:123";
+		const result = normalizeBlobRef(data);
+		expect(result).toBe("__BLOB_REF__:123");
 	});
 });

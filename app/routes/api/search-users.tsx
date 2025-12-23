@@ -4,14 +4,17 @@ import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import {
+	badRequest,
+	ForbiddenResponse,
+	NotFoundResponse,
+} from "~/utils/responses";
 import type { Route } from "./+types/search-users";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export type { Route };
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -21,9 +24,6 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	if (userSession.authenticatedUser.role !== "admin") {
 		throw new ForbiddenResponse("Only admins can search users");
 	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get search query from URL params
 	const url = new URL(request.url);
@@ -37,14 +37,10 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit,
 		page: 1,
 		sort: "-createdAt",
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
+		req: payloadRequest,
 	});
 
+	// ! we return error response in loader because this route has no default page component
 	if (!usersResult.ok) {
 		return badRequest({
 			users: [],

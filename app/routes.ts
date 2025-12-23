@@ -70,7 +70,7 @@ export const routes = [
 					),
 					route(
 						"course/module/:moduleLinkId/submissions",
-						"routes/course/module.$id.submissions.tsx",
+						"routes/course/module.$id.submissions/route.tsx",
 					),
 				]),
 				layout("layouts/course-section-layout.tsx", [

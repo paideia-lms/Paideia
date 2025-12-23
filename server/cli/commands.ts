@@ -12,6 +12,11 @@ import {
 	printMigrationStatus,
 } from "../utils/db/migration-status";
 import { tryResetSandbox } from "../utils/db/sandbox-reset";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 
 /**
  * Displays help information with all available CLI commands
@@ -173,15 +178,22 @@ export function configureCommands(payload: Payload): Command {
 			console.log(asciiLogo);
 			console.log("Resetting sandbox database...");
 
-			const resetResult = await tryResetSandbox(payload);
+			const transactionInfo = await handleTransactionId(payload);
+
+			const resetResult = await tryResetSandbox({
+				payload,
+				req: transactionInfo.reqWithTransaction,
+			});
 
 			if (!resetResult.ok) {
+				await rollbackTransactionIfCreated(payload, transactionInfo);
 				console.error(
 					`❌ Failed to reset sandbox database: ${resetResult.error.message}`,
 				);
 				process.exit(1);
 			}
 
+			await commitTransactionIfCreated(payload, transactionInfo);
 			console.log("✅ Sandbox database reset completed successfully");
 			process.exit(0);
 		});

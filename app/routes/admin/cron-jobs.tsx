@@ -13,7 +13,7 @@ import {
 import type { Route } from "./+types/cron-jobs";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -27,7 +27,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can view cron jobs");
 	}
 
-	const cronJobsResult = await tryGetCronJobs(payload);
+	const cronJobsResult = await tryGetCronJobs({ payload, req: payloadRequest });
 
 	if (!cronJobsResult.ok) {
 		throw new InternalServerErrorResponse(

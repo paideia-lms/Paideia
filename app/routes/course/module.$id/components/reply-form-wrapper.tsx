@@ -1,7 +1,7 @@
 import { Button, Group, Paper, Stack, Text } from "@mantine/core";
 import { useState } from "react";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-import { useCreateReply } from "../hooks";
+import { useCreateReply } from "../route";
 
 interface ReplyFormWrapperProps {
 	moduleLinkId: number;
@@ -17,7 +17,7 @@ export function ReplyFormWrapper({
 	onCancel,
 }: ReplyFormWrapperProps) {
 	const [replyContent, setReplyContent] = useState("");
-	const { createReply, isSubmitting } = useCreateReply(moduleLinkId);
+	const { submit: createReply, isLoading: isSubmitting } = useCreateReply();
 
 	const handleSubmit = () => {
 		if (replyContent.trim()) {
@@ -25,7 +25,16 @@ export function ReplyFormWrapper({
 			if (!Number.isNaN(threadIdNum)) {
 				// For thread-level replies, pass null/undefined to use "thread" as default
 				// For comment replies, pass the comment ID
-				createReply(replyContent.trim(), threadIdNum, _replyTo || undefined);
+				createReply({
+					params: { moduleLinkId },
+					searchParams: {
+						replyTo: _replyTo || "thread",
+					},
+					values: {
+						content: replyContent.trim(),
+						parentThread: threadIdNum,
+					},
+				});
 				setReplyContent("");
 			}
 		}

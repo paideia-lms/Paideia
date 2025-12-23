@@ -10,16 +10,16 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { pick } from "es-toolkit";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateUser } from "server/internal/user-management";
-import { z } from "zod";
-import { assertRequestMethodInRemix } from "~/utils/assert-request-method";
 import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
+	tryFindUserById,
+	tryUpdateUser,
+} from "server/internal/user-management";
+import { z } from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -27,10 +27,25 @@ import {
 	ok,
 } from "~/utils/responses";
 import type { Route } from "./+types/preference";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdatePreferenceActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		theme: z.enum(["light", "dark"]),
+		direction: z.enum(["ltr", "rtl"]),
+	}),
+	method: "POST",
+});
+
+const getRouteUrl = (userId?: number) => {
+	return href("/user/preference/:id?", {
+		id: userId ? userId.toString() : undefined,
+	});
+};
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
 
@@ -56,14 +71,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	// Fetch the target user
-	const targetUser = await payload.findByID({
-		collection: "users",
-		id: targetUserId,
-	});
-
-	if (!targetUser) {
+	const targetUser = await tryFindUserById({
+		payload,
+		userId: targetUserId,
+		req: payloadRequest,
+	}).getOrElse(() => {
 		throw new NotFoundResponse("User not found");
-	}
+	});
 
 	return {
 		user: pick(targetUser, [
@@ -77,61 +91,50 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-const actionSchema = z.object({
-	theme: z.enum(["light", "dark"]),
-	direction: z.enum(["ltr", "rtl"]),
-});
+const [updatePreferenceAction, useUpdateUserPreference] =
+	createUpdatePreferenceActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
 
-export const action = async ({ context, request }: Route.ActionArgs) => {
-	assertRequestMethodInRemix(request.method, "POST");
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
+			if (!userSession?.isAuthenticated) {
+				throw new NotFoundResponse("Unauthorized");
+			}
 
-	if (!userSession?.isAuthenticated) {
-		throw new NotFoundResponse("Unauthorized");
-	}
+			// Use effectiveUser if impersonating, otherwise use authenticatedUser
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Use effectiveUser if impersonating, otherwise use authenticatedUser
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+			// Update user theme and direction
+			const updateResult = await tryUpdateUser({
+				payload,
+				userId: currentUser.id,
+				data: {
+					theme: formData.theme,
+					direction: formData.direction,
+				},
+				req: payloadRequest,
+			});
 
-	// Parse form data
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = actionSchema.safeParse(data);
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: "Failed to update preferences.",
+				});
+			}
 
-	if (!parsed.success) {
-		return badRequest({
-			success: false,
-			error: parsed.error.message,
-		});
-	}
-
-	const { theme, direction } = parsed.data;
-
-	// Update user theme and direction
-	const updateResult = await tryUpdateUser({
-		payload,
-		userId: currentUser.id,
-		data: {
-			theme,
-			direction,
+			return ok({ success: true });
+		})!,
+		{
+			action: (args) =>
+				getRouteUrl(args.params?.id ? Number(args.params.id) : undefined),
 		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	});
+	);
 
-	if (!updateResult.ok) {
-		return badRequest({
-			success: false,
-			error: "Failed to update preferences.",
-		});
-	}
+// Export hook for use in components
+export { useUpdateUserPreference };
 
-	return ok({ success: true });
-};
+export const action = updatePreferenceAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -153,56 +156,28 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-// Custom hook for updating user preferences
-export function useUpdateUserPreference() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updatePreference = (
-		userId: string,
-		theme: "light" | "dark",
-		direction: "ltr" | "rtl",
-	) => {
-		fetcher.submit(
-			{
-				theme: theme,
-				direction: direction,
-			},
-			{
-				method: "POST",
-				action: href("/user/preference/:id?", {
-					id: userId,
-				}),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		updatePreference,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
 export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 	const { user } = loaderData;
-	const { updatePreference, isLoading } = useUpdateUserPreference();
+	const { submit: updatePreference, isLoading } = useUpdateUserPreference();
 	const form = useForm({
 		mode: "uncontrolled",
-		cascadeUpdates: true,
 		initialValues: {
 			theme: loaderData.user.theme,
 			direction: loaderData.user.direction ?? "ltr",
 		},
 	});
 
-	const handleSubmit = (values: { theme: string; direction: string }) => {
-		updatePreference(
-			String(user.id),
-			values.theme as "light" | "dark",
-			values.direction as "ltr" | "rtl",
-		);
-	};
+	const handleSubmit = form.onSubmit((values) => {
+		updatePreference({
+			params: {
+				id: user.id,
+			},
+			values: {
+				theme: values.theme as "light" | "dark",
+				direction: values.direction as "ltr" | "rtl",
+			},
+		});
+	});
 
 	return (
 		<Container size="lg" py="xl">
@@ -220,7 +195,7 @@ export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 						Preferences
 					</Title>
 
-					<form onSubmit={form.onSubmit(handleSubmit)}>
+					<form onSubmit={handleSubmit}>
 						<Stack gap="md">
 							<Radio.Group
 								{...form.getInputProps("theme")}

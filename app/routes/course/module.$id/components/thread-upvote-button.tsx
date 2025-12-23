@@ -1,7 +1,7 @@
 import { ActionIcon, Stack, Text, Tooltip } from "@mantine/core";
 import { IconArrowBigUp, IconArrowBigUpFilled } from "@tabler/icons-react";
 import type { DiscussionThread } from "~/components/activity-modules-preview/discussion-preview";
-import { useRemoveUpvoteThread, useUpvoteThread } from "../hooks";
+import { useRemoveUpvoteThread, useUpvoteThread } from "../route";
 
 interface ThreadUpvoteButtonProps {
 	thread: DiscussionThread;
@@ -12,10 +12,9 @@ interface ThreadUpvoteButtonProps {
 export function ThreadUpvoteButton({
 	thread,
 	moduleLinkId,
-	threadId,
 }: ThreadUpvoteButtonProps) {
-	const { upvoteThread } = useUpvoteThread(moduleLinkId);
-	const { removeUpvoteThread } = useRemoveUpvoteThread(moduleLinkId);
+	const { submit: upvoteThread } = useUpvoteThread();
+	const { submit: removeUpvoteThread } = useRemoveUpvoteThread();
 
 	const handleUpvote = (e?: React.MouseEvent) => {
 		if (e) {
@@ -25,9 +24,19 @@ export function ThreadUpvoteButton({
 		if (Number.isNaN(submissionId)) return;
 
 		if (thread.isUpvoted) {
-			removeUpvoteThread(submissionId, threadId);
+			removeUpvoteThread({
+				params: { moduleLinkId },
+				values: {
+					submissionId,
+				},
+			});
 		} else {
-			upvoteThread(submissionId, threadId);
+			upvoteThread({
+				params: { moduleLinkId },
+				values: {
+					submissionId,
+				},
+			});
 		}
 	};
 

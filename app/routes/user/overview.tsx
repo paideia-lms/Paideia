@@ -27,10 +27,13 @@ import {
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
 import { stringify } from "qs";
 import { useEffect, useState } from "react";
-import { href, Link, useFetcher, useLocation } from "react-router";
+import { href, Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
@@ -51,8 +54,6 @@ import {
 } from "server/utils/permissions";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
-import { ContentType } from "~/utils/get-content-type";
-import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -61,16 +62,12 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/overview";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "app/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
-	const { payload, envVars } = context.get(globalContextKey);
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
+	const { payload, envVars, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -95,22 +92,13 @@ export const loader = async ({
 	}
 
 	// Fetch the user profile
-	const userResult = await tryFindUserById({
+	const profileUser = await tryFindUserById({
 		payload,
 		userId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!userResult.ok) {
+		req: payloadRequest,
+	}).getOrElse(() => {
 		throw new NotFoundResponse("User not found");
-	}
-
-	const profileUser = userResult.value;
+	});
 
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = profileUser.avatar
@@ -208,122 +196,63 @@ enum Action {
 
 // Define search params for user profile update
 export const userOverviewSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
+	action: parseAsStringEnumServer(Object.values(Action)),
 };
 
 export const loadSearchParams = createLoader(userOverviewSearchParams);
 
-const inputSchema = z.object({
-	firstName: z.string(),
-	lastName: z.string(),
-	bio: z.string(),
-	avatar: z.coerce.number().nullish(),
-	email: z.email().nullish(),
-	role: z
-		.enum([
-			"student",
-			"instructor",
-			"content-manager",
-			"analytics-viewer",
-			"admin",
-		])
-		.nullish(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdateActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		firstName: z.string(),
+		lastName: z.string(),
+		bio: z.string(),
+		avatar: z.file().nullish(),
+		email: z.email().nullish(),
+		role: z
+			.enum([
+				"student",
+				"instructor",
+				"content-manager",
+				"analytics-viewer",
+				"admin",
+			])
+			.nullish(),
+	}),
+	method: "POST",
+	action: Action.Update,
 });
 
-const updateAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const [updateAction, useUpdateUser] = createUpdateActionRpc(
+	serverOnly$(async ({ context, params, formData, request }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
-
-	const userId = params.id ? Number(params.id) : currentUser.id;
-
-	if (userId !== currentUser.id && currentUser.role !== "admin") {
-		return unauthorized({
-			success: false,
-			error: "Only admins can edit other users",
-		});
-	}
-
-	// Get upload limit from system globals
-	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	);
-
-	return await transactionInfo.tx(async (txInfo) => {
-		// Parse form data with media upload handler
-		const parseResult = await tryParseFormDataWithMediaUpload({
-			payload,
-			request,
-			userId: userId,
-			req: txInfo.reqWithTransaction,
-			maxFileSize,
-			fields: [
-				{
-					fieldName: "avatar",
-					alt: "User avatar",
-				},
-			],
-		});
-
-		if (!parseResult.ok) {
-			return handleUploadError(
-				parseResult.error,
-				maxFileSize,
-				"Failed to parse form data",
-			);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
 		}
 
-		const { formData } = parseResult.value;
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		const userId = params.id ? Number(params.id) : currentUser.id;
+
+		if (userId !== currentUser.id && currentUser.role !== "admin") {
+			return unauthorized({
+				success: false,
+				error: "Only admins can edit other users",
+			});
+		}
 
 		const isAdmin = currentUser.role === "admin";
 		const isFirstUser = userId === 1;
 
-		const parsed = inputSchema.safeParse({
-			firstName: formData.get("firstName"),
-			lastName: formData.get("lastName"),
-			bio: formData.get("bio"),
-			avatar: formData.get("avatar"),
-			email: formData.get("email"),
-			role: formData.get("role"),
-		});
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: parsed.error.message,
-			});
-		}
-
 		// Prevent first user from changing their admin role
-		if (isFirstUser && parsed.data.role && parsed.data.role !== "admin") {
+		if (isFirstUser && formData.role && formData.role !== "admin") {
 			return badRequest({
 				success: false,
 				error: "The first user cannot change their admin role",
@@ -332,28 +261,24 @@ const updateAction = async ({
 
 		// Build update data
 		const updateData = {
-			firstName: parsed.data.firstName,
-			lastName: parsed.data.lastName,
-			email: parsed.data.email ?? undefined,
-			bio: parsed.data.bio,
-			avatar: parsed.data.avatar ?? undefined,
-			role: parsed.data.role ?? undefined,
+			firstName: formData.firstName,
+			lastName: formData.lastName,
+			email: formData.email ?? undefined,
+			bio: formData.bio,
+			avatar: formData.avatar ?? undefined,
+			role: formData.role ?? undefined,
 		};
 
 		// Only admins can update email and role
-		if (
-			isAdmin &&
-			parsed.data.email !== null &&
-			parsed.data.email !== undefined
-		) {
-			updateData.email = parsed.data.email;
+		if (isAdmin && formData.email !== null && formData.email !== undefined) {
+			updateData.email = formData.email;
 		}
 
 		const updateResult = await tryUpdateUser({
 			payload,
 			userId: userId,
 			data: updateData,
-			req: txInfo.reqWithTransaction,
+			req: payloadRequest,
 			overrideAccess: false,
 		});
 
@@ -368,10 +293,17 @@ const updateAction = async ({
 			success: true,
 			message: "Profile updated successfully",
 		});
-	});
-};
+	})!,
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(
+				searchParams.action,
+				params.id ? Number(params.id) : undefined,
+			),
+	},
+);
 
-const getActionUrl = (action: Action, userId?: number) => {
+const getRouteUrl = (action: Action, userId?: number) => {
 	return (
 		href("/user/overview/:id?", {
 			id: userId ? userId.toString() : undefined,
@@ -379,6 +311,10 @@ const getActionUrl = (action: Action, userId?: number) => {
 		"?" +
 		stringify({ action })
 	);
+};
+
+const actionMap = {
+	[Action.Update]: updateAction,
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -392,19 +328,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionType === Action.Update) {
-		return updateAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		success: false,
-		error: "Invalid action",
-	});
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -431,48 +355,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-const useUpdateUser = () => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const updateUser = (
-		userId: string,
-		values: {
-			firstName: string;
-			lastName: string;
-			bio: string;
-			avatar: File | null;
-			email?: string;
-			role?: string;
-		},
-	) => {
-		const formData = new FormData();
-		formData.append("firstName", values.firstName);
-		formData.append("lastName", values.lastName);
-		formData.append("bio", values.bio);
-		if (values.avatar) {
-			formData.append("avatar", values.avatar);
-		}
-		if (values.email) {
-			formData.append("email", values.email);
-		}
-		if (values.role) {
-			formData.append("role", values.role);
-		}
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(Action.Update, Number(userId)),
-			encType: ContentType.MULTIPART,
-		});
-	};
-
-	return {
-		updateUser,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-		fetcher,
-	};
-};
-
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const {
 		user,
@@ -488,8 +370,8 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		rolePermission,
 		isEditingOtherAdminUser,
 	} = loaderData;
-	const { updateUser, fetcher } = useUpdateUser();
-	const { impersonate, isLoading: isImpersonating } = useImpersonate();
+	const { submit: updateUser, isLoading: isUpdating } = useUpdateUser();
+	const { submit: impersonate, isLoading: isImpersonating } = useImpersonate();
 
 	const location = useLocation();
 
@@ -547,14 +429,17 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	};
 
 	const handleSubmit = (values: typeof form.values) => {
-		updateUser(user.id.toString(), {
-			firstName: values.firstName,
-			lastName: values.lastName,
-			bio: values.bio,
-			avatar: selectedFile,
-			email: emailPermission.allowed ? values.email : undefined,
-			// Only include role if user can edit role
-			role: rolePermission.allowed ? values.role : undefined,
+		updateUser({
+			params: { id: user.id },
+			values: {
+				firstName: values.firstName,
+				lastName: values.lastName,
+				bio: values.bio,
+				avatar: selectedFile ?? null,
+				email: emailPermission.allowed ? values.email : null,
+				// Only include role if user can edit role
+				role: rolePermission.allowed ? values.role : null,
+			},
 		});
 	};
 
@@ -592,7 +477,14 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 						<Button
 							variant="light"
 							color="orange"
-							onClick={() => impersonate(user.id)}
+							onClick={() =>
+								impersonate({
+									params: {
+										id: user.id,
+									},
+									values: {},
+								})
+							}
 							loading={isImpersonating}
 							leftSection={<IconUserCheck size={16} />}
 						>
@@ -616,7 +508,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 						</Alert>
 					)}
 
-					<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
+					<form onSubmit={form.onSubmit(handleSubmit)}>
 						<Stack gap="lg">
 							<div>
 								<Text size="sm" fw={500} mb="xs">
@@ -757,9 +649,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 							<Group justify="flex-end" mt="md">
 								<Button
 									type="submit"
-									loading={fetcher.state !== "idle"}
+									loading={isUpdating}
 									disabled={
-										fetcher.state !== "idle" ||
+										isUpdating ||
 										!firstNamePermission.allowed ||
 										!lastNamePermission.allowed ||
 										!bioPermission.allowed ||
@@ -770,7 +662,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								</Button>
 							</Group>
 						</Stack>
-					</fetcher.Form>
+					</form>
 				</Paper>
 
 				{/* Quick Stats Cards */}

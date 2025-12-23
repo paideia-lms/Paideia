@@ -23,14 +23,14 @@ import dayjs from "dayjs";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsString } from "nuqs/server";
 import { useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { Link } from "react-router";
+import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryDeleteNote } from "server/internal/note-management";
 import type { Note } from "server/payload-types";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
-import { assertRequestMethod } from "~/utils/assert-request-method";
 import { formatDateInTimeZone, parseDateString } from "~/utils/date-utils";
 import {
 	badRequest,
@@ -40,7 +40,9 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/notes";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
+import { href } from "react-router";
 
 // Define search params for date selection
 export const notesSearchParams = {
@@ -116,46 +118,58 @@ export const loader = async ({
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	assertRequestMethod(request.method, "DELETE");
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
+const createDeleteNoteActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		noteId: z.coerce.number().int().positive("Invalid note ID"),
+	}),
+	method: "DELETE",
+});
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const formData = await request.formData();
-	const noteId = Number(formData.get("noteId"));
-
-	if (Number.isNaN(noteId)) {
-		return badRequest({ error: "Invalid note ID" });
-	}
-
-	const result = await tryDeleteNote({
-		payload,
-		noteId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+const getRouteUrl = (id?: number) => {
+	return href("/user/notes/:id?", {
+		id: id ? id.toString() : undefined,
 	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	return ok({ message: "Note deleted successfully" });
 };
+
+const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const result = await tryDeleteNote({
+			payload,
+			noteId: formData.noteId,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return ok({ message: "Note deleted successfully" });
+	})!,
+	{
+		action: () => getRouteUrl(),
+	},
+);
+
+// Export hook for use in components
+export { useDeleteNote };
+
+export const action = deleteNoteAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -166,29 +180,18 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: "Your note has been deleted successfully",
 			color: "green",
 		});
-	} else {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
-			message: actionData?.error,
+			message: actionData.error,
 			color: "red",
 		});
 	}
 
 	return actionData;
-}
-
-export function useDeleteNote() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const deleteNote = async (noteId: number) => {
-		const formData = new FormData();
-		formData.append("noteId", String(noteId));
-		fetcher.submit(formData, { method: "DELETE" });
-	};
-	return {
-		deleteNote,
-		isLoading: fetcher.state !== "idle",
-		fetcher,
-	};
 }
 
 // HeatmapSection component
@@ -483,7 +486,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 		timeZone,
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const { deleteNote } = useDeleteNote();
+	const { submit: deleteNote } = useDeleteNote();
 
 	const [selectedYear, setSelectedYear] = useState(
 		availableYears[0] || new Date().getFullYear(),
@@ -511,7 +514,14 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		deleteNote(noteId);
+		deleteNote({
+			params: {
+				id: undefined,
+			},
+			values: {
+				noteId,
+			},
+		});
 	};
 
 	// Regenerate heatmap data mapping using client timezone

@@ -84,89 +84,89 @@ interface TryGetUserModuleContextArgs extends BaseInternalFunctionArgs {
  * Get user module context for a given module ID
  * This includes the module data, linked courses, grants, and instructors
  */
-export const tryGetUserModuleContext = Result.wrap(
-	async ({
-		payload,
-		req,
-		overrideAccess = false,
-		moduleId,
-	}: TryGetUserModuleContextArgs) => {
-		const currentUser = req?.user;
+export function tryGetUserModuleContext(args: TryGetUserModuleContextArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, overrideAccess = false, moduleId } = args;
+			const currentUser = req?.user;
 
-		// Fetch linked courses with enrollments
+			// Fetch linked courses with enrollments
 
-		const [module, links, grants, instructors] = await Promise.all([
-			await tryGetActivityModuleById({
-				payload,
-				id: moduleId,
-				req,
-				overrideAccess,
-			}).getOrThrow(),
-			tryFindLinksByActivityModule({
-				payload,
-				activityModuleId: moduleId,
-				req,
-				overrideAccess,
-			}).getOrThrow(),
-			tryFindGrantsByActivityModule({
-				payload,
-				activityModuleId: moduleId,
-				req,
-				overrideAccess,
-			}).getOrThrow(),
-			tryFindInstructorsForActivityModule({
-				payload,
-				activityModuleId: moduleId,
-				req,
-				overrideAccess,
-			}).getOrThrow(),
-		]);
+			const [module, links, grants, instructors] = await Promise.all([
+				tryGetActivityModuleById({
+					payload,
+					id: moduleId,
+					req,
+					overrideAccess,
+				}).getOrThrow(),
+				tryFindLinksByActivityModule({
+					payload,
+					activityModuleId: moduleId,
+					req,
+					overrideAccess,
+				}).getOrThrow(),
+				tryFindGrantsByActivityModule({
+					payload,
+					activityModuleId: moduleId,
+					req,
+					overrideAccess,
+				}).getOrThrow(),
+				tryFindInstructorsForActivityModule({
+					payload,
+					activityModuleId: moduleId,
+					req,
+					overrideAccess,
+				}).getOrThrow(),
+			]);
 
-		// unique by course id
-		const uniqueCourses = links
-			.map((link) => link.course)
-			.filter(
-				(course, index, self) =>
-					self.findIndex((c) => c.id === course.id) === index,
-			)
-			.map((course) => ({
-				id: course.id,
-				title: course.title,
-				slug: course.slug,
-				description: course.description,
-				status: course.status,
-				createdAt: course.createdAt,
-				updatedAt: course.updatedAt,
-			}));
+			// unique by course id
+			const uniqueCourses = links
+				.map((link) => link.course)
+				.filter(
+					(course, index, self) =>
+						self.findIndex((c) => c.id === course.id) === index,
+				)
+				.map((course) => ({
+					id: course.id,
+					title: course.title,
+					slug: course.slug,
+					description: course.description,
+					status: course.status,
+					createdAt: course.createdAt,
+					updatedAt: course.updatedAt,
+				}));
 
-		// Determine access type
-		let accessType: "owned" | "granted" | "readonly" = "readonly";
+			// Determine access type
+			let accessType: "owned" | "granted" | "readonly" = "readonly";
 
-		if (currentUser) {
-			// Check if user is the owner
-			if (module.owner.id === currentUser.id) {
-				accessType = "owned";
+			if (currentUser) {
+				// Check if user is the owner
+				if (module.owner.id === currentUser.id) {
+					accessType = "owned";
+				}
+				// Check if user has been explicitly granted access
+				else if (
+					grants.some((grant) => grant.grantedTo.id === currentUser.id)
+				) {
+					accessType = "granted";
+				}
+				// Otherwise, they must be an instructor (readonly access)
+				else {
+					accessType = "readonly";
+				}
 			}
-			// Check if user has been explicitly granted access
-			else if (grants.some((grant) => grant.grantedTo.id === currentUser.id)) {
-				accessType = "granted";
-			}
-			// Otherwise, they must be an instructor (readonly access)
-			else {
-				accessType = "readonly";
-			}
-		}
 
-		return {
-			module,
-			accessType,
-			linkedCourses: uniqueCourses,
-			grants,
-			instructors,
-			links,
-		} satisfies UserModuleContext;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get user module context", { cause: error }),
-);
+			return {
+				module,
+				accessType,
+				linkedCourses: uniqueCourses,
+				grants,
+				instructors,
+				links,
+			} satisfies UserModuleContext;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get user module context", { cause: error }),
+	);
+}

@@ -11,23 +11,17 @@ import {
 } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import {
-	type ActionFunctionArgs,
-	href,
-	Link,
-	type LoaderFunctionArgs,
-	redirect,
-	useFetcher,
-} from "react-router";
+import { href, Link, type LoaderFunctionArgs, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
-import { tryLogin } from "server/internal/user-management";
+import { tryGetUserCount, tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import { badRequest, InternalServerErrorResponse } from "~/utils/responses";
 import type { Route } from "./+types/login";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -40,26 +34,30 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 	const { payload } = context.get(globalContextKey);
 
-	const firstUser = await payload.find({
-		collection: "users",
-		limit: 1,
-	});
+	const [userCount, settingsResult] = await Promise.all([
+		tryGetUserCount({
+			payload,
+			// ! this is a system request, we dont care about access control
+			overrideAccess: true,
+		}).getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get user count");
+		}),
+		tryGetRegistrationSettings({
+			payload,
+			// ! this is a system request, we don't care about access control
+			overrideAccess: true,
+		}).getOrElse(() => {
+			throw new InternalServerErrorResponse(
+				"Failed to get registration settings",
+			);
+		}),
+	]);
 
-	if (firstUser.docs.length === 0) {
+	if (userCount === 0) {
 		return redirect(href("/registration"));
 	}
 
-	const settingsResult = await tryGetRegistrationSettings({
-		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
-	});
-
-	if (!settingsResult.ok) {
-		throw new ForbiddenResponse("Failed to get registration settings");
-	}
-
-	const registrationDisabled = settingsResult.value.disableRegistration;
+	const registrationDisabled = settingsResult.disableRegistration;
 
 	return {
 		user: null,
@@ -75,46 +73,62 @@ const loginSchema = z.object({
 	password: z.string().min(6),
 });
 
-export const action = async ({ request, context }: ActionFunctionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const requestInfo = context.get(globalContextKey).requestInfo;
-	const userSession = context.get(userContextKey);
-	if (userSession?.isAuthenticated) {
-		return redirect(href("/"));
-	}
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
+const createLoginActionRpc = createActionRpc({
+	formDataSchema: loginSchema,
+	method: "POST",
+});
 
-	const parsedData = loginSchema.parse(data);
-
-	const loginResult = await tryLogin({
-		payload,
-		email: parsedData.email,
-		password: parsedData.password,
-		req: request,
-	});
-
-	if (!loginResult.ok) {
-		return badRequest({
-			success: false,
-			error: "Invalid credentials",
-		});
-	}
-
-	const { token, exp } = loginResult.value;
-
-	return redirect(href("/"), {
-		headers: {
-			"Set-Cookie": setCookie(
-				token,
-				exp,
-				requestInfo.domainUrl,
-				request.headers,
-				payload,
-			),
-		},
-	});
+const getRouteUrl = () => {
+	return href("/login");
 };
+
+const [loginAction, useLogin] = createLoginActionRpc(
+	serverOnly$(async ({ context, formData, request }) => {
+		const { payload, requestInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		if (userSession?.isAuthenticated) {
+			return redirect(href("/"));
+		}
+
+		const loginResult = await tryLogin({
+			payload,
+			email: formData.email,
+			password: formData.password,
+			req: request,
+		});
+
+		if (!loginResult.ok) {
+			return badRequest({
+				success: false,
+				error: "Invalid credentials",
+			});
+		}
+
+		const { token, exp } = loginResult.value;
+
+		return redirect(href("/"), {
+			headers: {
+				"Set-Cookie": setCookie(
+					token,
+					exp,
+					requestInfo.domainUrl,
+					request.headers,
+					payload,
+				),
+			},
+		});
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
+
+// Export hook for use in component
+export { useLogin };
+
+export const action = loginAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -135,7 +149,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function LoginPage({ loaderData }: Route.ComponentProps) {
 	const { message, NODE_ENV, DEV_CONSTANTS, registrationDisabled } = loaderData;
-	const fetcher = useFetcher<typeof action>();
+	const { submit: login, isLoading } = useLogin();
 	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -207,12 +221,13 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 					</Button>
 				)}
 
-				<fetcher.Form
-					method="POST"
-					onSubmit={form.onSubmit((values) => {
-						fetcher.submit(values, {
-							method: "POST",
-							encType: "application/json",
+				<form
+					onSubmit={form.onSubmit(async (values) => {
+						await login({
+							values: {
+								email: values.email,
+								password: values.password,
+							},
 						});
 					})}
 				>
@@ -236,7 +251,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 					/>
 
 					<Stack gap="sm">
-						<Button type="submit" fullWidth size="lg">
+						<Button type="submit" fullWidth size="lg" loading={isLoading}>
 							Login
 						</Button>
 						{!registrationDisabled && (
@@ -251,7 +266,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 							</Text>
 						)}
 					</Stack>
-				</fetcher.Form>
+				</form>
 			</Paper>
 		</Container>
 	);

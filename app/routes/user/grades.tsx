@@ -5,14 +5,9 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/grades";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -35,11 +30,7 @@ export const loader = async ({
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!userResult.ok) {

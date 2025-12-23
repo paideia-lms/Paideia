@@ -18,15 +18,13 @@ import {
 	IconInfoCircle,
 	IconMail,
 } from "@tabler/icons-react";
-import { useFetcher } from "react-router";
+import { href } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { trySendEmail } from "server/internal/email";
 import { z } from "zod";
-import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -34,7 +32,34 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/test-email";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const predefinedSchema = z.object({
+	messageType: z.literal("predefined"),
+	recipient: z.email("Invalid email address"),
+});
+
+const customSchema = z.object({
+	messageType: z.literal("custom"),
+	recipient: z.email("Invalid email address"),
+	subject: z.string().min(1, "Subject is required"),
+	body: z.string().min(1, "Body is required"),
+});
+
+const actionSchema = z.discriminatedUnion("messageType", [
+	predefinedSchema,
+	customSchema,
+]);
+
+const createSendTestEmailActionRpc = createActionRpc({
+	formDataSchema: actionSchema,
+	method: "POST",
+});
+
+const getRouteUrl = () => {
+	return href("/admin/test-email");
+};
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { envVars } = context.get(globalContextKey);
@@ -80,61 +105,36 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-const predefinedSchema = z.object({
-	messageType: z.literal("predefined"),
-	recipient: z.email("Invalid email address"),
-});
+const [sendTestEmailAction, useSendTestEmail] = createSendTestEmailActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, platformInfo, payloadRequest } =
+			context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const customSchema = z.object({
-	messageType: z.literal("custom"),
-	recipient: z.email("Invalid email address"),
-	subject: z.string().min(1, "Subject is required"),
-	body: z.string().min(1, "Body is required"),
-});
+		if (!userSession?.isAuthenticated) {
+			return badRequest({
+				success: false,
+				error: "You must be logged in",
+			});
+		}
 
-const actionSchema = z.discriminatedUnion("messageType", [
-	predefinedSchema,
-	customSchema,
-]);
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload, platformInfo } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+		if (currentUser.role !== "admin") {
+			return badRequest({
+				success: false,
+				error: "Only admins can send test emails",
+			});
+		}
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in",
-		});
-	}
+		let subject: string;
+		let body: string;
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	if (currentUser.role !== "admin") {
-		return badRequest({
-			success: false,
-			error: "Only admins can send test emails",
-		});
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = actionSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({
-			success: false,
-			error: parsed.error.message || "Invalid form data",
-		});
-	}
-
-	let subject: string;
-	let body: string;
-
-	if (parsed.data.messageType === "predefined") {
-		const now = new Date().toISOString();
-		subject = "Test email from Paideia LMS";
-		body = `
+		if (formData.messageType === "predefined") {
+			const now = new Date().toISOString();
+			subject = "Test email from Paideia LMS";
+			body = `
 			<html>
 				<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
 					<h2 style="color: #2c5282;">Test Email from Paideia LMS</h2>
@@ -154,41 +154,46 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				</body>
 			</html>
 		`;
-	} else {
-		subject = parsed.data.subject;
-		body = `
+		} else {
+			subject = formData.subject;
+			body = `
 			<html>
 				<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-					${parsed.data.body.replace(/\n/g, "<br>")}
+					${formData.body.replace(/\n/g, "<br>")}
 				</body>
 			</html>
 		`;
-	}
+		}
 
-	const result = await trySendEmail({
-		payload,
-		to: parsed.data.recipient,
-		subject,
-		html: body,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	});
-
-	if (!result.ok) {
-		return badRequest({
-			success: false,
-			error: result.error.message,
+		const result = await trySendEmail({
+			payload,
+			to: formData.recipient,
+			subject,
+			html: body,
+			req: payloadRequest,
 		});
-	}
 
-	return ok({
-		success: true,
-		message: `Test email sent successfully to ${parsed.data.recipient}`,
-	});
-};
+		if (!result.ok) {
+			return badRequest({
+				success: false,
+				error: result.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: `Test email sent successfully to ${formData.recipient}`,
+		});
+	})!,
+	{
+		action: getRouteUrl,
+	},
+);
+
+// Export hook for use in components
+export { useSendTestEmail };
+
+export const action = sendTestEmailAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -209,29 +214,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-// Custom hook for sending test email
-export function useSendTestEmail() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const sendTestEmail = (data: {
-		messageType: "predefined" | "custom";
-		recipient: string;
-		subject?: string;
-		body?: string;
-	}) => {
-		fetcher.submit(data, {
-			method: "POST",
-			encType: ContentType.JSON,
-		});
-	};
-
-	return {
-		sendTestEmail,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
 export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 	const {
 		emailProvider,
@@ -242,7 +224,7 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 		smtpUser,
 		emailConfigured,
 	} = loaderData;
-	const { sendTestEmail, isLoading } = useSendTestEmail();
+	const { submit: sendTestEmail, isLoading } = useSendTestEmail();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -263,7 +245,23 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleSubmit = (values: typeof form.values) => {
+	const handleSubmit = async (values: typeof form.values) => {
+		async function sendMail() {
+			await sendTestEmail({
+				values:
+					values.messageType === "custom"
+						? {
+								messageType: "custom",
+								recipient: values.recipient,
+								subject: values.subject,
+								body: values.body,
+							}
+						: {
+								messageType: "predefined",
+								recipient: values.recipient,
+							},
+			});
+		}
 		// If email is not configured, show confirmation modal
 		if (!emailConfigured) {
 			modals.openConfirmModal({
@@ -288,25 +286,13 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 				),
 				labels: { confirm: "Proceed Anyway", cancel: "Cancel" },
 				confirmProps: { color: "orange" },
-				onConfirm: () => {
-					sendTestEmail({
-						messageType: values.messageType as "predefined" | "custom",
-						recipient: values.recipient,
-						subject: values.subject || undefined,
-						body: values.body || undefined,
-					});
-				},
+				onConfirm: sendMail,
 			});
 			return;
 		}
 
 		// Email is configured, send directly
-		sendTestEmail({
-			messageType: values.messageType as "predefined" | "custom",
-			recipient: values.recipient,
-			subject: values.subject || undefined,
-			body: values.body || undefined,
-		});
+		await sendMail();
 	};
 
 	const messageType = form.getValues().messageType;

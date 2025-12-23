@@ -5,6 +5,7 @@
 	"editor.defaultFormatter": "biomejs.biome",
 	"compile-hero.disable-compile-files-on-did-save-code": true,
 	"[typescript]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	}
+		"editor.defaultFormatter": "biomejs.biome",
+	},
+	"typescript.experimental.useTsgo": true
 }

@@ -18,7 +18,7 @@ import {
 import { stringify } from "qs";
 import { IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
-import { href, Link, useFetcher, useLoaderData } from "react-router";
+import { href, Link, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import type { Instructor } from "server/contexts/user-module-context";
@@ -31,10 +31,6 @@ import { z } from "zod";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";
 import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
-import {
 	badRequest,
 	ForbiddenResponse,
 	NotFoundResponse,
@@ -42,7 +38,8 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-access";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { typeCreateActionRpc } from "app/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 
 enum Action {
 	GrantAccess = "grantAccess",
@@ -56,7 +53,7 @@ export const accessSearchParams = {
 
 export const loadSearchParams = createLoader(accessSearchParams);
 
-const getActionUrl = (action: Action, moduleId: string) => {
+const getRouteUrl = (action: Action, moduleId: string) => {
 	return (
 		href("/user/module/edit/:moduleId/access", {
 			moduleId,
@@ -89,130 +86,121 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-const grantAccessSchema = z.object({
-	userId: z.number(),
-	notifyPeople: z.boolean(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createGrantAccessActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		userId: z.coerce.number(),
+		notifyPeople: z.coerce.boolean(),
+	}),
+	method: "POST",
+	action: Action.GrantAccess,
 });
 
-const revokeAccessSchema = z.object({
-	userId: z.number(),
+const createRevokeAccessActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		userId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.RevokeAccess,
 });
 
-const grantAccessAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
+	serverOnly$(async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to manage access",
+		if (!userSession?.isAuthenticated) {
+			return badRequest({
+				success: false,
+				error: "You must be logged in to manage access",
+			});
+		}
+
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		const moduleId = params.moduleId;
+		if (!moduleId) {
+			return badRequest({
+				success: false,
+				error: "Module ID is required",
+			});
+		}
+
+		const grantResult = await tryGrantAccessToActivityModule({
+			payload,
+			activityModuleId: Number(moduleId),
+			grantedToUserId: Number(formData.userId),
+			grantedByUserId: currentUser.id,
+			req: payloadRequest,
+			overrideAccess: false,
 		});
-	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		if (!grantResult.ok) {
+			return badRequest({
+				success: false,
+				error: grantResult.error.message,
+			});
+		}
 
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
+		return ok({ success: true, message: "Access granted successfully" });
+	})!,
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, String(params.moduleId)),
+	},
+);
+
+const [revokeAccessAction, useRevokeAccess] = createRevokeAccessActionRpc(
+	serverOnly$(async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return badRequest({
+				success: false,
+				error: "You must be logged in to manage access",
+			});
+		}
+
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		const moduleId = params.moduleId;
+		if (!moduleId) {
+			return badRequest({
+				success: false,
+				error: "Module ID is required",
+			});
+		}
+
+		const revokeResult = await tryRevokeAccessFromActivityModule({
+			payload,
+			activityModuleId: Number(moduleId),
+			userId: Number(formData.userId),
+			req: payloadRequest,
+			overrideAccess: false,
 		});
-	}
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = grantAccessSchema.safeParse(data);
+		if (!revokeResult.ok) {
+			return badRequest({
+				success: false,
+				error: revokeResult.error.message,
+			});
+		}
 
-	if (!parsed.success) {
-		return badRequest({
-			success: false,
-			error: parsed.error.message,
-		});
-	}
+		return ok({ success: true, message: "Access revoked successfully" });
+	})!,
+	{
+		action: ({ params, searchParams }) =>
+			getRouteUrl(searchParams.action, String(params.moduleId)),
+	},
+);
 
-	const grantResult = await tryGrantAccessToActivityModule({
-		payload,
-		activityModuleId: Number(moduleId),
-		grantedToUserId: Number(parsed.data.userId),
-		grantedByUserId: currentUser.id,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!grantResult.ok) {
-		return badRequest({
-			success: false,
-			error: grantResult.error.message,
-		});
-	}
-
-	return ok({ success: true, message: "Access granted successfully" });
-};
-
-const revokeAccessAction = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to manage access",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = revokeAccessSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({
-			success: false,
-			error: parsed.error.message,
-		});
-	}
-
-	const revokeResult = await tryRevokeAccessFromActivityModule({
-		payload,
-		activityModuleId: Number(moduleId),
-		userId: Number(parsed.data.userId),
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!revokeResult.ok) {
-		return badRequest({
-			success: false,
-			error: revokeResult.error.message,
-		});
-	}
-
-	return ok({ success: true, message: "Access revoked successfully" });
+const actionMap = {
+	[Action.GrantAccess]: grantAccessAction,
+	[Action.RevokeAccess]: revokeAccessAction,
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -226,28 +214,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	if (actionType === Action.GrantAccess) {
-		return grantAccessAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	if (actionType === Action.RevokeAccess) {
-		return revokeAccessAction({
-			...args,
-			searchParams: {
-				action: actionType,
-			},
-		});
-	}
-
-	return badRequest({
-		success: false,
-		error: "Invalid action",
-	});
+	return actionMap[actionType](args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -267,61 +234,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		});
 	}
 	return actionData;
-}
-
-// Custom hook for granting access to activity module
-export function useGrantModuleAccess() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const grantAccess = (
-		userIds: number[],
-		notifyPeople: boolean,
-		moduleId: string,
-	) => {
-		for (const userId of userIds) {
-			fetcher.submit(
-				{
-					userId: userId,
-					notifyPeople: notifyPeople,
-				},
-				{
-					method: "POST",
-					action: getActionUrl(Action.GrantAccess, moduleId),
-					encType: ContentType.JSON,
-				},
-			);
-		}
-	};
-
-	return {
-		grantAccess,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
-// Custom hook for revoking access from activity module
-export function useRevokeModuleAccess() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const revokeAccess = (userId: number, moduleId: string) => {
-		fetcher.submit(
-			{
-				userId: userId,
-			},
-			{
-				method: "POST",
-				action: getActionUrl(Action.RevokeAccess, moduleId),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		revokeAccess,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
 }
 
 // Linked Courses Section Component
@@ -494,17 +406,23 @@ export function GrantAccessSection({
 	const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
 	const [notifyPeople, setNotifyPeople] = useState(false);
 
-	const { grantAccess, isLoading: isGranting } = useGrantModuleAccess();
-	const { revokeAccess, isLoading: isRevoking } = useRevokeModuleAccess();
+	const { submit: grantAccess, isLoading: isGranting } = useGrantAccess();
+	const { submit: revokeAccess, isLoading: isRevoking } = useRevokeAccess();
 	const isLoading = isGranting || isRevoking;
 	const fetcherState = isLoading ? "submitting" : "idle";
 
-	const handleGrantAccess = () => {
+	const handleGrantAccess = async () => {
 		if (selectedUsers.length > 0) {
-			grantAccess(
-				selectedUsers.map((u) => u.id),
-				notifyPeople,
-				moduleId,
+			await Promise.all(
+				selectedUsers.map((u) =>
+					grantAccess({
+						params: { moduleId: Number(moduleId) },
+						values: {
+							userId: u.id,
+							notifyPeople,
+						},
+					}),
+				),
 			);
 			setSelectedUsers([]);
 			setNotifyPeople(false);
@@ -602,7 +520,14 @@ export function GrantAccessSection({
 											color="red"
 											size="xs"
 											leftSection={<IconTrash size={14} />}
-											onClick={() => revokeAccess(grant.grantedTo.id, moduleId)}
+											onClick={() =>
+												revokeAccess({
+													params: { moduleId: Number(moduleId) },
+													values: {
+														userId: grant.grantedTo.id,
+													},
+												})
+											}
 											loading={fetcherState === "submitting"}
 										>
 											Remove

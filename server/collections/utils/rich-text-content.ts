@@ -5,7 +5,6 @@ import {
 	interceptPayloadError,
 	stripDepth,
 } from "server/internal/utils/internal-function-utils";
-import type { UploadedMediaInfo } from "~/utils/upload-handler";
 import { replaceBase64MediaWithMediaUrlsV2 } from "~/utils/replace-base64-images";
 import type { Simplify } from "type-fest";
 
@@ -22,18 +21,6 @@ export function richTextContent<T extends TextareaField>(o: T) {
 	] as const;
 }
 
-// export type RichTextContent<T extends string> = Simplify<
-// 	{
-// 		// Mapped type for the REQUIRED string property
-// 		[P in T]?: string;
-// 	} & {
-// 		// Mapped type for OPTIONAL File/string properties using Template Literals
-// 		[P in `${T}-image-${number}`]?: File;
-// 	} & {
-// 		[P in `${T}-image-${number}-preview`]?: string;
-// 	}
-// >;
-
 export interface ExtractMediaIdsFromRichTextArgs {
 	payload: Payload;
 	htmlContent: string[];
@@ -46,8 +33,10 @@ export interface ExtractMediaIdsFromRichTextArgs {
  * and returns an array of all unique media IDs found across all fields.
  * Supports multiple rich text fields in a single call.
  */
-export const tryExtractMediaIdsFromRichText = Result.wrap(
-	async (args: ExtractMediaIdsFromRichTextArgs): Promise<number[]> => {
+export function tryExtractMediaIdsFromRichText(
+	args: ExtractMediaIdsFromRichTextArgs,
+) {
+	return Result.try(async () => {
 		const { payload, htmlContent, req } = args;
 
 		if (!htmlContent || htmlContent.length === 0) {
@@ -64,12 +53,10 @@ export const tryExtractMediaIdsFromRichText = Result.wrap(
 			}
 
 			// Parse media from HTML content
-			const mediaParseResult = tryParseMediaFromHtml(content);
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
+			const mediaParseResult =
+				await tryParseMediaFromHtml(content).getOrThrow();
 
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
+			const { ids: parsedIds, filenames } = mediaParseResult;
 
 			// Add to sets (automatically handles duplicates)
 			for (const id of parsedIds) {
@@ -116,18 +103,7 @@ export const tryExtractMediaIdsFromRichText = Result.wrap(
 		// Combine parsed IDs and resolved IDs, remove duplicates
 		const allMediaIds = new Set([...allParsedIds, ...resolvedIds]);
 		return Array.from(allMediaIds);
-	},
-);
-
-export interface ProcessRichTextMediaResult<T extends Record<string, unknown>> {
-	/**
-	 * Processed data with base64 images replaced by media URLs for each field
-	 */
-	processedData: Partial<Record<keyof T, string | undefined>>;
-	/**
-	 * Information about uploaded media records
-	 */
-	uploadedMedia: UploadedMediaInfo[];
+	});
 }
 
 export interface ProcessRichTextMediaV2Args<T extends Record<string, string>> {

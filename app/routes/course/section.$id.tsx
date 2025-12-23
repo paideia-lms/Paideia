@@ -108,7 +108,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 };
 
 export default function SectionPage({ loaderData }: Route.ComponentProps) {
-	const { createModuleLink, state: createState } = useCreateModuleLink();
+	const { submit: createModuleLink, isLoading } = useCreateModuleLink();
 	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
 	const { section, course, subsections, modules, availableModules } =
@@ -117,13 +117,15 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 	// Check if user can edit
 	const canEdit = true; // User must have access if they can view the section
 
-	const handleLinkModule = () => {
+	const handleLinkModule = async () => {
 		if (selectedModuleId) {
-			createModuleLink(
-				Number.parseInt(selectedModuleId, 10),
-				course.id,
-				section.id,
-			);
+			await createModuleLink({
+				values: {
+					activityModuleId: Number.parseInt(selectedModuleId, 10),
+					sectionId: section.id,
+				},
+				params: { courseId: course.id },
+			});
 			setSelectedModuleId(null);
 		}
 	};
@@ -242,7 +244,7 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 								<Button
 									onClick={handleLinkModule}
 									disabled={!selectedModuleId || availableModules.length === 0}
-									loading={createState !== "idle"}
+									loading={isLoading}
 									leftSection={<IconPlus size={16} />}
 								>
 									Link Module

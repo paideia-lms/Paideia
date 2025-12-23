@@ -10,6 +10,8 @@ import {
 	Box,
 	Button,
 	Loader,
+	Select,
+	TextInput,
 	Stack,
 	Textarea,
 	Title,
@@ -25,13 +27,11 @@ import {
 } from "@mantine/hooks";
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
-import type {
-	ActivityModuleFormValues,
-	WhiteboardModuleFormValues,
-} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { CommonFields } from "./common-fields";
 import { useWhiteboardData } from "./useWhiteboardData";
+import type { WhiteboardFormInitialValues as EditWhiteboardFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { WhiteboardFormInitialValues as NewWhiteboardFormInitialValues } from "app/routes/user/module/new";
+import type { Simplify, UnionToIntersection } from "type-fest";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -40,9 +40,15 @@ const Excalidraw = lazy(() =>
 	})),
 );
 
+type WhiteboardFormData = Simplify<
+	UnionToIntersection<
+		NewWhiteboardFormInitialValues | EditWhiteboardFormInitialValues
+	>
+>;
+
 interface WhiteboardFormProps {
-	initialValues?: Partial<WhiteboardModuleFormValues>;
-	onSubmit: (values: WhiteboardModuleFormValues) => void;
+	initialValues?: Partial<WhiteboardFormData>;
+	onSubmit: (values: WhiteboardFormData) => void;
 	isLoading?: boolean;
 }
 
@@ -51,15 +57,14 @@ export function WhiteboardForm({
 	onSubmit,
 	isLoading,
 }: WhiteboardFormProps) {
-	const form = useForm<WhiteboardModuleFormValues>({
+	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
-			title: initialValues?.title || "",
-			description: initialValues?.description || "",
-			type: "whiteboard" as const,
-			status: initialValues?.status || "draft",
-			whiteboardContent: initialValues?.whiteboardContent || "",
+			title: initialValues?.title ?? "",
+			description: initialValues?.description ?? "",
+			status: initialValues?.status ?? "draft",
+			whiteboardContent: initialValues?.whiteboardContent ?? "",
 		},
 		validate: {
 			title: (value) =>
@@ -107,8 +112,25 @@ export function WhiteboardForm({
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields
-					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
+				/>
+
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
 				/>
 
 				<Textarea

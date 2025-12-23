@@ -13,8 +13,3 @@ export function getAvatarUrl(user: PayloadUser) {
 	}
 	return null;
 }
-
-export type InternalFunctionRequiredUser = Pick<
-	PayloadUser,
-	"id" | "email" | "role"
->;

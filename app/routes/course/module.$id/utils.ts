@@ -1,9 +1,3 @@
-import {
-	createLoader,
-	parseAsInteger,
-	parseAsString,
-	parseAsStringEnum,
-} from "nuqs/server";
 import type { LatestCourseModuleSettings } from "server/json";
 import {
 	isRegularQuiz,
@@ -11,28 +5,10 @@ import {
 	type QuizAnswers,
 } from "server/json/raw-quiz-config/types.v2";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
-import {
-	AssignmentActions,
-	DiscussionActions,
-	QuizActions,
-} from "~/utils/module-actions";
 
 // ============================================================================
 // Module Settings Utilities
 // ============================================================================
-
-export const courseModuleSearchParams = {
-	action: parseAsStringEnum([
-		...Object.values(AssignmentActions),
-		...Object.values(DiscussionActions),
-		...Object.values(QuizActions),
-	]),
-	showQuiz: parseAsString,
-	threadId: parseAsInteger,
-	replyTo: parseAsString,
-};
-
-export const loadSearchParams = createLoader(courseModuleSearchParams);
 
 // Helper to format dates consistently on the server
 const formatDateForDisplay = (dateString: string) => {

@@ -16,7 +16,7 @@ export interface HandleTransactionIdResult {
 	 */
 	tx: <T>(
 		operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T,
-		shouldRollback?: (result: T) => boolean,
+		shouldRollback?: (result: Awaited<T>) => boolean,
 	) => Promise<T>;
 }
 
@@ -92,13 +92,16 @@ export async function handleTransactionId(
 
 	const tx = async <T>(
 		operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T,
-		shouldRollback?: (result: T) => boolean,
+		shouldRollback?: (result: Awaited<T>) => boolean,
 	) => {
 		try {
 			const o = operation(_transactionInfo);
 			const isAsyncOperation = o instanceof Promise;
 			const value = isAsyncOperation ? await o : o;
-			if (shouldRollback?.(value) && _transactionInfo.isTransactionCreated) {
+			if (
+				shouldRollback?.(await value) &&
+				_transactionInfo.isTransactionCreated
+			) {
 				await payload.db.rollbackTransaction(_transactionInfo.transactionID);
 				return value;
 			}

@@ -19,57 +19,61 @@ export interface UpdateSitePoliciesArgs extends BaseInternalFunctionArgs {
  * Read site policies from the SitePolicies global.
  * Falls back to sensible defaults when unset/partial.
  */
-export const tryGetSitePolicies = Result.wrap(
-	async (args: GetSitePoliciesArgs) => {
-		const { payload, req, overrideAccess = false } = args;
+export function tryGetSitePolicies(args: GetSitePoliciesArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, overrideAccess = false } = args;
 
-		const raw = await payload
-			.findGlobal({
-				slug: SitePolicies.slug,
-				req,
-				overrideAccess,
-				depth: 1,
-			})
-			.then(stripDepth<1, "findGlobal">());
+			const raw = await payload
+				.findGlobal({
+					slug: SitePolicies.slug,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findGlobal">());
 
-		return {
-			userMediaStorageTotal: raw.userMediaStorageTotal ?? null,
-			siteUploadLimit: raw.siteUploadLimit ?? null,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get site policies", { cause: error }),
-);
+			return {
+				userMediaStorageTotal: raw.userMediaStorageTotal ?? null,
+				siteUploadLimit: raw.siteUploadLimit ?? null,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get site policies", { cause: error }),
+	);
+}
 
 /**
  * Update site policies in the SitePolicies global.
  */
-export const tryUpdateSitePolicies = Result.wrap(
-	async (args: UpdateSitePoliciesArgs) => {
-		const { payload, data, req, overrideAccess = false } = args;
+export function tryUpdateSitePolicies(args: UpdateSitePoliciesArgs) {
+	return Result.try(
+		async () => {
+			const { payload, data, req, overrideAccess = false } = args;
 
-		const updated = await payload
-			.updateGlobal({
-				slug: SitePolicies.slug,
-				data: {
-					userMediaStorageTotal: data.userMediaStorageTotal ?? null,
-					siteUploadLimit: data.siteUploadLimit ?? null,
-				},
-				overrideAccess,
-				req,
-				depth: 0,
-			})
-			.then(stripDepth<0, "updateGlobal">());
+			const updated = await payload
+				.updateGlobal({
+					slug: SitePolicies.slug,
+					data: {
+						userMediaStorageTotal: data.userMediaStorageTotal ?? null,
+						siteUploadLimit: data.siteUploadLimit ?? null,
+					},
+					overrideAccess,
+					req,
+					depth: 0,
+				})
+				.then(stripDepth<0, "updateGlobal">());
 
-		return {
-			userMediaStorageTotal: updated.userMediaStorageTotal ?? null,
-			siteUploadLimit: updated.siteUploadLimit ?? null,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update site policies", {
-			cause: error,
-		}),
-);
+			return {
+				userMediaStorageTotal: updated.userMediaStorageTotal ?? null,
+				siteUploadLimit: updated.siteUploadLimit ?? null,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update site policies", {
+				cause: error,
+			}),
+	);
+}

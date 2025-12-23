@@ -1,57 +1,65 @@
 import { notifications } from "@mantine/notifications";
-import { href, redirect, useFetcher } from "react-router";
+import { href, redirect } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
+import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryDeleteActivityModule } from "server/internal/activity-module-management";
-import z from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { z } from "zod";
 import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/activity-module-delete";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-const inputSchema = z.object({
-	moduleId: z.number(),
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createDeleteActivityModuleActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		moduleId: z.coerce.number(),
+	}),
+	method: "POST",
 });
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "User not found" });
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsed = inputSchema.safeParse(data);
-
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-
-	const { moduleId } = parsed.data;
-
-	// ! this function will not throw because it will return a result object
-	const result = await tryDeleteActivityModule({
-		payload,
-		id: moduleId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	});
-
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
-
-	// Redirect to user modules page after successful deletion
-	return redirect(href("/user/modules/:id?", { id: String(currentUser.id) }));
+const getRouteUrl = () => {
+	return href("/api/activity-module-delete");
 };
+
+const [deleteActivityModuleAction, useDeleteActivityModule] =
+	createDeleteActivityModuleActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "User not found" });
+			}
+
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			// ! this function will not throw because it will return a result object
+			const result = await tryDeleteActivityModule({
+				payload,
+				id: formData.moduleId,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			// Redirect to user modules page after successful deletion
+			return redirect(
+				href("/user/modules/:id?", { id: String(currentUser.id) }),
+			);
+		})!,
+		{
+			action: getRouteUrl,
+		},
+	);
+
+// Export hook for use in components
+export { useDeleteActivityModule };
+
+export const action = deleteActivityModuleAction;
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -65,28 +73,4 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 
 	return actionData;
-}
-
-type DeleteActivityModuleOperation = z.infer<typeof inputSchema>;
-
-// Custom hook for deleting an activity module
-export function useDeleteActivityModule() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const deleteModule = async (op: DeleteActivityModuleOperation) => {
-		fetcher.submit(op, {
-			method: "POST",
-			action: href("/api/activity-module-delete"),
-			encType: "application/json",
-		});
-	};
-
-	return {
-		deleteModule,
-		isLoading: fetcher.state !== "idle",
-		error:
-			fetcher.data?.status === StatusCode.BadRequest
-				? fetcher.data.error
-				: undefined,
-	};
 }

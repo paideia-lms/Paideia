@@ -39,28 +39,35 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
 import { useQueryState } from "nuqs";
-import { createLoader, parseAsInteger } from "nuqs/server";
+import {
+	createLoader,
+	parseAsInteger,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
 import prettyBytes from "pretty-bytes";
 import { useEffect, useRef, useState } from "react";
-import { href, Link, useFetcher } from "react-router";
+import { href, Link } from "react-router";
+import { typeCreateActionRpc } from "~/utils/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	tryDeleteMedia,
 	tryDeleteOrphanedMedia,
 	tryFindMediaByUser,
 	tryGetAllMedia,
+	tryGetMediaByIds,
 	tryGetOrphanedMedia,
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
 	tryPruneAllOrphanedMedia,
 	tryRenameMedia,
 } from "server/internal/media-management";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { tryFindAllUsers } from "server/internal/user-management";
 import type { Media } from "server/payload-types";
+import { serverOnly$ } from "vite-env-only/macros";
 import { useMediaUsageData } from "~/routes/api/media-usage";
-import { assertRequestMethod } from "~/utils/assert-request-method";
+import { stringify } from "qs";
 import {
 	canPreview,
 	getFileIcon,
@@ -78,6 +85,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/media";
+import { z } from "zod";
 
 // Define search params
 export const mediaSearchParams = {
@@ -88,9 +96,61 @@ export const mediaSearchParams = {
 
 export const loadSearchParams = createLoader(mediaSearchParams);
 
+enum Action {
+	UpdateMedia = "updateMedia",
+	DeleteMedia = "deleteMedia",
+	DeleteOrphanedMedia = "deleteOrphanedMedia",
+	PruneAllOrphanedMedia = "pruneAllOrphanedMedia",
+}
+
+// Define search params for media actions
+export const mediaActionSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadActionSearchParams = createLoader(mediaActionSearchParams);
+
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+
+const createUpdateMediaActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		mediaId: z.coerce.number(),
+		newFilename: z.string().optional(),
+		alt: z.string().optional(),
+		caption: z.string().optional(),
+	}),
+	method: "POST",
+	action: Action.UpdateMedia,
+});
+
+const createDeleteMediaActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		mediaIds: z.string().min(1),
+	}),
+	method: "POST",
+	action: Action.DeleteMedia,
+});
+
+const createDeleteOrphanedMediaActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		filenames: z.string().min(1),
+	}),
+	method: "POST",
+	action: Action.DeleteOrphanedMedia,
+});
+
+const createPruneAllOrphanedMediaActionRpc = createActionRpc({
+	method: "POST",
+	action: Action.PruneAllOrphanedMedia,
+});
+
+const getRouteUrl = (action: Action) => {
+	return href("/admin/media") + "?" + stringify({ action });
+};
+
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const globalContext = context.get(globalContextKey);
-	const { payload, s3Client } = globalContext;
+	const { payload, s3Client, payloadRequest } = globalContext;
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -127,11 +187,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 			overrideAccess: true,
 		});
 
@@ -139,22 +195,14 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		statsResult = await tryGetUserMediaStats({
 			payload,
 			userId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 			overrideAccess: true,
 		});
 
 		// Also get system-wide stats for comparison
 		systemStatsResult = await tryGetSystemMediaStats({
 			payload,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 		});
 	} else {
 		// Fetch all media in the system
@@ -162,21 +210,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			payload,
 			limit,
 			page,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 		});
 
 		// Get system-wide media stats
 		statsResult = await tryGetSystemMediaStats({
 			payload,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 		});
 	}
 
@@ -199,11 +239,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		limit: 100,
 		page: 1,
 		sort: "-createdAt",
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	const userOptions = usersResult.ok
@@ -220,11 +256,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		s3Client,
 		limit,
 		page: orphanedPage,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	const orphanedMedia = orphanedMediaResult.ok
@@ -251,53 +283,32 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload, s3Client } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const [updateMediaAction, useUpdateMedia] = createUpdateMediaActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (!currentUser || currentUser.role !== "admin") {
-		return unauthorized({ error: "Only admins can perform this action" });
-	}
+		if (!currentUser || currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can perform this action" });
+		}
 
-	const transactionID = await payload.db.beginTransaction();
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-	if (!transactionID) {
-		return badRequest({ error: "Failed to begin transaction" });
-	}
-
-	try {
-		// For PATCH requests (update/rename)
-		if (request.method === "PATCH") {
-			assertRequestMethod(request.method, "PATCH");
-
-			const formData = await request.formData();
-			const mediaIdParam = formData.get("mediaId");
-			const newFilename = formData.get("newFilename")?.toString();
-			const alt = formData.get("alt")?.toString();
-			const caption = formData.get("caption")?.toString();
-
-			if (!mediaIdParam) {
-				return badRequest({ error: "Media ID is required" });
-			}
-
-			const mediaId = Number(mediaIdParam);
-			if (Number.isNaN(mediaId)) {
-				return badRequest({ error: "Invalid media ID" });
-			}
-
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Fetch media record to verify it exists
 			const mediaRecord = await payload.findByID({
 				collection: "media",
-				id: mediaId,
+				id: formData.mediaId,
 				depth: 0,
-				req: { transactionID },
+				req: reqWithTransaction,
 			});
 
 			if (!mediaRecord) {
@@ -305,171 +316,106 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			}
 
 			// If newFilename is provided, rename the file
-			if (newFilename) {
+			if (formData.newFilename) {
 				const renameResult = await tryRenameMedia({
 					payload,
 					s3Client,
-					id: mediaId,
-					newFilename,
+					id: formData.mediaId,
+					newFilename: formData.newFilename,
 					userId: currentUser.id,
-					req: {
-						...createLocalReq({
-							request,
-							user: currentUser,
-							context: { routerContext: context },
-						}),
-						transactionID,
-					},
+					req: reqWithTransaction,
 				});
 
 				if (!renameResult.ok) {
-					await payload.db.rollbackTransaction(transactionID);
 					return badRequest({ error: renameResult.error.message });
 				}
 			}
 
 			// Update alt and caption if provided
-			if (alt !== undefined || caption !== undefined) {
+			if (formData.alt !== undefined || formData.caption !== undefined) {
 				const updateData: Partial<Media> = {};
-				if (alt !== undefined) {
-					updateData.alt = alt;
+				if (formData.alt !== undefined) {
+					updateData.alt = formData.alt;
 				}
-				if (caption !== undefined) {
-					updateData.caption = caption;
+				if (formData.caption !== undefined) {
+					updateData.caption = formData.caption;
 				}
 
 				await payload.update({
 					collection: "media",
-					id: mediaId,
+					id: formData.mediaId,
 					data: updateData,
-					req: { transactionID },
+					req: reqWithTransaction,
 				});
 			}
-
-			await payload.db.commitTransaction(transactionID);
 
 			return ok({
 				message: "Media updated successfully",
 			});
+		});
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
+
+const [deleteMediaAction, useDeleteMedia] = createDeleteMediaActionRpc(
+	serverOnly$(async ({ context, formData }) => {
+		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
 		}
 
-		// For DELETE requests
-		if (request.method === "DELETE") {
-			assertRequestMethod(request.method, "DELETE");
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-			const formData = await request.formData();
-			const mediaIdsParam = formData.get("mediaIds");
+		if (!currentUser || currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can perform this action" });
+		}
 
-			if (!mediaIdsParam) {
-				return badRequest({ error: "Media IDs are required" });
-			}
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-			// Parse media IDs - can be a single ID or comma-separated IDs
-			let mediaIds: number[];
-			if (typeof mediaIdsParam === "string") {
-				mediaIds = mediaIdsParam
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				// Parse media IDs - can be a single ID or comma-separated IDs
+				const mediaIds = formData.mediaIds
 					.split(",")
 					.map((id) => Number(id.trim()))
 					.filter((id) => !Number.isNaN(id));
-			} else {
-				return badRequest({ error: "Invalid media IDs format" });
-			}
 
-			if (mediaIds.length === 0) {
-				return badRequest({ error: "At least one media ID is required" });
-			}
+				if (mediaIds.length === 0) {
+					return badRequest({ error: "At least one media ID is required" });
+				}
 
-			// Verify all media records exist
-			const mediaRecords = await payload.find({
-				collection: "media",
-				where: {
-					id: {
-						in: mediaIds,
-					},
-				},
-				limit: mediaIds.length,
-				depth: 0,
-				req: { transactionID },
-			});
-
-			if (mediaRecords.docs.length !== mediaIds.length) {
-				const foundIds = mediaRecords.docs.map((m) => m.id);
-				const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
-				return badRequest({
-					error: `Media records not found: ${missingIds.join(", ")}`,
+				// Verify all media records exist
+				const mediaRecordsResult = await tryGetMediaByIds({
+					payload,
+					ids: mediaIds,
+					req: reqWithTransaction,
 				});
-			}
 
-			const result = await tryDeleteMedia({
-				payload,
-				s3Client,
-				id: mediaIds,
-				userId: currentUser.id,
-				req: {
-					...createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
-					transactionID,
-				},
-			});
-
-			if (!result.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: result.error.message });
-			}
-
-			await payload.db.commitTransaction(transactionID);
-
-			return ok({
-				message:
-					mediaIds.length === 1
-						? "Media deleted successfully"
-						: `${mediaIds.length} media files deleted successfully`,
-			});
-		}
-
-		// For POST requests (delete orphaned media files)
-		if (request.method === "POST") {
-			const formData = await request.formData();
-			const actionType = formData.get("actionType")?.toString();
-
-			if (actionType === "deleteOrphaned") {
-				const filenamesParam = formData.get("filenames");
-
-				if (!filenamesParam) {
-					return badRequest({ error: "Filenames are required" });
+				if (!mediaRecordsResult.ok) {
+					return badRequest({ error: mediaRecordsResult.error.message });
 				}
 
-				// Parse filenames - can be a single filename or comma-separated filenames
-				let filenames: string[];
-				if (typeof filenamesParam === "string") {
-					filenames = filenamesParam
-						.split(",")
-						.map((name) => name.trim())
-						.filter((name) => name.length > 0);
-				} else {
-					return badRequest({ error: "Invalid filenames format" });
+				const mediaRecords = mediaRecordsResult.value;
+
+				if (mediaRecords.docs.length !== mediaIds.length) {
+					const foundIds = mediaRecords.docs.map((m) => m.id);
+					const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
+					return badRequest({
+						error: `Media records not found: ${missingIds.join(", ")}`,
+					});
 				}
 
-				if (filenames.length === 0) {
-					return badRequest({ error: "At least one filename is required" });
-				}
-
-				const result = await tryDeleteOrphanedMedia({
+				const result = await tryDeleteMedia({
 					payload,
 					s3Client,
-					filenames,
-					req: {
-						...createLocalReq({
-							request,
-							user: currentUser,
-							context: { routerContext: context },
-						}),
-						transactionID,
-					},
-					overrideAccess: true,
+					id: mediaIds,
+					req: reqWithTransaction,
 				});
 
 				if (!result.ok) {
@@ -478,24 +424,115 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 				return ok({
 					message:
-						result.value.deletedCount === 1
-							? "Orphaned file deleted successfully"
-							: `${result.value.deletedCount} orphaned files deleted successfully`,
+						mediaIds.length === 1
+							? "Media deleted successfully"
+							: `${mediaIds.length} media files deleted successfully`,
 				});
+			},
+			(result) => {
+				return result.data.status === StatusCode.BadRequest;
+			},
+		);
+	})!,
+	{
+		action: ({ searchParams }) => getRouteUrl(searchParams.action),
+	},
+);
+
+const [deleteOrphanedMediaAction, useDeleteOrphanedMedia] =
+	createDeleteOrphanedMediaActionRpc(
+		serverOnly$(async ({ context, formData }) => {
+			const { payload, s3Client, payloadRequest } =
+				context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
 			}
 
-			if (actionType === "pruneAllOrphaned") {
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			if (!currentUser || currentUser.role !== "admin") {
+				return unauthorized({ error: "Only admins can perform this action" });
+			}
+
+			// Handle transaction ID
+			const transactionInfo = await handleTransactionId(
+				payload,
+				payloadRequest,
+			);
+
+			return transactionInfo.tx(
+				async ({ reqWithTransaction }) => {
+					// Parse filenames - can be a single filename or comma-separated filenames
+					const filenames = formData.filenames
+						.split(",")
+						.map((name) => name.trim())
+						.filter((name) => name.length > 0);
+
+					if (filenames.length === 0) {
+						return badRequest({ error: "At least one filename is required" });
+					}
+
+					const result = await tryDeleteOrphanedMedia({
+						payload,
+						s3Client,
+						filenames,
+						req: reqWithTransaction,
+						overrideAccess: true,
+					});
+
+					if (!result.ok) {
+						return badRequest({ error: result.error.message });
+					}
+
+					return ok({
+						message:
+							result.value.deletedCount === 1
+								? "Orphaned file deleted successfully"
+								: `${result.value.deletedCount} orphaned files deleted successfully`,
+					});
+				},
+				(result) => {
+					return result.data.status === StatusCode.BadRequest;
+				},
+			);
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
+
+const [pruneAllOrphanedMediaAction, usePruneAllOrphanedMedia] =
+	createPruneAllOrphanedMediaActionRpc(
+		serverOnly$(async ({ context }) => {
+			const { payload, s3Client, payloadRequest } =
+				context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			if (!currentUser || currentUser.role !== "admin") {
+				return unauthorized({ error: "Only admins can perform this action" });
+			}
+
+			// Handle transaction ID
+			const transactionInfo = await handleTransactionId(
+				payload,
+				payloadRequest,
+			);
+
+			return transactionInfo.tx(async ({ reqWithTransaction }) => {
 				const result = await tryPruneAllOrphanedMedia({
 					payload,
 					s3Client,
-					req: {
-						...createLocalReq({
-							request,
-							user: currentUser,
-							context: { routerContext: context },
-						}),
-						transactionID,
-					},
+					req: reqWithTransaction,
 					overrideAccess: true,
 				});
 
@@ -512,19 +549,42 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				return ok({
 					message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
 				});
-			}
-		}
+			});
+		})!,
+		{
+			action: ({ searchParams }) => getRouteUrl(searchParams.action),
+		},
+	);
 
-		return badRequest({ error: "Invalid request method" });
-	} catch (error) {
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Media action error:", error);
+// Export hooks for use in components
+export {
+	useDeleteMedia,
+	useUpdateMedia,
+	useDeleteOrphanedMedia,
+	usePruneAllOrphanedMedia,
+};
 
-		return badRequest({
-			error:
-				error instanceof Error ? error.message : "Failed to process request",
-		});
+const actionMap = {
+	[Action.UpdateMedia]: updateMediaAction,
+	[Action.DeleteMedia]: deleteMediaAction,
+	[Action.DeleteOrphanedMedia]: deleteOrphanedMediaAction,
+	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction,
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadActionSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({ error: "Action is required" });
 	}
+
+	const actionHandler = actionMap[actionType];
+	if (!actionHandler) {
+		return badRequest({ error: "Invalid action" });
+	}
+
+	return actionHandler(args);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -551,21 +611,6 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-export function useDeleteMedia() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const deleteMedia = async (mediaIds: number | number[]) => {
-		const formData = new FormData();
-		const ids = Array.isArray(mediaIds) ? mediaIds : [mediaIds];
-		formData.append("mediaIds", ids.join(","));
-		fetcher.submit(formData, { method: "DELETE" });
-	};
-	return {
-		deleteMedia,
-		isLoading: fetcher.state !== "idle",
-		fetcher,
-	};
-}
-
 export function useDownloadMedia() {
 	const downloadMedia = (file: Media) => {
 		if (!file.filename) return;
@@ -576,41 +621,6 @@ export function useDownloadMedia() {
 		link.click();
 	};
 	return { downloadMedia };
-}
-
-export function useRenameMedia() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const renameMedia = (mediaId: number, newFilename: string) => {
-		const formData = new FormData();
-		formData.append("mediaId", mediaId.toString());
-		formData.append("newFilename", newFilename);
-		fetcher.submit(formData, { method: "PATCH" });
-	};
-
-	return {
-		renameMedia,
-		isLoading: fetcher.state !== "idle",
-		fetcher,
-	};
-}
-
-export function useDeleteOrphanedMedia() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const deleteOrphanedMedia = (filenames: string | string[]) => {
-		const formData = new FormData();
-		formData.append("actionType", "deleteOrphaned");
-		const names = Array.isArray(filenames) ? filenames : [filenames];
-		formData.append("filenames", names.join(","));
-		fetcher.submit(formData, { method: "POST" });
-	};
-
-	return {
-		deleteOrphanedMedia,
-		isLoading: fetcher.state !== "idle",
-		fetcher,
-	};
 }
 
 // Media Header Component
@@ -881,7 +891,7 @@ function MediaRenameModal({
 		},
 	});
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	// biome-ignore lint/correctness/useExhaustiveDependencies: file changes should reset form
 	useEffect(() => {
 		if (file) {
 			form.setInitialValues({ filename: file.filename ?? "" });
@@ -1747,11 +1757,16 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 			shallow: false,
 		}),
 	);
-	const { deleteMedia } = useDeleteMedia();
+	const { submit: deleteMedia } = useDeleteMedia();
 	const { downloadMedia } = useDownloadMedia();
-	const { renameMedia } = useRenameMedia();
-	const { deleteOrphanedMedia, fetcher: orphanedFetcher } =
+	const { submit: updateMedia } = useUpdateMedia();
+	const { submit: deleteOrphanedMedia, fetcher: orphanedFetcher } =
 		useDeleteOrphanedMedia();
+	const {
+		submit: pruneAllOrphaned,
+		isLoading: isPruningAll,
+		fetcher: pruneFetcher,
+	} = usePruneAllOrphanedMedia();
 
 	// Sync userId from loader data
 	const currentUserId = userId ?? initialUserId;
@@ -1781,7 +1796,11 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		deleteMedia(file.id);
+		deleteMedia({
+			values: {
+				mediaIds: String(file.id),
+			},
+		});
 	};
 
 	const handleBatchDelete = () => {
@@ -1800,7 +1819,11 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		deleteMedia(idsToDelete);
+		deleteMedia({
+			values: {
+				mediaIds: idsToDelete.join(","),
+			},
+		});
 
 		// Clear selection after submission
 		setSelectedCardIds([]);
@@ -1834,7 +1857,12 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 	};
 
 	const handleRename = (mediaId: number, newFilename: string) => {
-		renameMedia(mediaId, newFilename);
+		updateMedia({
+			values: {
+				mediaId,
+				newFilename,
+			},
+		});
 	};
 
 	const handleOpenUsageModal = (file: Media) => {
@@ -1859,30 +1887,29 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 
 	const handleDeleteOrphaned = (filenames: string[]) => {
 		// Delete only selected files from current page
-		deleteOrphanedMedia(filenames);
+		deleteOrphanedMedia({
+			values: {
+				filenames: filenames.join(","),
+			},
+		});
 		// Clear selection after deletion
 		setSelectedOrphanedFilenames([]);
 	};
 
 	const handlePruneAllOrphaned = () => {
-		const formData = new FormData();
-		formData.append("actionType", "pruneAllOrphaned");
-		orphanedFetcher.submit(formData, { method: "POST" });
+		pruneAllOrphaned({});
 	};
 
 	// Clear orphaned selection when fetcher completes successfully
 	useEffect(() => {
-		if (
-			orphanedFetcher.state === "idle" &&
-			orphanedFetcher.data?.status === StatusCode.Ok
-		) {
+		if (orphanedFetcher.state === "idle" || pruneFetcher.state === "idle") {
 			if (selectedOrphanedFilenames.length > 0) {
 				setSelectedOrphanedFilenames([]);
 			}
 		}
 	}, [
 		orphanedFetcher.state,
-		orphanedFetcher.data,
+		pruneFetcher.state,
 		selectedOrphanedFilenames.length,
 	]);
 
@@ -2122,7 +2149,7 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 												handlePruneAllOrphaned();
 											}
 										}}
-										loading={orphanedFetcher.state !== "idle"}
+										loading={isPruningAll}
 									>
 										Prune All ({orphanedMedia.totalFiles})
 									</Button>

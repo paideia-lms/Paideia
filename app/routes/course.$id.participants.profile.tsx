@@ -107,7 +107,7 @@ export default function CourseParticipantsProfilePage({
 		selectedUserId: _selectedUserId,
 		canImpersonate,
 	} = loaderData;
-	const { impersonate, isLoading } = useImpersonate();
+	const { submit: impersonate, isLoading } = useImpersonate();
 
 	// Redirect back to the course page after impersonation
 	const redirectPath = href("/course/:courseId", {
@@ -178,7 +178,10 @@ export default function CourseParticipantsProfilePage({
 										variant="light"
 										color="orange"
 										onClick={() =>
-											impersonate(selectedEnrollment.user.id, redirectPath)
+											impersonate({
+												params: { id: selectedEnrollment.user.id },
+												values: { redirectTo: redirectPath },
+											})
 										}
 										loading={isLoading}
 										leftSection={<IconUserCheck size={16} />}

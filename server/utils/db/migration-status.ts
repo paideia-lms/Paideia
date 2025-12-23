@@ -35,7 +35,7 @@ async function migrationTableExists(payload: Payload): Promise<boolean> {
 
 	try {
 		const result = await adapter.execute({
-			drizzle: adapter.drizzle,
+			drizzle: adapter.drizzle as any,
 			raw: statement,
 		});
 

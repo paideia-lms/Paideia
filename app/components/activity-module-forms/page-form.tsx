@@ -1,17 +1,26 @@
-import { Button, Stack, Textarea, Title } from "@mantine/core";
+import {
+	Button,
+	Select,
+	Stack,
+	Textarea,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
-import type {
-	ActivityModuleFormValues,
-	PageModuleFormValues,
-} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
-import { CommonFields } from "./common-fields";
+import type { PageFormInitialValues as EditPageFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { PageFormInitialValues as NewPageFormInitialValues } from "app/routes/user/module/new";
+import type { Simplify, UnionToIntersection } from "type-fest";
+
+type PageFormData = Simplify<
+	UnionToIntersection<NewPageFormInitialValues | EditPageFormInitialValues>
+>;
 
 interface PageFormProps {
-	initialValues?: Partial<PageModuleFormValues>;
-	onSubmit: (values: PageModuleFormValues) => void;
+	initialValues?: Partial<PageFormData>;
+	onSubmit: (values: PageFormData) => void;
 	isLoading?: boolean;
 }
 
@@ -20,15 +29,14 @@ export function PageForm({
 	onSubmit,
 	isLoading,
 }: PageFormProps) {
-	const form = useForm<PageModuleFormValues>({
+	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
-			title: initialValues?.title || "",
-			description: initialValues?.description || "",
-			type: "page" as const,
-			status: initialValues?.status || "draft",
-			pageContent: initialValues?.pageContent || "",
+			title: initialValues?.title ?? "",
+			description: initialValues?.description ?? "",
+			status: initialValues?.status ?? "draft",
+			content: initialValues?.content ?? "",
 		},
 		validate: {
 			title: (value) =>
@@ -39,8 +47,25 @@ export function PageForm({
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields
-					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
+				/>
+
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
 				/>
 
 				<Textarea
@@ -69,16 +94,16 @@ export function PageForm({
 function PageContentEditor({
 	form,
 }: {
-	form: UseFormReturnType<PageModuleFormValues>;
+	form: UseFormReturnType<PageFormData>;
 }) {
-	const pageContent = useFormWatchForceUpdate(form, "pageContent");
+	const content = useFormWatchForceUpdate(form, "content");
 	return (
 		<div>
 			<SimpleRichTextEditor
-				content={pageContent}
+				content={content || ""}
 				placeholder="Enter page content..."
 				onChange={(html) => {
-					form.setFieldValue("pageContent", html);
+					form.setFieldValue("content", html);
 				}}
 			/>
 		</div>

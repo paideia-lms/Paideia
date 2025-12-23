@@ -187,7 +187,7 @@ export const middleware = [
 				isCourseModule = true;
 			else if (route.id === "routes/course/module.$id.edit")
 				isCourseModuleEdit = true;
-			else if (route.id === "routes/course/module.$id.submissions")
+			else if (route.id === "routes/course/module.$id.submissions/route")
 				isCourseModuleSubmissions = true;
 			else if (route.id === "layouts/course-module-layout")
 				isInCourseModuleLayout = true;
@@ -334,7 +334,7 @@ export const middleware = [
 
 		const userSession = await tryGetUserContext({
 			payload,
-			// ! we need to create local request here because user is not set 
+			// ! we need to create local request here because user is not set
 			req: createLocalReq({ request, context: { routerContext: context } }),
 		});
 
@@ -488,7 +488,7 @@ export const middleware = [
 				courseId: courseId,
 			}).getOrElse((error) => {
 				throw new InternalServerErrorResponse("Failed to get course context");
-			})
+			});
 			// FIXME: fix this type error
 			context.set(courseContextKey, courseContextResult);
 		}
@@ -564,30 +564,24 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext({
-							payload,
-							profileUserId,
-							req: payloadRequest,
-							overrideAccess: false,
-						});
+								payload,
+								profileUserId,
+								req: payloadRequest,
+								overrideAccess: false,
+							});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
 	},
 	// set the enrolment context
 	async ({ context }) => {
-		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
-		if (userSession?.isAuthenticated && courseContext) {
-			// get the enrollment
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-			const enrollment = courseContext.course.enrollments.find(
-				(e) => e.user.id === currentUser?.id,
-			);
+		if (courseContext) {
+			const enrollment = courseContext.enrolment;
 
 			// set the enrolment context
 			if (enrollment) {
@@ -626,7 +620,7 @@ export const middleware = [
 					enrolment: enrolmentContext?.enrolment ?? null,
 					threadId: threadId !== null ? String(threadId) : null,
 					req: payloadRequest,
-				}).getOrNull()
+				}).getOrNull();
 
 				if (courseModuleContext) {
 					context.set(courseModuleContextKey, courseModuleContext);
@@ -636,7 +630,8 @@ export const middleware = [
 	},
 	// set the user module context
 	async ({ context, params, request }) => {
-		const { payload, routeHierarchy, payloadRequest } = context.get(globalContextKey);
+		const { payload, routeHierarchy, payloadRequest } =
+			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		// Check if we're in a user module edit layout
@@ -654,7 +649,7 @@ export const middleware = [
 					payload,
 					moduleId,
 					req: payloadRequest,
-				}).getOrNull()
+				}).getOrNull();
 
 				if (userModuleContext) {
 					context.set(userModuleContextKey, userModuleContext);
@@ -678,9 +673,12 @@ export async function loader({ context }: Route.LoaderArgs) {
 	// console.log(routes)
 	// ! we can get elysia from context!!!
 	// console.log(payload, elysia);
-	const userCount = await tryGetUserCount({ payload, overrideAccess: true }).getOrElse(() => {
+	const userCount = await tryGetUserCount({
+		payload,
+		overrideAccess: true,
+	}).getOrElse(() => {
 		throw new InternalServerErrorResponse("Failed to get user count");
-	})
+	});
 
 	// Get current user's theme and direction preference
 	const currentUser =
@@ -755,18 +753,21 @@ export async function loader({ context }: Route.LoaderArgs) {
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		logoMedia,
 		faviconMedia,
-		debugData: environment !== "development" ? null : {
-			userSession: userSession,
-			courseContext: context.get(courseContextKey),
-			courseModuleContext: context.get(courseModuleContextKey),
-			courseSectionContext: context.get(courseSectionContextKey),
-			enrolmentContext: context.get(enrolmentContextKey),
-			userModuleContext: context.get(userModuleContextKey),
-			userProfileContext: context.get(userProfileContextKey),
-			userAccessContext: context.get(userAccessContextKey),
-			userContext: context.get(userContextKey),
-			systemGlobals: systemGlobals,
-		},
+		debugData:
+			environment !== "development"
+				? null
+				: {
+						userSession: userSession,
+						courseContext: context.get(courseContextKey),
+						courseModuleContext: context.get(courseModuleContextKey),
+						courseSectionContext: context.get(courseSectionContextKey),
+						enrolmentContext: context.get(enrolmentContextKey),
+						userModuleContext: context.get(userModuleContextKey),
+						userProfileContext: context.get(userProfileContextKey),
+						userAccessContext: context.get(userAccessContextKey),
+						userContext: context.get(userContextKey),
+						systemGlobals: systemGlobals,
+					},
 		isSandboxMode,
 		nextResetTime,
 	};

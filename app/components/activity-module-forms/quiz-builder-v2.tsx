@@ -22,13 +22,14 @@ import z from "zod";
 import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
+import type { UseQuizFormReturnType } from "./quiz-form";
 
 // ============================================================================
 // REGULAR QUIZ BUILDER (with drag-and-drop list)
 // ============================================================================
 
 interface RegularQuizBuilderProps {
-	form: UseFormReturnType<QuizModuleFormValues>;
+	form: UseQuizFormReturnType;
 }
 
 export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
@@ -138,7 +139,7 @@ export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
 // ============================================================================
 
 interface NestedQuizTabProps {
-	form: UseFormReturnType<QuizModuleFormValues>;
+	form: UseQuizFormReturnType;
 	quizIndex: number;
 }
 
@@ -220,7 +221,7 @@ function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
 // ============================================================================
 
 interface ContainerQuizBuilderProps {
-	form: UseFormReturnType<QuizModuleFormValues>;
+	form: UseQuizFormReturnType;
 }
 
 export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {

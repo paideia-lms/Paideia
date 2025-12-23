@@ -64,18 +64,6 @@ export const loader = async ({
 		);
 	}
 
-	// Fetch the target user
-	// const userResult = await tryFindUserById({
-	// 	payload,
-	// 	userId,
-	// 	req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
-	// 	overrideAccess: false,
-	// });
-
-	// if (!userResult.ok) {
-	// 	throw new NotFoundResponse("User not found");
-	// }
-
 	const targetUser = userProfileContext.profileUser;
 
 	const modules = userProfileContext.activityModules;

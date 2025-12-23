@@ -13,9 +13,6 @@ import {
 	tryGetAssignmentSubmissionById,
 	tryGradeAssignmentSubmission,
 	tryListAssignmentSubmissions,
-	trySubmitAssignment,
-	tryUpdateAssignmentSubmission,
-	type UpdateAssignmentSubmissionArgs,
 } from "./assignment-submission-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
@@ -298,61 +295,12 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		expect(submission.student.id).toBe(studentId);
 		expect(submission.enrollment.id).toBe(enrollmentId);
 		expect(submission.attemptNumber).toBe(1);
-		expect(submission.status).toBe("draft");
+		expect(submission.status).toBe("submitted");
 		expect(submission.content).toBe(args.content);
 		expect(submission.timeSpent).toBe(30);
 		expect(submission.isLate).toBe(false); // Not late yet
 		expect(submission.id).toBeDefined();
 		expect(submission.createdAt).toBeDefined();
-	});
-
-	test("should update assignment submission (student editing draft)", async () => {
-		// First create a submission
-		const createArgs: CreateAssignmentSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 2,
-			content: "Initial draft content",
-			req: { user: null },
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateAssignmentSubmission({
-			...createArgs,
-			payload,
-			req: { user: null },
-			overrideAccess: true,
-		});
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Update the submission
-		const updateArgs: UpdateAssignmentSubmissionArgs = {
-			payload,
-			id: submissionId,
-			content: "Updated content with more detailed analysis of the topic",
-			timeSpent: 45,
-			req: { user: null },
-			overrideAccess: true,
-		};
-
-		const updateResult = await tryUpdateAssignmentSubmission({
-			...updateArgs,
-			payload,
-			req: { user: null },
-			overrideAccess: true,
-		});
-		expect(updateResult.ok).toBe(true);
-		if (!updateResult.ok) return;
-
-		const updatedSubmission = updateResult.value;
-		expect(updatedSubmission.content).toBe(updateArgs.content);
-		expect(updatedSubmission.timeSpent).toBe(45);
-		expect(updatedSubmission.status).toBe("draft"); // Should remain draft
 	});
 
 	test("should submit assignment (student submits for grading)", async () => {
@@ -368,21 +316,9 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateAssignmentSubmission({
+		const submitResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			req: { user: null },
-			overrideAccess: true,
-		});
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Submit the assignment
-		const submitResult = await trySubmitAssignment({
-			payload,
-			submissionId,
 			req: { user: null },
 			overrideAccess: true,
 		});
@@ -421,16 +357,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
-
-		// Submit the assignment
-		const submitResult = await trySubmitAssignment({
-			payload,
-			submissionId,
-			req: { user: null },
-			overrideAccess: true,
-		});
-		expect(submitResult.ok).toBe(true);
-		if (!submitResult.ok) return;
 
 		// Grade the assignment (only updates submission, does NOT create user-grade)
 		const gradeResult = await tryGradeAssignmentSubmission({
@@ -662,16 +588,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		const submissionId = createResult.value.id;
 
-		// Submit the assignment
-		const submitResult = await trySubmitAssignment({
-			payload,
-			submissionId,
-			req: { user: null },
-			overrideAccess: true,
-		});
-		expect(submitResult.ok).toBe(true);
-		if (!submitResult.ok) return;
-
 		// Try to grade with negative grade
 		const negativeGradeResult = await tryGradeAssignmentSubmission({
 			payload,
@@ -697,44 +613,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		});
 
 		expect(excessiveGradeResult.ok).toBe(false);
-	});
-
-	test("should only allow grading of submitted assignments", async () => {
-		// Create a draft submission
-		const createArgs: CreateAssignmentSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 10,
-			content: "Draft submission that should not be gradable",
-			req: { user: null },
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateAssignmentSubmission({
-			...createArgs,
-			payload,
-			req: { user: null },
-			overrideAccess: true,
-		});
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Try to grade a draft submission
-		const gradeResult = await tryGradeAssignmentSubmission({
-			payload,
-			req: mockRequest,
-			id: submissionId,
-			grade: 80,
-			feedback: "Should not be able to grade draft",
-			gradedBy: teacherId,
-			overrideAccess: true,
-		});
-
-		expect(gradeResult.ok).toBe(false);
 	});
 
 	test("should delete assignment submission", async () => {
@@ -885,24 +763,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			overrideAccess: true,
 		});
 
-		expect(result.ok).toBe(false);
-	});
-
-	test("should fail to update non-existent submission", async () => {
-		const updateArgs: UpdateAssignmentSubmissionArgs = {
-			payload,
-			id: 99999,
-			content: "Updated content",
-			req: { user: null },
-			overrideAccess: true,
-		};
-
-		const result = await tryUpdateAssignmentSubmission({
-			...updateArgs,
-			payload,
-			req: { user: null },
-			overrideAccess: true,
-		});
 		expect(result.ok).toBe(false);
 	});
 

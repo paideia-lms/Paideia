@@ -59,7 +59,6 @@ export { useNestedQuizState } from "../activity-modules-preview/use-nested-quiz-
 export { WhiteboardPreview } from "../activity-modules-preview/whiteboard-preview";
 
 // Form components
-export { AssignmentForm } from "./assignment-form";
 export { CommonFields } from "./common-fields";
 export { DiscussionForm } from "./discussion-form";
 export { FileForm } from "./file-form";

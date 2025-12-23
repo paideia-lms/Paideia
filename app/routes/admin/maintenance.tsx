@@ -2,7 +2,7 @@ import { Button, Group, Stack, Switch, Text, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, useFetcher } from "react-router";
+import { data, href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -10,7 +10,10 @@ import {
 	tryUpdateMaintenanceSettings,
 } from "server/internal/maintenance-settings";
 import { z } from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import {
 	forbidden,
 	ForbiddenResponse,
@@ -18,28 +21,14 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/maintenance";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { convertMyFormDataToObject, MyFormData } from "app/utils/action-utils";
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can access this area");
-	}
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	const settings = await tryGetMaintenanceSettings({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!settings.ok) {
@@ -59,7 +48,7 @@ const inputSchema = z.object({
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
 		return forbidden({ error: "Unauthorized" });
@@ -70,8 +59,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 		return forbidden({ error: "Only admins can access this area" });
 	}
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = inputSchema.safeParse(data);
+	const parsed = await request
+		.formData()
+		.then(convertMyFormDataToObject)
+		.then(inputSchema.safeParse);
+
 	if (!parsed.success) {
 		return forbidden({ error: "Invalid payload" });
 	}
@@ -79,11 +71,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateMaintenanceSettings({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		data: {
 			maintenanceMode,
 		},
@@ -120,11 +108,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useUpdateMaintenanceConfig() {
 	const fetcher = useFetcher<typeof clientAction>();
 	const update = (data: { maintenanceMode: boolean }) => {
-		const formData = new FormData();
-		formData.set("maintenanceMode", data.maintenanceMode ? "true" : "false");
-		fetcher.submit(formData, {
+		fetcher.submit(new MyFormData<z.infer<typeof inputSchema>>(data), {
 			method: "post",
 			action: href("/admin/maintenance"),
+			encType: ContentType.MULTIPART,
 		});
 	};
 	return { update, state: fetcher.state } as const;

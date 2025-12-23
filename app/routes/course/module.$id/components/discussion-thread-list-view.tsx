@@ -21,7 +21,7 @@ import type {
 	DiscussionData,
 	DiscussionThread,
 } from "~/components/activity-modules-preview/discussion-preview";
-import { DiscussionActions } from "~/utils/module-actions";
+import { DiscussionActions } from "../route";
 import { CreateThreadFormWrapper } from "./create-thread-form-wrapper";
 import { ThreadUpvoteButton } from "./thread-upvote-button";
 
