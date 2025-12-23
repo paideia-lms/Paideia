@@ -22,6 +22,7 @@ import {
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
 import { tryCreateMedia } from "./media-management";
+import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
 
 // Base args that are common to all module types
 interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
@@ -699,7 +700,16 @@ export function tryCreatePageModule(args: CreatePageModuleArgs) {
 					.create({
 						collection: "pages",
 						data: {
-							content: content || "",
+							...(await processRichTextMediaV2({
+								payload,
+								userId,
+								req: reqWithTransaction,
+								overrideAccess,
+								data: {
+									content: content?.trim() || "",
+								},
+								fields: [{ key: "content", alt: "Page content image" }],
+							})),
 							createdBy: userId,
 						},
 						req: reqWithTransaction,

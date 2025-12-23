@@ -1,6 +1,5 @@
-import { getPayload } from "payload";
-import sanitizedConfig from "./server/payload.config";
-import * as schema from "./src/payload-generated-schema";
+import type { BasePayload } from "payload";
+import * as schema from "src/payload-generated-schema";
 
 /**
  * Recursively finds all media fields in a field definition
@@ -58,15 +57,11 @@ function findMediaFields(
 
 	return mediaFields;
 }
-
 /**
  * Gets all media fields from all collections and globals
  */
-async function getAllMediaFields() {
-	const payload = await getPayload({
-		config: sanitizedConfig,
-	});
 
+export function getAllMediaFields(payload: BasePayload) {
 	const allMediaFields: Array<{
 		type: "collection" | "global";
 		slug: string;
@@ -109,11 +104,11 @@ async function getAllMediaFields() {
 
 	return allMediaFields;
 }
-
 /**
  * Maps media fields to their Drizzle schema table and column references
  */
-function mapMediaFieldsToDrizzle(
+
+export function mapMediaFieldsToDrizzle(
 	fields: Array<{
 		type: "collection" | "global";
 		slug: string;
@@ -144,6 +139,8 @@ function mapMediaFieldsToDrizzle(
 		columnRef: string; // Reference to the column (e.g., "users.avatar", "appearance_settings.logoLight")
 		tableExists: boolean;
 		fieldExists: boolean;
+		isNested: boolean;
+		isArray: boolean;
 	}> = [];
 
 	for (const field of fields) {
@@ -197,64 +194,10 @@ function mapMediaFieldsToDrizzle(
 			columnRef,
 			tableExists,
 			fieldExists,
+			isNested: field.isNested,
+			isArray: field.isArray,
 		});
 	}
 
-	return mappedFields;
+	return mappedFields.filter((field) => field.tableExists && field.fieldExists);
 }
-
-// Run the function and log results
-getAllMediaFields()
-	.then((fields) => {
-		console.log("=== All Media Fields ===");
-		console.log(JSON.stringify(fields, null, 2));
-		console.log(`\nTotal media fields found: ${fields.length}`);
-
-		// Map to Drizzle schema
-		const mappedFields = mapMediaFieldsToDrizzle(fields);
-
-		console.log("\n=== Mapped to Drizzle Schema ===");
-		console.log(JSON.stringify(mappedFields, null, 2));
-
-		console.log("\n=== Drizzle Table References ===");
-		for (const field of mappedFields) {
-			const status = field.tableExists && field.fieldExists ? "✓" : "✗";
-			console.log(
-				`${field.type}:${field.slug}.${field.fieldPath} -> ${field.columnRef} ${status}`,
-			);
-			if (!field.tableExists) {
-				console.log(`  ⚠ Table "${field.tableRef}" not found in schema`);
-			} else if (!field.fieldExists) {
-				console.log(
-					`  ⚠ Field "${field.schemaFieldName}" not found in table "${field.tableRef}"`,
-				);
-			}
-		}
-
-		// Group by collection/global
-		const grouped = fields.reduce((acc, field) => {
-			const key = `${field.type}:${field.slug}`;
-			if (!acc[key]) {
-				acc[key] = [];
-			}
-			acc[key].push(field);
-			return acc;
-		}, {} as Record<string, typeof fields>);
-
-		console.log("\n=== Grouped by Collection/Global ===");
-		for (const [key, fields] of Object.entries(grouped)) {
-			console.log(`\n${key}:`);
-			for (const field of fields) {
-				console.log(
-					`  - ${field.fieldPath} (array: ${field.isArray}, nested: ${field.isNested})`,
-				);
-			}
-		}
-
-        process.exit(0);
-	})
-	.catch((error) => {
-		console.error("Error:", error);
-		process.exit(1);
-	});
-

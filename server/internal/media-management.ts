@@ -10,6 +10,7 @@ import {
 import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import {
+	DevelopmentError,
 	InvalidArgumentError,
 	MediaInUseError,
 	NonExistingMediaError,
@@ -26,7 +27,11 @@ import {
 } from "./utils/internal-function-utils";
 import * as schemas from "src/payload-generated-schema";
 import { and, eq, sql } from "@payloadcms/db-postgres/drizzle";
-import { unionAll } from "drizzle-orm/pg-core";
+import {
+	getAllMediaFields,
+	mapMediaFieldsToDrizzle,
+} from "server/internal/utils/get-all-media-fields";
+import { snakeCase } from "es-toolkit";
 
 export interface CreateMediaArgs extends BaseInternalFunctionArgs {
 	file: Buffer;
@@ -44,8 +49,8 @@ export interface GetMediaByIdArgs extends BaseInternalFunctionArgs {
 	id: number | string;
 }
 
-export interface GetMediaByFilenameArgs extends BaseInternalFunctionArgs {
-	filename: string;
+export interface GetMediaByFilenamesArgs extends BaseInternalFunctionArgs {
+	filenames: string[];
 }
 
 export interface GetMediaBufferFromFilenameArgs
@@ -228,24 +233,21 @@ export function tryGetMediaById(args: GetMediaByIdArgs) {
  * This function fetches a media record by its filename with optional depth control
  * for relationships
  */
-export function tryGetMediaByFilename(args: GetMediaByFilenameArgs) {
+export function tryGetMediaByFilenames(args: GetMediaByFilenamesArgs) {
 	return Result.try(
 		async () => {
-			const { payload, filename, req, overrideAccess = false } = args;
-
-			// Validate filename
-			if (!filename || filename.trim() === "") {
-				throw new InvalidArgumentError("Filename is required");
-			}
+			const { payload, filenames, req, overrideAccess = false } = args;
 
 			// Fetch the media record
 			const media = await payload
 				.find({
 					collection: "media",
 					where: {
-						filename: { equals: filename },
+						filename: { in: filenames },
 					},
 					depth: 1,
+					limit: filenames.length,
+					pagination: false,
 					req,
 					overrideAccess,
 				})
@@ -260,13 +262,7 @@ export function tryGetMediaByFilename(args: GetMediaByFilenameArgs) {
 				});
 
 			// ! filename is unique in media collection, you can confirm in the sql
-			const m = media.docs[0];
-
-			if (!m) {
-				throw new NonExistingMediaError(
-					`Media with filename '${filename}' not found`,
-				);
-			}
+			const m = media.docs;
 
 			return m;
 		},
@@ -340,18 +336,19 @@ export function tryGetMediaBufferFromFilename(
 			}
 
 			// First, get the media record from the database
-			const mediaResult = await tryGetMediaByFilename({
+			const mediaResult = await tryGetMediaByFilenames({
 				payload,
-				filename,
+				filenames: [filename],
 				req,
 				overrideAccess,
-			});
+			}).getOrThrow();
 
-			if (!mediaResult.ok) {
-				throw mediaResult.error;
+			const media = mediaResult[0];
+			if (!media) {
+				throw new NonExistingMediaError(
+					`File not found in storage: ${filename}`,
+				);
 			}
-
-			const media = mediaResult.value;
 
 			// Fetch the file from S3
 			const command = new GetObjectCommand({
@@ -492,18 +489,19 @@ export function tryGetMediaStreamFromFilename(
 			}
 
 			// First, get the media record from the database
-			const mediaResult = await tryGetMediaByFilename({
+			const mediaResult = await tryGetMediaByFilenames({
 				payload,
-				filename,
+				filenames: [filename],
 				req,
 				overrideAccess,
-			});
+			}).getOrThrow();
 
-			if (!mediaResult.ok) {
-				throw mediaResult.error;
+			const media = mediaResult[0];
+			if (!media) {
+				throw new NonExistingMediaError(
+					`File not found in storage: ${filename}`,
+				);
 			}
-
-			const media = mediaResult.value;
 			const fileSize = media.filesize || 0;
 
 			// Build GetObjectCommand with optional range
@@ -1081,7 +1079,6 @@ export function tryRenameMedia(args: RenameMediaArgs) {
 				id,
 				newFilename,
 				userId,
-
 				req,
 				overrideAccess = false,
 			} = args;
@@ -1099,85 +1096,64 @@ export function tryRenameMedia(args: RenameMediaArgs) {
 				throw new InvalidArgumentError("User ID is required");
 			}
 
-			const transactionInfo = await handleTransactionId(payload, req);
+			// Get the media record
+			const mediaResult = await tryGetMediaById({
+				payload,
+				id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
 
-			return transactionInfo.tx(async () => {
-				// Get the media record
-				const mediaResult = await tryGetMediaById({
-					payload,
-					id,
+			const media = mediaResult;
 
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				}).getOrThrow();
+			// Check if media has a filename
+			if (!media.filename) {
+				throw new NonExistingMediaError(
+					`Media with id '${id}' has no associated filename`,
+				);
+			}
 
-				const media = mediaResult;
+			const oldFilename = media.filename;
 
-				// Check if media has a filename
-				if (!media.filename) {
-					throw new NonExistingMediaError(
-						`Media with id '${id}' has no associated filename`,
-					);
-				}
+			// If the new filename is the same as the old one, just return the media
+			if (oldFilename === newFilename) {
+				return { media };
+			}
 
-				const oldFilename = media.filename;
-
-				// If the new filename is the same as the old one, just return the media
-				if (oldFilename === newFilename) {
-					return { media };
-				}
-
-				// Check if a media with the new filename already exists
-				const existingMediaResult = await tryGetMediaByFilename({
-					payload,
-					filename: newFilename,
-
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				});
-
-				if (existingMediaResult.ok) {
-					throw new InvalidArgumentError(
-						`A media file with filename '${newFilename}' already exists`,
-					);
-				}
-
-				// Copy the file in S3 with the new filename
-				const copyCommand = new CopyObjectCommand({
-					Bucket: envVars.S3_BUCKET.value,
-					CopySource: `${envVars.S3_BUCKET.value}/${oldFilename}`,
-					Key: newFilename,
-				});
-
-				await s3Client.send(copyCommand);
-
-				// Delete the old file from S3
-				const deleteCommand = new DeleteObjectCommand({
-					Bucket: envVars.S3_BUCKET.value,
-					Key: oldFilename,
-				});
-
-				await s3Client.send(deleteCommand);
-
-				// Update the media record in the database
-				const updatedMedia = await payload
-					.update({
-						collection: "media",
-						id,
-						data: {
-							filename: newFilename,
-						},
-						depth: 0,
-
-						req: transactionInfo.reqWithTransaction,
-						overrideAccess,
-					})
-					.then(stripDepth<0, "update">());
-
-				return {
-					media: updatedMedia,
-				};
+			// Copy the file in S3 with the new filename
+			const copyCommand = new CopyObjectCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				CopySource: `${envVars.S3_BUCKET.value}/${oldFilename}`,
+				Key: newFilename,
 			});
+
+			await s3Client.send(copyCommand);
+
+			// Delete the old file from S3
+			const deleteCommand = new DeleteObjectCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				Key: oldFilename,
+			});
+
+			await s3Client.send(deleteCommand);
+
+			// Update the media record in the database
+			const updatedMedia = await payload
+				.update({
+					collection: "media",
+					id,
+					data: {
+						filename: newFilename,
+					},
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "update">());
+
+			return {
+				media: updatedMedia,
+			};
 		},
 		(error) =>
 			transformError(error) ??
@@ -1941,6 +1917,21 @@ export interface FindMediaUsagesResult {
 	totalUsages: number;
 }
 
+type Keys = keyof typeof schemas;
+
+/**
+ * Union type of all table names in the schema (subset of Keys)
+ * Filters out enums, relations, and other non-table exports
+ * Example: KeysOfTables = "users" | "courses" | "assignment-submissions" | "notes_rels" | ...
+ */
+type KeysOfTables = {
+	[K in Keys]: K extends string
+		? (typeof schemas)[K] extends { _: { name: string } }
+			? K
+			: never
+		: never;
+}[Keys];
+
 /**
  * Finds all usages of a media file across all collections
  *
@@ -1968,222 +1959,151 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 				overrideAccess,
 			}).getOrThrow();
 
-			// Build all queries (not executed yet)
-			const usersQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'users'`.as("collection"),
-					documentId: schemas.users.id,
-					fieldPath: sql<string>`'avatar'`.as("fieldPath"),
-				})
-				.from(schemas.users)
-				.where(eq(schemas.users.avatar, mediaId));
+			const drizzleFields = mapMediaFieldsToDrizzle(getAllMediaFields(payload));
 
-			const coursesThumbnailQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'courses'`.as("collection"),
-					documentId: schemas.courses.id,
-					fieldPath: sql<string>`'thumbnail'`.as("fieldPath"),
-				})
-				.from(schemas.courses)
-				.where(eq(schemas.courses.thumbnail, mediaId));
+			// filter the fields snakecase(slug) === tableRef and column ref is <table>.<column>
+			const simpleDrizzleFields = drizzleFields.filter(
+				(field) =>
+					snakeCase(field.slug) === field.tableRef &&
+					field.columnRef.includes(".") &&
+					field.columnRef.split(".").length === 2 &&
+					field.fieldExists &&
+					field.tableExists,
+			);
 
-			const assignmentSubmissionsQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'assignment-submissions'`.as("collection"),
-					documentId: schemas.assignment_submissions.id,
-					fieldPath:
-						sql<string>`'attachments.' || ${schemas.assignment_submissions_attachments._order}::text || '.file'`.as(
+			const simpleQueries = simpleDrizzleFields.map((field) => {
+				// Use sql.raw to inject string literals directly (not as parameters)
+				return payload.db.drizzle
+					.select({
+						collection: sql<string>`${sql.raw(`'${field.slug}'`)}`.as(
+							"collection",
+						),
+						documentId: schemas[field.tableRef as KeysOfTables].id,
+						fieldPath: sql<string>`${sql.raw(`'${field.fieldPath}'`)}`.as(
 							"fieldPath",
 						),
-				})
-				.from(schemas.assignment_submissions)
-				.innerJoin(
-					schemas.assignment_submissions_attachments,
-					eq(
-						schemas.assignment_submissions.id,
-						schemas.assignment_submissions_attachments._parentID,
-					),
-				)
-				.where(eq(schemas.assignment_submissions_attachments.file, mediaId));
-
-			const discussionSubmissionsQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'discussion-submissions'`.as("collection"),
-					documentId: schemas.discussion_submissions.id,
-					fieldPath:
-						sql<string>`'attachments.' || ${schemas.discussion_submissions_attachments._order}::text || '.file'`.as(
-							"fieldPath",
+					})
+					.from(schemas[field.tableRef as KeysOfTables])
+					.where(
+						eq(
+							// @ts-ignore
+							schemas[field.tableRef as KeysOfTables][field.fieldPath as any],
+							mediaId,
 						),
-				})
-				.from(schemas.discussion_submissions)
-				.innerJoin(
-					schemas.discussion_submissions_attachments,
-					eq(
-						schemas.discussion_submissions.id,
-						schemas.discussion_submissions_attachments._parentID,
-					),
-				)
-				.where(eq(schemas.discussion_submissions_attachments.file, mediaId));
+					)
+					.limit(1);
+			});
 
-			const notesQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'notes'`.as("collection"),
-					documentId: schemas.notes.id,
-					fieldPath:
-						sql<string>`'contentMedia.' || ${schemas.notes_rels.order}::text`.as(
-							"fieldPath",
+			// Filter nested fields (e.g., "attachments.file")
+			const nestedDrizzleFields = drizzleFields.filter(
+				(field) =>
+					field.isNested &&
+					field.tableExists &&
+					field.fieldExists &&
+					field.type === "collection",
+			);
+
+			const nestedQueries = nestedDrizzleFields.map((field) => {
+				// For nested fields: "attachments.file" -> parent table is slug, join table is tableRef
+				const parentTableRef = snakeCase(field.slug) as KeysOfTables;
+				const joinTableRef = field.tableRef as KeysOfTables;
+				const parentTable = schemas[parentTableRef];
+				const joinTable = schemas[joinTableRef] as any;
+
+				// Extract parent field name and nested field name from fieldPath
+				// e.g., "attachments.file" -> parentField: "attachments", nestedField: "file"
+				const fieldPathParts = field.fieldPath.split(".");
+				const parentField = fieldPathParts[0]!;
+				const nestedField = fieldPathParts.slice(1).join(".");
+
+				// Build fieldPath: 'attachments.' || _order::text || '.file'
+				return payload.db.drizzle
+					.select({
+						collection: sql<string>`${sql.raw(`'${field.slug}'`)}`.as(
+							"collection",
 						),
-				})
-				.from(schemas.notes)
-				.innerJoin(
-					schemas.notes_rels,
-					eq(schemas.notes.id, schemas.notes_rels.parent),
-				)
-				.where(
-					and(
-						eq(schemas.notes_rels.mediaID, mediaId),
-						eq(schemas.notes_rels.path, "contentMedia"),
-					),
-				);
+						documentId: parentTable.id,
+						fieldPath:
+							sql<string>`${sql.raw(`'${parentField}.'`)} || ${joinTable._order}::text || ${sql.raw(`'.${nestedField}'`)}`.as(
+								"fieldPath",
+							),
+					})
+					.from(parentTable)
+					.innerJoin(joinTable, eq(parentTable.id, joinTable._parentID))
+					.where(eq(joinTable[field.schemaFieldName], mediaId));
+			});
 
-			const pagesQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'pages'`.as("collection"),
-					documentId: schemas.pages.id,
-					fieldPath:
-						sql<string>`'contentMedia.' || ${schemas.pages_rels.order}::text`.as(
-							"fieldPath",
+			// Filter array fields (e.g., "contentMedia", "descriptionMedia", "media")
+			const arrayDrizzleFields = drizzleFields.filter(
+				(field) =>
+					field.isArray &&
+					!field.isNested &&
+					field.tableExists &&
+					field.fieldExists &&
+					field.type === "collection",
+			);
+
+			const arrayQueries = arrayDrizzleFields.map((field) => {
+				// For array fields: parent table is slug, join table is tableRef (ends with _rels)
+				const parentTableRef = snakeCase(field.slug) as KeysOfTables;
+				const joinTableRef = field.tableRef as KeysOfTables;
+				const parentTable = schemas[parentTableRef];
+				const joinTable = schemas[joinTableRef] as any;
+
+				// Build fieldPath: 'contentMedia.' || order::text
+				return payload.db.drizzle
+					.select({
+						collection: sql<string>`${sql.raw(`'${field.slug}'`)}`.as(
+							"collection",
 						),
-				})
-				.from(schemas.pages)
-				.innerJoin(
-					schemas.pages_rels,
-					eq(schemas.pages.id, schemas.pages_rels.parent),
-				)
-				.where(
-					and(
-						eq(schemas.pages_rels.mediaID, mediaId),
-						eq(schemas.pages_rels.path, "contentMedia"),
-					),
-				);
-
-			const coursesMediaQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'courses'`.as("collection"),
-					documentId: schemas.courses.id,
-					fieldPath:
-						sql<string>`'descriptionMedia.' || ${schemas.courses_rels.order}::text`.as(
-							"fieldPath",
+						documentId: parentTable.id,
+						fieldPath:
+							sql<string>`${sql.raw(`'${field.fieldPath}.'`)} || ${joinTable.order}::text`.as(
+								"fieldPath",
+							),
+					})
+					.from(parentTable)
+					.innerJoin(joinTable, eq(parentTable.id, joinTable.parent))
+					.where(
+						and(
+							eq(joinTable.mediaID, mediaId),
+							eq(joinTable.path, field.fieldPath),
 						),
-				})
-				.from(schemas.courses)
-				.innerJoin(
-					schemas.courses_rels,
-					eq(schemas.courses.id, schemas.courses_rels.parent),
-				)
-				.where(
-					and(
-						eq(schemas.courses_rels.mediaID, mediaId),
-						eq(schemas.courses_rels.path, "descriptionMedia"),
-					),
-				);
-
-			const filesQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'files'`.as("collection"),
-					documentId: schemas.files.id,
-					fieldPath:
-						sql<string>`'media.' || ${schemas.files_rels.order}::text`.as(
-							"fieldPath",
-						),
-				})
-				.from(schemas.files)
-				.innerJoin(
-					schemas.files_rels,
-					eq(schemas.files.id, schemas.files_rels.parent),
-				)
-				.where(
-					and(
-						eq(schemas.files_rels.mediaID, mediaId),
-						eq(schemas.files_rels.path, "media"),
-					),
-				);
-
-			const appearanceSettingsLogoLightQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'appearance-settings'`.as("collection"),
-					documentId: schemas.appearance_settings.id,
-					fieldPath: sql<string>`'logoLight'`.as("fieldPath"),
-				})
-				.from(schemas.appearance_settings)
-				.where(eq(schemas.appearance_settings.logoLight, mediaId))
-				.limit(1);
-
-			const appearanceSettingsLogoDarkQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'appearance-settings'`.as("collection"),
-					documentId: schemas.appearance_settings.id,
-					fieldPath: sql<string>`'logoDark'`.as("fieldPath"),
-				})
-				.from(schemas.appearance_settings)
-				.where(eq(schemas.appearance_settings.logoDark, mediaId))
-				.limit(1);
-
-			const appearanceSettingsCompactLogoLightQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'appearance-settings'`.as("collection"),
-					documentId: schemas.appearance_settings.id,
-					fieldPath: sql<string>`'compactLogoLight'`.as("fieldPath"),
-				})
-				.from(schemas.appearance_settings)
-				.where(eq(schemas.appearance_settings.compactLogoLight, mediaId))
-				.limit(1);
-
-			const appearanceSettingsCompactLogoDarkQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'appearance-settings'`.as("collection"),
-					documentId: schemas.appearance_settings.id,
-					fieldPath: sql<string>`'compactLogoDark'`.as("fieldPath"),
-				})
-				.from(schemas.appearance_settings)
-				.where(eq(schemas.appearance_settings.compactLogoDark, mediaId))
-				.limit(1);
-
-			const appearanceSettingsFaviconLightQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'appearance-settings'`.as("collection"),
-					documentId: schemas.appearance_settings.id,
-					fieldPath: sql<string>`'faviconLight'`.as("fieldPath"),
-				})
-				.from(schemas.appearance_settings)
-				.where(eq(schemas.appearance_settings.faviconLight, mediaId))
-				.limit(1);
-
-			const appearanceSettingsFaviconDarkQuery = payload.db.drizzle
-				.select({
-					collection: sql<string>`'appearance-settings'`.as("collection"),
-					documentId: schemas.appearance_settings.id,
-					fieldPath: sql<string>`'faviconDark'`.as("fieldPath"),
-				})
-				.from(schemas.appearance_settings)
-				.where(eq(schemas.appearance_settings.faviconDark, mediaId))
-				.limit(1);
+					);
+			});
 
 			// Combine all queries using UNION ALL and execute as a single query
-			const allUsagesResult = await usersQuery
-				.unionAll(coursesThumbnailQuery)
-				.unionAll(assignmentSubmissionsQuery)
-				.unionAll(discussionSubmissionsQuery)
-				.unionAll(notesQuery)
-				.unionAll(pagesQuery)
-				.unionAll(coursesMediaQuery)
-				.unionAll(filesQuery)
-				.unionAll(appearanceSettingsLogoLightQuery)
-				.unionAll(appearanceSettingsLogoDarkQuery)
-				.unionAll(appearanceSettingsCompactLogoLightQuery)
-				.unionAll(appearanceSettingsCompactLogoDarkQuery)
-				.unionAll(appearanceSettingsFaviconLightQuery)
-				.unionAll(appearanceSettingsFaviconDarkQuery);
+			// Collect all queries into a single array
+			const allQueries = [...simpleQueries, ...nestedQueries, ...arrayQueries];
+
+			// assert that drizzleFields has the length as simpleQueries + nestedQueries + arrayQueries
+			if (drizzleFields.length !== allQueries.length) {
+				throw new DevelopmentError("Failed to find media usages", {
+					cause: new Error(
+						"Drizzle fields length does not match all queries length",
+					),
+				});
+			}
+
+			if (allQueries.length === 0) {
+				return {
+					usages: [],
+					totalUsages: 0,
+				};
+			}
+
+			// Combine queries using unionAll
+			// Type assertion needed because different query builders have slightly different types
+			let combinedQuery: any = allQueries[0]!;
+			for (let i = 1; i < allQueries.length; i++) {
+				combinedQuery = combinedQuery.unionAll(allQueries[i]!);
+			}
+
+			const allUsagesResult = (await combinedQuery) as Array<{
+				collection: string;
+				documentId: number;
+				fieldPath: string;
+			}>;
 
 			return {
 				usages: allUsagesResult,

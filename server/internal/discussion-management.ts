@@ -13,9 +13,11 @@ import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-managem
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
+	Depth,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { DiscussionSubmission } from "server/payload-types";
 
 export interface CreateDiscussionSubmissionArgs
 	extends BaseInternalFunctionArgs {
@@ -631,6 +633,16 @@ export function tryUpvoteDiscussionSubmission(
 					overrideAccess,
 				})
 				.then(stripDepth<1, "findByID">())
+				.then((submission) => {
+					return {
+						...submission,
+						upvotes:
+							(submission.upvotes as unknown as Depth<
+								DiscussionSubmission["upvotes"],
+								1
+							>) ?? [],
+					};
+				})
 				.catch((error) => {
 					interceptPayloadError({
 						error,
@@ -643,7 +655,7 @@ export function tryUpvoteDiscussionSubmission(
 			// Check if user has already upvoted
 			const existingUpvotes = submission.upvotes || [];
 			const hasUpvoted = existingUpvotes.some(
-				(upvote) => upvote.user === userId,
+				(upvote) => upvote.user.id === userId,
 			);
 
 			if (hasUpvoted) {

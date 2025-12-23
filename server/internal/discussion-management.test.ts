@@ -1258,6 +1258,8 @@ describe("Discussion Management - Full Workflow", () => {
 		});
 		expect(upvoteResult1.ok).toBe(true);
 
+		console.log(upvoteResult1.value);
+
 		// Try to upvote the same submission again
 		const upvoteResult2 = await tryUpvoteDiscussionSubmission({
 			payload,
