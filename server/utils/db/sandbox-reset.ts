@@ -297,6 +297,7 @@ export function tryResetSandbox(args: TryResetSandboxArgs) {
 				// Run seed with loaded data
 				const seedResult = await tryRunSeed({
 					payload: args.payload,
+					req: txInfo.reqWithTransaction,
 					seedData: seedData,
 				}).getOrThrow();
 
