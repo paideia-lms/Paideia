@@ -1,14 +1,18 @@
 import {
 	Button,
+	Group,
 	Select,
 	Stack,
 	Textarea,
 	TextInput,
 	Title,
 } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { useForm } from "@mantine/form";
+import MonacoEditor, { type OnMount } from "@monaco-editor/react";
+import { IconCode } from "@tabler/icons-react";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useJsonFormMode } from "~/utils/use-json-form-mode";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { PageFormInitialValues as EditPageFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { PageFormInitialValues as NewPageFormInitialValues } from "app/routes/user/module/new";
@@ -29,65 +33,128 @@ export function PageForm({
 	onSubmit,
 	isLoading,
 }: PageFormProps) {
-	const form = useForm({
-		mode: "uncontrolled",
-		cascadeUpdates: true,
-		initialValues: {
-			title: initialValues?.title ?? "",
-			description: initialValues?.description ?? "",
-			status: initialValues?.status ?? "draft",
-			content: initialValues?.content ?? "",
-		},
-		validate: {
-			title: (value) =>
-				value.trim().length === 0 ? "Title is required" : null,
-		},
-	});
+	const { colorScheme } = useMantineColorScheme();
+
+	const { form, isJsonMode, toggleJsonMode, jsonEditorProps, onSubmitWithJsonSync } =
+		useJsonFormMode({
+			mode: "uncontrolled",
+			cascadeUpdates: true,
+			initialValues: {
+				title: initialValues?.title ?? "",
+				description: initialValues?.description ?? "",
+				status: initialValues?.status ?? "draft",
+				content: initialValues?.content ?? "",
+			},
+			validate: {
+				title: (value: string) =>
+					value.trim().length === 0 ? "Title is required" : null,
+			},
+		});
 
 	return (
-		<form onSubmit={form.onSubmit(onSubmit)}>
+		<form onSubmit={onSubmitWithJsonSync(onSubmit)}>
 			<Stack gap="md">
-				<TextInput
-					{...form.getInputProps("title")}
-					key={form.key("title")}
-					label="Title"
-					placeholder="Enter module title"
-					required
-					withAsterisk
-				/>
+				{/* Toggle button */}
+				<Group justify="flex-end">
+					<Button
+						type="button"
+						variant={isJsonMode ? "filled" : "light"}
+						leftSection={<IconCode stroke={1.5} size={16} />}
+						onClick={toggleJsonMode}
+					>
+						{isJsonMode ? "Switch to Form" : "Switch to JSON"}
+					</Button>
+				</Group>
 
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
-				/>
+				{isJsonMode ? (
+					<JsonEditor
+						{...jsonEditorProps}
+						colorScheme={colorScheme}
+					/>
+				) : (
+					<>
+						<TextInput
+							{...form.getInputProps("title")}
+							key={form.key("title")}
+							label="Title"
+							placeholder="Enter module title"
+							required
+							withAsterisk
+						/>
 
-				<Textarea
-					{...form.getInputProps("description")}
-					key={form.key("description")}
-					label="Description"
-					placeholder="Enter module description"
-					minRows={3}
-				/>
+						<Select
+							{...form.getInputProps("status")}
+							key={form.key("status")}
+							label="Status"
+							placeholder="Select status"
+							data={[
+								{ value: "draft", label: "Draft" },
+								{ value: "published", label: "Published" },
+								{ value: "archived", label: "Archived" },
+							]}
+						/>
 
-				<div>
-					<Title order={5} mb="xs">
-						Page Content
-					</Title>
-					<PageContentEditor form={form} />
-				</div>
+						<Textarea
+							{...form.getInputProps("description")}
+							key={form.key("description")}
+							label="Description"
+							placeholder="Enter module description"
+							minRows={3}
+						/>
+
+						<div>
+							<Title order={5} mb="xs">
+								Page Content
+							</Title>
+							<PageContentEditor form={form} />
+						</div>
+					</>
+				)}
 
 				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 					Save
 				</Button>
 			</Stack>
 		</form>
+	);
+}
+
+function JsonEditor({
+	defaultValue,
+	onMount,
+	colorScheme,
+}: {
+	defaultValue: string;
+	onMount: OnMount;
+	colorScheme: "light" | "dark" | "auto";
+}) {
+	return (
+		<div>
+			<Title order={5} mb="xs">
+				JSON Editor
+			</Title>
+			<MonacoEditor
+				height="400px"
+				language="json"
+				defaultValue={defaultValue}
+				onMount={onMount}
+				theme={colorScheme === "dark" ? "vs-dark" : "light"}
+				options={{
+					minimap: { enabled: false },
+					scrollBeyondLastLine: false,
+					fontSize: 14,
+					lineNumbers: "on",
+					readOnly: false,
+					wordWrap: "on",
+					codeLens: false,
+					autoClosingBrackets: "always",
+					autoClosingQuotes: "always",
+					autoIndent: "full",
+					formatOnPaste: true,
+					formatOnType: true,
+				}}
+			/>
+		</div>
 	);
 }
 
