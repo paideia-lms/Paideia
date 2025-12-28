@@ -65,7 +65,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		enrolmentContext?.enrolment,
 	).allowed;
 
-
 	return {
 		module: courseModuleContext.activityModule,
 		moduleSettings: courseModuleContext.settings,
@@ -126,7 +125,6 @@ export default function CourseModuleLayout({
 				break;
 		}
 	};
-
 
 	// Check if module type supports submissions
 	const hasSubmissions = ["assignment", "quiz", "discussion"].includes(
