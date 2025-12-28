@@ -41,16 +41,8 @@ import {
 	tryFindUserById,
 	tryUpdateUser,
 } from "server/internal/user-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
-	canEditOtherAdmin,
-	canEditProfileAvatar,
-	canEditProfileBio,
-	canEditProfileEmail,
-	canEditProfileFirstName,
-	canEditProfileLastName,
-	canEditProfileRole,
-	canImpersonate,
+	permissions
 } from "server/utils/permissions";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
@@ -103,12 +95,12 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = profileUser.avatar
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: profileUser.avatar.toString(),
-			})
+			filenameOrId: profileUser.avatar.toString(),
+		})
 		: null;
 
 	// Check if user can impersonate
-	const impersonatePermission = canImpersonate(
+	const impersonatePermission = permissions.user.canImpersonate(
 		userSession.authenticatedUser,
 		userId,
 		profileUser.role,
@@ -123,35 +115,35 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 	// Field-specific permission checks
-	const firstNamePermission = canEditProfileFirstName(
+	const firstNamePermission = permissions.user.profile.fields.canEditFirstName(
 		currentUser,
 		profileUser,
 		isSandboxMode,
 	);
-	const lastNamePermission = canEditProfileLastName(
+	const lastNamePermission = permissions.user.profile.fields.canEditLastName(
 		currentUser,
 		profileUser,
 		isSandboxMode,
 	);
-	const emailPermission = canEditProfileEmail();
-	const bioPermission = canEditProfileBio(
+	const emailPermission = permissions.user.profile.canEditEmail();
+	const bioPermission = permissions.user.profile.fields.canEditBio(
 		currentUser,
 		profileUser,
 		isSandboxMode,
 	);
-	const avatarPermission = canEditProfileAvatar(
+	const avatarPermission = permissions.user.profile.fields.canEditAvatar(
 		currentUser,
 		profileUser,
 		isSandboxMode,
 	);
-	const rolePermission = canEditProfileRole(
+	const rolePermission = permissions.user.profile.canEditRole(
 		currentUser,
 		profileUser,
 		isSandboxMode,
 	);
 
 	// Check if admin is trying to edit another admin (for alert display)
-	const otherAdminCheck = canEditOtherAdmin(
+	const otherAdminCheck = permissions.user.profile.fields.canEdit(
 		currentUser,
 		profileUser,
 		isSandboxMode,

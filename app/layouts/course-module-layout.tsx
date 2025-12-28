@@ -16,8 +16,7 @@ import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	canSeeCourseModuleSettings,
-	canSeeModuleSubmissions,
+	permissions,
 } from "server/utils/permissions";
 import {
 	getStatusBadgeColor,
@@ -56,11 +55,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
-	const canSeeSetting = canSeeCourseModuleSettings(
+	const canSeeSetting = permissions.course.module.canSeeSettings(
 		currentUser,
 		enrolmentContext?.enrolment,
 	).allowed;
-	const canSeeSubmissions = canSeeModuleSubmissions(
+	const canSeeSubmissions = permissions.course.module.canSeeSubmissions(
 		currentUser,
 		enrolmentContext?.enrolment,
 	).allowed;

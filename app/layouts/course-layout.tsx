@@ -5,17 +5,10 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	canSeeCourseBackup,
-	canSeeCourseBin,
-	canSeeCourseGrades,
-	canSeeCourseModules,
-	canSeeCourseParticipants,
-	canSeeCourseSettings,
-} from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
+import { permissions } from "server/utils/permissions";
 
 enum CourseTab {
 	Course = "course",
@@ -47,15 +40,15 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const enrolment = enrolmentContext?.enrolment;
 
-	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment).allowed;
-	const canSeeParticipants = canSeeCourseParticipants(
+	const canSeeSettings = permissions.course.canSeeSettings(currentUser, enrolment).allowed;
+	const canSeeParticipants = permissions.course.canSeeParticipants(
 		currentUser,
 		enrolment,
 	).allowed;
-	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment).allowed;
-	const canSeeModules = canSeeCourseModules(currentUser, enrolment).allowed;
-	const canSeeBin = canSeeCourseBin(currentUser, enrolment).allowed;
-	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment).allowed;
+	const canSeeGrades = permissions.course.canSeeGrades(currentUser, enrolment).allowed;
+	const canSeeModules = permissions.course.canSeeModules(currentUser, enrolment).allowed;
+	const canSeeBin = permissions.course.canSeeBin(currentUser, enrolment).allowed;
+	const canSeeBackup = permissions.course.canSeeBackup(currentUser, enrolment).allowed;
 
 	return {
 		course: courseContext.course,

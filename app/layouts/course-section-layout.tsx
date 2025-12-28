@@ -6,7 +6,7 @@ import { courseSectionContextKey } from "server/contexts/course-section-context"
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canSeeCourseSectionSettings } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-section-layout";
 import classes from "./header-tabs.module.css";
@@ -87,7 +87,7 @@ export default function CourseSectionLayout({
 		}
 	};
 
-	const canSeeSetting = canSeeCourseSectionSettings(
+	const canSeeSetting = permissions.course.section.canSeeSettings(
 		currentUser,
 		enrolment,
 	).allowed;

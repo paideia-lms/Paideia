@@ -2,7 +2,7 @@ import { Container, Paper, Text, Title } from "@mantine/core";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canSeeCourseBin } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.bin";
 
@@ -30,15 +30,15 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can see course bin
-	const canSeeBin = canSeeCourseBin(
+	const canSeeBin = permissions.course.canSeeBin(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
 		},
 		enrolmentContext?.enrolment
 			? {
-					role: enrolmentContext.enrolment.role,
-				}
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 

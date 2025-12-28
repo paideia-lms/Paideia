@@ -81,11 +81,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-					{
-						userId: enrolmentContext.enrolment.user.id,
-						role: enrolmentContext.enrolment.role,
-					},
-				]
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
 			: undefined,
 	);
 

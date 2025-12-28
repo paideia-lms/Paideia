@@ -15,7 +15,6 @@ import {
 	IconPlayerPlay,
 } from "@tabler/icons-react";
 import prettyMs from "pretty-ms";
-import { canStartQuizAttempt } from "server/utils/permissions";
 
 // ============================================================================
 // Types
@@ -41,7 +40,7 @@ interface QuizInstructionsViewProps {
 	quiz: QuizData | null;
 	allSubmissions: QuizSubmissionData[];
 	onStartQuiz: () => void;
-	canSubmit?: boolean;
+	canStartAttempt?: boolean; // Whether user can start/continue quiz attempt
 	quizRemainingTime?: number; // Remaining time in seconds for in-progress attempts
 	canPreview?: boolean; // Whether user can preview the quiz
 }
@@ -54,7 +53,7 @@ export function QuizInstructionsView({
 	quiz,
 	allSubmissions,
 	onStartQuiz,
-	canSubmit = true,
+	canStartAttempt = true,
 	quizRemainingTime,
 	canPreview = false,
 }: QuizInstructionsViewProps) {
@@ -87,14 +86,8 @@ export function QuizInstructionsView({
 		hasInProgressAttempt &&
 		(quizRemainingTime === undefined || quizRemainingTime <= 0);
 	const maxAttempts = quiz.maxAttempts || null;
-	// Use permission check to determine if student can start/continue quiz
-	const startPermission = canStartQuizAttempt(
-		maxAttempts,
-		attemptCount,
-		hasInProgressAttempt,
-	);
 	// Can start more if permission allows AND timer hasn't expired
-	const canStartMore = startPermission.allowed && !isTimerExpired;
+	const canStartMore = canStartAttempt && !isTimerExpired;
 
 	const formatTimeLimit = (minutes: number | null) => {
 		if (!minutes) return null;
@@ -124,7 +117,7 @@ export function QuizInstructionsView({
 								Preview Quiz
 							</Button>
 						)}
-						{canSubmit && canStartMore && (
+						{canStartMore && (
 							<Button
 								leftSection={<IconPlayerPlay size={16} />}
 								onClick={onStartQuiz}
@@ -139,14 +132,14 @@ export function QuizInstructionsView({
 					</Group>
 				</Group>
 
-				{Boolean(canSubmit && maxAttempts) && (
+				{Boolean(maxAttempts) && (
 					<Alert
 						color={canStartMore ? "blue" : "yellow"}
 						icon={<IconInfoCircle size={16} />}
 					>
 						{attemptCount} of {maxAttempts} attempt
 						{maxAttempts !== 1 ? "s" : ""} used
-						{!canStartMore && ` - ${startPermission.reason}`}
+						{!canStartMore && !canStartAttempt && " - Maximum attempts reached"}
 					</Alert>
 				)}
 

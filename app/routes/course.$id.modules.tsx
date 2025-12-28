@@ -23,7 +23,7 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { canSeeCourseModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { z } from "zod";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import {
@@ -96,16 +96,16 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	const canEdit = canSeeCourseModules(
+	const canEdit = permissions.course.canSeeModules(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -162,16 +162,16 @@ const checkAuthorization = async (
 	const enrollment = enrollmentResult.value;
 
 	// Check if user has management access to this course
-	const canManage = canSeeCourseModules(
+	const canManage = permissions.course.canSeeModules(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 

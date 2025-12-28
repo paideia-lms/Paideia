@@ -37,7 +37,7 @@ import {
 import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import type { Media } from "server/payload-types";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
@@ -61,7 +61,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession,
 		theme,
 		isSandboxMode,
-		canSeeUserModules: canSeeUserModules(currentUser).allowed,
+		canSeeUserModules: permissions.user.canSeeModules(currentUser).allowed,
 		logoMedia,
 	};
 };
@@ -316,7 +316,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-													"Anonymous"
+												"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -362,8 +362,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-											// component={Link}
-											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

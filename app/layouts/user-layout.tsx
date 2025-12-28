@@ -11,8 +11,7 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindUserById } from "server/internal/user-management";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
@@ -54,7 +53,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Fetch the target user
 	const targetUser = userProfileContext.profileUser;
 
-	const canSeeModules = canSeeUserModules(currentUser);
+	const canSeeModules = permissions.user.canSeeModules(currentUser).allowed;
 
 	return {
 		user: targetUser,

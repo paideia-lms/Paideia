@@ -24,7 +24,7 @@ import { href, Link, Outlet } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -58,7 +58,7 @@ export const loader = async ({
 		throw new ForbiddenResponse("You can only view your own data");
 	}
 
-	if (!canSeeUserModules(currentUser).allowed) {
+	if (!permissions.user.canSeeModules(currentUser).allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to access this page",
 		);
@@ -242,19 +242,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 																12,
 															)}
 														>

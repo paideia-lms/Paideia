@@ -13,7 +13,7 @@ import {
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
 } from "server/internal/gradebook-management";
-import { canAccessCourse, permissions } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
@@ -200,7 +200,7 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 			}
 
 			// Check access
-			const hasAccess = canAccessCourse(
+			const hasAccess = permissions.course.canAccess(
 				{
 					id: user.id,
 					role: user.role ?? "student",

@@ -12,7 +12,7 @@ import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
@@ -36,7 +36,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (!canSeeUserModules(currentUser)) {
+	if (!permissions.user.canSeeModules(currentUser).allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to access this module",
 		);
@@ -128,19 +128,19 @@ export default function UserModuleEditLayout({
 									variant="light"
 									color={getModuleColor(
 										module.type as
-											| "page"
-											| "whiteboard"
-											| "assignment"
-											| "quiz"
-											| "discussion",
+										| "page"
+										| "whiteboard"
+										| "assignment"
+										| "quiz"
+										| "discussion",
 									)}
 									leftSection={getModuleIcon(
 										module.type as
-											| "page"
-											| "whiteboard"
-											| "assignment"
-											| "quiz"
-											| "discussion",
+										| "page"
+										| "whiteboard"
+										| "assignment"
+										| "quiz"
+										| "discussion",
 										14,
 									)}
 								>

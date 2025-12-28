@@ -6,7 +6,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canSeeCourseGrades } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-grades-layout";
 import classes from "./header-tabs.module.css";
@@ -41,16 +41,16 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can see course grades
-	const canSeeGrades = canSeeCourseGrades(
+	const canSeeGrades = permissions.course.canSeeGrades(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 

@@ -24,7 +24,7 @@ import {
 	tryCreateSection,
 	tryFindSectionsByCourse,
 } from "server/internal/course-section-management";
-import { canEditCourseSection } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -135,7 +135,7 @@ export const loader = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can edit sections
-	const editPermission = canEditCourseSection(
+	const editPermission = permissions.course.section.canEdit(
 		currentUser,
 		courseContext.course.enrollments.map((enrollment) => ({
 			userId: enrollment.user.id,

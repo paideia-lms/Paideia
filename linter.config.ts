@@ -288,6 +288,28 @@ const astPatterns = {
 		}
 		return false;
 	},
+
+	/**
+	 * Matches imports from "server/utils/permissions"
+	 * Permissions should only be imported in context files, not in route files
+	 */
+	permissionsImport: (node: ts.Node, _sourceFile: ts.SourceFile): boolean => {
+		if (ts.isImportDeclaration(node)) {
+			const moduleSpecifier = node.moduleSpecifier;
+			if (ts.isStringLiteral(moduleSpecifier)) {
+				const modulePath = moduleSpecifier.text;
+				// Check if the import is from "server/utils/permissions"
+				// This handles both absolute imports and relative imports ending with the path
+				return (
+					modulePath === "server/utils/permissions" ||
+					modulePath.endsWith("/server/utils/permissions") ||
+					modulePath === "~/server/utils/permissions" ||
+					modulePath.endsWith("~/server/utils/permissions")
+				);
+			}
+		}
+		return false;
+	},
 };
 
 /**
@@ -526,6 +548,18 @@ export const rules: LintRule[] = [
 				name: "export const functionName = Result.wrap(...) pattern",
 				matcher: astPatterns.resultWrapPattern,
 				fix: resultWrapFix,
+			},
+		],
+	},
+	{
+		name: "Ban permissions import in routes",
+		description: "Permissions should only be imported in context files, not in route files. Use permissions from context data instead.",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "import from server/utils/permissions",
+				matcher: astPatterns.permissionsImport,
 			},
 		],
 	},
