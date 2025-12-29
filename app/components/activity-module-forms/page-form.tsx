@@ -8,7 +8,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
-import type { UseFormReturnType } from "@mantine/form";
+import { type UseFormReturnType,useForm } from "@mantine/form";
 import MonacoEditor, { type OnMount } from "@monaco-editor/react";
 import { IconCode } from "@tabler/icons-react";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
@@ -35,8 +35,8 @@ export function PageForm({
 }: PageFormProps) {
 	const { colorScheme } = useMantineColorScheme();
 
-	const { form, isJsonMode, toggleJsonMode, jsonEditorProps, onSubmitWithJsonSync } =
-		useJsonFormMode({
+	const form =
+		useForm({
 			mode: "uncontrolled",
 			cascadeUpdates: true,
 			initialValues: {
@@ -52,27 +52,8 @@ export function PageForm({
 		});
 
 	return (
-		<form onSubmit={onSubmitWithJsonSync(onSubmit)}>
+		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				{/* Toggle button */}
-				<Group justify="flex-end">
-					<Button
-						type="button"
-						variant={isJsonMode ? "filled" : "light"}
-						leftSection={<IconCode stroke={1.5} size={16} />}
-						onClick={toggleJsonMode}
-					>
-						{isJsonMode ? "Switch to Form" : "Switch to JSON"}
-					</Button>
-				</Group>
-
-				{isJsonMode ? (
-					<JsonEditor
-						{...jsonEditorProps}
-						colorScheme={colorScheme}
-					/>
-				) : (
-					<>
 						<TextInput
 							{...form.getInputProps("title")}
 							key={form.key("title")}
@@ -108,8 +89,6 @@ export function PageForm({
 							</Title>
 							<PageContentEditor form={form} />
 						</div>
-					</>
-				)}
 
 				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 					Save

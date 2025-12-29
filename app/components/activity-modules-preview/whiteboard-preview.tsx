@@ -9,7 +9,7 @@ import {
 import { useFullscreen, useMounted } from "@mantine/hooks";
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
-import { useWhiteboardData } from "../activity-module-forms/useWhiteboardData";
+import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
