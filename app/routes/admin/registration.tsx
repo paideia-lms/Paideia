@@ -119,6 +119,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export function useUpdateRegistrationConfig() {
 	const fetcher = useFetcher<typeof clientAction>();
+
 	const update = (data: {
 		disableRegistration: boolean;
 		showRegistrationButton: boolean;

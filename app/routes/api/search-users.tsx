@@ -1,23 +1,33 @@
 import { TagsInput } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
-import { href, useFetcher } from "react-router";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
+import { parseAsInteger, parseAsString } from "nuqs/server";
+import { serverOnly$ } from "vite-env-only/macros";
 import {
 	badRequest,
 	ForbiddenResponse,
-	NotFoundResponse,
+ok,
+StatusCode,
 } from "~/utils/responses";
+import { typeCreateLoaderRpc } from "~/utils/loader-utils";
 import type { Route } from "./+types/search-users";
-
-export function getRouteUrl() {
-	return href("/api/search-users");
-}
 
 export type { Route };
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+// Define search params
+export const searchUsersSearchParams = {
+	query: parseAsString.withDefault(""),
+	limit: parseAsInteger.withDefault(10),
+};
+
+const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
+
+const [loaderFn, useSearchUsersLoader] = createLoaderRpc({
+	searchParams: searchUsersSearchParams,
+})(serverOnly$(async ({ context, searchParams }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -29,10 +39,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can search users");
 	}
 
-	// Get search query from URL params
-	const url = new URL(request.url);
-	const query = url.searchParams.get("query") || "";
-	const limit = Number.parseInt(url.searchParams.get("limit") || "10", 10);
+	const { query, limit } = searchParams;
 
 	// Fetch users with search
 	const usersResult = await tryFindAllUsers({
@@ -52,13 +59,22 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		});
 	}
 
-	return { users: usersResult.value.docs };
-};
+	return ok({ users: usersResult.value.docs });
+})!, {
+	getRouteUrl: ({ searchParams }) => {
+		const params = new URLSearchParams();
+		if (searchParams?.query) {
+			params.set("query", searchParams.query);
+		}
+		if (searchParams?.limit !== undefined) {
+			params.set("limit", searchParams.limit.toString());
+		}
+		const queryString = params.toString();
+		return href("/api/search-users") + (queryString ? `?${queryString}` : "");
+	},
+});
 
-export interface UseSearchUsersOptions {
-	debounceMs?: number;
-	limit?: number;
-}
+export const loader = loaderFn;
 
 function useDebouncedSearch(
 	searchFn: (query: string) => void,
@@ -82,33 +98,46 @@ function useDebouncedSearch(
 	return debouncedSearch;
 }
 
+export interface UseSearchUsersOptions {
+	debounceMs?: number;
+	limit?: number;
+}
+
 export function useSearchUsers(options: UseSearchUsersOptions = {}) {
 	const { limit = 10 } = options;
 
-	const fetcher = useFetcher<typeof loader>();
+	const { load: _searchUsers, data: usersData, isLoading } = useSearchUsersLoader();
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const searchUsers = useCallback(
 		(query: string) => {
-			const params = new URLSearchParams();
-			if (query.trim()) {
-				params.set("query", query.trim());
-			}
-			params.set("limit", limit.toString());
-
-			fetcher.load(href("/api/search-users") + "?" + params.toString());
+			_searchUsers({
+				searchParams: {
+					query: query.trim() || "",
+					limit,
+				},
+			});
 		},
-		[limit, fetcher],
+		[limit, _searchUsers],
 	);
 
 	const refetch = () => {
-		searchUsers(searchQuery);
+		_searchUsers({
+			searchParams: {
+				query: searchQuery.trim() || "",
+				limit,
+			},
+		});
 	};
 
+
+	const users =
+		usersData && usersData.status === StatusCode.Ok ? usersData.users : [];
+
 	return {
-		users: fetcher.data?.users || [],
-		loading: fetcher.state === "loading",
-		error: fetcher.data && "error" in fetcher.data ? fetcher.data.error : null,
+		users,
+		loading: isLoading,
+		error: usersData && usersData.status === StatusCode.BadRequest ? usersData.error : null,
 		searchQuery,
 		setSearchQuery,
 		searchUsers,
@@ -117,7 +146,10 @@ export function useSearchUsers(options: UseSearchUsersOptions = {}) {
 }
 
 export type SearchUser = NonNullable<
-	Route.ComponentProps["loaderData"]["users"]
+	Extract<
+		Route.ComponentProps["loaderData"],
+		{ users: unknown[] }
+	>["users"]
 >[number];
 export interface SearchUserComboboxProps {
 	value: SearchUser[];

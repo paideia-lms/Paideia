@@ -1030,7 +1030,7 @@ function MediaUsageModal({
 	opened: boolean;
 	onClose: () => void;
 }) {
-	const { fetchMediaUsage, data, loading, error } = useMediaUsageData();
+	const { load:  fetchMediaUsage, data: mediaUsageData, isLoading } = useMediaUsageData();
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
@@ -1041,7 +1041,8 @@ function MediaUsageModal({
 			// Fetch if modal just opened or file ID changed
 			if (!previousOpened || file.id !== previousFileId) {
 				dataFileIdRef.current = file.id;
-				fetchMediaUsage(file.id);
+				console.log("fetching media usage", fetchMediaUsage);
+				// fetchMediaUsage({ params: { mediaId: file.id } });
 			}
 		}
 	}, [opened, file, previousOpened, previousFileId, fetchMediaUsage]);
@@ -1054,24 +1055,24 @@ function MediaUsageModal({
 			centered
 		>
 			<Stack gap="md">
-				{loading && <Text c="dimmed">Loading usage data...</Text>}
-				{error && (
+				{isLoading && <Text c="dimmed">Loading usage data...</Text>}
+				{mediaUsageData?.status === StatusCode.BadRequest && (
 					<Text c="red" size="sm">
-						Error: {error}
+						Error: {mediaUsageData.error}
 					</Text>
 				)}
-				{data && file && file.id === dataFileIdRef.current && (
+				{mediaUsageData?.status === StatusCode.Ok && file && file.id === dataFileIdRef.current && (
 					<>
 						<Text size="sm" fw={500}>
-							Total Usages: {data.totalUsages}
+							Total Usages: {mediaUsageData.totalUsages}
 						</Text>
-						{data.totalUsages === 0 ? (
+						{mediaUsageData.totalUsages === 0 ? (
 							<Text c="dimmed" size="sm">
 								This media file is not currently used anywhere.
 							</Text>
 						) : (
 							<Stack gap="xs">
-								{data.usages.map((usage) => (
+								{mediaUsageData.usages.map((usage) => (
 									<Card
 										key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
 										withBorder
