@@ -946,9 +946,9 @@ function MediaPreviewModal({
 }) {
 	if (!file) return null;
 
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: file.id.toString(),
 			})
 		: undefined;
 
@@ -1117,9 +1117,9 @@ function MediaActionMenu({
 }) {
 	const canDelete = file.deletePermission?.allowed ?? true; // Admin can always delete
 	const canPreviewFile = canPreview(file.mimeType ?? null);
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: file.id.toString(),
 			})
 		: undefined;
 
@@ -1197,9 +1197,9 @@ function MediaCard({
 	onRename?: (file: Media) => void;
 	onOpenUsageModal?: (file: Media) => void;
 }) {
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: file.id.toString(),
 			})
 		: undefined;
 
@@ -1221,8 +1221,8 @@ function MediaCard({
 				: file.createdBy.avatar
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: creatorAvatarId.toString(),
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: creatorAvatarId.toString(),
 			})
 		: undefined;
 	const profileUrl = creatorId
@@ -1495,8 +1495,8 @@ function MediaTableView({
 							: file.createdBy.avatar
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
-					? href(`/api/media/file/:filenameOrId`, {
-							filenameOrId: creatorAvatarId.toString(),
+					? href(`/api/media/file/:mediaId`, {
+							mediaId: creatorAvatarId.toString(),
 						})
 					: undefined;
 				const profileUrl = creatorId

@@ -57,8 +57,8 @@ export function FilePreview({ files }: FilePreviewProps) {
 								</Tooltip>
 								<div style={{ flex: 1, minWidth: 0 }}>
 									<Anchor
-										href={href("/api/media/file/:filenameOrId", {
-											filenameOrId: fileId.toString(),
+										href={href("/api/media/file/:mediaId", {
+											mediaId: fileId.toString(),
 										})}
 										target="_blank"
 										rel="noreferrer"

@@ -162,7 +162,7 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 
 const getRouteUrl = (action: Action, moduleId: string) => {
 	return (
-		href("/user/module/edit/:moduleId/setting", { moduleId }) +
+		href("/user/module/edit/:moduleId", { moduleId }) +
 		"?" +
 		stringify({ action })
 	);

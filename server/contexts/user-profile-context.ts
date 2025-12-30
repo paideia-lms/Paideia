@@ -110,8 +110,8 @@ export const convertUserAccessContextToUserProfileContext = (
 
 	// Handle avatar URL
 	const avatarUrl = user.avatar
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: user.avatar.toString(),
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: user.avatar.toString(),
 			})
 		: null;
 
@@ -156,8 +156,8 @@ export const getUserProfileContext = async (
 
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = profileUser.avatar
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: profileUser.avatar.toString(),
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: profileUser.avatar.toString(),
 			})
 		: null;
 

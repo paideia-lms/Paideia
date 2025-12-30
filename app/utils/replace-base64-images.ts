@@ -96,13 +96,10 @@ export async function replaceBase64MediaWithMediaUrlsV2(
 
 	// Create media records for all base64 media
 	const uploadedMedia: UploadedMediaInfo[] = [];
-	const base64ToFilename = new Map<string, string>();
+	const base64ToId = new Map<string, string>(); // Maps base64 prefix to media ID string
 
 	// ! for some reason we have to use for loop but not promise.all, otherwise it will fail
 	for (const { fullMimeType, base64Data, fullDataUri } of base64Media) {
-		// Convert base64 string to Buffer
-		const fileBuffer = Buffer.from(base64Data, "base64");
-
 		// Remove any parameters from mime type (e.g., "image/png;charset=utf-8" -> "image/png")
 		const mimeTypeWithoutParams = fullMimeType.split(";")[0];
 		if (!mimeTypeWithoutParams) {
@@ -116,7 +113,7 @@ export async function replaceBase64MediaWithMediaUrlsV2(
 
 		const { media } = await tryCreateMedia({
 			payload,
-			file: fileBuffer,
+			file: Buffer.from(base64Data, "base64"),
 			filename,
 			mimeType: mimeTypeWithoutParams, // Remove any parameters like charset
 			alt,
@@ -127,26 +124,26 @@ export async function replaceBase64MediaWithMediaUrlsV2(
 
 		const finalFilename = media.filename ?? filename;
 
-		// Store mapping from base64 prefix to filename for replacement
-		const base64Prefix = fullDataUri.substring(0, 100);
-		base64ToFilename.set(base64Prefix, finalFilename);
-
 		uploadedMedia.push({
 			fieldName: filename, // Use filename as fieldName for consistency
 			mediaId: media.id,
 			filename: finalFilename,
 		});
+
+		// Store mapping from base64 prefix to media ID for replacement
+		const base64Prefix = fullDataUri.substring(0, 100);
+		base64ToId.set(base64Prefix, media.id.toString());
 	}
 
 	// Replace base64 media with media URLs
 	for (const { element, attribute, fullDataUri } of base64Media) {
 		const base64Prefix = fullDataUri.substring(0, 100);
-		const filename = base64ToFilename.get(base64Prefix);
+		const mediaId = base64ToId.get(base64Prefix);
 
-		if (filename) {
+		if (mediaId) {
 			// Replace with actual media URL
-			const mediaUrl = href("/api/media/file/:filenameOrId", {
-				filenameOrId: filename,
+			const mediaUrl = href("/api/media/file/:mediaId", {
+				mediaId: mediaId,
 			});
 			element.attr(attribute, mediaUrl);
 		}

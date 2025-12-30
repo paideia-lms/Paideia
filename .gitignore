@@ -25,3 +25,4 @@ references/
 /tests/reports/
 
 tcg.config.ts
+test.ts

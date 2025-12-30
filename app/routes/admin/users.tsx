@@ -75,8 +75,8 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 	const users = usersResult.value.docs.map((user) => {
 		const avatarUrl = user.avatar
-			? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: user.avatar.id.toString(),
+			? href(`/api/media/file/:mediaId`, {
+					mediaId: user.avatar.id.toString(),
 				})
 			: null;
 

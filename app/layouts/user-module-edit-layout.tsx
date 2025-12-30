@@ -17,9 +17,10 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
+import type { ActivityModule } from "server/payload-types";
 
 enum ModuleEditTab {
-	Preview = "preview",
+	// Preview = "preview",
 	Setting = "setting",
 	Access = "access",
 }
@@ -64,7 +65,7 @@ export default function UserModuleEditLayout({
 	const canEdit = accessType === "owned" || accessType === "granted";
 
 	// Helper function to get badge color based on status
-	const getStatusColor = (status: string) => {
+	const getStatusColor = (status: ActivityModule["status"]) => {
 		switch (status) {
 			case "published":
 				return "green";
@@ -77,21 +78,14 @@ export default function UserModuleEditLayout({
 		}
 	};
 
-	// Helper function to format type display
-	const formatType = (type: string) => {
-		return type
-			.split("-")
-			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-			.join(" ");
-	};
 
 	// Determine current tab based on pageInfo
 	const getCurrentTab = () => {
-		if (pageInfo.isUserModuleEditSetting) return ModuleEditTab.Setting;
-		if (pageInfo.isUserModuleEditAccess) return ModuleEditTab.Access;
+		if (pageInfo.is["routes/user/module/edit-setting"]) return ModuleEditTab.Setting;
+		if (pageInfo.is["routes/user/module/edit-access"]) return ModuleEditTab.Access;
 
 		// Default to Preview tab
-		return ModuleEditTab.Preview;
+		return ModuleEditTab.Setting;
 	};
 
 	const handleTabChange = (value: string | null) => {
@@ -101,11 +95,8 @@ export default function UserModuleEditLayout({
 		if (!moduleId) return;
 
 		switch (value) {
-			case ModuleEditTab.Preview:
-				navigate(href("/user/module/edit/:moduleId", { moduleId }));
-				break;
 			case ModuleEditTab.Setting:
-				navigate(href("/user/module/edit/:moduleId/setting", { moduleId }));
+				navigate(href("/user/module/edit/:moduleId", { moduleId }));
 				break;
 			case ModuleEditTab.Access:
 				navigate(href("/user/module/edit/:moduleId/access", { moduleId }));
@@ -128,23 +119,15 @@ export default function UserModuleEditLayout({
 									variant="light"
 									color={getModuleColor(
 										module.type as
-										| "page"
-										| "whiteboard"
-										| "assignment"
-										| "quiz"
-										| "discussion",
+										ActivityModule["type"],
 									)}
 									leftSection={getModuleIcon(
 										module.type as
-										| "page"
-										| "whiteboard"
-										| "assignment"
-										| "quiz"
-										| "discussion",
+										ActivityModule["type"],
 										14,
 									)}
 								>
-									{formatType(module.type)}
+									{module.type}
 								</Badge>
 							</Group>
 							<Text c="dimmed" size="sm" mb="sm">
@@ -175,7 +158,6 @@ export default function UserModuleEditLayout({
 						mt="sm"
 					>
 						<Tabs.List>
-							<Tabs.Tab value={ModuleEditTab.Preview}>Preview</Tabs.Tab>
 							{canEdit && (
 								<Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>
 							)}

@@ -1284,8 +1284,8 @@ export function tryGetUserAccessibleCourses(
 				const categoryName = course.category ? course.category.name : null;
 
 				const thumbnailUrl = course.thumbnail
-					? href(`/api/media/file/:filenameOrId`, {
-							filenameOrId: course.thumbnail.id.toString(),
+					? href(`/api/media/file/:mediaId`, {
+							mediaId: course.thumbnail.id.toString(),
 						})
 					: null;
 
@@ -1327,8 +1327,8 @@ export function tryGetUserAccessibleCourses(
 						const categoryName = course.category?.name ?? null;
 
 						const thumbnailUrl = course.thumbnail
-							? href(`/api/media/file/:filenameOrId`, {
-									filenameOrId: course.thumbnail.id.toString(),
+							? href(`/api/media/file/:mediaId`, {
+									mediaId: course.thumbnail.id.toString(),
 								})
 							: null;
 

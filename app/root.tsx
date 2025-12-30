@@ -21,7 +21,7 @@ import {
 	courseSectionContextKey,
 	tryGetCourseSectionContext,
 } from "server/contexts/course-section-context";
-import { globalContextKey } from "server/contexts/global-context";
+import { globalContextKey,PageInfo } from "server/contexts/global-context";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
@@ -33,6 +33,9 @@ import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
 import "@gfazioli/mantine-clock/styles.css";
+
+
+
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -78,9 +81,14 @@ import {
 	InternalServerErrorResponse,
 	MaintenanceModeResponse,
 } from "./utils/responses";
-import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import {
+	type RouteId,
+	type RouteParams,
+	tryGetRouteHierarchy,
+} from "./utils/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { parseParams } from "app/utils/params-schema";
 
 const searchParams = {
 	threadId: parseAsInteger,
@@ -93,236 +101,21 @@ export const middleware = [
 	 */
 	async ({ request, context, params }) => {
 		const routeHierarchy = tryGetRouteHierarchy(new URL(request.url).pathname);
-		let isAdmin = false;
-		let isMyCourses = false;
-		let isDashboard = false;
-		let isLogin = false;
-		let isRegistration = false;
-		let isCatalog = false;
-		let isApi = false;
-		let isInCourse = false;
-		let isCourseSettings = false;
-		let isCourseParticipants = false;
-		let isCourseParticipantsProfile = false;
-		let isCourseParticipantsLayout = false;
-		let isCourseGroups = false;
-		let isCourseGrades = false;
-		let isCourseGradesLayout = false;
-		let isCourseGradesSingleView = false;
-		let isCourseModules = false;
-		let isCourseBin = false;
-		let isCourseBackup = false;
-		let isCourseModule = false;
-		let isCourseModuleEdit = false;
-		let isCourseModuleSubmissions = false;
-		let isInCourseModuleLayout = false;
-		let isCourseSection = false;
-		let isCourseSectionNew = false;
-		let isCourseSectionEdit = false;
-		let isInCourseSectionLayout = false;
-		let isUserLayout = false;
-		let isUserOverview = false;
-		let isUserPreference = false;
-		let isUserModules = false;
-		let isUserGrades = false;
-		let isUserNotes = false;
-		let isUserNoteCreate = false;
-		let isUserNoteEdit = false;
-		let isUserMedia = false;
-		let isUserModuleNew = false;
-		let isUserModuleEdit = false;
-		let isUserModuleEditSetting = false;
-		let isUserModuleEditAccess = false;
-		let isInUserModuleEditLayout = false;
-		let isUserProfile = false;
-		let isInUserModulesLayout = false;
-		let isAdminIndex = false;
-		let isAdminUsers = false;
-		let isAdminUserNew = false;
-		let isAdminCourses = false;
-		let isAdminCourseNew = false;
-		let isAdminSystem = false;
-		let isAdminTestEmail = false;
-		let isAdminCategories = false;
-		let isAdminCategoryNew = false;
-		let isAdminRegistration = false;
-		let isAdminMigrations = false;
-		let isAdminDependencies = false;
-		let isAdminCronJobs = false;
-		let isAdminScheduledTasks = false;
-		let isAdminMaintenance = false;
-		let isAdminSitePolicies = false;
-		let isAdminMedia = false;
-		let isAdminAppearance = false;
-		let isAdminTheme = false;
-		let isAdminLogo = false;
-		let isAdminAnalytics = false;
-		for (const route of routeHierarchy) {
-			if (route.id.startsWith("routes/api/")) isApi = true;
-			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
-			else if (route.id === "routes/course") isMyCourses = true;
-			else if (route.id === "routes/index") isDashboard = true;
-			else if (route.id === "routes/login") isLogin = true;
-			else if (route.id === "routes/registration") isRegistration = true;
-			else if (route.id === "routes/catalog") isCatalog = true;
-			else if (route.id === "layouts/course-layout") isInCourse = true;
-			else if (route.id === "routes/course.$id.settings")
-				isCourseSettings = true;
-			else if (route.id === "layouts/course-participants-layout")
-				isCourseParticipantsLayout = true;
-			else if (route.id === "routes/course.$id.participants")
-				isCourseParticipants = true;
-			else if (route.id === "routes/course.$id.participants.profile")
-				isCourseParticipantsProfile = true;
-			else if (route.id === "routes/course.$id.groups") isCourseGroups = true;
-			else if (route.id === "routes/course.$id.grades") isCourseGrades = true;
-			else if (route.id === "layouts/course-grades-layout")
-				isCourseGradesLayout = true;
-			else if (route.id === "routes/course.$id.grades.singleview")
-				isCourseGradesSingleView = true;
-			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
-			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
-			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
-			else if (route.id === "routes/course/module.$id/route")
-				isCourseModule = true;
-			else if (route.id === "routes/course/module.$id.edit")
-				isCourseModuleEdit = true;
-			else if (route.id === "routes/course/module.$id.submissions/route")
-				isCourseModuleSubmissions = true;
-			else if (route.id === "layouts/course-module-layout")
-				isInCourseModuleLayout = true;
-			else if (route.id === "routes/course/section.$id") isCourseSection = true;
-			else if (route.id === "routes/course/section-new")
-				isCourseSectionNew = true;
-			else if (route.id === "routes/course/section-edit")
-				isCourseSectionEdit = true;
-			else if (route.id === "layouts/course-section-layout")
-				isInCourseSectionLayout = true;
-			else if (route.id === "layouts/user-layout") isUserLayout = true;
-			else if (route.id === "routes/user/overview") isUserOverview = true;
-			else if (route.id === "routes/user/preference") isUserPreference = true;
-			else if (route.id === "routes/user/modules") isUserModules = true;
-			else if (route.id === "routes/user/grades") isUserGrades = true;
-			else if (route.id === "routes/user/notes") isUserNotes = true;
-			else if (route.id === "routes/user/note-create") isUserNoteCreate = true;
-			else if (route.id === "routes/user/note-edit") isUserNoteEdit = true;
-			else if (route.id === "routes/user/media") isUserMedia = true;
-			else if (route.id === "routes/user/module/new") isUserModuleNew = true;
-			else if (route.id === "routes/user/module/edit") isUserModuleEdit = true;
-			else if (route.id === "routes/user/module/edit-setting")
-				isUserModuleEditSetting = true;
-			else if (route.id === "routes/user/module/edit-access")
-				isUserModuleEditAccess = true;
-			else if (route.id === "layouts/user-module-edit-layout")
-				isInUserModuleEditLayout = true;
-			else if (route.id === "routes/user/profile") isUserProfile = true;
-			else if (route.id === "layouts/user-modules-layout")
-				isInUserModulesLayout = true;
-			else if (route.id === "routes/admin/index") isAdminIndex = true;
-			else if (route.id === "routes/admin/users") isAdminUsers = true;
-			else if (route.id === "routes/admin/new") isAdminUserNew = true;
-			else if (route.id === "routes/admin/courses") isAdminCourses = true;
-			else if (route.id === "routes/admin/system") isAdminSystem = true;
-			else if (route.id === "routes/admin/test-email") isAdminTestEmail = true;
-			else if (route.id === "routes/admin/categories") isAdminCategories = true;
-			else if (route.id === "routes/admin/category-new")
-				isAdminCategoryNew = true;
-			else if (route.id === "routes/admin/course-new") isAdminCourseNew = true;
-			else if (route.id === "routes/admin/registration")
-				isAdminRegistration = true;
-			else if (route.id === "routes/admin/migrations") isAdminMigrations = true;
-			else if (route.id === "routes/admin/dependencies")
-				isAdminDependencies = true;
-			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
-			else if (route.id === "routes/admin/scheduled-tasks")
-				isAdminScheduledTasks = true;
-			else if (route.id === "routes/admin/maintenance")
-				isAdminMaintenance = true;
-			else if (route.id === ("routes/admin/sitepolicies" as typeof route.id))
-				isAdminSitePolicies = true;
-			else if (route.id === "routes/admin/media") isAdminMedia = true;
-			else if (route.id === ("routes/admin/appearance" as typeof route.id))
-				isAdminAppearance = true;
-			else if (
-				route.id === ("routes/admin/appearance/theme" as typeof route.id)
-			)
-				isAdminTheme = true;
-			else if (route.id === ("routes/admin/appearance/logo" as typeof route.id))
-				isAdminLogo = true;
-			else if (route.id === ("routes/admin/analytics" as typeof route.id))
-				isAdminAnalytics = true;
-		}
+		const parsedParams = parseParams(params);
+		const is: PageInfo["is"] = Object.fromEntries(
+			routeHierarchy.map((route) => [
+				route.id,
+				{ params: parsedParams as RouteParams<RouteId> },
+			]),
+		) as PageInfo["is"];
 
 		// set the route hierarchy and page info to the context
 		context.set(globalContextKey, {
 			...context.get(globalContextKey),
 			routeHierarchy,
 			pageInfo: {
-				isInAdminLayout: isAdmin,
-				isMyCourses,
-				isDashboard,
-				isLogin,
-				isRegistration,
-				isCatalog,
-				isApi,
-				isInCourse,
-				isCourseSettings,
-				isCourseParticipants,
-				isCourseParticipantsProfile,
-				isCourseParticipantsLayout,
-				isCourseGroups,
-				isCourseGrades,
-				isCourseGradesLayout,
-				isCourseGradesSingleView,
-				isCourseModules,
-				isCourseBin,
-				isCourseBackup,
-				isCourseModule,
-				isCourseModuleEdit,
-				isCourseModuleSubmissions,
-				isInCourseModuleLayout,
-				isCourseSection,
-				isCourseSectionNew,
-				isCourseSectionEdit,
-				isInCourseSectionLayout,
-				isUserLayout,
-				isUserOverview,
-				isUserPreference,
-				isUserModules,
-				isUserGrades,
-				isUserNotes,
-				isUserNoteCreate,
-				isUserNoteEdit,
-				isUserMedia,
-				isUserModuleNew,
-				isUserModuleEdit,
-				isUserModuleEditSetting,
-				isUserModuleEditAccess,
-				isUserProfile,
-				isInUserModulesLayout,
-				isInUserModuleEditLayout,
-				isAdminIndex,
-				isAdminUsers,
-				isAdminUserNew,
-				isAdminCourses,
-				isAdminSystem,
-				isAdminTestEmail,
-				isAdminCategories,
-				isAdminCategoryNew,
-				isAdminRegistration,
-				isAdminCourseNew,
-				isAdminMigrations,
-				isAdminDependencies,
-				isAdminCronJobs,
-				isAdminScheduledTasks,
-				isAdminMaintenance,
-				isAdminSitePolicies,
-				isAdminMedia,
-				isAdminAppearance,
-				isAdminTheme,
-				isAdminLogo,
-				isAdminAnalytics,
-				params: params as Record<string, string>,
+				is: is,
+				params: parsedParams,
 			},
 		});
 	},
@@ -407,14 +200,21 @@ export const middleware = [
 				userSession?.effectiveUser || userSession?.authenticatedUser;
 
 			// Allow access to login and admin maintenance page
-			if (pageInfo.isLogin || pageInfo.isAdminMaintenance || pageInfo.isApi) {
+			const isApi = Object.keys(pageInfo.is).some((id) =>
+				id.startsWith("routes/api/"),
+			);
+			if (
+				pageInfo.is["routes/login"] ||
+				pageInfo.is["routes/admin/maintenance"] ||
+				isApi
+			) {
 				return;
 			}
 
 			// Block non-admin users
 			if (!currentUser || currentUser.role !== "admin") {
 				// If we're already on the root route, throw error instead of redirecting
-				if (pageInfo.isDashboard) {
+				if (pageInfo.is["routes/index"]) {
 					throw new MaintenanceModeResponse(
 						"The system is currently under maintenance. Only administrators can access the system at this time.",
 					);
@@ -431,20 +231,16 @@ export const middleware = [
 		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 
 		// check if the user is in a course
-		if (pageInfo.isInCourse) {
+		if (pageInfo.is["layouts/course-layout"]) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			const { courseId: _courseId } =
-				params as RouteParams<"layouts/course-layout">;
+			const { courseId: _courseId } = pageInfo.is["layouts/course-layout"].params;
 			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
 			// in course/module/id , we need to get the module first and then get the course id
-			if (pageInfo.isInCourseModuleLayout) {
-				const { moduleLinkId } =
-					params as RouteParams<"layouts/course-module-layout">;
-				if (Number.isNaN(moduleLinkId)) return;
-
+			if (pageInfo.is["layouts/course-module-layout"]) {
+				const { moduleLinkId } = pageInfo.is["layouts/course-module-layout"].params;
 				const moduleContext = await tryFindCourseActivityModuleLinkById({
 					payload,
-					linkId: Number(moduleLinkId),
+					linkId: moduleLinkId,
 					req: payloadRequest,
 				});
 
@@ -457,7 +253,9 @@ export const middleware = [
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
-			if (pageInfo.isCourseSection || pageInfo.isCourseSectionEdit) {
+			if (
+				pageInfo.is["layouts/course-section-layout"]
+			) {
 				const { sectionId } =
 					params as RouteParams<"layouts/course-section-layout">;
 
@@ -499,7 +297,7 @@ export const middleware = [
 		const courseContext = context.get(courseContextKey);
 
 		// Check if we're in a course section layout
-		if (pageInfo.isInCourseSectionLayout) {
+		if (pageInfo.is["layouts/course-section-layout"]) {
 			// Get section ID from params
 			const { sectionId } =
 				params as RouteParams<"layouts/course-section-layout">;
@@ -555,7 +353,7 @@ export const middleware = [
 			currentUser &&
 			// if user login, he must have user access context
 			userAccessContext &&
-			(pageInfo.isUserLayout || pageInfo.isUserProfile)
+			(pageInfo.is["layouts/user-layout"] || pageInfo.is["routes/user/profile"])
 		) {
 			// Get the profile user id from params, or use current user id
 			const profileUserId = params.id ? Number(params.id) : currentUser.id;
@@ -602,7 +400,7 @@ export const middleware = [
 		// Check if user is authenticated, in a course module, and has course context
 		if (
 			userSession?.isAuthenticated &&
-			pageInfo.isInCourseModuleLayout &&
+			pageInfo.is["layouts/course-module-layout"] &&
 			courseContext
 		) {
 			const { moduleLinkId } =
@@ -713,7 +511,14 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	// Check if we need to redirect to first-user creation
 	// Skip redirect check for essential routes
-	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
+	const isApi = Object.keys(pageInfo.is).some((id) =>
+		id.startsWith("routes/api/"),
+	);
+	if (
+		pageInfo.is["routes/registration"] ||
+		pageInfo.is["routes/login"] ||
+		isApi
+	) {
 		return {
 			users: userCount,
 			domainUrl: requestInfo.domainUrl,
@@ -929,12 +734,12 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<meta name="description" content="Paideia LMS" />
 				<ClientHintCheck />
 				{/* Favicon based on theme */}
-				{loaderData.faviconMedia?.filename ? (
+				{loaderData.faviconMedia?.id ? (
 					<link
 						rel="icon"
 						href={
-							href(`/api/media/file/:filenameOrId`, {
-								filenameOrId: loaderData.faviconMedia.filename,
+							href(`/api/media/file/:mediaId`, {
+								mediaId: loaderData.faviconMedia.id.toString(),
 							}) + `?timestamp=${loaderData.timestamp}`
 						}
 					/>

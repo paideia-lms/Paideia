@@ -86,13 +86,13 @@ export default function CourseLayout({
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.isCourseSettings) return CourseTab.Settings;
-		if (pageInfo.isCourseParticipantsLayout) return CourseTab.Participants;
-		if (pageInfo.isCourseGrades || pageInfo.isCourseGradesSingleView)
+		if (pageInfo.is["routes/course.$id.settings"]) return CourseTab.Settings;
+		if (pageInfo.is["routes/course.$id.participants"]) return CourseTab.Participants;
+		if (pageInfo.is["routes/course.$id.grades"] || pageInfo.is["routes/course.$id.grades.singleview"])
 			return CourseTab.Grades;
-		if (pageInfo.isCourseModules) return CourseTab.Modules;
-		if (pageInfo.isCourseBin) return CourseTab.Bin;
-		if (pageInfo.isCourseBackup) return CourseTab.Backup;
+		if (pageInfo.is["routes/course.$id.modules"]) return CourseTab.Modules;
+		if (pageInfo.is["routes/course.$id.bin"]) return CourseTab.Bin;
+		if (pageInfo.is["routes/course.$id.backup"]) return CourseTab.Backup;
 
 		// Default to Course tab for the main course page
 		return CourseTab.Course;

@@ -11,10 +11,7 @@ export const routes = [
 	route("logout", "routes/logout.tsx"),
 	route("api/stop-impersonation", "routes/api/stop-impersonation.tsx"),
 	route("api/search-users", "routes/api/search-users.tsx"),
-	route(
-		"api/media/file/:filenameOrId",
-		"routes/api/media/file.$filenameOrId.tsx",
-	),
+	route("api/media/file/:mediaId", "routes/api/media/file.$id.tsx"),
 	route("api/user/:id/avatar", "routes/api/user.$id.avatar.tsx"),
 	route("api/d2-render", "routes/api/d2-render.tsx"),
 	route("api/media-usage/:mediaId", "routes/api/media-usage.tsx"),
@@ -43,11 +40,14 @@ export const routes = [
 				route("user/modules/:id?", "routes/user/modules.tsx"),
 				route("user/module/new", "routes/user/module/new.tsx"),
 				layout("layouts/user-module-edit-layout.tsx", [
-					route("user/module/edit/:moduleId", "routes/user/module/edit.tsx"),
 					route(
-						"user/module/edit/:moduleId/setting",
+						"user/module/edit/:moduleId",
 						"routes/user/module/edit-setting.tsx",
 					),
+					// route(
+					// 	"user/module/edit/:moduleId/setting",
+					// 	"routes/user/module/edit-setting.tsx",
+					// ),
 					route(
 						"user/module/edit/:moduleId/access",
 						"routes/user/module/edit-access.tsx",

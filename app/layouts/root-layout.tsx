@@ -142,7 +142,7 @@ export function HeaderTabs({
 	// Determine redirect URL based on current location
 	// If in a course, redirect back to that course after stopping impersonation
 	const getStopImpersonationRedirect = () => {
-		if (pageInfo.isInCourse) {
+		if (pageInfo.is["layouts/course-layout"]) {
 			const { courseId, moduleLinkId, sectionId } =
 				pageInfo.params as RouteParams<"layouts/course-layout">;
 			if (courseId)
@@ -163,13 +163,13 @@ export function HeaderTabs({
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		// Check if we're on the admin route
-		if (pageInfo.isInAdminLayout) return Tab.SiteAdmin;
+		if (pageInfo.is["layouts/server-admin-layout"]) return Tab.SiteAdmin;
 
 		// Check if we're on course-related routes
-		if (pageInfo.isMyCourses) return Tab.MyCourses;
+		if (pageInfo.is["routes/course"]) return Tab.MyCourses;
 
 		// Default to Dashboard for root and other routes
-		if (pageInfo.isDashboard) return Tab.Dashboard;
+		if (pageInfo.is["routes/index"]) return Tab.Dashboard;
 
 		return null;
 	};
@@ -206,8 +206,8 @@ export function HeaderTabs({
 								}}
 							>
 								<Image
-									src={href(`/api/media/file/:filenameOrId`, {
-										filenameOrId: logoMedia.filename,
+									src={href(`/api/media/file/:mediaId`, {
+										mediaId: logoMedia.id.toString(),
 									})}
 									alt="Paideia LMS"
 									h={32}

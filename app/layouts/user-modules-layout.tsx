@@ -79,7 +79,7 @@ export const loader = async ({
 	const canManageModules =
 		userId === currentUser.id || currentUser.role === "admin";
 
-	const isInUserModuleEditLayout = pageInfo.isInUserModuleEditLayout;
+	const isInUserModuleEditLayout = pageInfo.is["layouts/user-module-edit-layout"];
 
 	let moduleId: number | null = null;
 	if (isInUserModuleEditLayout) {

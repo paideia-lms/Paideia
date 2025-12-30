@@ -332,9 +332,9 @@ function LogoDropzoneBase({
 	isClearing: boolean;
 	uploadLimit?: number;
 }) {
-	const logoUrl = logo?.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: logo.filename,
+	const logoUrl = logo?.id
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: logo.id.toString(),
 			})
 		: null;
 

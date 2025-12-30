@@ -59,8 +59,8 @@ export default function CourseSectionLayout({
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.isCourseSectionEdit) return SectionTab.Setting;
-		if (pageInfo.isCourseSection) return SectionTab.Section;
+		if (pageInfo.is["routes/course/section-edit"]) return SectionTab.Setting;
+		if (pageInfo.is["routes/course/section.$id"]) return SectionTab.Section;
 
 		// Default to Section tab
 		return SectionTab.Section;

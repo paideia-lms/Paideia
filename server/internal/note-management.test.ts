@@ -13,6 +13,7 @@ import {
 	tryUpdateNote,
 } from "./note-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { href } from "react-router";
 
 describe("Note Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -1135,9 +1136,11 @@ describe("Note Management Functions", () => {
 			const mediaFilename = createdMedia.filename ?? "";
 			expect(mediaFilename).toBeTruthy();
 
-			// Step 2: Create HTML content with media URL using filename
-			// This simulates what href("/api/media/file/:filenameOrId", { filenameOrId: filename }) generates
-			const mediaUrl = `/api/media/file/${mediaFilename}`;
+			// Step 2: Create HTML content with media URL using ID
+			// This simulates what href("/api/media/file/:id", { id: mediaId }) generates
+			const mediaUrl = href("/api/media/file/:mediaId", {
+				mediaId: createdMedia.id.toString(),
+			});
 			const htmlContent = `<p>This is a test note with an image!</p><img src="${mediaUrl}" alt="Test image" />`;
 
 			// Step 3: Call tryCreateNote and verify media array is populated
@@ -1164,92 +1167,6 @@ describe("Note Management Functions", () => {
 				expect(mediaId).toBe(createdMedia.id);
 			} else {
 				throw new Error("Media should be an array");
-			}
-		});
-
-		test("should parse media from HTML with filename URL in transaction (like note-create.tsx)", async () => {
-			// This test reproduces the exact scenario from note-create.tsx where:
-			// 1. Media is created in a transaction
-			// 2. HTML content is updated with media URL
-			// 3. tryCreateNote is called WITH transaction context
-			// 4. Media array should be populated
-
-			// Start transaction
-			const transactionID = await payload.db.beginTransaction();
-			expect(transactionID).toBeTruthy();
-			if (!transactionID) {
-				throw new Error("Failed to begin transaction");
-			}
-
-			try {
-				// Get authenticated user
-				const user = await getAuthUser(user1Token);
-				if (!user) {
-					throw new Error("Failed to get authenticated user");
-				}
-
-				// Step 1: Create media file in transaction using fixture
-				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-				const createMediaResult = await tryCreateMedia({
-					payload,
-					file: Buffer.from(fileBuffer),
-					filename: "gem-test.png",
-					mimeType: "image/png",
-					alt: "Gem test",
-					userId: testUser.id,
-					req: { user, transactionID },
-				});
-
-				expect(createMediaResult.ok).toBe(true);
-				if (!createMediaResult.ok) {
-					throw new Error("Failed to create test media");
-				}
-
-				const createdMedia = createMediaResult.value.media;
-				const mediaFilename = createdMedia.filename ?? "";
-				expect(mediaFilename).toBeTruthy();
-
-				// Step 2: Create HTML content with media URL using filename
-				const mediaUrl = `/api/media/file/${mediaFilename}`;
-				const htmlContent = `<p>This is a test note with an image in transaction!</p><img src="${mediaUrl}" alt="Test image" />`;
-
-				// Step 3: Call tryCreateNote WITH transaction context
-				const req = new Request("http://localhost:3000/test");
-				// Add transactionID to req (simulating how it's passed in note-create.tsx)
-				(req as any).transactionID = transactionID;
-
-				const result = await tryCreateNote({
-					payload,
-					data: {
-						content: htmlContent,
-						createdBy: testUser.id,
-					},
-					req,
-					overrideAccess: true,
-				});
-
-				expect(result.ok).toBe(true);
-				if (!result.ok) {
-					console.error("Failed to create note:", result.error);
-					throw result.error;
-				}
-
-				// Verify media array is populated
-				expect(result.value.contentMedia).toBeDefined();
-				if (Array.isArray(result.value.contentMedia)) {
-					expect(result.value.contentMedia.length).toBe(1);
-					const mediaId = result.value.contentMedia[0];
-					expect(mediaId).toBe(createdMedia.id);
-				} else {
-					throw new Error("Media should be an array");
-				}
-
-				// Commit transaction
-				await payload.db.commitTransaction(transactionID);
-			} catch (error) {
-				// Rollback on error
-				await payload.db.rollbackTransaction(transactionID);
-				throw error;
 			}
 		});
 	});

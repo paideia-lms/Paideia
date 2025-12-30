@@ -99,9 +99,9 @@ export default function CourseModuleLayout({
 	const theme = useMantineTheme();
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.isCourseModuleEdit) return ModuleTab.Setting;
-		if (pageInfo.isCourseModuleSubmissions) return ModuleTab.Submissions;
-		if (pageInfo.isCourseModule) return ModuleTab.Preview;
+		if (pageInfo.is["routes/course/module.$id.edit"]) return ModuleTab.Setting;
+		if (pageInfo.is["routes/course/module.$id.submissions/route"]) return ModuleTab.Submissions;
+		if (pageInfo.is["routes/course/module.$id/route"]) return ModuleTab.Preview;
 
 		// Default to Preview tab
 		return ModuleTab.Preview;

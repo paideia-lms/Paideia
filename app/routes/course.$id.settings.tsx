@@ -189,13 +189,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	visit(categories, "");
 
 	// Handle thumbnail - could be Media object, just ID, or null
-	const thumbnailFileNameOrId = course.thumbnail
+	const thumbnailId = course.thumbnail
 		? String(course.thumbnail.id)
 		: null;
 
-	const thumbnailUrl = thumbnailFileNameOrId
-		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
+	const thumbnailUrl = thumbnailId
+		? href("/api/media/file/:mediaId", {
+				mediaId: thumbnailId,
 			})
 		: null;
 

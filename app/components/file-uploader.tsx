@@ -211,8 +211,8 @@ export function FileUploader({
 										</div>
 									</Tooltip>
 									<Anchor
-										href={href("/api/media/file/:filenameOrId", {
-											filenameOrId: media.id.toString(),
+										href={href("/api/media/file/:mediaId", {
+											mediaId: media.id.toString(),
 										})}
 										target="_blank"
 										rel="noreferrer"

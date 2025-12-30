@@ -100,8 +100,8 @@ function SubmissionAttachments({
 							</Tooltip>
 							<Box style={{ flex: 1, minWidth: 0 }}>
 								<Anchor
-									href={href("/api/media/file/:filenameOrId", {
-										filenameOrId: fileId.toString(),
+									href={href("/api/media/file/:mediaId", {
+										mediaId: fileId.toString(),
 									})}
 									target="_blank"
 									size="sm"
@@ -286,8 +286,8 @@ export function SubmissionHistoryItem({
 												</Tooltip>
 												<Box style={{ flex: 1, minWidth: 0 }}>
 													<Anchor
-														href={href("/api/media/file/:filenameOrId", {
-															filenameOrId: fileId.toString(),
+														href={href("/api/media/file/:mediaId", {
+															mediaId: fileId.toString(),
 														})}
 														target="_blank"
 														size="sm"

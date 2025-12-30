@@ -76,34 +76,34 @@ export default function ServerAdminLayout({
 
 	// Determine current tab based on route matches or query param
 	const getCurrentTab = () => {
-		if (pageInfo.isAdminUsers) return AdminTab.Users;
-		if (pageInfo.isAdminRegistration) return AdminTab.General;
+		if (pageInfo.is["routes/admin/users"]) return AdminTab.Users;
+		if (pageInfo.is["routes/admin/registration"]) return AdminTab.General;
 		if (
-			pageInfo.isAdminCourses ||
-			pageInfo.isAdminCourseNew ||
-			pageInfo.isAdminCategories ||
-			pageInfo.isAdminCategoryNew
+			pageInfo.is["routes/admin/courses"] ||
+			pageInfo.is["routes/admin/course-new"] ||
+			pageInfo.is["routes/admin/categories"] ||
+			pageInfo.is["routes/admin/category-new"]
 		)
 			return AdminTab.Courses;
 		if (
-			pageInfo.isAdminSystem ||
-			pageInfo.isAdminTestEmail ||
-			pageInfo.isAdminDependencies ||
-			pageInfo.isAdminCronJobs ||
-			pageInfo.isAdminScheduledTasks ||
-			pageInfo.isAdminMaintenance ||
-			pageInfo.isAdminMedia
+			pageInfo.is["routes/admin/system"] ||
+			pageInfo.is["routes/admin/test-email"] ||
+			pageInfo.is["routes/admin/dependencies"] ||
+			pageInfo.is["routes/admin/cron-jobs"] ||
+			pageInfo.is["routes/admin/scheduled-tasks"] ||
+			pageInfo.is["routes/admin/maintenance"] ||
+			pageInfo.is["routes/admin/media"]
 		)
 			return AdminTab.Server;
-		if (pageInfo.isAdminSitePolicies) return AdminTab.General;
-		if (pageInfo.isAdminMigrations) return AdminTab.Development;
+		if (pageInfo.is["routes/admin/sitepolicies"]) return AdminTab.General;
+		if (pageInfo.is["routes/admin/migrations"]) return AdminTab.Development;
 		if (
-			pageInfo.isAdminAppearance ||
-			pageInfo.isAdminTheme ||
-			pageInfo.isAdminLogo
+			pageInfo.is["routes/admin/appearance"] ||
+			pageInfo.is["routes/admin/appearance/theme"] ||
+			pageInfo.is["routes/admin/appearance/logo"]
 		)
 			return AdminTab.Appearance;
-		if (pageInfo.isAdminAnalytics) return AdminTab.General;
+		if (pageInfo.is["routes/admin/analytics"]) return AdminTab.General;
 		// Default to query param or 'general'
 		return activeTab ?? AdminTab.General;
 	};

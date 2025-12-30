@@ -560,13 +560,13 @@ export function useDeleteMedia(userId?: number) {
 
 export function useDownloadMedia() {
 	const downloadMedia = (file: Media) => {
-		if (!file.filename) return;
+		if (!file.id) return;
 		const url =
-			href(`/api/media/file/:filenameOrId`, { filenameOrId: file.filename }) +
+			href(`/api/media/file/:mediaId`, { mediaId: file.id.toString() }) +
 			"?download=true";
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = file.filename;
+		link.download = file.filename || `file-${file.id}`;
 		link.click();
 	};
 	return { downloadMedia };
@@ -1000,9 +1000,9 @@ function MediaPreviewModal({
 }) {
 	if (!file) return null;
 
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
 		})
 		: undefined;
 
@@ -1092,9 +1092,9 @@ function MediaActionMenu({
 }) {
 	const canDelete = file.deletePermission?.allowed ?? false;
 	const canPreviewFile = canPreview(file.mimeType ?? null);
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
 		})
 		: undefined;
 
@@ -1172,9 +1172,9 @@ function MediaCard({
 	onRename?: (file: Media) => void;
 	onOpenUsageModal?: (file: Media) => void;
 }) {
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
 		})
 		: undefined;
 

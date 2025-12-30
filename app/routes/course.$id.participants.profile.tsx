@@ -193,8 +193,8 @@ export default function CourseParticipantsProfilePage({
 							<Avatar
 								src={
 									selectedEnrollment.user.avatar
-										? href(`/api/media/file/:filenameOrId`, {
-											filenameOrId: selectedEnrollment.user.avatar.toString(),
+										? href(`/api/media/file/:mediaId`, {
+											mediaId: selectedEnrollment.user.avatar.toString(),
 										})
 										: undefined
 								}

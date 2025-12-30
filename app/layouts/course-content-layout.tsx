@@ -62,7 +62,7 @@ export default function CourseContentLayout({
 		currentUser,
 		enrolment,
 		canEdit,
-		pageInfo: { isCourseSection, isCourseModule },
+		pageInfo: { is: { "routes/course/section.$id": isCourseSection, "layouts/course-module-layout": isCourseModule } },
 	} = loaderData;
 	const { courseId, sectionId, moduleLinkId } = params;
 
