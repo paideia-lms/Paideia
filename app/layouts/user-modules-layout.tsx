@@ -79,7 +79,8 @@ export const loader = async ({
 	const canManageModules =
 		userId === currentUser.id || currentUser.role === "admin";
 
-	const isInUserModuleEditLayout = pageInfo.is["layouts/user-module-edit-layout"];
+	const isInUserModuleEditLayout =
+		pageInfo.is["layouts/user-module-edit-layout"];
 
 	let moduleId: number | null = null;
 	if (isInUserModuleEditLayout) {
@@ -242,19 +243,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 																12,
 															)}
 														>

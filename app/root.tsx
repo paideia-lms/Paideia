@@ -21,7 +21,10 @@ import {
 	courseSectionContextKey,
 	tryGetCourseSectionContext,
 } from "server/contexts/course-section-context";
-import { globalContextKey,PageInfo } from "server/contexts/global-context";
+import {
+	globalContextKey,
+	type PageInfo,
+} from "server/contexts/global-context";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
@@ -33,9 +36,6 @@ import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
 import "@gfazioli/mantine-clock/styles.css";
-
-
-
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -233,11 +233,13 @@ export const middleware = [
 		// check if the user is in a course
 		if (pageInfo.is["layouts/course-layout"]) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			const { courseId: _courseId } = pageInfo.is["layouts/course-layout"].params;
+			const { courseId: _courseId } =
+				pageInfo.is["layouts/course-layout"].params;
 			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.is["layouts/course-module-layout"]) {
-				const { moduleLinkId } = pageInfo.is["layouts/course-module-layout"].params;
+				const { moduleLinkId } =
+					pageInfo.is["layouts/course-module-layout"].params;
 				const moduleContext = await tryFindCourseActivityModuleLinkById({
 					payload,
 					linkId: moduleLinkId,
@@ -253,9 +255,7 @@ export const middleware = [
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
-			if (
-				pageInfo.is["layouts/course-section-layout"]
-			) {
+			if (pageInfo.is["layouts/course-section-layout"]) {
 				const { sectionId } =
 					params as RouteParams<"layouts/course-section-layout">;
 
@@ -362,15 +362,15 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext({
-							payload,
-							profileUserId,
-							req: payloadRequest,
-							overrideAccess: false,
-						});
+								payload,
+								profileUserId,
+								req: payloadRequest,
+								overrideAccess: false,
+							});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -562,17 +562,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 			environment !== "development"
 				? null
 				: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				},
+						userSession: userSession,
+						courseContext: context.get(courseContextKey),
+						courseModuleContext: context.get(courseModuleContextKey),
+						courseSectionContext: context.get(courseSectionContextKey),
+						enrolmentContext: context.get(enrolmentContextKey),
+						userModuleContext: context.get(userModuleContextKey),
+						userProfileContext: context.get(userProfileContextKey),
+						userAccessContext: context.get(userAccessContextKey),
+						userContext: context.get(userContextKey),
+						systemGlobals: systemGlobals,
+					},
 		isSandboxMode,
 		nextResetTime,
 	};

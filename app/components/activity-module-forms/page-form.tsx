@@ -8,7 +8,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
-import { type UseFormReturnType,useForm } from "@mantine/form";
+import { type UseFormReturnType, useForm } from "@mantine/form";
 import MonacoEditor, { type OnMount } from "@monaco-editor/react";
 import { IconCode } from "@tabler/icons-react";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
@@ -35,60 +35,59 @@ export function PageForm({
 }: PageFormProps) {
 	const { colorScheme } = useMantineColorScheme();
 
-	const form =
-		useForm({
-			mode: "uncontrolled",
-			cascadeUpdates: true,
-			initialValues: {
-				title: initialValues?.title ?? "",
-				description: initialValues?.description ?? "",
-				status: initialValues?.status ?? "draft",
-				content: initialValues?.content ?? "",
-			},
-			validate: {
-				title: (value: string) =>
-					value.trim().length === 0 ? "Title is required" : null,
-			},
-		});
+	const form = useForm({
+		mode: "uncontrolled",
+		cascadeUpdates: true,
+		initialValues: {
+			title: initialValues?.title ?? "",
+			description: initialValues?.description ?? "",
+			status: initialValues?.status ?? "draft",
+			content: initialValues?.content ?? "",
+		},
+		validate: {
+			title: (value: string) =>
+				value.trim().length === 0 ? "Title is required" : null,
+		},
+	});
 
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-						<TextInput
-							{...form.getInputProps("title")}
-							key={form.key("title")}
-							label="Title"
-							placeholder="Enter module title"
-							required
-							withAsterisk
-						/>
+				<TextInput
+					{...form.getInputProps("title")}
+					key={form.key("title")}
+					label="Title"
+					placeholder="Enter module title"
+					required
+					withAsterisk
+				/>
 
-						<Select
-							{...form.getInputProps("status")}
-							key={form.key("status")}
-							label="Status"
-							placeholder="Select status"
-							data={[
-								{ value: "draft", label: "Draft" },
-								{ value: "published", label: "Published" },
-								{ value: "archived", label: "Archived" },
-							]}
-						/>
+				<Select
+					{...form.getInputProps("status")}
+					key={form.key("status")}
+					label="Status"
+					placeholder="Select status"
+					data={[
+						{ value: "draft", label: "Draft" },
+						{ value: "published", label: "Published" },
+						{ value: "archived", label: "Archived" },
+					]}
+				/>
 
-						<Textarea
-							{...form.getInputProps("description")}
-							key={form.key("description")}
-							label="Description"
-							placeholder="Enter module description"
-							minRows={3}
-						/>
+				<Textarea
+					{...form.getInputProps("description")}
+					key={form.key("description")}
+					label="Description"
+					placeholder="Enter module description"
+					minRows={3}
+				/>
 
-						<div>
-							<Title order={5} mb="xs">
-								Page Content
-							</Title>
-							<PageContentEditor form={form} />
-						</div>
+				<div>
+					<Title order={5} mb="xs">
+						Page Content
+					</Title>
+					<PageContentEditor form={form} />
+				</div>
 
 				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 					Save

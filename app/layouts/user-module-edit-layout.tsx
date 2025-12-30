@@ -78,11 +78,12 @@ export default function UserModuleEditLayout({
 		}
 	};
 
-
 	// Determine current tab based on pageInfo
 	const getCurrentTab = () => {
-		if (pageInfo.is["routes/user/module/edit-setting"]) return ModuleEditTab.Setting;
-		if (pageInfo.is["routes/user/module/edit-access"]) return ModuleEditTab.Access;
+		if (pageInfo.is["routes/user/module/edit-setting"])
+			return ModuleEditTab.Setting;
+		if (pageInfo.is["routes/user/module/edit-access"])
+			return ModuleEditTab.Access;
 
 		// Default to Preview tab
 		return ModuleEditTab.Setting;
@@ -117,13 +118,9 @@ export default function UserModuleEditLayout({
 								</Badge>
 								<Badge
 									variant="light"
-									color={getModuleColor(
-										module.type as
-										ActivityModule["type"],
-									)}
+									color={getModuleColor(module.type as ActivityModule["type"])}
 									leftSection={getModuleIcon(
-										module.type as
-										ActivityModule["type"],
+										module.type as ActivityModule["type"],
 										14,
 									)}
 								>

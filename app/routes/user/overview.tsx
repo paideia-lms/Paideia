@@ -41,9 +41,7 @@ import {
 	tryFindUserById,
 	tryUpdateUser,
 } from "server/internal/user-management";
-import {
-	permissions
-} from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import {
@@ -95,8 +93,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = profileUser.avatar
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: profileUser.avatar.toString(),
-		})
+				mediaId: profileUser.avatar.toString(),
+			})
 		: null;
 
 	// Check if user can impersonate

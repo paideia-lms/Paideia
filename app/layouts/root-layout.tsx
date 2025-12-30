@@ -316,7 +316,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+													"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -362,8 +362,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+											// component={Link}
+											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

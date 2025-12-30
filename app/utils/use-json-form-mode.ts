@@ -54,7 +54,8 @@ export function useJsonFormMode<T extends Record<string, unknown>>(
 		} catch (error) {
 			notifications.show({
 				title: "Invalid JSON",
-				message: error instanceof Error ? error.message : "Failed to parse JSON",
+				message:
+					error instanceof Error ? error.message : "Failed to parse JSON",
 				color: "red",
 			});
 			// Stay in JSON mode if parsing fails
@@ -94,7 +95,8 @@ export function useJsonFormMode<T extends Record<string, unknown>>(
 		} catch (error) {
 			notifications.show({
 				title: "Invalid JSON",
-				message: error instanceof Error ? error.message : "Failed to parse JSON",
+				message:
+					error instanceof Error ? error.message : "Failed to parse JSON",
 				color: "red",
 			});
 			return false;
@@ -129,4 +131,3 @@ export function useJsonFormMode<T extends Record<string, unknown>>(
 		onSubmitWithJsonSync,
 	};
 }
-

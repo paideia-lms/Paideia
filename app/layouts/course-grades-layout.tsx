@@ -48,9 +48,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -81,7 +81,8 @@ export default function CourseGradesLayout({
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.is["routes/course.$id.grades.singleview"]) return GradesTab.SingleView;
+		if (pageInfo.is["routes/course.$id.grades.singleview"])
+			return GradesTab.SingleView;
 		if (tabQueryParam === "setup") return GradesTab.Setup;
 		// Default to Report tab
 		return GradesTab.Report;

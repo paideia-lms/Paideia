@@ -38,7 +38,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// console.log("courseStructureTree", courseContext.courseStructureTree);
-	const canEdit = permissions.course.canUpdateStructure(currentUser, enrolmentContext?.enrolment).allowed;
+	const canEdit = permissions.course.canUpdateStructure(
+		currentUser,
+		enrolmentContext?.enrolment,
+	).allowed;
 
 	return {
 		course: courseContext.course,
@@ -62,7 +65,12 @@ export default function CourseContentLayout({
 		currentUser,
 		enrolment,
 		canEdit,
-		pageInfo: { is: { "routes/course/section.$id": isCourseSection, "layouts/course-module-layout": isCourseModule } },
+		pageInfo: {
+			is: {
+				"routes/course/section.$id": isCourseSection,
+				"layouts/course-module-layout": isCourseModule,
+			},
+		},
 	} = loaderData;
 	const { courseId, sectionId, moduleLinkId } = params;
 

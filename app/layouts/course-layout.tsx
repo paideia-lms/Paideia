@@ -40,15 +40,30 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const enrolment = enrolmentContext?.enrolment;
 
-	const canSeeSettings = permissions.course.canSeeSettings(currentUser, enrolment).allowed;
+	const canSeeSettings = permissions.course.canSeeSettings(
+		currentUser,
+		enrolment,
+	).allowed;
 	const canSeeParticipants = permissions.course.canSeeParticipants(
 		currentUser,
 		enrolment,
 	).allowed;
-	const canSeeGrades = permissions.course.canSeeGrades(currentUser, enrolment).allowed;
-	const canSeeModules = permissions.course.canSeeModules(currentUser, enrolment).allowed;
-	const canSeeBin = permissions.course.canSeeBin(currentUser, enrolment).allowed;
-	const canSeeBackup = permissions.course.canSeeBackup(currentUser, enrolment).allowed;
+	const canSeeGrades = permissions.course.canSeeGrades(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeModules = permissions.course.canSeeModules(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeBin = permissions.course.canSeeBin(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeBackup = permissions.course.canSeeBackup(
+		currentUser,
+		enrolment,
+	).allowed;
 
 	return {
 		course: courseContext.course,
@@ -87,8 +102,12 @@ export default function CourseLayout({
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/course.$id.settings"]) return CourseTab.Settings;
-		if (pageInfo.is["routes/course.$id.participants"]) return CourseTab.Participants;
-		if (pageInfo.is["routes/course.$id.grades"] || pageInfo.is["routes/course.$id.grades.singleview"])
+		if (pageInfo.is["routes/course.$id.participants"])
+			return CourseTab.Participants;
+		if (
+			pageInfo.is["routes/course.$id.grades"] ||
+			pageInfo.is["routes/course.$id.grades.singleview"]
+		)
 			return CourseTab.Grades;
 		if (pageInfo.is["routes/course.$id.modules"]) return CourseTab.Modules;
 		if (pageInfo.is["routes/course.$id.bin"]) return CourseTab.Bin;

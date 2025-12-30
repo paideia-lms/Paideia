@@ -15,9 +15,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	permissions,
-} from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
@@ -100,7 +98,8 @@ export default function CourseModuleLayout({
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/course/module.$id.edit"]) return ModuleTab.Setting;
-		if (pageInfo.is["routes/course/module.$id.submissions/route"]) return ModuleTab.Submissions;
+		if (pageInfo.is["routes/course/module.$id.submissions/route"])
+			return ModuleTab.Submissions;
 		if (pageInfo.is["routes/course/module.$id/route"]) return ModuleTab.Preview;
 
 		// Default to Preview tab

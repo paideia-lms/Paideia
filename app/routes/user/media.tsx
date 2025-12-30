@@ -136,7 +136,10 @@ export const loader = async ({
 
 	// Check permissions for each media item
 	const mediaWithPermissions = mediaResult.value.docs.map((file) => {
-		const deletePermission = permissions.media.canDelete(currentUser, file.createdBy.id);
+		const deletePermission = permissions.media.canDelete(
+			currentUser,
+			file.createdBy.id,
+		);
 		return {
 			...file,
 			deletePermission,
@@ -342,7 +345,10 @@ const [updateAction, useUpdate] = createUpdateActionRpc(
 
 			// Check permissions
 			const createdById = mediaRecord.createdBy.id;
-			const deletePermission = permissions.media.canDelete(currentUser, createdById);
+			const deletePermission = permissions.media.canDelete(
+				currentUser,
+				createdById,
+			);
 
 			if (!deletePermission.allowed) {
 				return unauthorized({
@@ -443,7 +449,10 @@ const [deleteAction, useDelete] = createDeleteActionRpc(
 		// Check permissions for each media item
 		for (const media of mediaRecords.docs) {
 			const createdById = media.createdBy;
-			const deletePermission = permissions.media.canDelete(currentUser, createdById);
+			const deletePermission = permissions.media.canDelete(
+				currentUser,
+				createdById,
+			);
 
 			if (!deletePermission.allowed) {
 				return unauthorized({
@@ -1002,8 +1011,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1094,8 +1103,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1174,8 +1183,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	return (

@@ -159,7 +159,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can manage groups
-	const canManage = permissions.course.canManageGroups(currentUser, enrolmentContext?.enrolment).allowed;
+	const canManage = permissions.course.canManageGroups(
+		currentUser,
+		enrolmentContext?.enrolment,
+	).allowed;
 
 	return {
 		course: courseContext.course,
@@ -342,8 +345,6 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 			setDeletingGroupId(null);
 		}
 	};
-
-
 
 	// Prepare parent group options
 	const parentGroupOptions = groups.map((group) => ({

@@ -19,9 +19,7 @@ import {
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
 } from "server/internal/quiz-submission-management";
-import {
-	permissions,
-} from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import z from "zod";
 import {
 	badRequest,
@@ -554,27 +552,31 @@ const [markQuizAttemptAsCompleteAction, useMarkQuizAttemptAsComplete] =
 			}
 
 			// Only students can submit assignments or start quizzes
-			if (!permissions.course.module.canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+			if (
+				!permissions.course.module.canSubmitAssignment(
+					enrolmentContext.enrolment,
+				).allowed
+			) {
 				throw new ForbiddenResponse("Only students can submit assignments");
 			}
 
 			// Parse answers if provided
 			let answers:
 				| Array<{
-					questionId: string;
-					questionText: string;
-					questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank";
-					selectedAnswer?: string;
-					multipleChoiceAnswers?: Array<{
-						option: string;
-						isSelected: boolean;
-					}>;
-				}>
+						questionId: string;
+						questionText: string;
+						questionType:
+							| "multiple_choice"
+							| "true_false"
+							| "short_answer"
+							| "essay"
+							| "fill_blank";
+						selectedAnswer?: string;
+						multipleChoiceAnswers?: Array<{
+							option: string;
+							isSelected: boolean;
+						}>;
+				  }>
 				| undefined;
 
 			if (formData.answers) {
@@ -644,7 +646,11 @@ const [startQuizAttemptAction, useStartQuizAttempt] =
 			}
 
 			// Only students can submit assignments or start quizzes
-			if (!permissions.course.module.canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+			if (
+				!permissions.course.module.canSubmitAssignment(
+					enrolmentContext.enrolment,
+				).allowed
+			) {
 				throw new ForbiddenResponse("Only students can submit assignments");
 			}
 
@@ -740,7 +746,11 @@ const [submitAssignmentAction, useSubmitAssignment] =
 			}
 
 			// Only students can submit assignments or start quizzes
-			if (!permissions.course.module.canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+			if (
+				!permissions.course.module.canSubmitAssignment(
+					enrolmentContext.enrolment,
+				).allowed
+			) {
 				throw new ForbiddenResponse("Only students can submit assignments");
 			}
 
@@ -757,8 +767,8 @@ const [submitAssignmentAction, useSubmitAssignment] =
 			const maxAttemptNumber =
 				userSubmissions.length > 0
 					? Math.max(
-						...userSubmissions.map((sub) => sub.attemptNumber as number),
-					)
+							...userSubmissions.map((sub) => sub.attemptNumber as number),
+						)
 					: 0;
 			const nextAttemptNumber = maxAttemptNumber + 1;
 
@@ -985,8 +995,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-				"status" in loaderData.userSubmission &&
-				loaderData.userSubmission.status === "in_progress"
+			"status" in loaderData.userSubmission &&
+			loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 
