@@ -12,6 +12,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/cron-jobs";
 
+export function getRouteUrl() {
+	return href("/admin/cron-jobs");
+}
+
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);

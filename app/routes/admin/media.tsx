@@ -144,9 +144,9 @@ const createPruneAllOrphanedMediaActionRpc = createActionRpc({
 	action: Action.PruneAllOrphanedMedia,
 });
 
-const getRouteUrl = (action: Action) => {
+export function getRouteUrl(action: Action) {
 	return href("/admin/media") + "?" + stringify({ action });
-};
+}
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const globalContext = context.get(globalContextKey);

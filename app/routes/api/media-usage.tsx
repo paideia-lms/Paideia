@@ -7,6 +7,12 @@ import z from "zod";
 import { badRequest, NotFoundResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/media-usage";
 
+export function getRouteUrl(mediaId: number) {
+	return href("/api/media-usage/:mediaId", {
+		mediaId: mediaId.toString(),
+	});
+}
+
 const inputSchema = z.object({
 	mediaId: z.union([z.number(), z.string()]).transform((val) => {
 		if (typeof val === "string") {

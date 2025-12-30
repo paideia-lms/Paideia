@@ -18,9 +18,9 @@ const createRenderD2ActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/d2-render");
-};
+}
 
 const [renderD2Action, useRenderD2] = createRenderD2ActionRpc(
 	serverOnly$(async ({ context, formData }) => {

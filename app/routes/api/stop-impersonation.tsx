@@ -20,9 +20,9 @@ const createStopImpersonationActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/stop-impersonation");
-};
+}
 
 const [stopImpersonationAction, useStopImpersonating] =
 	createStopImpersonationActionRpc(

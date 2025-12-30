@@ -80,7 +80,7 @@ const createDeleteEnrollmentActionRpc = createActionRpc({
 	action: Action.DeleteEnrollment,
 });
 
-const getRouteUrl = (action: Action, courseId: number) => {
+export function getRouteUrl(action: Action, courseId: number) {
 	return (
 		href("/course/:courseId/participants", {
 			courseId: courseId.toString(),
@@ -88,7 +88,7 @@ const getRouteUrl = (action: Action, courseId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);

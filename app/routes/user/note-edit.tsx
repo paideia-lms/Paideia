@@ -17,6 +17,12 @@ import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 import { z } from "zod";
 
+export function getRouteUrl(noteId: number) {
+	return href("/user/note/edit/:noteId", {
+		noteId: noteId.toString(),
+	});
+}
+
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);

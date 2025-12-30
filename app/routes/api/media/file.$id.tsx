@@ -1,3 +1,4 @@
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import type { Route } from "./+types/file.$id";
@@ -6,6 +7,12 @@ import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
+
+export function getRouteUrl(mediaId: number) {
+	return href("/api/media/file/:mediaId", {
+		mediaId: mediaId.toString(),
+	});
+}
 
 export const loader = async ({
 	params,

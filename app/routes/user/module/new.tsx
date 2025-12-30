@@ -160,9 +160,9 @@ const createCreateDiscussionActionRpc = createActionRpc({
 	action: Action.CreateDiscussion,
 });
 
-const getRouteUrl = (action: Action) => {
+export function getRouteUrl(action: Action) {
 	return href("/user/module/new") + "?" + stringify({ action });
-};
+}
 
 const [createPageAction, useCreatePage] = createCreatePageActionRpc(
 	serverOnly$(async ({ context, formData }) => {

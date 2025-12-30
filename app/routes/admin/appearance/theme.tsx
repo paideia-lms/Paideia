@@ -20,6 +20,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/theme";
 
+export function getRouteUrl() {
+	return href("/admin/appearance/theme");
+}
+
 type AppearanceGlobal = {
 	id: number;
 	color?: string;

@@ -23,6 +23,12 @@ import {
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 
+export function getRouteUrl(courseId: number) {
+	return href("/course/:courseId", {
+		courseId: courseId.toString(),
+	});
+}
+
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);

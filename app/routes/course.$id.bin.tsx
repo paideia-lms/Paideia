@@ -1,10 +1,17 @@
 import { Container, Paper, Text, Title } from "@mantine/core";
+import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { permissions } from "server/utils/permissions";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.bin";
+
+export function getRouteUrl(courseId: number) {
+	return href("/course/:courseId/bin", {
+		courseId: courseId.toString(),
+	});
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);

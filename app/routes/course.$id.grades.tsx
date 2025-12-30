@@ -138,7 +138,7 @@ const createDeleteCategoryActionRpc = createActionRpc({
 	action: Action.DeleteCategory,
 });
 
-const getRouteUrl = (action: Action, courseId: number) => {
+export function getRouteUrl(action: Action, courseId: number) {
 	return (
 		href("/course/:courseId/grades", {
 			courseId: courseId.toString(),
@@ -146,7 +146,7 @@ const getRouteUrl = (action: Action, courseId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 // ============================================================================
 // Loader

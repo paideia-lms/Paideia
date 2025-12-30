@@ -85,7 +85,7 @@ const createDeleteGroupActionRpc = createActionRpc({
 	action: Action.DeleteGroup,
 });
 
-const getRouteUrl = (action: Action, courseId: number) => {
+export function getRouteUrl(action: Action, courseId: number) {
 	return (
 		href("/course/:courseId/groups", {
 			courseId: courseId.toString(),
@@ -93,7 +93,7 @@ const getRouteUrl = (action: Action, courseId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 function GroupMemberList({ members }: { members: Enrollment[] }) {
 	if (members.length === 0) {

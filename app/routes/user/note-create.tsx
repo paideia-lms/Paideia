@@ -19,6 +19,10 @@ import {
 import type { Route } from "./+types/note-create";
 import { z } from "zod";
 
+export function getRouteUrl() {
+	return href("/user/note/create");
+}
+
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 

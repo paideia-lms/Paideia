@@ -295,7 +295,7 @@ const [updateAction, useUpdateUser] = createUpdateActionRpc(
 	},
 );
 
-const getRouteUrl = (action: Action, userId?: number) => {
+export function getRouteUrl(action: Action, userId?: number) {
 	return (
 		href("/user/overview/:id?", {
 			id: userId ? userId.toString() : undefined,
@@ -303,7 +303,7 @@ const getRouteUrl = (action: Action, userId?: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 const actionMap = {
 	[Action.Update]: updateAction,

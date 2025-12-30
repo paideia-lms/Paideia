@@ -23,6 +23,10 @@ import {
 import type { Route } from "./+types/maintenance";
 import { convertMyFormDataToObject, MyFormData } from "app/utils/action-utils";
 
+export function getRouteUrl() {
+	return href("/admin/maintenance");
+}
+
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 

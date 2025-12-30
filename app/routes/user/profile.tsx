@@ -46,12 +46,12 @@ export const profileSearchParams = {
 
 export const loadSearchParams = createLoader(profileSearchParams);
 
-const getRouteUrl = (action: Action, userId?: number) => {
+export function getRouteUrl(action: Action, userId?: number) {
 	const baseUrl = userId
 		? href("/user/profile/:id?", { id: userId.toString() })
 		: href("/user/profile/:id?");
 	return baseUrl + "?" + stringify({ action });
-};
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);

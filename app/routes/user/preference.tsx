@@ -38,11 +38,11 @@ const createUpdatePreferenceActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = (userId?: number) => {
+export function getRouteUrl(userId?: number) {
 	return href("/user/preference/:id?", {
 		id: userId ? userId.toString() : undefined,
 	});
-};
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);

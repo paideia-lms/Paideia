@@ -57,9 +57,9 @@ const createSendTestEmailActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/admin/test-email");
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { envVars } = context.get(globalContextKey);

@@ -26,6 +26,12 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/section.$id";
 
+export function getRouteUrl(sectionId: number) {
+	return href("/course/section/:sectionId", {
+		sectionId: sectionId.toString(),
+	});
+}
+
 // Helper function to recursively find a section in the course structure
 function findSectionInStructure(
 	sections: CourseStructureSection[],

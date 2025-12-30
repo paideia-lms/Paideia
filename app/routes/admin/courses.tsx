@@ -17,6 +17,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { href } from "react-router";
 import {
 	IconDatabase,
 	IconDots,
@@ -43,6 +44,10 @@ import CourseSearchInput from "~/components/course-search-input";
 import { ForbiddenResponse } from "~/utils/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
+
+export function getRouteUrl() {
+	return href("/admin/courses");
+}
 
 // Define search params
 export const coursesSearchParams = {

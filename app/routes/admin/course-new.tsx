@@ -49,9 +49,9 @@ const createCreateCourseActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/admin/course/new");
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);

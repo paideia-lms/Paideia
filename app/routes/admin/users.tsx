@@ -29,6 +29,10 @@ import {
 	getUserRoleLabel,
 } from "app/components/course-view-utils";
 
+export function getRouteUrl() {
+	return href("/admin/users");
+}
+
 // Define search params
 export const usersSearchParams = {
 	query: parseAsString.withDefault(""),

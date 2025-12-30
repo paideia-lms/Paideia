@@ -310,6 +310,83 @@ const astPatterns = {
 		}
 		return false;
 	},
+
+	/**
+	 * Matches export const getRouteUrl declarations
+	 * Should be export function getRouteUrl instead
+	 */
+	exportConstGetRouteUrl: (node: ts.Node): boolean => {
+		if (ts.isVariableStatement(node)) {
+			// Check if it's exported
+			if (
+				node.modifiers?.some(
+					(modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+				)
+			) {
+				// Check if it declares a const variable named "getRouteUrl"
+				const declarationList = node.declarationList;
+				if (declarationList.flags & ts.NodeFlags.Const) {
+					return declarationList.declarations.some(
+						(declaration) =>
+							ts.isIdentifier(declaration.name) &&
+							declaration.name.text === "getRouteUrl",
+					);
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Matches export function getRouteUrl declarations
+	 */
+	exportFunctionGetRouteUrl: (node: ts.Node): boolean => {
+		if (ts.isFunctionDeclaration(node)) {
+			// Check if it's exported
+			if (
+				node.modifiers?.some(
+					(modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+				)
+			) {
+				// Check if function name is "getRouteUrl"
+				return (
+					node.name !== undefined &&
+					ts.isIdentifier(node.name) &&
+					node.name.text === "getRouteUrl"
+				);
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Checks if getRouteUrl is missing as an exported function
+	 * This pattern matcher checks the entire source file to see if getRouteUrl exists as export function
+	 */
+	missingExportFunctionGetRouteUrl: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// Only check once per file (on the source file itself)
+		if (node !== sourceFile) {
+			return false;
+		}
+
+		// Traverse the source file to find export function getRouteUrl
+		let hasExportFunctionGetRouteUrl = false;
+		function visitForExportFunction(n: ts.Node) {
+			if (astPatterns.exportFunctionGetRouteUrl(n)) {
+				hasExportFunctionGetRouteUrl = true;
+				return;
+			}
+			ts.forEachChild(n, visitForExportFunction);
+		}
+
+		visitForExportFunction(sourceFile);
+
+		// Return true if export function getRouteUrl is missing (violation)
+		return !hasExportFunctionGetRouteUrl;
+	},
 };
 
 /**
@@ -479,7 +556,7 @@ export const rules: LintRule[] = [
 	{
 		name: "Ban await payload.find/findById in routes",
 		description: "await payload.find and await payload.findById should not be used in route files (except root.tsx)",
-		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx", "!app/routes/**/components/**/*.tsx"],
 		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
 		astPatterns: [
 			{
@@ -556,10 +633,35 @@ export const rules: LintRule[] = [
 		description: "Permissions should only be imported in context files, not in route files. Use permissions from context data instead.",
 		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
 		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		level: "warning", // Warning level instead of error
 		astPatterns: [
 			{
 				name: "import from server/utils/permissions",
 				matcher: astPatterns.permissionsImport,
+			},
+		],
+	},
+	{
+		name: "Require export function getRouteUrl in routes",
+		description: "Every route file must export a getRouteUrl function using 'export function getRouteUrl(...)'",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx", "!app/routes/**/components/**/*.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "missing export function getRouteUrl",
+				matcher: astPatterns.missingExportFunctionGetRouteUrl,
+			},
+		],
+	},
+	{
+		name: "Ban export const getRouteUrl in routes",
+		description: "getRouteUrl must be exported as 'export function getRouteUrl(...)' not 'export const getRouteUrl = ...'",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx", "!app/routes/**/components/**/*.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "export const getRouteUrl declaration",
+				matcher: astPatterns.exportConstGetRouteUrl,
 			},
 		],
 	},

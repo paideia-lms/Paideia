@@ -4,6 +4,10 @@ import { useQueryState } from "nuqs";
 import { href, Link } from "react-router";
 import type { Route } from "./+types/index";
 
+export function getRouteUrl() {
+	return href("/admin");
+}
+
 export const loader = async ({ request }: Route.LoaderArgs) => {
 	const url = new URL(request.url);
 	const tabParam = url.searchParams.get("tab") ?? "general";

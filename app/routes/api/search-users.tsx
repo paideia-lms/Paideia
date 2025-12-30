@@ -11,6 +11,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/search-users";
 
+export function getRouteUrl() {
+	return href("/api/search-users");
+}
+
 export type { Route };
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {

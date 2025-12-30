@@ -39,9 +39,9 @@ const createCreateCategoryActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/admin/category/new");
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);

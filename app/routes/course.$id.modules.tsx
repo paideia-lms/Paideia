@@ -68,7 +68,7 @@ const createDeleteModuleLinkActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-const getRouteUrl = (action: Action, courseId: number) => {
+export function getRouteUrl(action: Action, courseId: number) {
 	return (
 		href("/course/:courseId/modules", {
 			courseId: courseId.toString(),
@@ -76,7 +76,7 @@ const getRouteUrl = (action: Action, courseId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);

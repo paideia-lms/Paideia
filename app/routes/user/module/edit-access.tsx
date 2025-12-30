@@ -53,7 +53,7 @@ export const accessSearchParams = {
 
 export const loadSearchParams = createLoader(accessSearchParams);
 
-const getRouteUrl = (action: Action, moduleId: string) => {
+export function getRouteUrl(action: Action, moduleId: string) {
 	return (
 		href("/user/module/edit/:moduleId/access", {
 			moduleId,
@@ -61,7 +61,7 @@ const getRouteUrl = (action: Action, moduleId: string) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userModuleContext = context.get(userModuleContextKey);

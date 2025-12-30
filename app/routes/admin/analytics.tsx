@@ -109,9 +109,9 @@ const createUpdateAnalyticsSettingsActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/admin/analytics");
-};
+}
 
 const [updateAnalyticsSettingsAction, useUpdateAnalyticsSettings] =
 	createUpdateAnalyticsSettingsActionRpc(

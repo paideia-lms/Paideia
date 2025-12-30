@@ -89,7 +89,7 @@ type DiscussionAction =
 type QuizAction = (typeof QuizActions)[keyof typeof QuizActions];
 type ModuleAction = AssignmentAction | DiscussionAction | QuizAction;
 
-const getRouteUrl = (action: ModuleAction, moduleLinkId: number) => {
+export function getRouteUrl(action: ModuleAction, moduleLinkId: number) {
 	return (
 		href("/course/module/:moduleLinkId", {
 			moduleLinkId: String(moduleLinkId),
@@ -97,7 +97,7 @@ const getRouteUrl = (action: ModuleAction, moduleLinkId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 export const actionSearchParams = {
 	action: parseAsStringEnum([

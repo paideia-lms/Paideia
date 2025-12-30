@@ -160,13 +160,13 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 	action: Action.UpdateDiscussion,
 });
 
-const getRouteUrl = (action: Action, moduleId: string) => {
+export function getRouteUrl(action: Action, moduleId: string) {
 	return (
 		href("/user/module/edit/:moduleId", { moduleId }) +
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(
 	serverOnly$(async ({ context, params, formData }) => {

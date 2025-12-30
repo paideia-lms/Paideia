@@ -214,12 +214,12 @@ const createDeleteActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-const getRouteUrl = (action: Action, userId?: number) => {
+export function getRouteUrl(action: Action, userId?: number) {
 	const baseUrl = href("/user/media/:id?", {
 		id: userId ? userId.toString() : undefined,
 	});
 	return baseUrl + "?" + stringify({ action });
-};
+}
 
 const [uploadAction, useUpload] = createUploadActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {

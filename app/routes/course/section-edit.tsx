@@ -22,6 +22,12 @@ import { useUpdateCourseSection } from "~/routes/api/section-update";
 import { ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/section-edit";
 
+export function getRouteUrl(sectionId: number) {
+	return href("/course/section/:sectionId/edit", {
+		sectionId: sectionId.toString(),
+	});
+}
+
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);

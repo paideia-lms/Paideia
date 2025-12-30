@@ -19,9 +19,9 @@ const createDeleteSectionActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/section-delete");
-};
+}
 
 const [deleteSectionAction, useDeleteCourseSection] =
 	createDeleteSectionActionRpc(

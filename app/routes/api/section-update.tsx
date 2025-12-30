@@ -25,9 +25,9 @@ const createUpdateSectionActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/section-update");
-};
+}
 
 const [updateSectionAction, useUpdateCourseSection] =
 	createUpdateSectionActionRpc(

@@ -37,6 +37,10 @@ import type { Route } from "./+types/logo";
 import { z } from "zod";
 import { stringify } from "qs";
 
+export function getRouteUrl() {
+	return href("/admin/appearance/logo");
+}
+
 enum Action {
 	Clear = "clear",
 	Upload = "upload",

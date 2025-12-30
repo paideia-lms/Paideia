@@ -51,11 +51,11 @@ const createCreateSectionActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = (courseId: number) => {
+export function getRouteUrl(courseId: number) {
 	return href("/course/:courseId/section/new", {
 		courseId: courseId.toString(),
 	});
-};
+}
 
 const [createSectionAction, useCreateSection] = createCreateSectionActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {

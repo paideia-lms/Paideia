@@ -127,11 +127,11 @@ const createDeleteNoteActionRpc = createActionRpc({
 	method: "DELETE",
 });
 
-const getRouteUrl = (id?: number) => {
+export function getRouteUrl(id?: number) {
 	return href("/user/notes/:id?", {
 		id: id ? id.toString() : undefined,
 	});
-};
+}
 
 const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
 	serverOnly$(async ({ context, formData }) => {

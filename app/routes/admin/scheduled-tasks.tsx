@@ -21,6 +21,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/scheduled-tasks";
 
+export function getRouteUrl() {
+	return href("/admin/scheduled-tasks");
+}
+
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);

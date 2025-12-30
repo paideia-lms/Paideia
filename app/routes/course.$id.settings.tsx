@@ -84,11 +84,11 @@ const createUpdateCourseActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = (courseId: number) => {
+export function getRouteUrl(courseId: number) {
 	return href("/course/:courseId/settings", {
 		courseId: String(courseId),
 	});
-};
+}
 
 const [updateCourseAction, useEditCourse] = createUpdateCourseActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {

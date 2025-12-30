@@ -82,9 +82,9 @@ const createUpdateAppearanceSettingsActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/admin/appearance");
-};
+}
 
 const [updateAppearanceSettingsAction, useUpdateAppearanceSettings] =
 	createUpdateAppearanceSettingsActionRpc(
