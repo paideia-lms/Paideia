@@ -48,6 +48,17 @@ export const moduleLinkSearchParams = {
 
 export const loadSearchParams = createLoader(moduleLinkSearchParams);
 
+
+export function getRouteUrl(action: Action, courseId: number) {
+	return (
+		href("/course/:courseId/modules", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+}
+
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
 const createCreateModuleLinkActionRpc = createActionRpc({
@@ -68,15 +79,6 @@ const createDeleteModuleLinkActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-export function getRouteUrl(action: Action, courseId: number) {
-	return (
-		href("/course/:courseId/modules", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);

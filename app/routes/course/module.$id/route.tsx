@@ -103,9 +103,7 @@ export const actionSearchParams = {
 		...Object.values(DiscussionActions),
 		...Object.values(QuizActions),
 	]),
-	showQuiz: parseAsString,
 	threadId: parseAsInteger,
-	replyTo: parseAsString,
 };
 
 export const loadSearchParams = createLoader(actionSearchParams);
@@ -826,7 +824,7 @@ export {
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const { action: actionParam, replyTo: replyToParam } = loadSearchParams(
+	const { action: actionParam, } = loadSearchParams(
 		args.request,
 	);
 

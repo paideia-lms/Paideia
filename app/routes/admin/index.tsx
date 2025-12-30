@@ -1,11 +1,12 @@
 import { Badge, Box, Stack, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useQueryState } from "nuqs";
+import { parseAsStringEnum,
+useQueryState } from "nuqs";
 import { href, Link } from "react-router";
 import type { Route } from "./+types/index";
 
 export function getRouteUrl() {
-	return href("/admin");
+	return href("/admin/*", { "*": "" });
 }
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
@@ -34,7 +35,7 @@ interface AdminTab {
 	sections: { [key: string]: AdminSection };
 }
 
-const adminTabs: { [key: string]: AdminTab } = {
+const adminTabs = {
 	general: {
 		title: "General",
 		sections: {
@@ -625,14 +626,13 @@ const adminTabs: { [key: string]: AdminTab } = {
 			},
 		},
 	},
-};
+} as const satisfies { [key: string]: AdminTab };
 
 export default function AdminPage() {
-	const [activeTab] = useQueryState("tab", {
-		defaultValue: "general",
-	});
+	const [activeTab] = useQueryState("tab", parseAsStringEnum(Object.keys(adminTabs) as (keyof typeof adminTabs)[]).withDefault("general")
+	);
 
-	const tabData = adminTabs[activeTab ?? "general"];
+	const tabData = adminTabs[activeTab];
 
 	return (
 		<Box pt="xl">
@@ -649,7 +649,7 @@ export default function AdminPage() {
 
 			{tabData && (
 				<Stack gap="lg">
-					{Object.entries(tabData.sections).map(([sectionKey, section]) => (
+					{Object.entries(tabData.sections).map(([sectionKey, section]: [string, AdminSection]) => (
 						<Box key={sectionKey}>
 							<Title order={2} mb="md">
 								{section.title}

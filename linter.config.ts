@@ -387,6 +387,122 @@ const astPatterns = {
 		// Return true if export function getRouteUrl is missing (violation)
 		return !hasExportFunctionGetRouteUrl;
 	},
+
+	/**
+	 * Matches imports of href from "react-router"
+	 */
+	hrefImport: (node: ts.Node): boolean => {
+		if (ts.isImportDeclaration(node)) {
+			const moduleSpecifier = node.moduleSpecifier;
+			if (ts.isStringLiteral(moduleSpecifier)) {
+				const modulePath = moduleSpecifier.text;
+				// Check if importing from "react-router"
+				if (modulePath === "react-router") {
+					const importClause = node.importClause;
+					if (importClause) {
+						// Check named imports
+						if (importClause.namedBindings) {
+							if (ts.isNamedImports(importClause.namedBindings)) {
+								return importClause.namedBindings.elements.some(
+									(element) => element.name.text === "href",
+								);
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Matches href() function calls
+	 */
+	hrefCall: (node: ts.Node): boolean => {
+		if (ts.isCallExpression(node)) {
+			const expression = node.expression;
+			if (ts.isIdentifier(expression) && expression.text === "href") {
+				return true;
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Checks if href call is inside a getRouteUrl function
+	 * Traverses up the AST tree to find if we're inside a function named "getRouteUrl"
+	 */
+	isHrefCallInsideGetRouteUrl: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		if (!astPatterns.hrefCall(node)) {
+			return false;
+		}
+
+		// Traverse up the AST tree to find the containing function
+		let currentNode: ts.Node | undefined = node;
+		while (currentNode) {
+			// Check if we're inside a function declaration
+			if (ts.isFunctionDeclaration(currentNode)) {
+				// Check if the function is named "getRouteUrl"
+				if (
+					currentNode.name &&
+					ts.isIdentifier(currentNode.name) &&
+					currentNode.name.text === "getRouteUrl"
+				) {
+					return true;
+				}
+			}
+			// Check if we're inside a function expression or arrow function
+			if (
+				ts.isFunctionExpression(currentNode) ||
+				ts.isArrowFunction(currentNode)
+			) {
+				// For function expressions, check if parent is a variable declaration
+				// with name "getRouteUrl"
+				const parent = currentNode.parent;
+				if (parent && ts.isVariableDeclaration(parent)) {
+					if (
+						ts.isIdentifier(parent.name) &&
+						parent.name.text === "getRouteUrl"
+					) {
+						return true;
+					}
+				}
+			}
+			// Move to parent node
+			currentNode = currentNode.parent;
+			// Stop if we've reached the source file
+			if (currentNode === sourceFile) {
+				break;
+			}
+		}
+
+		return false;
+	},
+
+	/**
+	 * Matches href() calls that are NOT inside getRouteUrl function
+	 * This is the violation pattern
+	 */
+	hrefCallOutsideGetRouteUrl: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// Check if this is an href call
+		if (!astPatterns.hrefCall(node)) {
+			return false;
+		}
+
+		// Check if it's inside getRouteUrl - if yes, it's not a violation
+		if (astPatterns.isHrefCallInsideGetRouteUrl(node, sourceFile)) {
+			return false;
+		}
+
+		// It's an href call outside getRouteUrl - violation
+		return true;
+	},
 };
 
 /**
@@ -662,6 +778,18 @@ export const rules: LintRule[] = [
 			{
 				name: "export const getRouteUrl declaration",
 				matcher: astPatterns.exportConstGetRouteUrl,
+			},
+		],
+	},
+	{
+		name: "Ban href from react-router outside getRouteUrl",
+		description: "href from react-router should only be used inside getRouteUrl functions. Use getRouteUrl() instead of directly calling href().",
+		includes: ["app/**/*.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "href() call outside getRouteUrl function",
+				matcher: astPatterns.hrefCallOutsideGetRouteUrl,
 			},
 		],
 	},
