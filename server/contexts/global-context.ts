@@ -3,87 +3,25 @@ import type { BasePayload, PayloadRequest } from "payload";
 import { createContext } from "react-router";
 import type { Media } from "server/payload-types";
 import type { Storage } from "unstorage";
-import type { RouteInfo } from "~/utils/routes-utils";
+import type { RouteId, RouteInfo } from "~/utils/routes-utils";
+import type { TypeSafeRouteParams } from "app/utils/params-schema";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
+import type { ParamsType } from "app/utils/params-schema";
 
 export type PageInfo = {
-	isInAdminLayout: boolean;
-	isMyCourses: boolean;
-	isDashboard: boolean;
-	isLogin: boolean;
-	isRegistration: boolean;
-	isCatalog: boolean;
-	isApi: boolean;
-	isInCourse: boolean;
-	isCourseSettings: boolean;
-	isCourseParticipants: boolean;
-	isCourseParticipantsProfile: boolean;
-	isCourseParticipantsLayout: boolean;
-	isCourseGroups: boolean;
-	isCourseGrades: boolean;
-	isCourseGradesLayout: boolean;
-	isCourseGradesSingleView: boolean;
-	isCourseModules: boolean;
-	isCourseBin: boolean;
-	isCourseBackup: boolean;
-	isCourseModule: boolean;
-	isCourseModuleEdit: boolean;
-	isCourseModuleSubmissions: boolean;
-	isInCourseModuleLayout: boolean;
-	isCourseSection: boolean;
-	isCourseSectionNew: boolean;
-	isCourseSectionEdit: boolean;
-	isInCourseSectionLayout: boolean;
-	/**
-	 * viewing the public profile page
-	 */
-	isUserProfile: boolean;
-	isUserLayout: boolean;
-	isUserOverview: boolean;
-	isUserPreference: boolean;
-	isUserModules: boolean;
-	isUserGrades: boolean;
-	isUserNotes: boolean;
-	isUserNoteCreate: boolean;
-	isUserNoteEdit: boolean;
-	isUserMedia: boolean;
-	isInUserModulesLayout: boolean;
-	isUserModuleNew: boolean;
-	isUserModuleEdit: boolean;
-	isUserModuleEditSetting: boolean;
-	isUserModuleEditAccess: boolean;
-	isInUserModuleEditLayout: boolean;
-	/**
-	 * admin pages
-	 */
-	isAdminIndex: boolean;
-	isAdminUsers: boolean;
-	isAdminUserNew: boolean;
-	isAdminCourses: boolean;
-	isAdminCourseNew: boolean;
-	isAdminRegistration: boolean;
-	isAdminSystem: boolean;
-	isAdminTestEmail: boolean;
-	isAdminCategories: boolean;
-	isAdminCategoryNew: boolean;
-	isAdminMigrations: boolean;
-	isAdminDependencies: boolean;
-	isAdminCronJobs: boolean;
-	isAdminScheduledTasks: boolean;
-	isAdminMaintenance: boolean;
-	isAdminSitePolicies: boolean;
-	isAdminMedia: boolean;
-	isAdminAppearance: boolean;
-	isAdminTheme: boolean;
-	isAdminLogo: boolean;
-	isAdminAnalytics: boolean;
+	is: Partial<{
+		[key in RouteId]: {
+			params: TypeSafeRouteParams<key>;
+		};
+	}>;
 	/**
 	 * the params of the current route
+	 * Use `getParamsForRoute(pageInfo, routeId)` to get type-safe params for a specific route
 	 */
-	params: Record<string, string>;
+	params: Partial<ParamsType>;
 };
 
 /**
@@ -123,7 +61,7 @@ export type SystemGlobals = {
 	};
 };
 
-export const globalContext = createContext<{
+export type GlobalContext = {
 	environment: "development" | "production" | "test";
 	payload: BasePayload;
 	elysia: Backend;
@@ -141,7 +79,9 @@ export const globalContext = createContext<{
 	hints: { timeZone?: string };
 	systemGlobals: SystemGlobals;
 	payloadRequest: Partial<PayloadRequest>;
-}>();
+};
+
+export const globalContext = createContext<GlobalContext>();
 
 // ! we can use string as key, please see https://github.com/remix-run/react-router/blob/c1cddedf656271a3eec8368f2854c733b3fe27da/packages/react-router/lib/router/utils.ts#L209
 // ! router context provider is just a map

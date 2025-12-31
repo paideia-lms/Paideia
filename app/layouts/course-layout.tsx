@@ -5,17 +5,10 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	canSeeCourseBackup,
-	canSeeCourseBin,
-	canSeeCourseGrades,
-	canSeeCourseModules,
-	canSeeCourseParticipants,
-	canSeeCourseSettings,
-} from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
+import { permissions } from "server/utils/permissions";
 
 enum CourseTab {
 	Course = "course",
@@ -47,15 +40,30 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const enrolment = enrolmentContext?.enrolment;
 
-	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment).allowed;
-	const canSeeParticipants = canSeeCourseParticipants(
+	const canSeeSettings = permissions.course.canSeeSettings(
 		currentUser,
 		enrolment,
 	).allowed;
-	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment).allowed;
-	const canSeeModules = canSeeCourseModules(currentUser, enrolment).allowed;
-	const canSeeBin = canSeeCourseBin(currentUser, enrolment).allowed;
-	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment).allowed;
+	const canSeeParticipants = permissions.course.canSeeParticipants(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeGrades = permissions.course.canSeeGrades(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeModules = permissions.course.canSeeModules(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeBin = permissions.course.canSeeBin(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeBackup = permissions.course.canSeeBackup(
+		currentUser,
+		enrolment,
+	).allowed;
 
 	return {
 		course: courseContext.course,
@@ -75,10 +83,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-export default function CourseLayout({
-	loaderData,
-	matches,
-}: Route.ComponentProps) {
+export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const {
 		course,
@@ -93,13 +98,17 @@ export default function CourseLayout({
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.isCourseSettings) return CourseTab.Settings;
-		if (pageInfo.isCourseParticipantsLayout) return CourseTab.Participants;
-		if (pageInfo.isCourseGrades || pageInfo.isCourseGradesSingleView)
+		if (pageInfo.is["routes/course.$id.settings"]) return CourseTab.Settings;
+		if (pageInfo.is["routes/course.$id.participants"])
+			return CourseTab.Participants;
+		if (
+			pageInfo.is["routes/course.$id.grades"] ||
+			pageInfo.is["routes/course.$id.grades.singleview"]
+		)
 			return CourseTab.Grades;
-		if (pageInfo.isCourseModules) return CourseTab.Modules;
-		if (pageInfo.isCourseBin) return CourseTab.Bin;
-		if (pageInfo.isCourseBackup) return CourseTab.Backup;
+		if (pageInfo.is["routes/course.$id.modules"]) return CourseTab.Modules;
+		if (pageInfo.is["routes/course.$id.bin"]) return CourseTab.Bin;
+		if (pageInfo.is["routes/course.$id.backup"]) return CourseTab.Backup;
 
 		// Default to Course tab for the main course page
 		return CourseTab.Course;

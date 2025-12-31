@@ -14,7 +14,7 @@ import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canEditCourse } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { CourseInfo } from "~/components/course-info";
 import {
 	getStatusBadgeColor,
@@ -22,6 +22,12 @@ import {
 } from "~/components/course-view-utils";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
+
+export function getRouteUrl(courseId: number) {
+	return href("/course/:courseId", {
+		courseId: courseId.toString(),
+	});
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -56,7 +62,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		}));
 
 	// Check if user can edit the course
-	const canEdit = canEditCourse(
+	const canEdit = permissions.course.canEdit(
 		currentUser,
 		courseContext.course.enrollments.map((e) => ({
 			userId: e.user.id,

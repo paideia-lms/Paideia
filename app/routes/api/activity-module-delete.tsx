@@ -18,9 +18,9 @@ const createDeleteActivityModuleActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/activity-module-delete");
-};
+}
 
 const [deleteActivityModuleAction, useDeleteActivityModule] =
 	createDeleteActivityModuleActionRpc(

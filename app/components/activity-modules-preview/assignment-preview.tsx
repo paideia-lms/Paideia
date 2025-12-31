@@ -27,6 +27,7 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { isHtmlEmpty } from "../rich-text-editor";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { SubmissionData } from "../submission-history";
+import { AssignmentActions } from "app/routes/course/module.$id/route";
 
 // ============================================================================
 // Types
@@ -504,21 +505,16 @@ export function AssignmentPreview({
 		);
 	}
 
-	// Don't allow non-students to access the submission form
-	// if (action === AssignmentActions.EDIT_SUBMISSION && !canSubmit) {
-	// 	setAction(null);
-	// }
-
-	// if (action === AssignmentActions.EDIT_SUBMISSION && canSubmit) {
-	// 	return (
-	// 		<SubmissionForm
-	// 			assignment={assignment}
-	// 			isSubmitting={isSubmitting}
-	// 			onClose={handleCloseForm}
-	// 			onSubmit={handleSubmit}
-	// 		/>
-	// 	);
-	// }
+	if (action === AssignmentActions.SUBMIT_ASSIGNMENT && canSubmit) {
+		return (
+			<SubmissionForm
+				assignment={assignment}
+				isSubmitting={isSubmitting}
+				onClose={handleCloseForm}
+				onSubmit={handleSubmit}
+			/>
+		);
+	}
 
 	return (
 		<InstructionsView

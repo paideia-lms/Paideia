@@ -1,5 +1,4 @@
 import {
-	Badge,
 	Container,
 	Group,
 	parseThemeColor,
@@ -15,14 +14,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	canSeeCourseModuleSettings,
-	canSeeModuleSubmissions,
-} from "server/utils/permissions";
-import {
-	getStatusBadgeColor,
-	getStatusLabel,
-} from "~/components/course-view-utils";
+import { permissions } from "server/utils/permissions";
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-module-layout";
@@ -56,15 +48,14 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
-	const canSeeSetting = canSeeCourseModuleSettings(
+	const canSeeSetting = permissions.course.module.canSeeSettings(
 		currentUser,
 		enrolmentContext?.enrolment,
 	).allowed;
-	const canSeeSubmissions = canSeeModuleSubmissions(
+	const canSeeSubmissions = permissions.course.module.canSeeSubmissions(
 		currentUser,
 		enrolmentContext?.enrolment,
 	).allowed;
-
 
 	return {
 		module: courseModuleContext.activityModule,
@@ -101,9 +92,10 @@ export default function CourseModuleLayout({
 	const theme = useMantineTheme();
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.isCourseModuleEdit) return ModuleTab.Setting;
-		if (pageInfo.isCourseModuleSubmissions) return ModuleTab.Submissions;
-		if (pageInfo.isCourseModule) return ModuleTab.Preview;
+		if (pageInfo.is["routes/course/module.$id.edit"]) return ModuleTab.Setting;
+		if (pageInfo.is["routes/course/module.$id.submissions/route"])
+			return ModuleTab.Submissions;
+		if (pageInfo.is["routes/course/module.$id/route"]) return ModuleTab.Preview;
 
 		// Default to Preview tab
 		return ModuleTab.Preview;
@@ -127,7 +119,6 @@ export default function CourseModuleLayout({
 		}
 	};
 
-
 	// Check if module type supports submissions
 	const hasSubmissions = ["assignment", "quiz", "discussion"].includes(
 		module.type,
@@ -142,12 +133,6 @@ export default function CourseModuleLayout({
 						<div>
 							<Group gap="xs" mb="xs">
 								<Title order={2}>{moduleSettings?.name ?? module.title}</Title>
-								<Badge
-									color={getStatusBadgeColor(module.status)}
-									variant="light"
-								>
-									{getStatusLabel(module.status)}
-								</Badge>
 							</Group>
 							<Group gap="xs" wrap="nowrap">
 								{getModuleIcon(

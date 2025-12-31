@@ -19,12 +19,19 @@ import {
 	IconTrash,
 	IconUpload,
 } from "@tabler/icons-react";
+import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canSeeCourseBackup } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.backup";
+
+export function getRouteUrl(courseId: number) {
+	return href("/course/:courseId/backup", {
+		courseId: courseId.toString(),
+	});
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -44,7 +51,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can see course backup
-	const canSeeBackup = canSeeCourseBackup(
+	const canSeeBackup = permissions.course.canSeeBackup(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",

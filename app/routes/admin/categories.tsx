@@ -100,9 +100,9 @@ const createDeleteCategoryActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-const getRouteUrl = (action: Action) => {
+export function getRouteUrl(action: Action) {
 	return href("/admin/categories") + "?" + stringify({ action });
-};
+}
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);

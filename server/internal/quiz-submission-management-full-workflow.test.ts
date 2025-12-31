@@ -122,7 +122,6 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			title: "Test Quiz",
 			description: "A test quiz for submission workflow",
-			status: "published",
 			instructions: "Complete this quiz by answering all questions",
 			points: 100,
 			gradingType: "automatic",
@@ -487,7 +486,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const updatedSubmission = updateResult.value;
 		expect(
-			updatedSubmission.answers?.[0]!.multipleChoiceAnswers?.[1]!.isSelected,
+			updatedSubmission.answers?.[0]?.multipleChoiceAnswers?.[1]?.isSelected,
 		).toBe(true);
 		expect(updatedSubmission.timeSpent).toBe(20);
 		expect(updatedSubmission.status).toBe("in_progress"); // Should remain in progress
@@ -1231,7 +1230,6 @@ describe("Quiz Management - Full Workflow", () => {
 			title: "Quick Quiz Module",
 			description: "Module with quick quiz",
 			type: "quiz",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: teacher as TypedUser,
@@ -1412,7 +1410,6 @@ describe("Quiz Management - Full Workflow", () => {
 			title: "Auto Submit Quiz Module",
 			description: "Module with auto-submit quiz",
 			type: "quiz",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: teacher as TypedUser,

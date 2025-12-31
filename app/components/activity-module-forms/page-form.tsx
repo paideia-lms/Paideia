@@ -1,13 +1,5 @@
-import {
-	Button,
-	Select,
-	Stack,
-	Textarea,
-	TextInput,
-	Title,
-} from "@mantine/core";
-import type { UseFormReturnType } from "@mantine/form";
-import { useForm } from "@mantine/form";
+import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import { type UseFormReturnType, useForm } from "@mantine/form";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { PageFormInitialValues as EditPageFormInitialValues } from "app/routes/user/module/edit-setting";
@@ -35,11 +27,10 @@ export function PageForm({
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			status: initialValues?.status ?? "draft",
 			content: initialValues?.content ?? "",
 		},
 		validate: {
-			title: (value) =>
+			title: (value: string) =>
 				value.trim().length === 0 ? "Title is required" : null,
 		},
 	});
@@ -54,18 +45,6 @@ export function PageForm({
 					placeholder="Enter module title"
 					required
 					withAsterisk
-				/>
-
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
 				/>
 
 				<Textarea

@@ -27,6 +27,10 @@ import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course";
+
+export function getRouteUrl() {
+	return href("/course");
+}
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
@@ -201,8 +205,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const courses = userAccessContext.enrollments.map((enrollment) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		const thumbnailUrl = enrollment.course.thumbnail
-			? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: enrollment.course.thumbnail.toString(),
+			? href(`/api/media/file/:mediaId`, {
+					mediaId: enrollment.course.thumbnail.toString(),
 				})
 			: null;
 		return {

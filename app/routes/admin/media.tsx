@@ -144,9 +144,9 @@ const createPruneAllOrphanedMediaActionRpc = createActionRpc({
 	action: Action.PruneAllOrphanedMedia,
 });
 
-const getRouteUrl = (action: Action) => {
+export function getRouteUrl(action: Action) {
 	return href("/admin/media") + "?" + stringify({ action });
-};
+}
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const globalContext = context.get(globalContextKey);
@@ -244,10 +244,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const userOptions = usersResult.ok
 		? usersResult.value.docs.map((user) => ({
-				value: user.id.toString(),
-				label:
-					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-			}))
+			value: user.id.toString(),
+			label:
+				`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+		}))
 		: [];
 
 	// Fetch orphaned media files
@@ -946,10 +946,10 @@ function MediaPreviewModal({
 }) {
 	if (!file) return null;
 
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1030,7 +1030,11 @@ function MediaUsageModal({
 	opened: boolean;
 	onClose: () => void;
 }) {
-	const { fetchMediaUsage, data, loading, error } = useMediaUsageData();
+	const {
+		load: fetchMediaUsage,
+		data: mediaUsageData,
+		isLoading,
+	} = useMediaUsageData();
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
@@ -1041,7 +1045,7 @@ function MediaUsageModal({
 			// Fetch if modal just opened or file ID changed
 			if (!previousOpened || file.id !== previousFileId) {
 				dataFileIdRef.current = file.id;
-				fetchMediaUsage(file.id);
+				fetchMediaUsage({ params: { mediaId: file.id } });
 			}
 		}
 	}, [opened, file, previousOpened, previousFileId, fetchMediaUsage]);
@@ -1054,46 +1058,48 @@ function MediaUsageModal({
 			centered
 		>
 			<Stack gap="md">
-				{loading && <Text c="dimmed">Loading usage data...</Text>}
-				{error && (
+				{isLoading && <Text c="dimmed">Loading usage data...</Text>}
+				{mediaUsageData?.status === StatusCode.BadRequest && (
 					<Text c="red" size="sm">
-						Error: {error}
+						Error: {mediaUsageData.error}
 					</Text>
 				)}
-				{data && file && file.id === dataFileIdRef.current && (
-					<>
-						<Text size="sm" fw={500}>
-							Total Usages: {data.totalUsages}
-						</Text>
-						{data.totalUsages === 0 ? (
-							<Text c="dimmed" size="sm">
-								This media file is not currently used anywhere.
+				{mediaUsageData?.status === StatusCode.Ok &&
+					file &&
+					file.id === dataFileIdRef.current && (
+						<>
+							<Text size="sm" fw={500}>
+								Total Usages: {mediaUsageData.totalUsages}
 							</Text>
-						) : (
-							<Stack gap="xs">
-								{data.usages.map((usage) => (
-									<Card
-										key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
-										withBorder
-										padding="xs"
-									>
-										<Group gap="xs" wrap="nowrap">
-											<Text size="sm" fw={500}>
-												{usage.collection}
-											</Text>
-											<Text size="sm" c="dimmed">
-												Document ID: {usage.documentId}
-											</Text>
-											<Text size="sm" c="dimmed">
-												Field: {usage.fieldPath}
-											</Text>
-										</Group>
-									</Card>
-								))}
-							</Stack>
-						)}
-					</>
-				)}
+							{mediaUsageData.totalUsages === 0 ? (
+								<Text c="dimmed" size="sm">
+									This media file is not currently used anywhere.
+								</Text>
+							) : (
+								<Stack gap="xs">
+									{mediaUsageData.usages.map((usage) => (
+										<Card
+											key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
+											withBorder
+											padding="xs"
+										>
+											<Group gap="xs" wrap="nowrap">
+												<Text size="sm" fw={500}>
+													{usage.collection}
+												</Text>
+												<Text size="sm" c="dimmed">
+													Document ID: {usage.documentId}
+												</Text>
+												<Text size="sm" c="dimmed">
+													Field: {usage.fieldPath}
+												</Text>
+											</Group>
+										</Card>
+									))}
+								</Stack>
+							)}
+						</>
+					)}
 			</Stack>
 		</Modal>
 	);
@@ -1117,10 +1123,10 @@ function MediaActionMenu({
 }) {
 	const canDelete = file.deletePermission?.allowed ?? true; // Admin can always delete
 	const canPreviewFile = canPreview(file.mimeType ?? null);
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1197,10 +1203,10 @@ function MediaCard({
 	onRename?: (file: Media) => void;
 	onOpenUsageModal?: (file: Media) => void;
 }) {
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	// Get creator info
@@ -1211,7 +1217,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-				"Unknown"
+			"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1221,14 +1227,14 @@ function MediaCard({
 				: file.createdBy.avatar
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: creatorAvatarId.toString(),
-			})
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: creatorAvatarId.toString(),
+		})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-				id: creatorId.toString(),
-			})
+			id: creatorId.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1485,7 +1491,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-							"Unknown"
+						"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1495,14 +1501,14 @@ function MediaTableView({
 							: file.createdBy.avatar
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
-					? href(`/api/media/file/:filenameOrId`, {
-							filenameOrId: creatorAvatarId.toString(),
-						})
+					? href(`/api/media/file/:mediaId`, {
+						mediaId: creatorAvatarId.toString(),
+					})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-							id: creatorId.toString(),
-						})
+						id: creatorId.toString(),
+					})
 					: undefined;
 
 				return (

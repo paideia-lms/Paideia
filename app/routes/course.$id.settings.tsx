@@ -84,11 +84,11 @@ const createUpdateCourseActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = (courseId: number) => {
+export function getRouteUrl(courseId: number) {
 	return href("/course/:courseId/settings", {
 		courseId: String(courseId),
 	});
-};
+}
 
 const [updateCourseAction, useEditCourse] = createUpdateCourseActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
@@ -189,13 +189,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	visit(categories, "");
 
 	// Handle thumbnail - could be Media object, just ID, or null
-	const thumbnailFileNameOrId = course.thumbnail
-		? String(course.thumbnail.id)
-		: null;
+	const thumbnailId = course.thumbnail ? String(course.thumbnail.id) : null;
 
-	const thumbnailUrl = thumbnailFileNameOrId
-		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
+	const thumbnailUrl = thumbnailId
+		? href("/api/media/file/:mediaId", {
+				mediaId: thumbnailId,
 			})
 		: null;
 

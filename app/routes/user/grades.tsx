@@ -1,10 +1,17 @@
 import { Alert, Container, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/grades";
+
+export function getRouteUrl(userId?: number) {
+	return href("/user/grades/:id?", {
+		id: userId ? userId.toString() : undefined,
+	});
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);

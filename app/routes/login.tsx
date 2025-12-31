@@ -80,9 +80,9 @@ const createLoginActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/login");
-};
+}
 
 const [loginAction, useLogin] = createLoginActionRpc(
 	serverOnly$(async ({ context, formData, request }) => {

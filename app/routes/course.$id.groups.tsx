@@ -38,7 +38,7 @@ import {
 	tryCreateGroup,
 	tryDeleteGroup,
 } from "server/internal/course-management";
-import { canManageCourseGroups } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -85,7 +85,7 @@ const createDeleteGroupActionRpc = createActionRpc({
 	action: Action.DeleteGroup,
 });
 
-const getRouteUrl = (action: Action, courseId: number) => {
+export function getRouteUrl(action: Action, courseId: number) {
 	return (
 		href("/course/:courseId/groups", {
 			courseId: courseId.toString(),
@@ -93,7 +93,7 @@ const getRouteUrl = (action: Action, courseId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 function GroupMemberList({ members }: { members: Enrollment[] }) {
 	if (members.length === 0) {
@@ -158,11 +158,18 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
+	// Check if user can manage groups
+	const canManage = permissions.course.canManageGroups(
+		currentUser,
+		enrolmentContext?.enrolment,
+	).allowed;
+
 	return {
 		course: courseContext.course,
 		groups: courseContext.course.groups,
 		enrolment: enrolmentContext?.enrolment,
 		currentUser: currentUser,
+		canManage,
 	};
 };
 
@@ -274,7 +281,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 	const { submit: createGroup, isLoading: isCreatingGroup } = useCreateGroup();
 	const { submit: deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
-	const { groups, currentUser, course, enrolment } = loaderData;
+	const { groups, currentUser, course, enrolment, canManage } = loaderData;
 	// Modal states
 	const [
 		createModalOpened,
@@ -338,9 +345,6 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 			setDeletingGroupId(null);
 		}
 	};
-
-	// Check if user can manage groups
-	const canManage = canManageCourseGroups(currentUser, enrolment).allowed;
 
 	// Prepare parent group options
 	const parentGroupOptions = groups.map((group) => ({

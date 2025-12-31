@@ -17,36 +17,6 @@ describe("Parse Media From HTML", () => {
 		}
 	});
 
-	test("should parse media filenames from HTML", () => {
-		const html = `<p>Test content</p><img src="/api/media/file/test-image-1.png" alt="Image 1" /><img src="/api/media/file/test-image-2.png" alt="Image 2" />`;
-
-		const result = tryParseMediaFromHtml(html);
-
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.filenames.length).toBe(2);
-			expect(result.value.filenames).toContain("test-image-1.png");
-			expect(result.value.filenames).toContain("test-image-2.png");
-			expect(result.value.ids.length).toBe(0);
-		}
-	});
-
-	test("should handle mixed ID and filename formats", () => {
-		const html = `<p>Test content</p><img src="/api/media/file/123" alt="Image 1" /><img src="/api/media/file/test-image.png" alt="Image 2" />`;
-
-		const result = tryParseMediaFromHtml(html);
-
-		expect(result.ok).toBe(true);
-		if (!result.ok)
-			throw new TestError("Failed to parse media from HTML", {
-				cause: result.error,
-			});
-		expect(result.value.ids.length).toBe(1);
-		expect(result.value.ids).toContain(123);
-		expect(result.value.filenames.length).toBe(1);
-		expect(result.value.filenames).toContain("test-image.png");
-	});
-
 	test("should return unique media IDs and filenames (no duplicates)", () => {
 		const html = `<p>Test content</p><img src="/api/media/file/123" alt="Image 1" /><img src="/api/media/file/123" alt="Image 1 duplicate" /><img src="/api/media/file/test-image.png" alt="Image 1 filename" /><img src="/api/media/file/test-image.png" alt="Duplicate filename" />`;
 
@@ -56,8 +26,6 @@ describe("Parse Media From HTML", () => {
 		if (result.ok) {
 			expect(result.value.ids.length).toBe(1);
 			expect(result.value.ids).toContain(123);
-			expect(result.value.filenames.length).toBe(1);
-			expect(result.value.filenames).toContain("test-image.png");
 		}
 	});
 
@@ -158,8 +126,6 @@ describe("Parse Media From HTML", () => {
 		// Should parse both - existence checking is not this function's responsibility
 		expect(result.value.ids.length).toBe(1);
 		expect(result.value.ids).toContain(123);
-		expect(result.value.filenames.length).toBe(1);
-		expect(result.value.filenames).toContain("non-existent-file.png");
 	});
 
 	test("should handle complex HTML with nested elements", () => {

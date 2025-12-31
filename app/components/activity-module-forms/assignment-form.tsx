@@ -1,32 +1,25 @@
 import {
 	Button,
 	Checkbox,
-	Input,
 	MultiSelect,
 	NumberInput,
-	Paper,
-	Select,
 	Stack,
-	Text,
 	Textarea,
 	TextInput,
 	Title,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
-import type {
-	ActivityModuleFormValues,
-	AssignmentModuleFormValues,
-} from "~/utils/activity-module-schema";
+import type { AssignmentModuleFormValues } from "~/utils/activity-module-schema";
 import {
 	PRESET_FILE_TYPE_OPTIONS,
 	presetValuesToFileTypes,
 } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { AssignmentFormInitialValues as NewAssignmentFormInitialValues } from "app/routes/user/module/new";
 import type { AssignmentFormInitialValues as EditAssignmentFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { Simplify, UnionToIntersection } from "type-fest";
+import { FormableSimpleRichTextEditor } from "../form-components/formable-simple-rich-text-editor";
 
 type AssignmentFormData = Simplify<
 	UnionToIntersection<
@@ -49,7 +42,6 @@ const useAssignmentForm = (
 		initialValues: {
 			title: initialValues?.title || "",
 			description: initialValues?.description || "",
-			status: initialValues?.status || "draft",
 			assignmentInstructions: initialValues?.assignmentInstructions || "",
 			assignmentRequireTextSubmission:
 				initialValues?.assignmentRequireTextSubmission || false,
@@ -92,18 +84,6 @@ export function AssignmentForm({
 					withAsterisk
 				/>
 
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
-				/>
-
 				<Textarea
 					{...form.getInputProps("description")}
 					key={form.key("description")}
@@ -116,31 +96,14 @@ export function AssignmentForm({
 					Assignment Settings
 				</Title>
 
-				<InstructionsEditor form={form} />
+				<FormableSimpleRichTextEditor 
+					form={form}
+					key={form.key("assignmentInstructions")}
+					formKey={ form.key("assignmentInstructions")}
+					label="Instructions"
+					placeholder="Enter assignment instructions..."
+				/>
 
-				{/* TODO: move to course module specific settings */}
-				{/* <DateTimePicker
-				{...form.getInputProps("assignmentDueDate")}
-				key={form.key("assignmentDueDate")}
-				label="Due Date"
-				placeholder="Select due date"
-			/> */}
-
-				{/* <NumberInput
-				{...form.getInputProps("assignmentMaxAttempts")}
-				key={form.key("assignmentMaxAttempts")}
-				label="Max Attempts"
-				placeholder="Enter max attempts"
-				min={1}
-			/> */}
-
-				{/* <Checkbox
-				{...form.getInputProps("assignmentAllowLateSubmissions", {
-					type: "checkbox",
-				})}
-				key={form.key("assignmentAllowLateSubmissions")}
-				label="Allow late submissions"
-			/> */}
 
 				<Checkbox
 					{...form.getInputProps("assignmentRequireTextSubmission", {
@@ -168,25 +131,6 @@ export function AssignmentForm({
 	);
 }
 
-function InstructionsEditor({
-	form,
-}: {
-	form: UseFormReturnType<AssignmentFormData>;
-}) {
-	const instructions = useFormWatchForceUpdate(form, "assignmentInstructions");
-
-	return (
-		<Input.Wrapper label="Instructions">
-			<SimpleRichTextEditor
-				content={instructions || ""}
-				onChange={(content) => {
-					form.setFieldValue("assignmentInstructions" as const, content);
-				}}
-				placeholder="Enter assignment instructions..."
-			/>
-		</Input.Wrapper>
-	);
-}
 
 function FileSubmissionSettings({
 	form,

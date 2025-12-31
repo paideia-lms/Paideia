@@ -42,7 +42,6 @@ import {
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
 import { typeCreateActionRpc } from "app/utils/action-utils";
-import { enum_activity_modules_status } from "src/payload-generated-schema";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -90,7 +89,6 @@ const createUpdatePageActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().min(1),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		content: z.string().min(1),
 	}),
 	method: "POST",
@@ -100,7 +98,6 @@ const createUpdateWhiteboardActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		whiteboardContent: z.string().optional(),
 	}),
 	method: "POST",
@@ -110,7 +107,6 @@ const createUpdateFileActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		fileMedia: z.array(z.coerce.number().or(z.file())).optional(),
 	}),
 	method: "POST",
@@ -120,7 +116,6 @@ const createUpdateAssignmentActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		assignmentInstructions: z.string().optional(),
 		assignmentRequireTextSubmission: z.coerce.boolean().optional(),
 		assignmentRequireFileSubmission: z.coerce.boolean().optional(),
@@ -135,7 +130,6 @@ const createUpdateQuizActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		quizInstructions: z.string().optional(),
 		quizPoints: z.coerce.number().optional(),
 		quizTimeLimit: z.coerce.number().optional(),
@@ -149,7 +143,6 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		discussionInstructions: z.string().optional(),
 		discussionDueDate: z.string().nullable().optional(),
 		discussionRequireThread: z.coerce.boolean().optional(),
@@ -160,13 +153,13 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 	action: Action.UpdateDiscussion,
 });
 
-const getRouteUrl = (action: Action, moduleId: string) => {
+export function getRouteUrl(action: Action, moduleId: string) {
 	return (
-		href("/user/module/edit/:moduleId/setting", { moduleId }) +
+		href("/user/module/edit/:moduleId", { moduleId }) +
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(
 	serverOnly$(async ({ context, params, formData }) => {
@@ -177,7 +170,6 @@ const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
-			status: formData.status,
 			content: formData.content,
 			req: payloadRequest,
 		});
@@ -210,7 +202,6 @@ const [updateWhiteboardAction, useUpdateWhiteboard] =
 				id: params.moduleId,
 				title: formData.title,
 				description: formData.description,
-				status: formData.status,
 				content: formData.whiteboardContent,
 				req: payloadRequest,
 				overrideAccess: false,
@@ -246,7 +237,6 @@ const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
-			status: formData.status,
 			media: existingMediaIds,
 			req: payloadRequest,
 			overrideAccess: false,
@@ -286,7 +276,6 @@ const [updateAssignmentAction, useUpdateAssignment] =
 				id: params.moduleId,
 				title: formData.title,
 				description: formData.description,
-				status: formData.status,
 				instructions: formData.assignmentInstructions,
 				requireTextSubmission: formData.assignmentRequireTextSubmission,
 				requireFileSubmission: formData.assignmentRequireFileSubmission,
@@ -323,7 +312,6 @@ const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
-			status: formData.status,
 			instructions: formData.quizInstructions,
 			points: formData.quizPoints,
 			timeLimit: formData.quizTimeLimit,
@@ -361,7 +349,6 @@ const [updateDiscussionAction, useUpdateDiscussion] =
 				id: params.moduleId,
 				title: formData.title,
 				description: formData.description,
-				status: formData.status,
 				instructions: formData.discussionInstructions,
 				dueDate: formData.discussionDueDate,
 				requireThread: formData.discussionRequireThread,
@@ -442,7 +429,6 @@ function getPageFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		status: module.status,
 		content: module.content || "",
 	};
 }
@@ -469,7 +455,6 @@ function PageFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						content: values.content,
 					},
 				})
@@ -485,7 +470,6 @@ function getWhiteboardFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		status: module.status,
 		whiteboardContent: module.content || "",
 	};
 }
@@ -510,7 +494,6 @@ function WhiteboardFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						whiteboardContent: values.whiteboardContent,
 					},
 				})
@@ -529,7 +512,6 @@ function getFileFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		status: module.status,
 		fileMedia: module.media?.map((m) => m.id) ?? [],
 		fileFiles: [] as File[],
 	};
@@ -558,7 +540,6 @@ function FileFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						fileMedia: [...values.fileMedia, ...values.fileFiles],
 					},
 				})
@@ -579,7 +560,6 @@ const getAssignmentFormInitialValues = (
 	return {
 		title: module.title,
 		description: module.description || "",
-		status: module.status,
 		assignmentInstructions: module.instructions || "",
 		assignmentRequireTextSubmission: module.requireTextSubmission ?? false,
 		assignmentRequireFileSubmission: module.requireFileSubmission ?? false,
@@ -614,7 +594,6 @@ function AssignmentFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						assignmentInstructions: values.assignmentInstructions,
 						assignmentRequireTextSubmission:
 							values.assignmentRequireTextSubmission,
@@ -640,7 +619,6 @@ function getQuizFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		status: module.status,
 		quizInstructions: module.instructions || "",
 		quizPoints: module.points ?? 100,
 		quizTimeLimit: module.timeLimit ?? 60,
@@ -671,7 +649,6 @@ function QuizFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						quizInstructions: values.quizInstructions,
 						quizPoints: values.quizPoints,
 						quizTimeLimit: values.quizTimeLimit,
@@ -695,7 +672,6 @@ function getDiscussionFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		status: module.status,
 		discussionInstructions: module.instructions || "",
 		discussionDueDate: module.dueDate ? new Date(module.dueDate) : null,
 		discussionRequireThread: module.requireThread ?? false,
@@ -727,7 +703,6 @@ function DiscussionFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						discussionInstructions: values.discussionInstructions,
 						discussionDueDate: values.discussionDueDate
 							? values.discussionDueDate.toISOString()

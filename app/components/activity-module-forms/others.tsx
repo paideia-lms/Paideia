@@ -35,7 +35,6 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import type { UseFormReturnType } from "@mantine/form";
 import { useMounted } from "@mantine/hooks";
 import {
 	IconChevronDown,
@@ -58,7 +57,6 @@ import type {
 	RankingQuestion,
 	SingleSelectionMatrixQuestion,
 } from "server/json/raw-quiz-config/types.v2";
-import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";

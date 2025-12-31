@@ -17,7 +17,7 @@ import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canImpersonateUser } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
@@ -76,7 +76,7 @@ export const loader = async ({
 	// Check if user can impersonate the selected user
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
-		? canImpersonateUser(
+		? permissions.admin.canImpersonateUser(
 				userSession.authenticatedUser,
 				{
 					id: userId,
@@ -193,8 +193,8 @@ export default function CourseParticipantsProfilePage({
 							<Avatar
 								src={
 									selectedEnrollment.user.avatar
-										? href(`/api/media/file/:filenameOrId`, {
-												filenameOrId: selectedEnrollment.user.avatar.toString(),
+										? href(`/api/media/file/:mediaId`, {
+												mediaId: selectedEnrollment.user.avatar.toString(),
 											})
 										: undefined
 								}

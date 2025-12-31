@@ -16,7 +16,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canUpdateCourseStructure } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { CourseStructureTree } from "~/components/course-structure-tree";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-content-layout";
@@ -38,6 +38,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// console.log("courseStructureTree", courseContext.courseStructureTree);
+	const canEdit = permissions.course.canUpdateStructure(
+		currentUser,
+		enrolmentContext?.enrolment,
+	).allowed;
 
 	return {
 		course: courseContext.course,
@@ -47,6 +51,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser: currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,
+		canEdit,
 	};
 };
 
@@ -59,11 +64,16 @@ export default function CourseContentLayout({
 		courseStructure,
 		currentUser,
 		enrolment,
-		pageInfo: { isCourseSection, isCourseModule },
+		canEdit,
+		pageInfo: {
+			is: {
+				"routes/course/section.$id": isCourseSection,
+				"layouts/course-module-layout": isCourseModule,
+			},
+		},
 	} = loaderData;
 	const { courseId, sectionId, moduleLinkId } = params;
 
-	const canEdit = canUpdateCourseStructure(currentUser, enrolment).allowed;
 	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
 
 	return (

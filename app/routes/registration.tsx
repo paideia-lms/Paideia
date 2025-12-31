@@ -95,9 +95,9 @@ const createRegisterActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/registration");
-};
+}
 
 const [registerAction, useRegister] = createRegisterActionRpc(
 	serverOnly$(async ({ context, formData, request }) => {

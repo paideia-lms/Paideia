@@ -25,7 +25,6 @@ import { href, Link } from "react-router";
 import { groupSubmissionsByStudent } from "./helpers";
 import {
 	type Route,
-	Action,
 	getRouteUrl,
 	View,
 } from "app/routes/course/module.$id.submissions/route";

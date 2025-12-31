@@ -22,7 +22,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
-import { canEditProfile, canImpersonate } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { setImpersonationCookie } from "~/utils/cookie";
 import { z } from "zod";
 import {
@@ -46,12 +46,12 @@ export const profileSearchParams = {
 
 export const loadSearchParams = createLoader(profileSearchParams);
 
-const getRouteUrl = (action: Action, userId?: number) => {
+export function getRouteUrl(action: Action, userId?: number) {
 	const baseUrl = userId
 		? href("/user/profile/:id?", { id: userId.toString() })
 		: href("/user/profile/:id?");
 	return baseUrl + "?" + stringify({ action });
-};
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -73,10 +73,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userId = params.id ? Number(params.id) : currentUser.id;
 
 	// Check if user can edit this profile
-	const editPermission = canEditProfile(currentUser, userId);
+	const editPermission = permissions.user.profile.canEdit(currentUser, userId);
 
 	// Check if user can impersonate
-	const impersonatePermission = canImpersonate(
+	const impersonatePermission = permissions.user.canImpersonate(
 		userSession.authenticatedUser,
 		userId,
 		userProfileContext.profileUser.role,

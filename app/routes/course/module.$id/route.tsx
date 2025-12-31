@@ -19,10 +19,7 @@ import {
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
 } from "server/internal/quiz-submission-management";
-import {
-	canParticipateInDiscussion,
-	canSubmitAssignment,
-} from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import z from "zod";
 import {
 	badRequest,
@@ -90,7 +87,7 @@ type DiscussionAction =
 type QuizAction = (typeof QuizActions)[keyof typeof QuizActions];
 type ModuleAction = AssignmentAction | DiscussionAction | QuizAction;
 
-const getRouteUrl = (action: ModuleAction, moduleLinkId: number) => {
+export function getRouteUrl(action: ModuleAction, moduleLinkId: number) {
 	return (
 		href("/course/module/:moduleLinkId", {
 			moduleLinkId: String(moduleLinkId),
@@ -98,7 +95,7 @@ const getRouteUrl = (action: ModuleAction, moduleLinkId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 export const actionSearchParams = {
 	action: parseAsStringEnum([
@@ -106,9 +103,7 @@ export const actionSearchParams = {
 		...Object.values(DiscussionActions),
 		...Object.values(QuizActions),
 	]),
-	showQuiz: parseAsString,
 	threadId: parseAsInteger,
-	replyTo: parseAsString,
 };
 
 export const loadSearchParams = createLoader(actionSearchParams);
@@ -265,7 +260,7 @@ const [createThreadAction, useCreateThread] = createThreadActionRpc(
 		}
 
 		// Check participation permissions
-		const canParticipate = canParticipateInDiscussion(
+		const canParticipate = permissions.course.module.discussion.canParticipate(
 			enrolmentContext.enrolment,
 		);
 		if (!canParticipate.allowed) {
@@ -475,7 +470,7 @@ const [createReplyAction, useCreateReply] = createReplyActionRpc(
 		}
 
 		// Check if user can participate in discussions
-		const canParticipate = canParticipateInDiscussion(
+		const canParticipate = permissions.course.module.discussion.canParticipate(
 			enrolmentContext.enrolment,
 		);
 		if (!canParticipate.allowed) {
@@ -555,27 +550,31 @@ const [markQuizAttemptAsCompleteAction, useMarkQuizAttemptAsComplete] =
 			}
 
 			// Only students can submit assignments or start quizzes
-			if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+			if (
+				!permissions.course.module.canSubmitAssignment(
+					enrolmentContext.enrolment,
+				).allowed
+			) {
 				throw new ForbiddenResponse("Only students can submit assignments");
 			}
 
 			// Parse answers if provided
 			let answers:
 				| Array<{
-					questionId: string;
-					questionText: string;
-					questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank";
-					selectedAnswer?: string;
-					multipleChoiceAnswers?: Array<{
-						option: string;
-						isSelected: boolean;
-					}>;
-				}>
+						questionId: string;
+						questionText: string;
+						questionType:
+							| "multiple_choice"
+							| "true_false"
+							| "short_answer"
+							| "essay"
+							| "fill_blank";
+						selectedAnswer?: string;
+						multipleChoiceAnswers?: Array<{
+							option: string;
+							isSelected: boolean;
+						}>;
+				  }>
 				| undefined;
 
 			if (formData.answers) {
@@ -645,7 +644,11 @@ const [startQuizAttemptAction, useStartQuizAttempt] =
 			}
 
 			// Only students can submit assignments or start quizzes
-			if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+			if (
+				!permissions.course.module.canSubmitAssignment(
+					enrolmentContext.enrolment,
+				).allowed
+			) {
 				throw new ForbiddenResponse("Only students can submit assignments");
 			}
 
@@ -741,7 +744,11 @@ const [submitAssignmentAction, useSubmitAssignment] =
 			}
 
 			// Only students can submit assignments or start quizzes
-			if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
+			if (
+				!permissions.course.module.canSubmitAssignment(
+					enrolmentContext.enrolment,
+				).allowed
+			) {
 				throw new ForbiddenResponse("Only students can submit assignments");
 			}
 
@@ -758,8 +765,8 @@ const [submitAssignmentAction, useSubmitAssignment] =
 			const maxAttemptNumber =
 				userSubmissions.length > 0
 					? Math.max(
-						...userSubmissions.map((sub) => sub.attemptNumber as number),
-					)
+							...userSubmissions.map((sub) => sub.attemptNumber as number),
+						)
 					: 0;
 			const nextAttemptNumber = maxAttemptNumber + 1;
 
@@ -817,9 +824,7 @@ export {
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const { action: actionParam, replyTo: replyToParam } = loadSearchParams(
-		args.request,
-	);
+	const { action: actionParam } = loadSearchParams(args.request);
 
 	if (!actionParam) {
 		return badRequest({ error: "Action is required" });
@@ -986,21 +991,21 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-				"status" in loaderData.userSubmission &&
-				loaderData.userSubmission.status === "in_progress"
+			"status" in loaderData.userSubmission &&
+			loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 
 		const handleQuizSubmit = (answers: QuizAnswers) => {
 			if (!activeSubmission) return;
 
-			const transformedAnswers = transformQuizAnswersToSubmissionFormat(
+			const _transformedAnswers = transformQuizAnswersToSubmissionFormat(
 				quizConfig,
 				answers,
 			);
 
 			// Calculate time spent if startedAt exists
-			let timeSpent: number | undefined;
+			let _timeSpent: number | undefined;
 			if (
 				activeSubmission &&
 				"startedAt" in activeSubmission &&
@@ -1008,7 +1013,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 			) {
 				const startedAt = new Date(activeSubmission.startedAt);
 				const now = new Date();
-				timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
+				_timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
 			}
 
 			markQuizAttemptAsComplete({
@@ -1045,7 +1050,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 						params: { moduleLinkId: loaderData.id },
 					});
 				}}
-				canSubmit={loaderData.permissions.canStartAttempt.allowed}
+				canStartAttempt={loaderData.permissions.canStartAttempt.allowed}
 				quizRemainingTime={loaderData.quizRemainingTime}
 				canPreview={loaderData.permissions?.canPreview.allowed ?? false}
 			/>

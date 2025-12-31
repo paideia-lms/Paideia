@@ -51,6 +51,10 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+
+export function getRouteUrl() {
+	return href("/");
+}
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
 import {

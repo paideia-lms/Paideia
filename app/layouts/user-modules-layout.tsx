@@ -24,7 +24,7 @@ import { href, Link, Outlet } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -58,7 +58,7 @@ export const loader = async ({
 		throw new ForbiddenResponse("You can only view your own data");
 	}
 
-	if (!canSeeUserModules(currentUser).allowed) {
+	if (!permissions.user.canSeeModules(currentUser).allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to access this page",
 		);
@@ -79,7 +79,8 @@ export const loader = async ({
 	const canManageModules =
 		userId === currentUser.id || currentUser.role === "admin";
 
-	const isInUserModuleEditLayout = pageInfo.isInUserModuleEditLayout;
+	const isInUserModuleEditLayout =
+		pageInfo.is["layouts/user-module-edit-layout"];
 
 	let moduleId: number | null = null;
 	if (isInUserModuleEditLayout) {
@@ -125,20 +126,6 @@ export default function UserModulesLayout({
 		debouncedSetSearchQuery(value);
 	};
 
-	// Helper function to get badge color based on status
-	const getStatusColor = (status: string) => {
-		switch (status) {
-			case "published":
-				return "green";
-			case "draft":
-				return "yellow";
-			case "archived":
-				return "gray";
-			default:
-				return "blue";
-		}
-	};
-
 	// Helper function to format type display
 	const formatType = (type: string) => {
 		return type
@@ -153,8 +140,7 @@ export default function UserModulesLayout({
 		const query = searchQuery.toLowerCase();
 		return (
 			module.title.toLowerCase().includes(query) ||
-			module.type.toLowerCase().includes(query) ||
-			module.status.toLowerCase().includes(query)
+			module.type.toLowerCase().includes(query)
 		);
 	});
 
@@ -184,7 +170,7 @@ export default function UserModulesLayout({
 								</Group>
 
 								<TextInput
-									placeholder="Search modules by title, type, or status..."
+									placeholder="Search modules by title or type..."
 									leftSection={<IconSearch size={16} />}
 									value={inputValue}
 									onChange={handleSearchChange}
@@ -259,12 +245,6 @@ export default function UserModulesLayout({
 															)}
 														>
 															{formatType(module.type)}
-														</Badge>
-														<Badge
-															size="xs"
-															color={getStatusColor(module.status)}
-														>
-															{module.status}
 														</Badge>
 														{module.accessType === "readonly" && (
 															<Badge size="xs" color="gray" variant="outline">

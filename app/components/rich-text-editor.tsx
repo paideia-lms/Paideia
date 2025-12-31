@@ -41,7 +41,6 @@ import {
 } from "@tiptap/extension-details";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import FileHandler from "@tiptap/extension-file-handler";
-import { Gapcursor } from "@tiptap/extension-gapcursor";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import Mention from "@tiptap/extension-mention";
@@ -949,7 +948,6 @@ export const RichTextEditor = forwardRef<
 					class: "task-item",
 				},
 			}),
-			Gapcursor,
 			TableKit.configure({
 				table: {
 					resizable: true,

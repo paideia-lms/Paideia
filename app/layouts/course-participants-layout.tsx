@@ -50,8 +50,9 @@ export default function CourseParticipantsLayout({
 
 	// Determine current tab based on page info
 	const getCurrentTab = () => {
-		if (pageInfo.isCourseParticipantsProfile) return ParticipantsTab.Profile;
-		if (pageInfo.isCourseGroups) return ParticipantsTab.Groups;
+		if (pageInfo.is["routes/course.$id.participants.profile"])
+			return ParticipantsTab.Profile;
+		if (pageInfo.is["routes/course.$id.groups"]) return ParticipantsTab.Groups;
 		return ParticipantsTab.Participants;
 	};
 

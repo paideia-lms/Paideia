@@ -33,6 +33,7 @@ import { tryRunSeed } from "./utils/db/seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
+import { parseParams } from "app/utils/params-schema";
 
 const payload = await getPayload({
 	config: sanitizedConfig,
@@ -105,7 +106,7 @@ async function startServer() {
 		.use(
 			async (e) =>
 				await reactRouter(e, {
-					getLoadContext: ({ request }) => {
+					getLoadContext: ({ request, params }) => {
 						const c = new RouterContextProvider();
 
 						// ! patch the request
@@ -153,71 +154,8 @@ async function startServer() {
 							// ! for now the payload request does not exist because it only exists after the user middleware is passed. we use a temp value here
 							payloadRequest: {},
 							pageInfo: {
-								isInAdminLayout: false,
-								isMyCourses: false,
-								isDashboard: false,
-								isLogin: false,
-								isRegistration: false,
-								isCatalog: false,
-								isApi: false,
-								isInCourse: false,
-								isCourseSettings: false,
-								isCourseParticipants: false,
-								isCourseParticipantsProfile: false,
-								isCourseParticipantsLayout: false,
-								isCourseGroups: false,
-								isCourseGrades: false,
-								isCourseGradesLayout: false,
-								isCourseGradesSingleView: false,
-								isCourseModules: false,
-								isCourseBin: false,
-								isCourseBackup: false,
-								isCourseModule: false,
-								isCourseModuleEdit: false,
-								isCourseModuleSubmissions: false,
-								isInCourseModuleLayout: false,
-								isCourseSection: false,
-								isCourseSectionNew: false,
-								isCourseSectionEdit: false,
-								isInCourseSectionLayout: false,
-								isUserLayout: false,
-								isUserOverview: false,
-								isUserPreference: false,
-								isUserModules: false,
-								isUserGrades: false,
-								isUserNotes: false,
-								isUserNoteCreate: false,
-								isUserNoteEdit: false,
-								isUserMedia: false,
-								isInUserModulesLayout: false,
-								isUserModuleNew: false,
-								isUserModuleEdit: false,
-								isUserModuleEditSetting: false,
-								isUserModuleEditAccess: false,
-								isUserProfile: false,
-								isInUserModuleEditLayout: false,
-								isAdminIndex: false,
-								isAdminUsers: false,
-								isAdminUserNew: false,
-								isAdminCourses: false,
-								isAdminSystem: false,
-								isAdminTestEmail: false,
-								isAdminCourseNew: false,
-								isAdminCategories: false,
-								isAdminCategoryNew: false,
-								isAdminRegistration: false,
-								isAdminMigrations: false,
-								isAdminDependencies: false,
-								isAdminCronJobs: false,
-								isAdminScheduledTasks: false,
-								isAdminMaintenance: false,
-								isAdminSitePolicies: false,
-								isAdminMedia: false,
-								isAdminAppearance: false,
-								isAdminTheme: false,
-								isAdminLogo: false,
-								isAdminAnalytics: false,
-								params: {},
+								is: {} as any,
+								params: parseParams(params),
 							},
 						});
 						// set all the contexts to be null in the beginning??

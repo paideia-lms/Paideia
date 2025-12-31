@@ -10,7 +10,6 @@ import {
 	Box,
 	Button,
 	Loader,
-	Select,
 	TextInput,
 	Stack,
 	Textarea,
@@ -18,7 +17,6 @@ import {
 	Tooltip,
 	useMantineColorScheme,
 } from "@mantine/core";
-import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import {
 	useDebouncedCallback,
@@ -28,7 +26,7 @@ import {
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { useWhiteboardData } from "./useWhiteboardData";
+import { useWhiteboardData } from "./use-whiteboard-data";
 import type { WhiteboardFormInitialValues as EditWhiteboardFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { WhiteboardFormInitialValues as NewWhiteboardFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
@@ -63,7 +61,6 @@ export function WhiteboardForm({
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			status: initialValues?.status ?? "draft",
 			whiteboardContent: initialValues?.whiteboardContent ?? "",
 		},
 		validate: {
@@ -119,18 +116,6 @@ export function WhiteboardForm({
 					placeholder="Enter module title"
 					required
 					withAsterisk
-				/>
-
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
 				/>
 
 				<Textarea

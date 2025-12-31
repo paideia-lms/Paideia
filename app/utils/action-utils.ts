@@ -282,9 +282,8 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 			: undefined;
 
 		// Compute SearchParamsType (preserving original logic for correctness)
-		type HasSearchParams = SearchParamsSchema extends Record<string, unknown>
-			? true
-			: false;
+		type HasSearchParams =
+			SearchParamsSchema extends Record<string, unknown> ? true : false;
 		type HasAction = Action extends string ? true : false;
 		type HasBoth = HasSearchParams extends true
 			? HasAction extends true

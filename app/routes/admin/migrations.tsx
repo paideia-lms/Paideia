@@ -38,9 +38,9 @@ const createDumpActionRpc = createActionRpc({
 	action: Action.Dump,
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/admin/migrations");
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);

@@ -58,7 +58,7 @@ function isTeachingStaff(enrolment?: { role?: Enrollment["role"] }): boolean {
 // Course Permissions
 // ============================================================================
 
-export function canSeeCourseSettings(
+function canSeeCourseSettings(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -79,7 +79,7 @@ export function canSeeCourseSettings(
 	};
 }
 
-export function canSeeCourseParticipants(
+function canSeeCourseParticipants(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -99,7 +99,7 @@ export function canSeeCourseParticipants(
 	};
 }
 
-export function canSeeCourseGrades(
+function canSeeCourseGrades(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -134,7 +134,7 @@ export function canSeeCourseGrades(
 	};
 }
 
-export function canSeeCourseModules(
+function canSeeCourseModules(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -155,7 +155,7 @@ export function canSeeCourseModules(
 	};
 }
 
-export function canSeeCourseBin(
+function canSeeCourseBin(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -175,7 +175,7 @@ export function canSeeCourseBin(
 	};
 }
 
-export function canSeeCourseBackup(
+function canSeeCourseBackup(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -195,7 +195,7 @@ export function canSeeCourseBackup(
 	};
 }
 
-export function canUpdateCourseStructure(
+function canUpdateCourseStructure(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -215,7 +215,7 @@ export function canUpdateCourseStructure(
 	};
 }
 
-export function canManageCourseGroups(
+function canManageCourseGroups(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -235,7 +235,7 @@ export function canManageCourseGroups(
 	};
 }
 
-export function canAccessCourse(
+function canAccessCourse(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -265,7 +265,7 @@ export function canAccessCourse(
 	};
 }
 
-export function canSeeCourseSectionSettings(
+function canSeeCourseSectionSettings(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -285,7 +285,7 @@ export function canSeeCourseSectionSettings(
 	};
 }
 
-export function canEditCourseSection(
+function canEditCourseSection(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -319,7 +319,7 @@ export function canEditCourseSection(
 	};
 }
 
-export function canSeeCourseModuleSettings(
+function canSeeCourseModuleSettings(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -339,7 +339,7 @@ export function canSeeCourseModuleSettings(
 	};
 }
 
-export function canEditCourseModule(
+function canEditCourseModule(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -373,7 +373,7 @@ export function canEditCourseModule(
 	};
 }
 
-export function canEditCourse(
+function canEditCourse(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -410,7 +410,7 @@ export function canEditCourse(
 // User/Profile Permissions
 // ============================================================================
 
-export function canSeeUserModules(user?: {
+function canSeeUserModules(user?: {
 	id: number;
 	role?: User["role"];
 }): PermissionResult {
@@ -436,7 +436,7 @@ export function canSeeUserModules(user?: {
 	};
 }
 
-export function canEditUserModule(
+function canEditUserModule(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -485,7 +485,7 @@ export function canEditUserModule(
  * @param isSandboxMode - Whether sandbox mode is enabled
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditOtherAdmin(
+function canEditOtherAdmin(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -539,7 +539,7 @@ export function canEditOtherAdmin(
  * @param isSandboxMode - Whether sandbox mode is enabled
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditUserProfile(
+function canEditUserProfile(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -601,7 +601,7 @@ export function canEditUserProfile(
  * @param targetUserId - The ID of the user whose profile is being edited
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditProfile(
+function canEditProfile(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -656,7 +656,7 @@ export function canEditProfile(
  * @param isImpersonating - Whether the user is currently impersonating
  * @returns Permission result with allowed boolean and reason string
  */
-export function canImpersonate(
+function canImpersonate(
 	authenticatedUser?: {
 		id: number;
 		role?: User["role"];
@@ -730,7 +730,7 @@ export function canImpersonate(
  * @param isSandboxMode - Whether sandbox mode is enabled
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditProfileEmail(): PermissionResult {
+function canEditProfileEmail(): PermissionResult {
 	return {
 		allowed: false,
 		reason: "Email cannot be changed by users",
@@ -751,7 +751,7 @@ export function canEditProfileEmail(): PermissionResult {
  * @param isSandboxMode - Whether sandbox mode is enabled
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditProfileFields(
+function canEditProfileFields(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -770,7 +770,7 @@ export function canEditProfileFields(
  * Checks if the current user can edit the firstName field of a target user.
  * This is an alias for canEditProfileFields for consistency.
  */
-export function canEditProfileFirstName(
+function canEditProfileFirstName(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -788,7 +788,7 @@ export function canEditProfileFirstName(
  * Checks if the current user can edit the lastName field of a target user.
  * This is an alias for canEditProfileFields for consistency.
  */
-export function canEditProfileLastName(
+function canEditProfileLastName(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -806,7 +806,7 @@ export function canEditProfileLastName(
  * Checks if the current user can edit the bio field of a target user.
  * This is an alias for canEditProfileFields for consistency.
  */
-export function canEditProfileBio(
+function canEditProfileBio(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -824,7 +824,7 @@ export function canEditProfileBio(
  * Checks if the current user can edit the avatar field of a target user.
  * This is an alias for canEditProfileFields for consistency.
  */
-export function canEditProfileAvatar(
+function canEditProfileAvatar(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -853,7 +853,7 @@ export function canEditProfileAvatar(
  * @param isSandboxMode - Whether sandbox mode is enabled
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditProfileRole(
+function canEditProfileRole(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -917,7 +917,7 @@ export function canEditProfileRole(
 // Module Permissions
 // ============================================================================
 
-export function canSeeModuleSubmissions(
+function canSeeModuleSubmissions(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -936,7 +936,7 @@ export function canSeeModuleSubmissions(
 	};
 }
 
-export function canSubmitAssignment(enrolment?: {
+function canSubmitAssignment(enrolment?: {
 	role?: Enrollment["role"];
 }): PermissionResult {
 	const allowed = enrolment?.role === "student";
@@ -964,7 +964,7 @@ export function canSubmitAssignment(enrolment?: {
  * @param mediaCreatedBy - The user ID who created the media file
  * @returns Permission result with allowed boolean and reason string
  */
-export function canDeleteMedia(
+function canDeleteMedia(
 	currentUser?: {
 		id: number;
 		role?: User["role"];
@@ -1025,7 +1025,7 @@ export function canDeleteMedia(
  * @param hasInProgressAttempt - Whether there's currently an in_progress attempt
  * @returns Permission result with allowed boolean and reason string
  */
-export function canStartQuizAttempt(
+function canStartQuizAttempt(
 	maxAttempts: number | null,
 	attemptCount: number,
 	hasInProgressAttempt: boolean,
@@ -1072,7 +1072,7 @@ export function canStartQuizAttempt(
  * @param enrolment - The enrolment object with role field
  * @returns Permission result with allowed boolean and reason string
  */
-export function canPreviewQuiz(
+function canPreviewQuiz(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -1091,7 +1091,7 @@ export function canPreviewQuiz(
 	};
 }
 
-export function canDeleteSubmissions(
+function canDeleteSubmissions(
 	user?: {
 		id: number;
 		role?: User["role"];
@@ -1131,7 +1131,7 @@ export function canDeleteSubmissions(
  * @param enrolment - The enrollment object with status field
  * @returns Permission result with allowed boolean and reason string
  */
-export function canParticipateInDiscussion(enrolment?: {
+function canParticipateInDiscussion(enrolment?: {
 	status?: Enrollment["status"];
 }): PermissionResult {
 	if (!enrolment) {
@@ -1159,7 +1159,7 @@ export function canParticipateInDiscussion(enrolment?: {
 // Admin Permissions
 // ============================================================================
 
-export function canImpersonateUser(
+function canImpersonateUser(
 	authenticatedUser?: {
 		id: number;
 		role?: User["role"];
@@ -1196,14 +1196,14 @@ export function canImpersonateUser(
 // ============================================================================
 
 /**
- * Organized permissions object grouped by domain.
- * Provides a structured way to access permissions while maintaining backward compatibility
- * with individual function exports.
+ * Organized permissions object grouped by domain, matching the context hierarchy.
+ * Provides a structured way to access permissions that aligns with the context structure.
  *
  * Usage examples:
  * - permissions.course.canSeeSettings(user, enrolment)
+ * - permissions.course.module.canSeeSubmissions(user, enrolment)
+ * - permissions.course.module.quiz.canStartAttempt(maxAttempts, attemptCount, hasInProgress)
  * - permissions.user.profile.canEdit(currentUser, targetUser, isSandboxMode)
- * - permissions.module.canSeeSubmissions(user, enrolment)
  */
 export const permissions = {
 	course: {
@@ -1216,6 +1216,7 @@ export const permissions = {
 		canUpdateStructure: canUpdateCourseStructure,
 		canManageGroups: canManageCourseGroups,
 		canAccess: canAccessCourse,
+		canEdit: canEditCourse,
 		section: {
 			canSeeSettings: canSeeCourseSectionSettings,
 			canEdit: canEditCourseSection,
@@ -1223,8 +1224,17 @@ export const permissions = {
 		module: {
 			canSeeSettings: canSeeCourseModuleSettings,
 			canEdit: canEditCourseModule,
+			canSeeSubmissions: canSeeModuleSubmissions,
+			canSubmitAssignment: canSubmitAssignment,
+			quiz: {
+				canStartAttempt: canStartQuizAttempt,
+				canPreview: canPreviewQuiz,
+				canDeleteSubmissions: canDeleteSubmissions,
+			},
+			discussion: {
+				canParticipate: canParticipateInDiscussion,
+			},
 		},
-		canEdit: canEditCourse,
 	},
 	user: {
 		canSeeModules: canSeeUserModules,
@@ -1245,20 +1255,8 @@ export const permissions = {
 			canEditRole: canEditProfileRole,
 		},
 	},
-	module: {
-		canSeeSubmissions: canSeeModuleSubmissions,
-		canSubmitAssignment: canSubmitAssignment,
-	},
 	media: {
 		canDelete: canDeleteMedia,
-	},
-	quiz: {
-		canStartAttempt: canStartQuizAttempt,
-		canPreview: canPreviewQuiz,
-		canDeleteSubmissions: canDeleteSubmissions,
-	},
-	discussion: {
-		canParticipate: canParticipateInDiscussion,
 	},
 	admin: {
 		canImpersonateUser: canImpersonateUser,

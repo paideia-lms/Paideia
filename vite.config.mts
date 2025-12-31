@@ -24,9 +24,9 @@ export default defineConfig({
 			  files: ["server/contexts/user-context.ts"],
 			},
 			server: {
-			//   specifiers: ["jquery"],
+
 			},
-		  }),
+		  }) ,
 	],
 	optimizeDeps: {
 		exclude: ["file-type"],

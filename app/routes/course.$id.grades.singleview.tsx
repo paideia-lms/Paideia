@@ -33,6 +33,12 @@ import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
 
+export function getRouteUrl(courseId: number) {
+	return href("/course/:courseId/grades/singleview", {
+		courseId: courseId.toString(),
+	});
+}
+
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -68,7 +74,7 @@ export const loader = async ({
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser =
+	const _currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Prepare user object for internal functions

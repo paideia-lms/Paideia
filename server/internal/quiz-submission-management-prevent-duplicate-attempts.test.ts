@@ -98,7 +98,6 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 			payload,
 			title: "Test Quiz",
 			description: "A test quiz for duplicate attempts",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: teacher as TypedUser,

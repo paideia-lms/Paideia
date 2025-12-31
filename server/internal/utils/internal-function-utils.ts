@@ -148,27 +148,30 @@ type IsNormalRelation<T> =
 					? true
 					: false;
 
-type IsPolymorphicRelation<T> = NonNullable<T> extends (infer K)[]
-	? IsPolymorphicRelation<K>
-	: NonNullable<T> extends { relationTo: string; value: infer U }
-		? IsNormalRelation<U>
+type IsPolymorphicRelation<T> =
+	NonNullable<T> extends (infer K)[]
+		? IsPolymorphicRelation<K>
+		: NonNullable<T> extends { relationTo: string; value: infer U }
+			? IsNormalRelation<U>
+			: false;
+
+type IsDocRelation<T> =
+	NonNullable<T> extends { docs?: (infer U)[] }
+		? IsNormalRelation<U> extends true
+			? true
+			: IsPolymorphicRelation<U> extends true
+				? true
+				: false
 		: false;
 
-type IsDocRelation<T> = NonNullable<T> extends { docs?: (infer U)[] }
-	? IsNormalRelation<U> extends true
+type IsRelation<T> =
+	IsNormalRelation<T> extends true
 		? true
-		: IsPolymorphicRelation<U> extends true
+		: IsPolymorphicRelation<T> extends true
 			? true
-			: false
-	: false;
-
-type IsRelation<T> = IsNormalRelation<T> extends true
-	? true
-	: IsPolymorphicRelation<T> extends true
-		? true
-		: IsDocRelation<T> extends true
-			? true
-			: false;
+			: IsDocRelation<T> extends true
+				? true
+				: false;
 
 // 3. StripObject: Used when Depth is 0. Keeps IDs and Nulls.
 type StripNormalObject<T> = FollowNullable<
@@ -250,21 +253,23 @@ type StripDocObject<T> = FollowNullable<
 			: StripPolymorphicObject<T> // Fallback for general fields that might be simple/polymorphic relations
 >;
 
-type StripID<T> = IsDocRelation<T> extends true
-	? StripDocID<T>
-	: IsPolymorphicRelation<T> extends true
-		? StripPolymorphicID<T>
-		: IsNormalRelation<T> extends true
-			? StripNormalID<T>
-			: T;
+type StripID<T> =
+	IsDocRelation<T> extends true
+		? StripDocID<T>
+		: IsPolymorphicRelation<T> extends true
+			? StripPolymorphicID<T>
+			: IsNormalRelation<T> extends true
+				? StripNormalID<T>
+				: T;
 
-type StripObject<T> = IsDocRelation<T> extends true
-	? StripDocObject<T>
-	: IsPolymorphicRelation<T> extends true
-		? StripPolymorphicObject<T>
-		: IsNormalRelation<T> extends true
-			? StripNormalObject<T>
-			: T;
+type StripObject<T> =
+	IsDocRelation<T> extends true
+		? StripDocObject<T>
+		: IsPolymorphicRelation<T> extends true
+			? StripPolymorphicObject<T>
+			: IsNormalRelation<T> extends true
+				? StripNormalObject<T>
+				: T;
 
 // Extract depth-0 array handling
 type DepthZeroArrayItem<U> = U extends object

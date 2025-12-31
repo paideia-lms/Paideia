@@ -101,7 +101,7 @@ describe("raw-quiz-config-version-resolver", () => {
 
 			// Resources moved to nested quiz
 			expect(result.nestedQuizzes[0]!.resources).toHaveLength(1);
-			expect(result.nestedQuizzes[0]!.resources?.[0]!.id).toBe("res-1");
+			expect(result.nestedQuizzes[0]!.resources?.[0]?.id).toBe("res-1");
 		}
 	});
 

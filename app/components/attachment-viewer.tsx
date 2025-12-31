@@ -202,8 +202,8 @@ export function AttachmentViewer({
 	compact = false,
 }: AttachmentViewerProps) {
 	const { id, filename, mimeType, filesize } = file;
-	const fileUrl = href("/api/media/file/:filenameOrId", {
-		filenameOrId: id.toString(),
+	const fileUrl = href("/api/media/file/:mediaId", {
+		mediaId: id.toString(),
 	});
 	const displayName = filename || `File ${id}`;
 	const fileType = getFileType(filename, mimeType);

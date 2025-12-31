@@ -55,7 +55,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: `Auto Granted Module Test - ${uniqueId}`,
 				type: "assignment",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -334,7 +333,6 @@ describe("Activity Module Access Control", () => {
 				title: "Test Activity Module",
 				description: "Test description",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -365,7 +363,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Owner Read Test",
 				type: "quiz",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -392,7 +389,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Owner Update Test",
 				type: "discussion",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -422,7 +418,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Owner Delete Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -449,7 +444,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Non-Owner Read Test",
 				type: "quiz",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -480,7 +474,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Grant Access Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -520,7 +513,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Granted User Read Test",
 				type: "quiz",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -557,7 +549,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Granted User Update Test",
 				type: "discussion",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -597,7 +588,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Granted User Delete Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -637,7 +627,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Revoke Access Test",
 				type: "quiz",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -694,7 +683,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Transfer with Grant Test",
 				type: "discussion",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -753,7 +741,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Admin Access Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -798,7 +785,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Duplicate Grant Test",
 				type: "quiz",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -836,7 +822,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Owner Grant Test",
 				type: "discussion",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -867,7 +852,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Transfer Remove Grant Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -931,7 +915,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Find Grants Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -985,7 +968,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Find Instructors Test",
 				type: "quiz",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1085,8 +1067,8 @@ describe("Activity Module Access Control", () => {
 
 			expect(teacherInstructor?.enrollments.length).toBe(1);
 			expect(taInstructor?.enrollments.length).toBe(1);
-			expect(teacherInstructor?.enrollments[0]!.role).toBe("teacher");
-			expect(taInstructor?.enrollments[0]!.role).toBe("ta");
+			expect(teacherInstructor?.enrollments[0]?.role).toBe("teacher");
+			expect(taInstructor?.enrollments[0]?.role).toBe("ta");
 		}
 	});
 
@@ -1099,7 +1081,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Multi Course Instructors Test",
 				type: "discussion",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1232,7 +1213,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "No Instructors Test",
 				type: "assignment",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1261,7 +1241,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "No Grants Test",
 				type: "quiz",
-				status: "draft",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1376,7 +1355,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Multi Course Module 1",
 				type: "assignment",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1389,7 +1367,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Multi Course Module 2",
 				type: "discussion",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1544,7 +1521,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Inactive Enrollment Test",
 				type: "assignment",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
@@ -1630,7 +1606,6 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Student Enrollment Test",
 				type: "quiz",
-				status: "published",
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},

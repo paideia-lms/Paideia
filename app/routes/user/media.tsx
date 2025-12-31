@@ -60,7 +60,7 @@ import {
 } from "server/internal/media-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import type { Media } from "server/payload-types";
-import { canDeleteMedia } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import {
@@ -136,7 +136,10 @@ export const loader = async ({
 
 	// Check permissions for each media item
 	const mediaWithPermissions = mediaResult.value.docs.map((file) => {
-		const deletePermission = canDeleteMedia(currentUser, file.createdBy.id);
+		const deletePermission = permissions.media.canDelete(
+			currentUser,
+			file.createdBy.id,
+		);
 		return {
 			...file,
 			deletePermission,
@@ -214,12 +217,12 @@ const createDeleteActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-const getRouteUrl = (action: Action, userId?: number) => {
+export function getRouteUrl(action: Action, userId?: number) {
 	const baseUrl = href("/user/media/:id?", {
 		id: userId ? userId.toString() : undefined,
 	});
 	return baseUrl + "?" + stringify({ action });
-};
+}
 
 const [uploadAction, useUpload] = createUploadActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
@@ -342,7 +345,10 @@ const [updateAction, useUpdate] = createUpdateActionRpc(
 
 			// Check permissions
 			const createdById = mediaRecord.createdBy.id;
-			const deletePermission = canDeleteMedia(currentUser, createdById);
+			const deletePermission = permissions.media.canDelete(
+				currentUser,
+				createdById,
+			);
 
 			if (!deletePermission.allowed) {
 				return unauthorized({
@@ -443,7 +449,10 @@ const [deleteAction, useDelete] = createDeleteActionRpc(
 		// Check permissions for each media item
 		for (const media of mediaRecords.docs) {
 			const createdById = media.createdBy;
-			const deletePermission = canDeleteMedia(currentUser, createdById);
+			const deletePermission = permissions.media.canDelete(
+				currentUser,
+				createdById,
+			);
 
 			if (!deletePermission.allowed) {
 				return unauthorized({
@@ -560,13 +569,13 @@ export function useDeleteMedia(userId?: number) {
 
 export function useDownloadMedia() {
 	const downloadMedia = (file: Media) => {
-		if (!file.filename) return;
+		if (!file.id) return;
 		const url =
-			href(`/api/media/file/:filenameOrId`, { filenameOrId: file.filename }) +
+			href(`/api/media/file/:mediaId`, { mediaId: file.id.toString() }) +
 			"?download=true";
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = file.filename;
+		link.download = file.filename || `file-${file.id}`;
 		link.click();
 	};
 	return { downloadMedia };
@@ -919,7 +928,11 @@ function MediaUsageModal({
 	opened: boolean;
 	onClose: () => void;
 }) {
-	const { fetchMediaUsage, data, loading, error } = useMediaUsageData();
+	const {
+		load: fetchMediaUsage,
+		data: mediaUsageData,
+		isLoading,
+	} = useMediaUsageData();
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
@@ -930,7 +943,7 @@ function MediaUsageModal({
 			// Fetch if modal just opened or file ID changed
 			if (!previousOpened || file.id !== previousFileId) {
 				dataFileIdRef.current = file.id;
-				fetchMediaUsage(file.id);
+				fetchMediaUsage({ params: { mediaId: file.id } });
 			}
 		}
 	}, [opened, file, previousOpened, previousFileId, fetchMediaUsage]);
@@ -943,46 +956,48 @@ function MediaUsageModal({
 			centered
 		>
 			<Stack gap="md">
-				{loading && <Text c="dimmed">Loading usage data...</Text>}
-				{error && (
+				{isLoading && <Text c="dimmed">Loading usage data...</Text>}
+				{mediaUsageData?.status === StatusCode.BadRequest && (
 					<Text c="red" size="sm">
-						Error: {error}
+						Error: {mediaUsageData.error}
 					</Text>
 				)}
-				{data && file && file.id === dataFileIdRef.current && (
-					<>
-						<Text size="sm" fw={500}>
-							Total Usages: {data.totalUsages}
-						</Text>
-						{data.totalUsages === 0 ? (
-							<Text c="dimmed" size="sm">
-								This media file is not currently used anywhere.
+				{mediaUsageData?.status === StatusCode.Ok &&
+					file &&
+					file.id === dataFileIdRef.current && (
+						<>
+							<Text size="sm" fw={500}>
+								Total Usages: {mediaUsageData.totalUsages}
 							</Text>
-						) : (
-							<Stack gap="xs">
-								{data.usages.map((usage) => (
-									<Card
-										key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
-										withBorder
-										padding="xs"
-									>
-										<Group gap="xs" wrap="nowrap">
-											<Text size="sm" fw={500}>
-												{usage.collection}
-											</Text>
-											<Text size="sm" c="dimmed">
-												Document ID: {usage.documentId}
-											</Text>
-											<Text size="sm" c="dimmed">
-												Field: {usage.fieldPath}
-											</Text>
-										</Group>
-									</Card>
-								))}
-							</Stack>
-						)}
-					</>
-				)}
+							{mediaUsageData.totalUsages === 0 ? (
+								<Text c="dimmed" size="sm">
+									This media file is not currently used anywhere.
+								</Text>
+							) : (
+								<Stack gap="xs">
+									{mediaUsageData.usages.map((usage) => (
+										<Card
+											key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
+											withBorder
+											padding="xs"
+										>
+											<Group gap="xs" wrap="nowrap">
+												<Text size="sm" fw={500}>
+													{usage.collection}
+												</Text>
+												<Text size="sm" c="dimmed">
+													Document ID: {usage.documentId}
+												</Text>
+												<Text size="sm" c="dimmed">
+													Field: {usage.fieldPath}
+												</Text>
+											</Group>
+										</Card>
+									))}
+								</Stack>
+							)}
+						</>
+					)}
 			</Stack>
 		</Modal>
 	);
@@ -1000,10 +1015,10 @@ function MediaPreviewModal({
 }) {
 	if (!file) return null;
 
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1092,10 +1107,10 @@ function MediaActionMenu({
 }) {
 	const canDelete = file.deletePermission?.allowed ?? false;
 	const canPreviewFile = canPreview(file.mimeType ?? null);
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1172,10 +1187,10 @@ function MediaCard({
 	onRename?: (file: Media) => void;
 	onOpenUsageModal?: (file: Media) => void;
 }) {
-	const mediaUrl = file.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+	const mediaUrl = file.id
+		? href(`/api/media/file/:mediaId`, {
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1456,8 +1471,6 @@ function MediaPagination({
 				total={totalPages}
 				value={currentPage}
 				onChange={(page) => {
-					// TODO: Implement pagination navigation
-					console.log("Navigate to page:", page);
 					onPageChange(page);
 				}}
 			/>

@@ -1,3 +1,4 @@
+import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import { tryFindUserById } from "server/internal/user-management";
@@ -7,6 +8,12 @@ import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
+
+export function getRouteUrl(userId: number) {
+	return href("/api/user/:id/avatar", {
+		id: userId.toString(),
+	});
+}
 
 /**
  * ! we are return error rather than throwing error because this a non component route

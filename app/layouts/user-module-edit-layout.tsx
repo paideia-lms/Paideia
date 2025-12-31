@@ -12,14 +12,15 @@ import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
+import type { ActivityModule } from "server/payload-types";
 
 enum ModuleEditTab {
-	Preview = "preview",
+	// Preview = "preview",
 	Setting = "setting",
 	Access = "access",
 }
@@ -36,7 +37,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (!canSeeUserModules(currentUser)) {
+	if (!permissions.user.canSeeModules(currentUser).allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to access this module",
 		);
@@ -63,35 +64,15 @@ export default function UserModuleEditLayout({
 	// Only show Setting and Access tabs if user can edit
 	const canEdit = accessType === "owned" || accessType === "granted";
 
-	// Helper function to get badge color based on status
-	const getStatusColor = (status: string) => {
-		switch (status) {
-			case "published":
-				return "green";
-			case "draft":
-				return "yellow";
-			case "archived":
-				return "gray";
-			default:
-				return "blue";
-		}
-	};
-
-	// Helper function to format type display
-	const formatType = (type: string) => {
-		return type
-			.split("-")
-			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-			.join(" ");
-	};
-
 	// Determine current tab based on pageInfo
 	const getCurrentTab = () => {
-		if (pageInfo.isUserModuleEditSetting) return ModuleEditTab.Setting;
-		if (pageInfo.isUserModuleEditAccess) return ModuleEditTab.Access;
+		if (pageInfo.is["routes/user/module/edit-setting"])
+			return ModuleEditTab.Setting;
+		if (pageInfo.is["routes/user/module/edit-access"])
+			return ModuleEditTab.Access;
 
 		// Default to Preview tab
-		return ModuleEditTab.Preview;
+		return ModuleEditTab.Setting;
 	};
 
 	const handleTabChange = (value: string | null) => {
@@ -101,11 +82,8 @@ export default function UserModuleEditLayout({
 		if (!moduleId) return;
 
 		switch (value) {
-			case ModuleEditTab.Preview:
-				navigate(href("/user/module/edit/:moduleId", { moduleId }));
-				break;
 			case ModuleEditTab.Setting:
-				navigate(href("/user/module/edit/:moduleId/setting", { moduleId }));
+				navigate(href("/user/module/edit/:moduleId", { moduleId }));
 				break;
 			case ModuleEditTab.Access:
 				navigate(href("/user/module/edit/:moduleId/access", { moduleId }));
@@ -121,30 +99,15 @@ export default function UserModuleEditLayout({
 						<div style={{ flex: 1 }}>
 							<Group gap="sm" mb="xs">
 								<Title order={2}>{module.title}</Title>
-								<Badge color={getStatusColor(module.status)}>
-									{module.status}
-								</Badge>
 								<Badge
 									variant="light"
-									color={getModuleColor(
-										module.type as
-											| "page"
-											| "whiteboard"
-											| "assignment"
-											| "quiz"
-											| "discussion",
-									)}
+									color={getModuleColor(module.type as ActivityModule["type"])}
 									leftSection={getModuleIcon(
-										module.type as
-											| "page"
-											| "whiteboard"
-											| "assignment"
-											| "quiz"
-											| "discussion",
+										module.type as ActivityModule["type"],
 										14,
 									)}
 								>
-									{formatType(module.type)}
+									{module.type}
 								</Badge>
 							</Group>
 							<Text c="dimmed" size="sm" mb="sm">
@@ -175,7 +138,6 @@ export default function UserModuleEditLayout({
 						mt="sm"
 					>
 						<Tabs.List>
-							<Tabs.Tab value={ModuleEditTab.Preview}>Preview</Tabs.Tab>
 							{canEdit && (
 								<Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>
 							)}

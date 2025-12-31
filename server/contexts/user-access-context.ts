@@ -34,7 +34,6 @@ type ActivityModule = {
 	createdAt: string;
 	updatedAt: string;
 	type: PayloadActivityModule["type"];
-	status: PayloadActivityModule["status"];
 	linkedCourses: number[];
 	accessType: "owned" | "granted" | "readonly";
 };
@@ -110,7 +109,6 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 			createdAt: module.createdAt,
 			updatedAt: module.updatedAt,
 			type: module.type,
-			status: module.status,
 			linkedCourses: module.linkedCourses,
 			accessType:
 				module.owner.id === userId ? ("owned" as const) : ("granted" as const),
@@ -122,7 +120,6 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 			createdAt: module.createdAt,
 			updatedAt: module.updatedAt,
 			type: module.type,
-			status: module.status,
 			linkedCourses: module.linkedCourses.map((c) => c.id),
 			accessType: "readonly" as const,
 		})),

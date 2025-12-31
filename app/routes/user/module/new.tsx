@@ -11,9 +11,6 @@ import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	type CreateAssignmentModuleArgs,
-	type CreateDiscussionModuleArgs,
-	type CreateQuizModuleArgs,
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
 	tryCreateFileModule,
@@ -37,10 +34,8 @@ import {
 	UnauthorizedResponse,
 } from "~/utils/responses";
 import type { Route } from "./+types/new";
-import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
 import { typeCreateActionRpc } from "app/utils/action-utils";
-import { enum_activity_modules_status } from "src/payload-generated-schema";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { serverOnly$ } from "vite-env-only/macros";
@@ -85,7 +80,6 @@ const createCreatePageActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		content: z.string().min(1),
 	}),
 	method: "POST",
@@ -96,7 +90,6 @@ const createCreateWhiteboardActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		whiteboardContent: z.string().optional(),
 	}),
 	method: "POST",
@@ -107,7 +100,6 @@ const createCreateFileActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		fileMedia: z.array(z.file()).optional(),
 	}),
 	method: "POST",
@@ -118,7 +110,6 @@ const createCreateAssignmentActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		assignmentInstructions: z.string().optional(),
 		assignmentRequireTextSubmission: z.coerce.boolean().optional(),
 		assignmentRequireFileSubmission: z.coerce.boolean().optional(),
@@ -134,7 +125,6 @@ const createCreateQuizActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		quizInstructions: z.string().optional(),
 		quizPoints: z.coerce.number().optional(),
 		quizTimeLimit: z.coerce.number().optional(),
@@ -149,7 +139,6 @@ const createCreateDiscussionActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		status: z.enum(enum_activity_modules_status.enumValues),
 		discussionInstructions: z.string().optional(),
 		discussionDueDate: z.string().nullable().optional(),
 		discussionRequireThread: z.coerce.boolean().optional(),
@@ -160,9 +149,9 @@ const createCreateDiscussionActionRpc = createActionRpc({
 	action: Action.CreateDiscussion,
 });
 
-const getRouteUrl = (action: Action) => {
+export function getRouteUrl(action: Action) {
 	return href("/user/module/new") + "?" + stringify({ action });
-};
+}
 
 const [createPageAction, useCreatePage] = createCreatePageActionRpc(
 	serverOnly$(async ({ context, formData }) => {
@@ -172,7 +161,6 @@ const [createPageAction, useCreatePage] = createCreatePageActionRpc(
 			payload,
 			title: formData.title,
 			description: formData.description,
-			status: formData.status,
 			content: formData.content,
 			req: payloadRequest,
 		});
@@ -203,7 +191,6 @@ const [createWhiteboardAction, useCreateWhiteboard] =
 				payload,
 				title: formData.title,
 				description: formData.description,
-				status: formData.status,
 				content: formData.whiteboardContent,
 				req: payloadRequest,
 			});
@@ -233,7 +220,6 @@ const [createFileAction, useCreateFile] = createCreateFileActionRpc(
 			payload,
 			title: formData.title,
 			description: formData.description,
-			status: formData.status,
 			media: formData.fileMedia,
 			req: payloadRequest,
 		});
@@ -270,7 +256,6 @@ const [createAssignmentAction, useCreateAssignment] =
 				payload,
 				title: formData.title,
 				description: formData.description,
-				status: formData.status,
 				instructions: formData.assignmentInstructions,
 				requireTextSubmission: formData.assignmentRequireTextSubmission,
 				requireFileSubmission: formData.assignmentRequireFileSubmission,
@@ -305,7 +290,6 @@ const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(
 			payload,
 			title: formData.title,
 			description: formData.description,
-			status: formData.status,
 			instructions: formData.quizInstructions,
 			points: formData.quizPoints,
 			timeLimit: formData.quizTimeLimit,
@@ -340,7 +324,6 @@ const [createDiscussionAction, useCreateDiscussion] =
 				payload,
 				title: formData.title,
 				description: formData.description,
-				status: formData.status,
 				instructions: formData.discussionInstructions,
 				dueDate: formData.discussionDueDate ?? undefined,
 				requireThread: formData.discussionRequireThread,
@@ -418,7 +401,6 @@ function getPageFormInitialValues() {
 	return {
 		title: "",
 		description: "",
-		status: "draft" as ActivityModule["status"],
 		content: "",
 	};
 }
@@ -437,7 +419,6 @@ function PageFormWrapper() {
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						content: values.content,
 					},
 				})
@@ -451,7 +432,6 @@ function getWhiteboardFormInitialValues() {
 	return {
 		title: "",
 		description: "",
-		status: "draft" as ActivityModule["status"],
 		whiteboardContent: "",
 	};
 }
@@ -471,7 +451,6 @@ function WhiteboardFormWrapper() {
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						whiteboardContent: values.whiteboardContent,
 					},
 				})
@@ -485,7 +464,6 @@ function getFileFormInitialValues() {
 	return {
 		title: "",
 		description: "",
-		status: "draft" as ActivityModule["status"],
 		fileFiles: [] as File[],
 	};
 }
@@ -504,7 +482,6 @@ function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						// we don't care about fileMedia here, beacuse the create Form is all new files
 						fileMedia: values.fileFiles,
 					},
@@ -520,7 +497,6 @@ const getAssignmentFormInitialValues = () => {
 	return {
 		title: "",
 		description: "",
-		status: "draft" as ActivityModule["status"],
 		assignmentInstructions: "",
 		assignmentRequireTextSubmission: false,
 		assignmentRequireFileSubmission: false,
@@ -545,7 +521,6 @@ function AssignmentFormWrapper() {
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						assignmentInstructions: values.assignmentInstructions,
 						assignmentRequireTextSubmission:
 							values.assignmentRequireTextSubmission,
@@ -566,7 +541,6 @@ function getQuizFormInitialValues() {
 	return {
 		title: "",
 		description: "",
-		status: "draft" as ActivityModule["status"],
 		quizInstructions: "",
 		quizPoints: 100,
 		quizTimeLimit: 60,
@@ -588,7 +562,6 @@ function QuizFormWrapper() {
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						quizInstructions: values.quizInstructions,
 						quizPoints: values.quizPoints,
 						quizTimeLimit: values.quizTimeLimit,
@@ -606,7 +579,6 @@ function getDiscussionFormInitialValues() {
 	return {
 		title: "",
 		description: "",
-		status: "draft" as ActivityModule["status"],
 		discussionInstructions: "",
 		discussionDueDate: null as Date | null,
 		discussionRequireThread: false,
@@ -630,7 +602,6 @@ function DiscussionFormWrapper() {
 					values: {
 						title: values.title,
 						description: values.description,
-						status: values.status,
 						discussionInstructions: values.discussionInstructions,
 						discussionDueDate: values.discussionDueDate
 							? values.discussionDueDate.toISOString()

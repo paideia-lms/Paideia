@@ -25,9 +25,9 @@ const createReorderCategoriesActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/category-reorder");
-};
+}
 
 const [reorderCategoriesAction, useReorderCategories] =
 	createReorderCategoriesActionRpc(

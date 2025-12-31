@@ -23,7 +23,7 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { canSeeCourseModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { z } from "zod";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import {
@@ -48,6 +48,16 @@ export const moduleLinkSearchParams = {
 
 export const loadSearchParams = createLoader(moduleLinkSearchParams);
 
+export function getRouteUrl(action: Action, courseId: number) {
+	return (
+		href("/course/:courseId/modules", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+}
+
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
 const createCreateModuleLinkActionRpc = createActionRpc({
@@ -68,16 +78,6 @@ const createDeleteModuleLinkActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-const getRouteUrl = (action: Action, courseId: number) => {
-	return (
-		href("/course/:courseId/modules", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-};
-
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -96,7 +96,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	const canEdit = canSeeCourseModules(
+	const canEdit = permissions.course.canSeeModules(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
@@ -122,7 +122,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			title: module.title,
 			description: module.description,
 			type: module.type,
-			status: module.status,
 		})) ?? [];
 
 	return {
@@ -162,7 +161,7 @@ const checkAuthorization = async (
 	const enrollment = enrollmentResult.value;
 
 	// Check if user has management access to this course
-	const canManage = canSeeCourseModules(
+	const canManage = permissions.course.canSeeModules(
 		{
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
@@ -347,7 +346,6 @@ export default function CourseModulesPage({
 						id: String(link.activityModule.id),
 						title: link.activityModule.title || "",
 						type: link.activityModule.type,
-						status: link.activityModule.status,
 						description: link.activityModule.description,
 					},
 					createdAt: link.createdAt,

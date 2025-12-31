@@ -13,11 +13,10 @@ import {
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
 } from "server/internal/gradebook-management";
-import { canAccessCourse, permissions } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
-	DevelopmentError,
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
@@ -200,7 +199,7 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 			}
 
 			// Check access
-			const hasAccess = canAccessCourse(
+			const hasAccess = permissions.course.canAccess(
 				{
 					id: user.id,
 					role: user.role ?? "student",
@@ -237,10 +236,6 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 								| "assignment"
 								| "quiz"
 								| "discussion",
-							status: link.activityModule.status as
-								| "draft"
-								| "published"
-								| "archived",
 							createdBy: {
 								id: link.activityModule.createdBy.id,
 								email: link.activityModule.createdBy.email,

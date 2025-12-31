@@ -63,7 +63,7 @@ import type {
 	WhiteboardQuestion,
 } from "server/json/raw-quiz-config/types.v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
-import { useWhiteboardData } from "../activity-module-forms/useWhiteboardData";
+import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 
 // Dynamically import Excalidraw to avoid SSR issues

@@ -5,6 +5,10 @@ import { userContextKey } from "server/contexts/user-context";
 import { removeCookie, removeImpersonationCookie } from "~/utils/cookie";
 import { UnauthorizedResponse } from "~/utils/responses";
 
+export function getRouteUrl() {
+	return href("/logout");
+}
+
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const requestInfo = context.get(globalContextKey).requestInfo;

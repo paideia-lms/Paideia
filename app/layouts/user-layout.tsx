@@ -11,8 +11,7 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindUserById } from "server/internal/user-management";
-import { canSeeUserModules } from "server/utils/permissions";
+import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
@@ -54,7 +53,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Fetch the target user
 	const targetUser = userProfileContext.profileUser;
 
-	const canSeeModules = canSeeUserModules(currentUser);
+	const canSeeModules = permissions.user.canSeeModules(currentUser).allowed;
 
 	return {
 		user: targetUser,
@@ -76,22 +75,22 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-		if (pageInfo.isUserOverview) return UserTab.Profile;
-		if (pageInfo.isUserPreference) return UserTab.Preference;
+		if (pageInfo.is["routes/user/overview"]) return UserTab.Profile;
+		if (pageInfo.is["routes/user/preference"]) return UserTab.Preference;
 		if (
-			pageInfo.isUserModules ||
-			pageInfo.isUserModuleNew ||
-			pageInfo.isUserModuleEdit
+			pageInfo.is["routes/user/modules"] ||
+			pageInfo.is["routes/user/module/new"] ||
+			pageInfo.is["routes/user/module/edit-setting"]
 		)
 			return UserTab.Modules;
-		if (pageInfo.isUserGrades) return UserTab.Grades;
+		if (pageInfo.is["routes/user/grades"]) return UserTab.Grades;
 		if (
-			pageInfo.isUserNotes ||
-			pageInfo.isUserNoteCreate ||
-			pageInfo.isUserNoteEdit
+			pageInfo.is["routes/user/notes"] ||
+			pageInfo.is["routes/user/note-create"] ||
+			pageInfo.is["routes/user/note-edit"]
 		)
 			return UserTab.Notes;
-		if (pageInfo.isUserMedia) return UserTab.Media;
+		if (pageInfo.is["routes/user/media"]) return UserTab.Media;
 
 		// Default to Profile tab
 		return UserTab.Profile;

@@ -37,6 +37,10 @@ import type { Route } from "./+types/logo";
 import { z } from "zod";
 import { stringify } from "qs";
 
+export function getRouteUrl() {
+	return href("/admin/appearance/logo");
+}
+
 enum Action {
 	Clear = "clear",
 	Upload = "upload",
@@ -332,9 +336,9 @@ function LogoDropzoneBase({
 	isClearing: boolean;
 	uploadLimit?: number;
 }) {
-	const logoUrl = logo?.filename
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: logo.filename,
+	const logoUrl = logo?.id
+		? href(`/api/media/file/:mediaId`, {
+				mediaId: logo.id.toString(),
 			})
 		: null;
 

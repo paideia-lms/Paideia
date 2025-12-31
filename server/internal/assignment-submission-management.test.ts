@@ -136,7 +136,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			req: mockRequest,
 			title: "Test Assignment",
 			description: "A test assignment for submission workflow",
-			status: "published",
 			userId: teacherId,
 			instructions: "Complete this assignment by writing a short essay",
 			requireTextSubmission: true,

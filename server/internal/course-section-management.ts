@@ -1723,7 +1723,6 @@ export interface ActivityModuleSummary {
 	id: number;
 	title: string;
 	type: PayloadActivityModule["type"];
-	status: PayloadActivityModule["status"];
 }
 
 export interface CourseStructureItem {
@@ -1897,7 +1896,6 @@ export function tryGetCourseStructure(args: GetCourseStructureArgs) {
 							id: activityModule.id,
 							title: moduleTitle,
 							type: activityModule.type,
-							status: activityModule.status,
 						},
 					});
 				}

@@ -29,6 +29,10 @@ import {
 	getUserRoleLabel,
 } from "app/components/course-view-utils";
 
+export function getRouteUrl() {
+	return href("/admin/users");
+}
+
 // Define search params
 export const usersSearchParams = {
 	query: parseAsString.withDefault(""),
@@ -75,8 +79,8 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 	const users = usersResult.value.docs.map((user) => {
 		const avatarUrl = user.avatar
-			? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: user.avatar.id.toString(),
+			? href(`/api/media/file/:mediaId`, {
+					mediaId: user.avatar.id.toString(),
 				})
 			: null;
 

@@ -180,7 +180,7 @@ const createUpdateDiscussionSettingsActionRpc = createActionRpc({
 	action: Action.UpdateDiscussion,
 });
 
-const getRouteUrl = (action: Action, moduleLinkId: number) => {
+export function getRouteUrl(action: Action, moduleLinkId: number) {
 	return (
 		href("/course/module/:moduleLinkId/edit", {
 			moduleLinkId: moduleLinkId.toString(),
@@ -188,7 +188,7 @@ const getRouteUrl = (action: Action, moduleLinkId: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 const [updatePageSettingsAction, useUpdatePageSettings] =
 	createUpdatePageSettingsActionRpc(

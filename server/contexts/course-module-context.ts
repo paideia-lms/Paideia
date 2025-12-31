@@ -24,7 +24,7 @@ import {
 } from "../internal/discussion-management";
 import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
 
-import { canSubmitAssignment, permissions } from "../utils/permissions";
+import { permissions } from "../utils/permissions";
 export { courseModuleContextKey } from "./utils/context-keys";
 
 export interface ModuleDateInfo {
@@ -207,7 +207,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					null;
 
 				const canSubmit = enrolment
-					? canSubmitAssignment(enrolment).allowed
+					? permissions.course.module.canSubmitAssignment(enrolment).allowed
 					: false;
 
 				// Construct AssignmentData from activityModule and settings
@@ -432,19 +432,20 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					previousModule,
 					nextModule,
 					permissions: {
-						canPreview: permissions.quiz.canPreview(
+						canPreview: permissions.course.module.quiz.canPreview(
 							user ?? undefined,
 							enrolment ?? undefined,
 						),
-						canStartAttempt: permissions.quiz.canStartAttempt(
+						canStartAttempt: permissions.course.module.quiz.canStartAttempt(
 							quiz?.maxAttempts ?? null,
 							allQuizSubmissionsForDisplay.length,
 							hasActiveQuizAttempt,
 						),
-						canDeleteSubmissions: permissions.quiz.canDeleteSubmissions(
-							user ?? undefined,
-							enrolment ?? undefined,
-						),
+						canDeleteSubmissions:
+							permissions.course.module.quiz.canDeleteSubmissions(
+								user ?? undefined,
+								enrolment ?? undefined,
+							),
 					},
 				};
 			} else if (moduleLink.type === "discussion") {

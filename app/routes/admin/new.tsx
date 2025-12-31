@@ -92,9 +92,9 @@ const createCreateUserActionRpc = createActionRpc({
 	action: Action.Create,
 });
 
-const getRouteUrl = (action: Action) => {
+export function getRouteUrl(action: Action) {
 	return href("/admin/user/new") + "?" + stringify({ action });
-};
+}
 
 const [createAction, useCreateUser] = createCreateUserActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {

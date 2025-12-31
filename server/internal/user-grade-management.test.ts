@@ -595,9 +595,9 @@ describe("User Grade Management", () => {
 		expect(adjustmentResult.ok).toBe(true);
 		if (adjustmentResult.ok) {
 			expect(adjustmentResult.value.adjustments).toHaveLength(2);
-			const adjustment = adjustmentResult.value.adjustments?.[1]!;
-			expect(adjustment.type).toBe("penalty");
-			expect(adjustment.points).toBe(-2);
+			const adjustment = adjustmentResult.value.adjustments?.[1];
+			expect(adjustment?.type).toBe("penalty");
+			expect(adjustment?.points).toBe(-2);
 		}
 	});
 
@@ -895,7 +895,6 @@ describe("User Grade Management", () => {
 			payload,
 			title: "Programming Exercise: Calculator",
 			description: "Build a calculator application",
-			status: "published",
 			req: {
 				...mockRequest,
 				user: instructor as typeof instructor & { collection: "users" },
@@ -1128,7 +1127,6 @@ describe("User Grade Management", () => {
 			payload,
 			title: "Class Discussion: Design Patterns",
 			description: "Discuss various design patterns",
-			status: "published",
 			req: {
 				...mockRequest,
 				user: instructor as typeof instructor & { collection: "users" },

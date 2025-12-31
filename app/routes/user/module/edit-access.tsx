@@ -53,7 +53,7 @@ export const accessSearchParams = {
 
 export const loadSearchParams = createLoader(accessSearchParams);
 
-const getRouteUrl = (action: Action, moduleId: string) => {
+export function getRouteUrl(action: Action, moduleId: string) {
 	return (
 		href("/user/module/edit/:moduleId/access", {
 			moduleId,
@@ -61,7 +61,7 @@ const getRouteUrl = (action: Action, moduleId: string) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userModuleContext = context.get(userModuleContextKey);
@@ -120,21 +120,12 @@ const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
 		const currentUser =
 			userSession.effectiveUser || userSession.authenticatedUser;
 
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
-			});
-		}
-
 		const grantResult = await tryGrantAccessToActivityModule({
 			payload,
-			activityModuleId: Number(moduleId),
-			grantedToUserId: Number(formData.userId),
+			activityModuleId: params.moduleId,
+			grantedToUserId: formData.userId,
 			grantedByUserId: currentUser.id,
 			req: payloadRequest,
-			overrideAccess: false,
 		});
 
 		if (!grantResult.ok) {
@@ -155,32 +146,12 @@ const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
 const [revokeAccessAction, useRevokeAccess] = createRevokeAccessActionRpc(
 	serverOnly$(async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
-
-		if (!userSession?.isAuthenticated) {
-			return badRequest({
-				success: false,
-				error: "You must be logged in to manage access",
-			});
-		}
-
-		const currentUser =
-			userSession.effectiveUser || userSession.authenticatedUser;
-
-		const moduleId = params.moduleId;
-		if (!moduleId) {
-			return badRequest({
-				success: false,
-				error: "Module ID is required",
-			});
-		}
 
 		const revokeResult = await tryRevokeAccessFromActivityModule({
 			payload,
-			activityModuleId: Number(moduleId),
-			userId: Number(formData.userId),
+			activityModuleId: params.moduleId,
+			userId: formData.userId,
 			req: payloadRequest,
-			overrideAccess: false,
 		});
 
 		if (!revokeResult.ok) {
@@ -223,13 +194,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
-			message: actionData?.message || "Action completed successfully",
+			message: actionData.message,
 			color: "green",
 		});
 	} else if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
-			message: actionData?.error,
+			message: actionData.error,
 			color: "red",
 		});
 	}

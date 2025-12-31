@@ -113,7 +113,6 @@ describe("Discussion Management - Full Workflow", () => {
 			payload,
 			title: "Test Discussion",
 			description: "A test discussion for submission workflow",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: teacher as TypedUser,
@@ -733,9 +732,9 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Verify upvote was added
 		expect(upvotedSubmission.upvotes).toHaveLength(1);
-		const firstUpvote = upvotedSubmission.upvotes?.[0]!;
-		expect(firstUpvote.user).toBeDefined();
-		expect(firstUpvote.upvotedAt).toBeDefined();
+		const firstUpvote = upvotedSubmission.upvotes?.[0];
+		expect(firstUpvote?.user).toBeDefined();
+		expect(firstUpvote?.upvotedAt).toBeDefined();
 	});
 
 	test("should remove upvote from a discussion submission", async () => {

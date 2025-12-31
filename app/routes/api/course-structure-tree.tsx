@@ -26,9 +26,9 @@ const createUpdateCourseStructureActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/course-structure-tree");
-};
+}
 
 const [updateCourseStructureAction, useUpdateCourseStructure] =
 	createUpdateCourseStructureActionRpc(

@@ -33,9 +33,9 @@ const createBatchUpdateCoursesActionRpc = createActionRpc({
 	method: "POST",
 });
 
-const getRouteUrl = () => {
+export function getRouteUrl() {
 	return href("/api/batch-update-courses");
-};
+}
 
 const [batchUpdateCoursesAction, useBatchUpdateCourses] =
 	createBatchUpdateCoursesActionRpc(

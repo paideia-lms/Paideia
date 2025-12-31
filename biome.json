@@ -34,7 +34,8 @@
 				"useTemplate": "off"
 			},
 			"suspicious": {
-				"noTsIgnore": "off"
+				"noTsIgnore": "off",
+				"noExplicitAny": "off"
 			}
 		}
 	},

@@ -41,7 +41,6 @@ describe("calculateMoveOperation", () => {
 				id: 1,
 				title: "Module 1",
 				type: "page",
-				status: "published",
 			},
 		},
 		m2: {
@@ -53,7 +52,6 @@ describe("calculateMoveOperation", () => {
 				id: 2,
 				title: "Module 2",
 				type: "quiz",
-				status: "draft",
 			},
 		},
 	});

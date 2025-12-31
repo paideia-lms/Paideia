@@ -28,7 +28,6 @@ import { processRichTextMediaV2 } from "server/collections/utils/rich-text-conte
 interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
 	title: string;
 	description?: string;
-	status?: "draft" | "published" | "archived";
 	userId?: number;
 }
 
@@ -123,7 +122,6 @@ export interface BaseUpdateActivityModuleArgs extends BaseInternalFunctionArgs {
 	id: number;
 	title?: string;
 	description?: string;
-	status?: "draft" | "published" | "archived";
 }
 
 // Discriminated union for update args
@@ -213,7 +211,7 @@ export type UpdateActivityModuleArgs =
 	| ({ type: "discussion" } & UpdateDiscussionModuleArgs);
 
 export interface GetActivityModuleByIdArgs extends BaseInternalFunctionArgs {
-	id: number | string;
+	id: number;
 }
 
 /**
@@ -380,7 +378,6 @@ interface BaseActivityModuleResult {
 	id: number;
 	title: string;
 	description?: string | null;
-	status: "draft" | "published" | "archived";
 	createdBy: {
 		id: number;
 		avatar: number | null;
@@ -466,7 +463,6 @@ interface ActivityModuleData {
 	id: number;
 	title: string;
 	description?: string | null;
-	status: "draft" | "published" | "archived";
 	type: "page" | "whiteboard" | "file" | "assignment" | "quiz" | "discussion";
 	createdBy: {
 		id: number;
@@ -672,7 +668,6 @@ export function tryCreatePageModule(args: CreatePageModuleArgs) {
 				payload,
 				title,
 				description,
-				status = "draft",
 				req,
 				overrideAccess = false,
 				content,
@@ -726,7 +721,6 @@ export function tryCreatePageModule(args: CreatePageModuleArgs) {
 							title,
 							description,
 							type: "page",
-							status,
 							createdBy: userId,
 							owner: userId,
 							page: page.id,
@@ -745,7 +739,6 @@ export function tryCreatePageModule(args: CreatePageModuleArgs) {
 					id: activityModule.id,
 					title: activityModule.title,
 					description: activityModule.description,
-					status: activityModule.status,
 					type: "page",
 					createdBy: {
 						id: createdBy.id,
@@ -788,7 +781,6 @@ export function tryCreateWhiteboardModule(args: CreateWhiteboardModuleArgs) {
 				payload,
 				title,
 				description,
-				status = "draft",
 				req,
 				overrideAccess = false,
 				content,
@@ -832,7 +824,6 @@ export function tryCreateWhiteboardModule(args: CreateWhiteboardModuleArgs) {
 							title,
 							description,
 							type: "whiteboard",
-							status,
 							createdBy: userId,
 							owner: userId,
 							whiteboard: whiteboard.id,
@@ -851,7 +842,6 @@ export function tryCreateWhiteboardModule(args: CreateWhiteboardModuleArgs) {
 					id: activityModule.id,
 					title: activityModule.title,
 					description: activityModule.description,
-					status: activityModule.status,
 					type: "whiteboard",
 					createdBy: {
 						id: createdBy.id,
@@ -893,7 +883,6 @@ export function tryCreateFileModule(args: CreateFileModuleArgs) {
 				payload,
 				title,
 				description,
-				status = "draft",
 				req,
 				overrideAccess = false,
 				media,
@@ -955,7 +944,6 @@ export function tryCreateFileModule(args: CreateFileModuleArgs) {
 							title,
 							description,
 							type: "file",
-							status,
 							createdBy: userId,
 							owner: userId,
 							file: file.id,
@@ -983,7 +971,6 @@ export function tryCreateFileModule(args: CreateFileModuleArgs) {
 					id: activityModule.id,
 					title: activityModule.title,
 					description: activityModule.description,
-					status: activityModule.status,
 					type: "file",
 					createdBy: {
 						id: createdBy.id,
@@ -1025,7 +1012,6 @@ export function tryCreateAssignmentModule(args: CreateAssignmentModuleArgs) {
 				payload,
 				title,
 				description,
-				status = "draft",
 				req,
 				overrideAccess = false,
 				instructions,
@@ -1090,7 +1076,6 @@ export function tryCreateAssignmentModule(args: CreateAssignmentModuleArgs) {
 							title,
 							description,
 							type: "assignment",
-							status,
 							createdBy: userId,
 							owner: userId,
 							assignment: assignment.id,
@@ -1117,7 +1102,6 @@ export function tryCreateAssignmentModule(args: CreateAssignmentModuleArgs) {
 					id: activityModule.id,
 					title: activityModule.title,
 					description: activityModule.description,
-					status: activityModule.status,
 					type: "assignment",
 					createdBy: {
 						id: createdBy.id,
@@ -1164,7 +1148,6 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 				payload,
 				title,
 				description,
-				status = "draft",
 				req,
 				overrideAccess = false,
 				instructions,
@@ -1237,7 +1220,6 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 							title,
 							description: description,
 							type: "quiz",
-							status,
 							createdBy: userId,
 							owner: userId,
 							quiz: quiz.id,
@@ -1264,7 +1246,6 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 					id: activityModule.id,
 					title: activityModule.title,
 					description: activityModule.description,
-					status: activityModule.status,
 					type: "quiz",
 					createdBy: {
 						id: createdBy.id,
@@ -1316,7 +1297,6 @@ export function tryCreateDiscussionModule(args: CreateDiscussionModuleArgs) {
 				payload,
 				title,
 				description,
-				status = "draft",
 				req,
 				overrideAccess = false,
 				instructions,
@@ -1389,7 +1369,6 @@ export function tryCreateDiscussionModule(args: CreateDiscussionModuleArgs) {
 							title,
 							description: description,
 							type: "discussion",
-							status,
 							createdBy: userId,
 							owner: userId,
 							discussion: discussion.id,
@@ -1408,7 +1387,6 @@ export function tryCreateDiscussionModule(args: CreateDiscussionModuleArgs) {
 					id: activityModule.id,
 					title: activityModule.title,
 					description: activityModule.description,
-					status: activityModule.status,
 					type: "discussion",
 					createdBy: {
 						id: createdBy.id,
@@ -1456,62 +1434,12 @@ export function tryCreateDiscussionModule(args: CreateDiscussionModuleArgs) {
 }
 
 /**
- * Creates a new activity module using Payload local API
- * Delegates to type-specific create functions based on the module type
- */
-// export const tryCreateActivityModule = Result.wrap(
-// 	async (args: CreateActivityModuleArgs) => {
-// 		if (args.type === "page") {
-// 			const result = await tryCreatePageModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "whiteboard") {
-// 			const result = await tryCreateWhiteboardModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "file") {
-// 			const result = await tryCreateFileModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "assignment") {
-// 			const result = await tryCreateAssignmentModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "quiz") {
-// 			const result = await tryCreateQuizModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "discussion") {
-// 			const result = await tryCreateDiscussionModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		throw new InvalidArgumentError(`Unknown module type`);
-// 	},
-// 	(error) =>
-// 		transformError(error) ??
-// 		new UnknownError("Failed to create activity module", {
-// 			cause: error,
-// 		}),
-// );
-
-/**
  * Get an activity module by ID
  */
 export function tryGetActivityModuleById(args: GetActivityModuleByIdArgs) {
 	return Result.try(
 		async () => {
 			const { payload, id, req, overrideAccess = false } = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Activity module ID is required");
-			}
 
 			// Fetch the activity module with related data
 			const activityModuleResult = await payload
@@ -1616,7 +1544,6 @@ export function tryGetActivityModuleById(args: GetActivityModuleByIdArgs) {
 				id: activityModuleResult.id,
 				title: activityModuleResult.title,
 				description: activityModuleResult.description,
-				status: activityModuleResult.status,
 				createdBy: {
 					...activityModuleResult.createdBy,
 					firstName: activityModuleResult.createdBy.firstName ?? "",
@@ -1637,7 +1564,6 @@ export function tryGetActivityModuleById(args: GetActivityModuleByIdArgs) {
 				id: activityModuleResult.id,
 				title: activityModuleResult.title,
 				description: activityModuleResult.description,
-				status: activityModuleResult.status,
 				type: activityModuleResult.type,
 				createdBy: baseResult.createdBy,
 				owner: baseResult.owner,
@@ -1686,8 +1612,6 @@ export function tryUpdatePageModule(args: UpdatePageModuleArgs) {
 				id,
 				title,
 				description,
-				status,
-
 				req,
 				overrideAccess = false,
 				content,
@@ -1732,7 +1656,6 @@ export function tryUpdatePageModule(args: UpdatePageModuleArgs) {
 				const updateData: Record<string, unknown> = {};
 				if (title !== undefined) updateData.title = title;
 				if (description !== undefined) updateData.description = description;
-				if (status !== undefined) updateData.status = status;
 
 				// Update related entity
 				await payload
@@ -1792,7 +1715,6 @@ export function tryUpdatePageModule(args: UpdatePageModuleArgs) {
 					id: updatedModule.id,
 					title: updatedModule.title,
 					description: updatedModule.description,
-					status: updatedModule.status,
 					type: "page",
 					createdBy: {
 						id: createdBy.id,
@@ -1836,8 +1758,6 @@ export function tryUpdateWhiteboardModule(args: UpdateWhiteboardModuleArgs) {
 				id,
 				title,
 				description,
-				status,
-
 				req,
 				overrideAccess = false,
 				content,
@@ -1882,7 +1802,6 @@ export function tryUpdateWhiteboardModule(args: UpdateWhiteboardModuleArgs) {
 				const updateData: Record<string, unknown> = {};
 				if (title !== undefined) updateData.title = title;
 				if (description !== undefined) updateData.description = description;
-				if (status !== undefined) updateData.status = status;
 
 				// Update related entity
 				await payload
@@ -1942,7 +1861,6 @@ export function tryUpdateWhiteboardModule(args: UpdateWhiteboardModuleArgs) {
 					id: updatedModule.id,
 					title: updatedModule.title,
 					description: updatedModule.description,
-					status: updatedModule.status,
 					type: "whiteboard",
 					createdBy: {
 						id: createdBy.id,
@@ -1985,16 +1903,10 @@ export function tryUpdateFileModule(args: UpdateFileModuleArgs) {
 				id,
 				title,
 				description,
-				status,
 				req,
 				overrideAccess = false,
 				media,
 			} = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Activity module ID is required");
-			}
 
 			// Get the existing activity module to check its current type
 			const existingModule = await payload
@@ -2030,7 +1942,6 @@ export function tryUpdateFileModule(args: UpdateFileModuleArgs) {
 				const updateData: Record<string, unknown> = {};
 				if (title !== undefined) updateData.title = title;
 				if (description !== undefined) updateData.description = description;
-				if (status !== undefined) updateData.status = status;
 
 				// Update related entity
 				await payload
@@ -2102,7 +2013,6 @@ export function tryUpdateFileModule(args: UpdateFileModuleArgs) {
 					id: updatedModule.id,
 					title: updatedModule.title,
 					description: updatedModule.description,
-					status: updatedModule.status,
 					type: "file",
 					createdBy: {
 						id: createdBy.id,
@@ -2145,8 +2055,6 @@ export function tryUpdateAssignmentModule(args: UpdateAssignmentModuleArgs) {
 				id,
 				title,
 				description,
-				status,
-
 				req,
 				overrideAccess = false,
 				instructions,
@@ -2196,7 +2104,6 @@ export function tryUpdateAssignmentModule(args: UpdateAssignmentModuleArgs) {
 				const updateData: Record<string, unknown> = {};
 				if (title !== undefined) updateData.title = title;
 				if (description !== undefined) updateData.description = description;
-				if (status !== undefined) updateData.status = status;
 
 				// Update related entity
 				await payload
@@ -2265,7 +2172,6 @@ export function tryUpdateAssignmentModule(args: UpdateAssignmentModuleArgs) {
 					id: updatedModule.id,
 					title: updatedModule.title,
 					description: updatedModule.description,
-					status: updatedModule.status,
 					type: "assignment",
 					createdBy: {
 						id: createdBy.id,
@@ -2315,8 +2221,6 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 				id,
 				title,
 				description,
-				status,
-
 				req,
 				overrideAccess = false,
 				instructions,
@@ -2370,7 +2274,6 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 				const updateData: Record<string, unknown> = {};
 				if (title !== undefined) updateData.title = title;
 				if (description !== undefined) updateData.description = description;
-				if (status !== undefined) updateData.status = status;
 
 				// Update related entity
 				await payload
@@ -2443,7 +2346,6 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 					id: updatedModule.id,
 					title: updatedModule.title,
 					description: updatedModule.description,
-					status: updatedModule.status,
 					type: "quiz",
 					createdBy: {
 						id: createdBy.id,
@@ -2497,7 +2399,6 @@ export function tryUpdateDiscussionModule(args: UpdateDiscussionModuleArgs) {
 				id,
 				title,
 				description,
-				status,
 				req,
 				overrideAccess = false,
 				instructions,
@@ -2556,7 +2457,6 @@ export function tryUpdateDiscussionModule(args: UpdateDiscussionModuleArgs) {
 				const updateData: Record<string, unknown> = {};
 				if (title !== undefined) updateData.title = title;
 				if (description !== undefined) updateData.description = description;
-				if (status !== undefined) updateData.status = status;
 
 				// Update related entity
 				await payload
@@ -2632,7 +2532,6 @@ export function tryUpdateDiscussionModule(args: UpdateDiscussionModuleArgs) {
 					id: updatedModule.id,
 					title: updatedModule.title,
 					description: updatedModule.description,
-					status: updatedModule.status,
 					type: "discussion",
 					createdBy: {
 						id: createdBy.id,
@@ -2678,53 +2577,6 @@ export function tryUpdateDiscussionModule(args: UpdateDiscussionModuleArgs) {
 			}),
 	);
 }
-
-// /**
-//  * Updates an activity module
-//  * Delegates to type-specific update functions based on the module type
-//  */
-// export const tryUpdateActivityModule = Result.wrap(
-// 	async (args: UpdateActivityModuleArgs) => {
-// 		if (args.type === "page") {
-// 			const result = await tryUpdatePageModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "whiteboard") {
-// 			const result = await tryUpdateWhiteboardModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "file") {
-// 			const result = await tryUpdateFileModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "assignment") {
-// 			const result = await tryUpdateAssignmentModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "quiz") {
-// 			const result = await tryUpdateQuizModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		if (args.type === "discussion") {
-// 			const result = await tryUpdateDiscussionModule(args);
-// 			if (!result.ok) throw result.error;
-// 			return result.value;
-// 		}
-// 		// TypeScript should never reach here, but handle it for safety
-// 		const type = (args as { type: string }).type;
-// 		throw new InvalidArgumentError(`Unknown module type: ${type}`);
-// 	},
-// 	(error) =>
-// 		transformError(error) ??
-// 		new UnknownError("Failed to update activity module", {
-// 			cause: error,
-// 		}),
-// );
 
 export interface DeleteActivityModuleArgs extends BaseInternalFunctionArgs {
 	id: number;
@@ -2852,7 +2704,6 @@ export function tryDeleteActivityModule(args: DeleteActivityModuleArgs) {
 export interface ListActivityModulesArgs extends BaseInternalFunctionArgs {
 	userId?: number;
 	type?: "page" | "whiteboard" | "file" | "assignment" | "quiz" | "discussion";
-	status?: "draft" | "published" | "archived";
 	limit?: number;
 	page?: number;
 }
@@ -2864,7 +2715,6 @@ export function tryListActivityModules(args: ListActivityModulesArgs) {
 				payload,
 				userId,
 				type,
-				status,
 				limit = 10,
 				page = 1,
 				req,
@@ -2882,12 +2732,6 @@ export function tryListActivityModules(args: ListActivityModulesArgs) {
 			if (type) {
 				where.type = {
 					equals: type,
-				};
-			}
-
-			if (status) {
-				where.status = {
-					equals: status,
 				};
 			}
 

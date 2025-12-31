@@ -37,21 +37,7 @@ import { href, Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import {
-	tryFindUserById,
-	tryUpdateUser,
-} from "server/internal/user-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import {
-	canEditOtherAdmin,
-	canEditProfileAvatar,
-	canEditProfileBio,
-	canEditProfileEmail,
-	canEditProfileFirstName,
-	canEditProfileLastName,
-	canEditProfileRole,
-	canImpersonate,
-} from "server/utils/permissions";
+import { tryUpdateUser } from "server/internal/user-management";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import {
@@ -67,7 +53,6 @@ import { typeCreateActionRpc } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const { payload, envVars, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -92,71 +77,27 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	// Fetch the user profile
-	const profileUser = await tryFindUserById({
-		payload,
-		userId,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new NotFoundResponse("User not found");
-	});
+	const profileUser = userProfileContext.profileUser;
 
 	// Handle avatar - could be Media object or just ID
-	const avatarUrl = profileUser.avatar
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: profileUser.avatar.toString(),
-			})
-		: null;
-
-	// Check if user can impersonate
-	const impersonatePermission = canImpersonate(
-		userSession.authenticatedUser,
-		userId,
-		profileUser.role,
-		userSession.isImpersonating,
-	);
+	const avatarUrl = profileUser.avatarUrl;
 
 	// Check if this is the first user (id === 1)
 	const isFirstUser = profileUser.id === 1;
 	// Check if the profile user is an admin
 	const isProfileUserAdmin = profileUser.role === "admin";
-	// Check if sandbox mode is enabled
-	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
-	// Field-specific permission checks
-	const firstNamePermission = canEditProfileFirstName(
-		currentUser,
-		profileUser,
-		isSandboxMode,
-	);
-	const lastNamePermission = canEditProfileLastName(
-		currentUser,
-		profileUser,
-		isSandboxMode,
-	);
-	const emailPermission = canEditProfileEmail();
-	const bioPermission = canEditProfileBio(
-		currentUser,
-		profileUser,
-		isSandboxMode,
-	);
-	const avatarPermission = canEditProfileAvatar(
-		currentUser,
-		profileUser,
-		isSandboxMode,
-	);
-	const rolePermission = canEditProfileRole(
-		currentUser,
-		profileUser,
-		isSandboxMode,
-	);
-
-	// Check if admin is trying to edit another admin (for alert display)
-	const otherAdminCheck = canEditOtherAdmin(
-		currentUser,
-		profileUser,
-		isSandboxMode,
-	);
-	const isEditingOtherAdminUser = otherAdminCheck.allowed;
+	// Get permissions from context
+	const {
+		canImpersonate: impersonatePermission,
+		firstName: firstNamePermission,
+		lastName: lastNamePermission,
+		email: emailPermission,
+		bio: bioPermission,
+		avatar: avatarPermission,
+		role: rolePermission,
+		canEdit,
+	} = userProfileContext.permissions;
 
 	return {
 		user: {
@@ -177,7 +118,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		canImpersonate: impersonatePermission.allowed,
 		isFirstUser,
 		isProfileUserAdmin,
-		isSandboxMode,
 		userProfile: userProfileContext,
 		firstNamePermission,
 		lastNamePermission,
@@ -185,8 +125,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		bioPermission,
 		avatarPermission,
 		rolePermission,
-		otherAdminCheck,
-		isEditingOtherAdminUser,
+		canEdit,
 	};
 };
 
@@ -225,7 +164,7 @@ const createUpdateActionRpc = createActionRpc({
 });
 
 const [updateAction, useUpdateUser] = createUpdateActionRpc(
-	serverOnly$(async ({ context, params, formData, request }) => {
+	serverOnly$(async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -303,7 +242,7 @@ const [updateAction, useUpdateUser] = createUpdateActionRpc(
 	},
 );
 
-const getRouteUrl = (action: Action, userId?: number) => {
+export function getRouteUrl(action: Action, userId?: number) {
 	return (
 		href("/user/overview/:id?", {
 			id: userId ? userId.toString() : undefined,
@@ -311,7 +250,7 @@ const getRouteUrl = (action: Action, userId?: number) => {
 		"?" +
 		stringify({ action })
 	);
-};
+}
 
 const actionMap = {
 	[Action.Update]: updateAction,
@@ -368,7 +307,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		bioPermission,
 		avatarPermission,
 		rolePermission,
-		isEditingOtherAdminUser,
+		canEdit,
 	} = loaderData;
 	const { submit: updateUser, isLoading: isUpdating } = useUpdateUser();
 	const { submit: impersonate, isLoading: isImpersonating } = useImpersonate();
@@ -499,11 +438,10 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 						Edit Profile
 					</Title>
 
-					{isEditingOtherAdminUser && (
+					{!canEdit.allowed && (
 						<Alert color="red" title="Editing Restricted" mb="xl">
 							<Text size="sm">
-								<strong>Warning:</strong> Admins cannot edit other admin users.
-								All fields are disabled.
+								{canEdit.reason}
 							</Text>
 						</Alert>
 					)}
