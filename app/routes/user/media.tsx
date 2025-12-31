@@ -928,7 +928,11 @@ function MediaUsageModal({
 	opened: boolean;
 	onClose: () => void;
 }) {
-	const { load: fetchMediaUsage, data: mediaUsageData, isLoading } = useMediaUsageData();
+	const {
+		load: fetchMediaUsage,
+		data: mediaUsageData,
+		isLoading,
+	} = useMediaUsageData();
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
@@ -960,40 +964,42 @@ function MediaUsageModal({
 						Error: {mediaUsageData.error}
 					</Text>
 				)}
-				{mediaUsageData?.status === StatusCode.Ok && file && file.id === dataFileIdRef.current && (
-					<>
-						<Text size="sm" fw={500}>
-							Total Usages: {mediaUsageData.totalUsages}
-						</Text>
-						{mediaUsageData.totalUsages === 0 ? (
-							<Text c="dimmed" size="sm">
-								This media file is not currently used anywhere.
+				{mediaUsageData?.status === StatusCode.Ok &&
+					file &&
+					file.id === dataFileIdRef.current && (
+						<>
+							<Text size="sm" fw={500}>
+								Total Usages: {mediaUsageData.totalUsages}
 							</Text>
-						) : (
-							<Stack gap="xs">
-								{mediaUsageData.usages.map((usage) => (
-									<Card
-										key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
-										withBorder
-										padding="xs"
-									>
-										<Group gap="xs" wrap="nowrap">
-											<Text size="sm" fw={500}>
-												{usage.collection}
-											</Text>
-											<Text size="sm" c="dimmed">
-												Document ID: {usage.documentId}
-											</Text>
-											<Text size="sm" c="dimmed">
-												Field: {usage.fieldPath}
-											</Text>
-										</Group>
-									</Card>
-								))}
-							</Stack>
-						)}
-					</>
-				)}
+							{mediaUsageData.totalUsages === 0 ? (
+								<Text c="dimmed" size="sm">
+									This media file is not currently used anywhere.
+								</Text>
+							) : (
+								<Stack gap="xs">
+									{mediaUsageData.usages.map((usage) => (
+										<Card
+											key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
+											withBorder
+											padding="xs"
+										>
+											<Group gap="xs" wrap="nowrap">
+												<Text size="sm" fw={500}>
+													{usage.collection}
+												</Text>
+												<Text size="sm" c="dimmed">
+													Document ID: {usage.documentId}
+												</Text>
+												<Text size="sm" c="dimmed">
+													Field: {usage.fieldPath}
+												</Text>
+											</Group>
+										</Card>
+									))}
+								</Stack>
+							)}
+						</>
+					)}
 			</Stack>
 		</Modal>
 	);

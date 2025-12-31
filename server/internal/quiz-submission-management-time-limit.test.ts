@@ -180,7 +180,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 			title: "Quick Quiz Module",
 			description: "Module with quick quiz",
 			type: "quiz",
-			status: "published",
 			instructions: "Complete quickly",
 			points: 100,
 			gradingType: "automatic",

@@ -17,7 +17,6 @@ import { permissions } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
-	DevelopmentError,
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
@@ -237,10 +236,6 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 								| "assignment"
 								| "quiz"
 								| "discussion",
-							status: link.activityModule.status as
-								| "draft"
-								| "published"
-								| "archived",
 							createdBy: {
 								id: link.activityModule.createdBy.id,
 								email: link.activityModule.createdBy.email,

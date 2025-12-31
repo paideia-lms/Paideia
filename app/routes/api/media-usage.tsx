@@ -28,43 +28,47 @@ import { serverOnly$ } from "vite-env-only/macros";
 
 const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
 
-const [loaderFn, useMediaUsageData] = createLoaderRpc({})(serverOnly$(async ({ context, params }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const [loaderFn, useMediaUsageData] = createLoaderRpc({})(
+	serverOnly$(async ({ context, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new NotFoundResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new NotFoundResponse("Unauthorized");
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (!currentUser) {
-		throw new NotFoundResponse("Unauthorized");
-	}
+		if (!currentUser) {
+			throw new NotFoundResponse("Unauthorized");
+		}
 
-	const { mediaId } = params;
-	console.log(mediaId);
+		const { mediaId } = params;
+		console.log(mediaId);
 
-	const result = await tryFindMediaUsages({
-		payload,
-		mediaId,
-		req: payloadRequest,
-	});
+		const result = await tryFindMediaUsages({
+			payload,
+			mediaId,
+			req: payloadRequest,
+		});
 
-	if (!result.ok) {
-		return badRequest({ error: result.error.message });
-	}
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-	return ok({
-		usages: result.value.usages,
-		totalUsages: result.value.totalUsages,
-	});
-})!, {
-	getRouteUrl: ( { params } ) => href("/api/media-usage/:mediaId", {
-		mediaId: params.mediaId.toString(),
-	}),
-});
+		return ok({
+			usages: result.value.usages,
+			totalUsages: result.value.totalUsages,
+		});
+	})!,
+	{
+		getRouteUrl: ({ params }) =>
+			href("/api/media-usage/:mediaId", {
+				mediaId: params.mediaId.toString(),
+			}),
+	},
+);
 
 export const loader = loaderFn;
 

@@ -64,10 +64,6 @@ export const enum_activity_modules_type = pgEnum("enum_activity_modules_type", [
   "quiz",
   "discussion",
 ]);
-export const enum_activity_modules_status = pgEnum(
-  "enum_activity_modules_status",
-  ["draft", "published", "archived"],
-);
 export const enum_quizzes_questions_question_type = pgEnum(
   "enum_quizzes_questions_question_type",
   [
@@ -549,7 +545,6 @@ export const activity_modules = pgTable(
     title: varchar("title").notNull(),
     description: varchar("description"),
     type: enum_activity_modules_type("type").notNull(),
-    status: enum_activity_modules_status("status").notNull().default("draft"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
@@ -602,7 +597,6 @@ export const activity_modules = pgTable(
     index("owner_idx").on(columns.owner),
     index("createdBy_idx").on(columns.createdBy),
     index("type_idx").on(columns.type),
-    index("status_idx").on(columns.status),
     index("page_idx").on(columns.page),
     index("whiteboard_idx").on(columns.whiteboard),
     index("quiz_idx").on(columns.quiz),
@@ -1078,7 +1072,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references(() => users.id, {
+      .references(() : AnyPgColumn => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {
@@ -1405,7 +1399,7 @@ export const assignment_submissions = pgTable(
       columns.student,
       columns.attemptNumber,
     ),
-    index("status_1_idx").on(columns.status),
+    index("status_idx").on(columns.status),
     index("submittedAt_idx").on(columns.submittedAt),
   ],
 );
@@ -1533,7 +1527,7 @@ export const quiz_submissions = pgTable(
       columns.student,
       columns.attemptNumber,
     ),
-    index("status_2_idx").on(columns.status),
+    index("status_1_idx").on(columns.status),
     index("submittedAt_1_idx").on(columns.submittedAt),
     index("totalScore_idx").on(columns.totalScore),
   ],
@@ -1686,7 +1680,7 @@ export const discussion_submissions = pgTable(
     index("enrollment_2_idx").on(columns.enrollment),
     index("parentThread_idx").on(columns.parentThread),
     index("postType_idx").on(columns.postType),
-    index("status_3_idx").on(columns.status),
+    index("status_2_idx").on(columns.status),
     index("publishedAt_idx").on(columns.publishedAt),
     index("isPinned_idx").on(columns.isPinned),
     index("lastActivityAt_idx").on(columns.lastActivityAt),
@@ -3788,7 +3782,6 @@ type DatabaseSchema = {
   enum_enrollments_role: typeof enum_enrollments_role;
   enum_enrollments_status: typeof enum_enrollments_status;
   enum_activity_modules_type: typeof enum_activity_modules_type;
-  enum_activity_modules_status: typeof enum_activity_modules_status;
   enum_quizzes_questions_question_type: typeof enum_quizzes_questions_question_type;
   enum_quizzes_grading_type: typeof enum_quizzes_grading_type;
   enum_discussions_thread_sorting: typeof enum_discussions_thread_sorting;

@@ -6,15 +6,7 @@ import {
 	syncDataLoaderFeature,
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import {
-	ActionIcon,
-	Badge,
-	Box,
-	Button,
-	Group,
-	Paper,
-	Text,
-} from "@mantine/core";
+import { ActionIcon, Box, Button, Group, Paper, Text } from "@mantine/core";
 import { useClickOutside, useIsFirstRender } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
@@ -137,20 +129,6 @@ function getChildrenIds(
 ): string[] {
 	const item = flatData[itemId];
 	return item?.children || [];
-}
-
-// Get status color for modules
-function getStatusColor(status: string) {
-	switch (status) {
-		case "published":
-			return "green";
-		case "draft":
-			return "yellow";
-		case "archived":
-			return "gray";
-		default:
-			return "blue";
-	}
 }
 
 interface CourseStructureTreeProps {
@@ -471,15 +449,6 @@ export function CourseStructureTree({
 										>
 											{itemData.name}
 										</Text>
-										{canSeeStatus && (
-											<Badge
-												size="xs"
-												color={getStatusColor(itemData.module.status)}
-												variant="light"
-											>
-												{itemData.module.status}
-											</Badge>
-										)}
 									</Link>
 								)}
 							</Box>

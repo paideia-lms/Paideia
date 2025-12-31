@@ -14,18 +14,13 @@ import {
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link } from "react-router";
-import {
-	getStatusBadgeColor,
-	getStatusLabel,
-	getTypeLabel,
-} from "./course-view-utils";
+import { getTypeLabel } from "./course-view-utils";
 import type { ActivityModule as PayloadActivityModule } from "server/payload-types";
 
 interface ActivityModule {
 	id: number;
 	title: string;
 	type: PayloadActivityModule["type"];
-	status: string;
 	description?: string | null;
 }
 
@@ -35,7 +30,6 @@ interface ActivityModuleLink {
 		id: string;
 		title: string;
 		type: PayloadActivityModule["type"];
-		status: "draft" | "published" | "archived";
 		description?: string | null;
 	};
 	createdAt: string;
@@ -117,7 +111,6 @@ export function ActivityModulesSection({
 								<Table.Tr>
 									<Table.Th>Module Title</Table.Th>
 									<Table.Th>Type</Table.Th>
-									<Table.Th>Status</Table.Th>
 									<Table.Th>Created Date</Table.Th>
 									{canEdit && <Table.Th>Actions</Table.Th>}
 								</Table.Tr>
@@ -142,19 +135,6 @@ export function ActivityModulesSection({
 											<Badge variant="light">
 												{typeof link.activityModule === "object"
 													? getTypeLabel(link.activityModule.type)
-													: "Unknown"}
-											</Badge>
-										</Table.Td>
-										<Table.Td>
-											<Badge
-												color={
-													typeof link.activityModule === "object"
-														? getStatusBadgeColor(link.activityModule.status)
-														: "gray"
-												}
-											>
-												{typeof link.activityModule === "object"
-													? getStatusLabel(link.activityModule.status)
 													: "Unknown"}
 											</Badge>
 										</Table.Td>

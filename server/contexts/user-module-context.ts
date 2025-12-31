@@ -1,11 +1,7 @@
 import { createContext } from "react-router";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import { Result } from "typescript-result";
-import {
-	NonExistingActivityModuleError,
-	transformError,
-	UnknownError,
-} from "~/utils/error";
+import { transformError, UnknownError } from "~/utils/error";
 import {
 	tryFindGrantsByActivityModule,
 	tryFindInstructorsForActivityModule,

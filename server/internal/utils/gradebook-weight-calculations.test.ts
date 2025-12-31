@@ -658,7 +658,7 @@ describe("Gradebook Weight Calculations", () => {
 			const totals = calculateOverallWeights(items);
 
 			// Item 1: 35% (parent category) * 50% (nested category) * 10% (item) = 1.75%
-			const item = items[0]!.grade_items?.[0]!.grade_items?.[0] as
+			const item = items[0]!.grade_items?.[0]?.grade_items?.[0] as
 				| GradebookSetupItemWithCalculations
 				| undefined;
 			if (item) {

@@ -99,7 +99,6 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 			payload,
 			title: "Test Quiz",
 			description: "A test quiz for attempt workflow",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: teacher as TypedUser,

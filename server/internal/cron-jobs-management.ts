@@ -1,5 +1,4 @@
 import { desc, eq } from "@payloadcms/db-postgres/drizzle";
-import type { Payload } from "payload";
 import { payload_jobs, payload_jobs_log } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";

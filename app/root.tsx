@@ -199,13 +199,10 @@ export const middleware = [
 			const currentUser =
 				userSession?.effectiveUser || userSession?.authenticatedUser;
 
-
 			if (
 				pageInfo.is["routes/login"] ||
 				pageInfo.is["routes/admin/maintenance"] ||
-				Object.keys(pageInfo.is).some((id) =>
-					id.startsWith("routes/api/"),
-				)
+				Object.keys(pageInfo.is).some((id) => id.startsWith("routes/api/"))
 			) {
 				return;
 			}
@@ -232,7 +229,8 @@ export const middleware = [
 		// check if the user is in a course
 		if (pageInfo.is["layouts/course-layout"]) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			let courseId = 	pageInfo.is["layouts/course-layout"].params.courseId ?? null 
+			let courseId =
+				pageInfo.is["layouts/course-layout"].params.courseId ?? null;
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.is["layouts/course-module-layout"]) {
 				const { moduleLinkId } =
@@ -253,7 +251,8 @@ export const middleware = [
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.is["layouts/course-section-layout"]) {
-				const { sectionId } = pageInfo.is["layouts/course-section-layout"].params;
+				const { sectionId } =
+					pageInfo.is["layouts/course-section-layout"].params;
 
 				const sectionContext = await tryFindSectionById({
 					payload,
@@ -278,7 +277,7 @@ export const middleware = [
 				payload,
 				req: payloadRequest,
 				courseId: courseId,
-			}).getOrElse((error) => {
+			}).getOrElse((_error) => {
 				throw new InternalServerErrorResponse("Failed to get course context");
 			});
 			// FIXME: fix this type error
@@ -393,24 +392,25 @@ export const middleware = [
 			pageInfo.is["layouts/course-module-layout"] &&
 			courseContext
 		) {
-			const { moduleLinkId } = pageInfo.is["layouts/course-module-layout"].params;
+			const { moduleLinkId } =
+				pageInfo.is["layouts/course-module-layout"].params;
 
 			// Get module link ID from params
-				// Extract threadId from URL search params if present
-				const { threadId } = loadSearchParams(request);
+			// Extract threadId from URL search params if present
+			const { threadId } = loadSearchParams(request);
 
-				const courseModuleContext = await tryGetCourseModuleContext({
-					payload,
-					moduleLinkId: moduleLinkId,
-					courseId: courseContext.courseId,
-					enrolment: enrolmentContext?.enrolment ?? null,
-					threadId: threadId !== null ? String(threadId) : null,
-					req: payloadRequest,
-				}).getOrNull();
+			const courseModuleContext = await tryGetCourseModuleContext({
+				payload,
+				moduleLinkId: moduleLinkId,
+				courseId: courseContext.courseId,
+				enrolment: enrolmentContext?.enrolment ?? null,
+				threadId: threadId !== null ? String(threadId) : null,
+				req: payloadRequest,
+			}).getOrNull();
 
-				if (courseModuleContext) {
-					context.set(courseModuleContextKey, courseModuleContext);
-				}
+			if (courseModuleContext) {
+				context.set(courseModuleContextKey, courseModuleContext);
+			}
 		}
 	},
 	// set the user module context

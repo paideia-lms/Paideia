@@ -83,10 +83,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-export default function CourseLayout({
-	loaderData,
-	matches,
-}: Route.ComponentProps) {
+export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const {
 		course,

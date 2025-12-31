@@ -48,7 +48,6 @@ export const moduleLinkSearchParams = {
 
 export const loadSearchParams = createLoader(moduleLinkSearchParams);
 
-
 export function getRouteUrl(action: Action, courseId: number) {
 	return (
 		href("/course/:courseId/modules", {
@@ -78,7 +77,6 @@ const createDeleteModuleLinkActionRpc = createActionRpc({
 	method: "POST",
 	action: Action.Delete,
 });
-
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -124,7 +122,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			title: module.title,
 			description: module.description,
 			type: module.type,
-			status: module.status,
 		})) ?? [];
 
 	return {
@@ -349,7 +346,6 @@ export default function CourseModulesPage({
 						id: String(link.activityModule.id),
 						title: link.activityModule.title || "",
 						type: link.activityModule.type,
-						status: link.activityModule.status,
 						description: link.activityModule.description,
 					},
 					createdAt: link.createdAt,

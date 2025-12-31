@@ -1,6 +1,5 @@
 import type { Simplify } from "node_modules/type-fest";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
-import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
 import { presetValuesToFileTypes } from "./file-types";
 
@@ -10,7 +9,6 @@ import { presetValuesToFileTypes } from "./file-types";
 const baseActivityModuleSchema = z.object({
 	title: z.string().min(1, "Title is required"),
 	description: z.string().optional(),
-	status: z.enum(["draft", "published", "archived"]).optional(),
 });
 
 /**
@@ -93,7 +91,6 @@ export const activityModuleSchema = z.discriminatedUnion("type", [
 type BaseActivityModuleFormValues = {
 	title: string;
 	description: string;
-	status: ActivityModule["status"];
 };
 
 /**
@@ -193,7 +190,6 @@ export function transformFormValues(
 			title: values.title,
 			type: "page",
 			...(values.description && { description: values.description }),
-			...(values.status && { status: values.status }),
 			...(values.pageContent && { pageContent: values.pageContent }),
 		};
 		return result;
@@ -202,7 +198,6 @@ export function transformFormValues(
 			title: values.title,
 			type: "whiteboard",
 			...(values.description && { description: values.description }),
-			...(values.status && { status: values.status }),
 			...(values.whiteboardContent && {
 				whiteboardContent: values.whiteboardContent,
 			}),
@@ -213,7 +208,6 @@ export function transformFormValues(
 			title: values.title,
 			type: "file",
 			...(values.description && { description: values.description }),
-			...(values.status && { status: values.status }),
 			...(values.fileMedia.length > 0 && { fileMedia: values.fileMedia }),
 		};
 		return result;
@@ -222,7 +216,6 @@ export function transformFormValues(
 			title: values.title,
 			type: "assignment",
 			...(values.description && { description: values.description }),
-			...(values.status && { status: values.status }),
 			...(values.assignmentInstructions && {
 				assignmentInstructions: values.assignmentInstructions,
 			}),
@@ -248,7 +241,6 @@ export function transformFormValues(
 			title: values.title,
 			type: "quiz",
 			...(values.description && { description: values.description }),
-			...(values.status && { status: values.status }),
 			...(values.quizInstructions && {
 				quizInstructions: values.quizInstructions,
 			}),
@@ -272,7 +264,6 @@ export function transformFormValues(
 			title: values.title,
 			type: "discussion",
 			...(values.description && { description: values.description }),
-			...(values.status && { status: values.status }),
 			...(values.discussionInstructions && {
 				discussionInstructions: values.discussionInstructions,
 			}),

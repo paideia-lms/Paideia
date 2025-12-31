@@ -9,8 +9,8 @@ import { serverOnly$ } from "vite-env-only/macros";
 import {
 	badRequest,
 	ForbiddenResponse,
-ok,
-StatusCode,
+	ok,
+	StatusCode,
 } from "~/utils/responses";
 import { typeCreateLoaderRpc } from "~/utils/loader-utils";
 import type { Route } from "./+types/search-users";
@@ -27,52 +27,55 @@ const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
 
 const [loaderFn, useSearchUsersLoader] = createLoaderRpc({
 	searchParams: searchUsersSearchParams,
-})(serverOnly$(async ({ context, searchParams }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+})(
+	serverOnly$(async ({ context, searchParams }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	if (userSession.authenticatedUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can search users");
-	}
+		if (userSession.authenticatedUser.role !== "admin") {
+			throw new ForbiddenResponse("Only admins can search users");
+		}
 
-	const { query, limit } = searchParams;
+		const { query, limit } = searchParams;
 
-	// Fetch users with search
-	const usersResult = await tryFindAllUsers({
-		payload,
-		query: query || undefined,
-		limit,
-		page: 1,
-		sort: "-createdAt",
-		req: payloadRequest,
-	});
-
-	// ! we return error response in loader because this route has no default page component
-	if (!usersResult.ok) {
-		return badRequest({
-			users: [],
-			error: usersResult.error.message,
+		// Fetch users with search
+		const usersResult = await tryFindAllUsers({
+			payload,
+			query: query || undefined,
+			limit,
+			page: 1,
+			sort: "-createdAt",
+			req: payloadRequest,
 		});
-	}
 
-	return ok({ users: usersResult.value.docs });
-})!, {
-	getRouteUrl: ({ searchParams }) => {
-		const params = new URLSearchParams();
-		if (searchParams?.query) {
-			params.set("query", searchParams.query);
+		// ! we return error response in loader because this route has no default page component
+		if (!usersResult.ok) {
+			return badRequest({
+				users: [],
+				error: usersResult.error.message,
+			});
 		}
-		if (searchParams?.limit !== undefined) {
-			params.set("limit", searchParams.limit.toString());
-		}
-		const queryString = params.toString();
-		return href("/api/search-users") + (queryString ? `?${queryString}` : "");
+
+		return ok({ users: usersResult.value.docs });
+	})!,
+	{
+		getRouteUrl: ({ searchParams }) => {
+			const params = new URLSearchParams();
+			if (searchParams?.query) {
+				params.set("query", searchParams.query);
+			}
+			if (searchParams?.limit !== undefined) {
+				params.set("limit", searchParams.limit.toString());
+			}
+			const queryString = params.toString();
+			return href("/api/search-users") + (queryString ? `?${queryString}` : "");
+		},
 	},
-});
+);
 
 export const loader = loaderFn;
 
@@ -106,7 +109,11 @@ export interface UseSearchUsersOptions {
 export function useSearchUsers(options: UseSearchUsersOptions = {}) {
 	const { limit = 10 } = options;
 
-	const { load: _searchUsers, data: usersData, isLoading } = useSearchUsersLoader();
+	const {
+		load: _searchUsers,
+		data: usersData,
+		isLoading,
+	} = useSearchUsersLoader();
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const searchUsers = useCallback(
@@ -130,14 +137,16 @@ export function useSearchUsers(options: UseSearchUsersOptions = {}) {
 		});
 	};
 
-
 	const users =
 		usersData && usersData.status === StatusCode.Ok ? usersData.users : [];
 
 	return {
 		users,
 		loading: isLoading,
-		error: usersData && usersData.status === StatusCode.BadRequest ? usersData.error : null,
+		error:
+			usersData && usersData.status === StatusCode.BadRequest
+				? usersData.error
+				: null,
 		searchQuery,
 		setSearchQuery,
 		searchUsers,
@@ -146,10 +155,7 @@ export function useSearchUsers(options: UseSearchUsersOptions = {}) {
 }
 
 export type SearchUser = NonNullable<
-	Extract<
-		Route.ComponentProps["loaderData"],
-		{ users: unknown[] }
-	>["users"]
+	Extract<Route.ComponentProps["loaderData"], { users: unknown[] }>["users"]
 >[number];
 export interface SearchUserComboboxProps {
 	value: SearchUser[];

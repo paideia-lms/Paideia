@@ -71,7 +71,6 @@ async function createModule(
 				...baseArgs,
 				title: moduleData.title,
 				description: moduleData.description,
-				status: moduleData.status,
 				content: moduleData.content,
 			}).getOrThrow()) as ActivityModuleResult;
 		}
@@ -81,7 +80,6 @@ async function createModule(
 				...baseArgs,
 				title: moduleData.title,
 				description: moduleData.description,
-				status: moduleData.status,
 				content: whiteboardContent,
 			}).getOrThrow()) as ActivityModuleResult;
 		}
@@ -90,7 +88,6 @@ async function createModule(
 				...baseArgs,
 				title: moduleData.title,
 				description: moduleData.description,
-				status: moduleData.status,
 				instructions: moduleData.instructions,
 			}).getOrThrow()) as ActivityModuleResult;
 		}
@@ -99,7 +96,6 @@ async function createModule(
 				...baseArgs,
 				title: moduleData.title,
 				description: moduleData.description,
-				status: moduleData.status,
 				instructions: moduleData.instructions,
 				points: moduleData.points,
 				timeLimit: moduleData.timeLimit,
@@ -116,7 +112,6 @@ async function createModule(
 				...baseArgs,
 				title: moduleData.title,
 				description: moduleData.description,
-				status: moduleData.status,
 				instructions: moduleData.instructions,
 				minReplies: moduleData.minReplies,
 				threadSorting: moduleData.threadSorting,
@@ -152,7 +147,6 @@ export async function buildModules(
 		...baseArgs,
 		title: data.modules.page.title,
 		description: data.modules.page.description,
-		status: "published",
 		content: data.modules.page.content,
 	}).getOrThrow();
 	seedLogger.success(`Page module created with ID: ${page.id}`);

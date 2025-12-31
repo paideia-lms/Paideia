@@ -120,7 +120,6 @@ const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
 		const currentUser =
 			userSession.effectiveUser || userSession.authenticatedUser;
 
-
 		const grantResult = await tryGrantAccessToActivityModule({
 			payload,
 			activityModuleId: params.moduleId,

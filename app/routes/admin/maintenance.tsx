@@ -2,7 +2,7 @@ import { Button, Group, Stack, Switch, Text, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { data, href, useFetcher } from "react-router";
+import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -10,10 +10,7 @@ import {
 	tryUpdateMaintenanceSettings,
 } from "server/internal/maintenance-settings";
 import { z } from "zod";
-import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
+import { ContentType } from "~/utils/get-content-type";
 import {
 	forbidden,
 	ForbiddenResponse,

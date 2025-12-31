@@ -11,6 +11,7 @@ import {
 	InternalServerErrorResponse,
 } from "~/utils/responses";
 import type { Route } from "./+types/cron-jobs";
+import { href } from "react-router";
 
 export function getRouteUrl() {
 	return href("/admin/cron-jobs");

@@ -13,13 +13,11 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import type { UseFormReturnType } from "@mantine/form";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/types.v2";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import z from "zod";
-import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 import type { UseQuizFormReturnType } from "./quiz-form";

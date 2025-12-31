@@ -113,17 +113,17 @@ export const ActivityModules = {
 			],
 			required: true,
 		},
-		{
-			name: "status",
-			type: "select",
-			options: [
-				{ label: "Draft", value: "draft" },
-				{ label: "Published", value: "published" },
-				{ label: "Archived", value: "archived" },
-			],
-			defaultValue: "draft",
-			required: true,
-		},
+		// {
+		// 	name: "status",
+		// 	type: "select",
+		// 	options: [
+		// 		{ label: "Draft", value: "draft" },
+		// 		{ label: "Published", value: "published" },
+		// 		{ label: "Archived", value: "archived" },
+		// 	],
+		// 	defaultValue: "draft",
+		// 	required: true,
+		// },
 		{
 			name: "createdBy",
 			type: "relationship",
@@ -197,9 +197,9 @@ export const ActivityModules = {
 		{
 			fields: ["type"],
 		},
-		{
-			fields: ["status"],
-		},
+		// {
+		// 	fields: ["status"],
+		// },
 		{
 			fields: ["page"],
 		},

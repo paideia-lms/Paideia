@@ -504,7 +504,6 @@ export interface ActivityModule {
   title: string;
   description?: string | null;
   type: 'page' | 'whiteboard' | 'file' | 'assignment' | 'quiz' | 'discussion';
-  status: 'draft' | 'published' | 'archived';
   createdBy: number | User;
   page?: (number | null) | Page;
   whiteboard?: (number | null) | Whiteboard;
@@ -1425,7 +1424,6 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   type?: T;
-  status?: T;
   createdBy?: T;
   page?: T;
   whiteboard?: T;

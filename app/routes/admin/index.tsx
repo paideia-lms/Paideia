@@ -1,7 +1,6 @@
 import { Badge, Box, Stack, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { parseAsStringEnum,
-useQueryState } from "nuqs";
+import { parseAsStringEnum, useQueryState } from "nuqs";
 import { href, Link } from "react-router";
 import type { Route } from "./+types/index";
 
@@ -629,7 +628,11 @@ const adminTabs = {
 } as const satisfies { [key: string]: AdminTab };
 
 export default function AdminPage() {
-	const [activeTab] = useQueryState("tab", parseAsStringEnum(Object.keys(adminTabs) as (keyof typeof adminTabs)[]).withDefault("general")
+	const [activeTab] = useQueryState(
+		"tab",
+		parseAsStringEnum(
+			Object.keys(adminTabs) as (keyof typeof adminTabs)[],
+		).withDefault("general"),
 	);
 
 	const tabData = adminTabs[activeTab];
@@ -649,39 +652,41 @@ export default function AdminPage() {
 
 			{tabData && (
 				<Stack gap="lg">
-					{Object.entries(tabData.sections).map(([sectionKey, section]: [string, AdminSection]) => (
-						<Box key={sectionKey}>
-							<Title order={2} mb="md">
-								{section.title}
-							</Title>
-							<Stack gap="sm">
-								{section.items.map((item) => (
-									<Box
-										key={item.title}
-										p="md"
-										style={{
-											textDecoration: "none",
-											color: "inherit",
-											border: "1px solid var(--mantine-color-gray-3)",
-											borderRadius: "var(--mantine-radius-sm)",
-											cursor: "pointer",
-										}}
-										component={Link}
-										to={item.href ?? "#"}
-									>
-										<Title order={4} mb="xs">
-											{item.title}{" "}
-											{!item.href && (
-												<Badge color="gray" variant="light">
-													Coming soon
-												</Badge>
-											)}
-										</Title>
-									</Box>
-								))}
-							</Stack>
-						</Box>
-					))}
+					{Object.entries(tabData.sections).map(
+						([sectionKey, section]: [string, AdminSection]) => (
+							<Box key={sectionKey}>
+								<Title order={2} mb="md">
+									{section.title}
+								</Title>
+								<Stack gap="sm">
+									{section.items.map((item) => (
+										<Box
+											key={item.title}
+											p="md"
+											style={{
+												textDecoration: "none",
+												color: "inherit",
+												border: "1px solid var(--mantine-color-gray-3)",
+												borderRadius: "var(--mantine-radius-sm)",
+												cursor: "pointer",
+											}}
+											component={Link}
+											to={item.href ?? "#"}
+										>
+											<Title order={4} mb="xs">
+												{item.title}{" "}
+												{!item.href && (
+													<Badge color="gray" variant="light">
+														Coming soon
+													</Badge>
+												)}
+											</Title>
+										</Box>
+									))}
+								</Stack>
+							</Box>
+						),
+					)}
 				</Stack>
 			)}
 		</Box>

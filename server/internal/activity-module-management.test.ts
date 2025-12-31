@@ -82,7 +82,6 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test Page Module",
 			description: "This is a test page module",
-			status: "draft" as const,
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -101,7 +100,6 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("page");
-		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
@@ -112,8 +110,6 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test Assignment",
 			description: "This is a test assignment",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -145,7 +141,6 @@ describe("Activity Module Management", () => {
 		expect(activityModule.type).toBe("assignment");
 		// For assignments, description uses instructions if provided
 		expect(activityModule.description).toBe(args.description);
-		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
@@ -157,8 +152,6 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test Quiz",
 			description: "This is a test quiz",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -198,7 +191,6 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("quiz");
-		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
@@ -209,7 +201,6 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test File Module",
 			description: "This is a test file module",
-			status: "draft" as const,
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -228,7 +219,6 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("file");
-		expect(activityModule.status).toBe(args.status);
 		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
@@ -240,8 +230,6 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test Discussion",
 			description: "This is a test discussion",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -273,7 +261,6 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("discussion");
-		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
@@ -297,8 +284,7 @@ describe("Activity Module Management", () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
-		const activityModule = result.value;
-		expect(activityModule.status).toBe("draft");
+		const _activityModule = result.value;
 	});
 
 	test("should create activity module with all types", async () => {
@@ -416,7 +402,6 @@ describe("Activity Module Management", () => {
 		expect(retrievedModule.id).toBe(createdModule.id);
 		expect(retrievedModule.title).toBe(createdModule.title);
 		expect(retrievedModule.type).toBe(createdModule.type);
-		expect(retrievedModule.status).toBe(createdModule.status);
 		expect(retrievedModule.createdBy.id).toBe(testUser.id);
 	});
 
@@ -424,8 +409,6 @@ describe("Activity Module Management", () => {
 		const createArgs = {
 			payload,
 			title: "Update Test Page Module",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -444,7 +427,6 @@ describe("Activity Module Management", () => {
 			id: createdModule.id,
 			title: "Updated Page Title",
 			description: "Updated page description",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -459,7 +441,6 @@ describe("Activity Module Management", () => {
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Page Title");
 		expect(updatedModule.description).toBe("Updated page description");
-		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe("page"); // Should remain unchanged
 	});
 
@@ -467,8 +448,6 @@ describe("Activity Module Management", () => {
 		const createArgs = {
 			payload,
 			title: "Update Test Assignment",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -487,7 +466,6 @@ describe("Activity Module Management", () => {
 			id: createdModule.id,
 			title: "Updated Assignment Title",
 			description: "Updated assignment description",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -503,7 +481,6 @@ describe("Activity Module Management", () => {
 		expect(updatedModule.title).toBe("Updated Assignment Title");
 		// For assignments, description uses instructions if provided
 		expect(updatedModule.description).toBe("Updated assignment description");
-		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe("assignment"); // Should remain unchanged
 	});
 
@@ -511,8 +488,6 @@ describe("Activity Module Management", () => {
 		const createArgs = {
 			payload,
 			title: "Update Test Quiz",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -533,7 +508,6 @@ describe("Activity Module Management", () => {
 			id: createdModule.id,
 			title: "Updated Quiz Title",
 			description: "Updated quiz description",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -551,7 +525,6 @@ describe("Activity Module Management", () => {
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Quiz Title");
 		expect(updatedModule.description).toBe("Updated quiz description");
-		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe("quiz"); // Should remain unchanged
 	});
 
@@ -559,7 +532,6 @@ describe("Activity Module Management", () => {
 		const createArgs = {
 			payload,
 			title: "Update Test File Module",
-			status: "draft" as const,
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -578,7 +550,6 @@ describe("Activity Module Management", () => {
 			id: createdModule.id,
 			title: "Updated File Title",
 			description: "Updated file description",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -593,7 +564,6 @@ describe("Activity Module Management", () => {
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated File Title");
 		expect(updatedModule.description).toBe("Updated file description");
-		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe("file"); // Should remain unchanged
 	});
 
@@ -601,8 +571,6 @@ describe("Activity Module Management", () => {
 		const createArgs = {
 			payload,
 			title: "Update Test Discussion",
-			status: "draft",
-
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -624,7 +592,6 @@ describe("Activity Module Management", () => {
 			id: createdModule.id,
 			title: "Updated Discussion Title",
 			description: "Updated discussion description",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: testUser as TypedUser,
@@ -644,7 +611,6 @@ describe("Activity Module Management", () => {
 		expect(updatedModule.title).toBe("Updated Discussion Title");
 		// For discussions, description uses discussionData.description if provided
 		expect(updatedModule.description).toBe("Updated discussion description");
-		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe("discussion"); // Should remain unchanged
 	});
 
@@ -868,8 +834,6 @@ describe("Activity Module Management", () => {
 			tryCreatePageModule({
 				payload,
 				title: "List Test Module 1",
-				status: "published",
-
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -879,8 +843,6 @@ describe("Activity Module Management", () => {
 			tryCreateAssignmentModule({
 				payload,
 				title: "List Test Module 2",
-				status: "draft",
-
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -890,8 +852,6 @@ describe("Activity Module Management", () => {
 			tryCreateQuizModule({
 				payload,
 				title: "List Test Module 3",
-				status: "published",
-
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -943,20 +903,6 @@ describe("Activity Module Management", () => {
 
 		fileModulesResult.value.docs.forEach((module) => {
 			expect(module.type).toBe("file");
-		});
-
-		// Test filtering by status
-		const publishedModulesResult = await tryListActivityModules({
-			payload,
-			status: "published",
-			overrideAccess: true,
-		});
-
-		expect(publishedModulesResult.ok).toBe(true);
-		if (!publishedModulesResult.ok) return;
-
-		publishedModulesResult.value.docs.forEach((module) => {
-			expect(module.status).toBe("published");
 		});
 	});
 

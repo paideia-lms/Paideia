@@ -101,7 +101,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			title: module.title,
 			description: module.description,
 			type: module.type,
-			status: module.status,
 		})) ?? [];
 
 	return ok({

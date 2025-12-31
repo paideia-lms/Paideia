@@ -74,7 +74,7 @@ export const loader = async ({
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser =
+	const _currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Prepare user object for internal functions

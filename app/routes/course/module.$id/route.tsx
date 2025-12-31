@@ -824,9 +824,7 @@ export {
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const { action: actionParam, } = loadSearchParams(
-		args.request,
-	);
+	const { action: actionParam } = loadSearchParams(args.request);
 
 	if (!actionParam) {
 		return badRequest({ error: "Action is required" });
@@ -1001,13 +999,13 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		const handleQuizSubmit = (answers: QuizAnswers) => {
 			if (!activeSubmission) return;
 
-			const transformedAnswers = transformQuizAnswersToSubmissionFormat(
+			const _transformedAnswers = transformQuizAnswersToSubmissionFormat(
 				quizConfig,
 				answers,
 			);
 
 			// Calculate time spent if startedAt exists
-			let timeSpent: number | undefined;
+			let _timeSpent: number | undefined;
 			if (
 				activeSubmission &&
 				"startedAt" in activeSubmission &&
@@ -1015,7 +1013,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 			) {
 				const startedAt = new Date(activeSubmission.startedAt);
 				const now = new Date();
-				timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
+				_timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
 			}
 
 			markQuizAttemptAsComplete({

@@ -10,7 +10,6 @@ import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { CommonFields } from "./common-fields";
 import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
 import type { QuizFormInitialValues as EditQuizFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { QuizFormInitialValues as NewQuizFormInitialValues } from "app/routes/user/module/new";
@@ -33,7 +32,6 @@ const useQuizForm = (initialValues: Partial<QuizFormData> | undefined) => {
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			status: initialValues?.status ?? "draft",
 			quizInstructions: initialValues?.quizInstructions ?? "",
 			quizPoints: initialValues?.quizPoints ?? 100,
 			quizTimeLimit: initialValues?.quizTimeLimit ?? 60,
@@ -70,17 +68,6 @@ export function QuizForm({
 					withAsterisk
 				/>
 
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
-				/>
 				<Textarea
 					{...form.getInputProps("description")}
 					key={form.key("description")}

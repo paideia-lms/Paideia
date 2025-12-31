@@ -1,17 +1,9 @@
-import {
-	Button,
-	Select,
-	Stack,
-	Textarea,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useRef } from "react";
 import { FileUploader } from "~/components/file-uploader";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { CommonFields } from "./common-fields";
 import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { FileFormInitialValues as NewFileFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
@@ -97,7 +89,6 @@ export function FileForm({
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			status: initialValues?.status ?? "draft",
 			fileMedia: initialValues?.fileMedia ?? [],
 			fileFiles: initialValues?.fileFiles ?? [],
 		},
@@ -147,18 +138,6 @@ export function FileForm({
 					placeholder="Enter module title"
 					required
 					withAsterisk
-				/>
-
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
 				/>
 
 				<Textarea

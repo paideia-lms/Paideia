@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";

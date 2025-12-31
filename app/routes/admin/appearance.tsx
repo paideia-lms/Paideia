@@ -25,7 +25,6 @@ import {
 } from "server/internal/appearance-settings";
 import { z } from "zod";
 import {
-	badRequest,
 	ForbiddenResponse,
 	forbidden,
 	ok,

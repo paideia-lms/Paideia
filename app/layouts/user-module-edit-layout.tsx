@@ -64,20 +64,6 @@ export default function UserModuleEditLayout({
 	// Only show Setting and Access tabs if user can edit
 	const canEdit = accessType === "owned" || accessType === "granted";
 
-	// Helper function to get badge color based on status
-	const getStatusColor = (status: ActivityModule["status"]) => {
-		switch (status) {
-			case "published":
-				return "green";
-			case "draft":
-				return "yellow";
-			case "archived":
-				return "gray";
-			default:
-				return "blue";
-		}
-	};
-
 	// Determine current tab based on pageInfo
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/user/module/edit-setting"])
@@ -113,9 +99,6 @@ export default function UserModuleEditLayout({
 						<div style={{ flex: 1 }}>
 							<Group gap="sm" mb="xs">
 								<Title order={2}>{module.title}</Title>
-								<Badge color={getStatusColor(module.status)}>
-									{module.status}
-								</Badge>
 								<Badge
 									variant="light"
 									color={getModuleColor(module.type as ActivityModule["type"])}

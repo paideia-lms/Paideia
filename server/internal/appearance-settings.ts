@@ -10,7 +10,6 @@ import {
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import { AppearanceSettings } from "server/collections/globals";
-import { urlSchema } from "./utils/common-schema";
 import { tryCreateMedia } from "./media-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 export interface GetAppearanceSettingsArgs extends BaseInternalFunctionArgs {}
@@ -45,7 +44,7 @@ const validColors = [
 	"yellow",
 ] as const;
 
-const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
+const _validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
 
 /**
  * Read appearance settings from the AppearanceSettings global.

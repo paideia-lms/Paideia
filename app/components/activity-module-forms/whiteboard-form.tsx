@@ -10,7 +10,6 @@ import {
 	Box,
 	Button,
 	Loader,
-	Select,
 	TextInput,
 	Stack,
 	Textarea,
@@ -62,7 +61,6 @@ export function WhiteboardForm({
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			status: initialValues?.status ?? "draft",
 			whiteboardContent: initialValues?.whiteboardContent ?? "",
 		},
 		validate: {
@@ -118,18 +116,6 @@ export function WhiteboardForm({
 					placeholder="Enter module title"
 					required
 					withAsterisk
-				/>
-
-				<Select
-					{...form.getInputProps("status")}
-					key={form.key("status")}
-					label="Status"
-					placeholder="Select status"
-					data={[
-						{ value: "draft", label: "Draft" },
-						{ value: "published", label: "Published" },
-						{ value: "archived", label: "Archived" },
-					]}
 				/>
 
 				<Textarea

@@ -1196,7 +1196,6 @@ describe("Media Management", () => {
 			payload,
 			title: "Test Assignment",
 			description: "A test assignment",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: {
@@ -1274,7 +1273,6 @@ describe("Media Management", () => {
 			payload,
 			title: "Test Discussion",
 			description: "A test discussion",
-			status: "published",
 			req: createLocalReq({
 				request: mockRequest,
 				user: {
@@ -1375,7 +1373,6 @@ describe("Media Management", () => {
 			payload,
 			title: "Test Page",
 			description: "This is a test page",
-			status: "published",
 			content: pageHtml,
 			userId: testUserId,
 			overrideAccess: true,

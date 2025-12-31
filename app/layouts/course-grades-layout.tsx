@@ -1,15 +1,16 @@
 import { Container, Tabs } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useQueryState } from "nuqs";
+import { parseAsStringEnum } from "nuqs";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { permissions } from "server/utils/permissions";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-grades-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum GradesTab {
 	Report = "report",
@@ -17,7 +18,19 @@ enum GradesTab {
 	SingleView = "singleview",
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({
+	searchParams: {
+		tab: parseAsStringEnum([
+			GradesTab.Report,
+			GradesTab.Setup,
+			GradesTab.SingleView,
+		]).withDefault(GradesTab.Report),
+	},
+});
+
+export const loader = createRouteLoader(async ({ context, searchParams }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -25,11 +38,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.courseId, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -64,8 +72,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		pageInfo,
+		tab: searchParams.tab,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -73,17 +82,15 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 export default function CourseGradesLayout({
 	loaderData,
-	matches,
 }: Route.ComponentProps) {
-	const { course, pageInfo } = loaderData;
+	const { course, pageInfo, tab } = loaderData;
 	const navigate = useNavigate();
-	const [tabQueryParam] = useQueryState("tab");
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/course.$id.grades.singleview"])
 			return GradesTab.SingleView;
-		if (tabQueryParam === "setup") return GradesTab.Setup;
+		if (tab === GradesTab.Setup) return GradesTab.Setup;
 		// Default to Report tab
 		return GradesTab.Report;
 	};

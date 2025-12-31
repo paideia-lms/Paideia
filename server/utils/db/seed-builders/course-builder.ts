@@ -1,8 +1,7 @@
-import type { Payload } from "payload";
 import type { SeedData } from "../seed-schema";
 import { tryCreateCourse } from "../../../internal/course-management";
 import { seedLogger } from "../seed-utils/logger";
-import type { SeedContext, CreatedUsers } from "./user-builder";
+import type { SeedContext } from "./user-builder";
 import type { CreatedCategory } from "./category-builder";
 
 /**

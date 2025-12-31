@@ -31,7 +31,7 @@ import {
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useState } from "react";
-import {  Link } from "react-router";
+import { Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {

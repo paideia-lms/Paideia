@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { useFetcher } from "react-router";
 import type { Simplify } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
-import { badRequest } from "~/utils/responses";
+import { badRequest, BadRequestResponse } from "~/utils/responses";
 import { paramsSchema, type ParamsType } from "~/utils/params-schema";
 import { createLoader, type ParserMap } from "nuqs/server";
 
@@ -111,7 +111,7 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 						: {}),
 				} as unknown as BaseArgs;
 
-				let _params: Record<string, string | number | undefined> = {};
+				const _params: Record<string, string | number | undefined> = {};
 
 				// parse and validate custom params schema if provided
 				for (const [key, value] of Object.entries(params)) {
@@ -165,6 +165,94 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 			};
 
 			return [loaderFn, hook] as const;
+		};
+	};
+}
+
+export function typeCreateLoader<T extends LoaderFunctionArgs>() {
+	return <SearchParamsSchema extends ParserMap | undefined = undefined>({
+		searchParams,
+	}: {
+		searchParams?: SearchParamsSchema;
+	} = {}) => {
+		const loadSearchParams = searchParams
+			? createLoader(searchParams)
+			: undefined;
+
+		// Compute SearchParamsType
+		type SearchParamsType =
+			SearchParamsSchema extends Record<string, unknown>
+				? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+				: never;
+
+		type Params = PreserveOptionalParams<T>;
+
+		// Base args structure
+		type BaseArgs = Omit<T, "params" | "request" | "searchParams"> &
+			Params & {
+				searchParams: SearchParamsType extends never
+					? // biome-ignore lint/complexity/noBannedTypes: it is intented
+						{}
+					: SearchParamsType;
+			};
+
+		// Args with validated params when schema is provided
+		type ArgsWithParams = ParamsSchema extends z.ZodTypeAny
+			? Simplify<BaseArgs & { params: z.infer<ParamsSchema> }>
+			: Simplify<BaseArgs>;
+
+		return <L extends (args: ArgsWithParams) => ReturnType<L>>(loader: L) => {
+			const loaderFn = serverOnly$(async (args: T) => {
+				const { params, request } = args;
+
+				// check every params in the schema
+				for (const [key, value] of Object.entries(params)) {
+					const schema = paramsSchema[key as keyof typeof paramsSchema];
+					if (schema) {
+						const result = schema.safeParse(value);
+						if (!result.success) {
+							throw new BadRequestResponse(
+								`Invalid parameter '${key}': ${z.prettifyError(result.error)}`,
+							);
+						}
+					}
+				}
+
+				// parse search params if schema is provided
+				const parsedSearchParams = loadSearchParams
+					? loadSearchParams(request)
+					: undefined;
+
+				// Build base args object
+				const baseArgs = {
+					...args,
+					...(parsedSearchParams !== undefined
+						? { searchParams: parsedSearchParams }
+						: {}),
+				} as unknown as BaseArgs;
+
+				const _params: Record<string, string | number | undefined> = {};
+
+				// parse and validate custom params schema if provided
+				for (const [key, value] of Object.entries(params)) {
+					const parsed =
+						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+
+					if (!parsed.success) {
+						throw new BadRequestResponse(
+							`Invalid parameter '${key}': ${z.prettifyError(parsed.error)}`,
+						);
+					}
+					_params[key as keyof typeof _params] = parsed.data;
+				}
+
+				return loader({
+					...baseArgs,
+					params: _params,
+				});
+			})!;
+
+			return loaderFn;
 		};
 	};
 }
