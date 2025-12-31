@@ -18,10 +18,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"media_id" integer
   );
   
-  DROP INDEX "assignment_idx";
-  DROP INDEX "dueDate_idx";
-  DROP INDEX "dueDate_1_idx";
-  DROP INDEX "dueDate_2_idx";
+  DROP INDEX IF EXISTS "assignment_idx";
+  DROP INDEX IF EXISTS "dueDate_idx";
+  DROP INDEX IF EXISTS "dueDate_1_idx";
+  DROP INDEX IF EXISTS "dueDate_2_idx";
   ALTER TABLE "activity_modules" ADD COLUMN "file_id" integer;
   ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "files_id" integer;
   ALTER TABLE "appearance_settings" ADD COLUMN "logo_light_id" integer;
@@ -62,69 +62,71 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   -- Note: These columns are being removed from assignments and quizzes as due dates,
   -- max attempts, and late submission settings are now managed at the activity_module level.
   -- Data loss is acceptable as these fields are being migrated to a different location.
-  ALTER TABLE "assignments" DROP COLUMN "due_date";
-  ALTER TABLE "assignments" DROP COLUMN "max_attempts";
-  ALTER TABLE "assignments" DROP COLUMN "allow_late_submissions";
-  ALTER TABLE "quizzes" DROP COLUMN "due_date";
-  ALTER TABLE "quizzes" DROP COLUMN "max_attempts";
-  ALTER TABLE "quizzes" DROP COLUMN "allow_late_submissions";`)
+  ALTER TABLE "assignments" DROP COLUMN IF EXISTS "due_date";
+  ALTER TABLE "assignments" DROP COLUMN IF EXISTS "max_attempts";
+  ALTER TABLE "assignments" DROP COLUMN IF EXISTS "allow_late_submissions";
+  ALTER TABLE "quizzes" DROP COLUMN IF EXISTS "due_date";
+  ALTER TABLE "quizzes" DROP COLUMN IF EXISTS "max_attempts";
+  ALTER TABLE "quizzes" DROP COLUMN IF EXISTS "allow_late_submissions";`)
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "files" DISABLE ROW LEVEL SECURITY;
-  ALTER TABLE "files_rels" DISABLE ROW LEVEL SECURITY;
-  DROP TABLE "files" CASCADE;
-  DROP TABLE "files_rels" CASCADE;
-  ALTER TABLE "activity_modules" DROP CONSTRAINT "activity_modules_file_id_files_id_fk";
+   DROP TABLE IF EXISTS "files" CASCADE;
+  DROP TABLE IF EXISTS "files_rels" CASCADE;
+  ALTER TABLE "activity_modules" DROP CONSTRAINT IF EXISTS "activity_modules_file_id_files_id_fk";
   
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_files_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_files_fk";
   
-  ALTER TABLE "appearance_settings" DROP CONSTRAINT "appearance_settings_logo_light_id_media_id_fk";
+  ALTER TABLE "appearance_settings" DROP CONSTRAINT IF EXISTS "appearance_settings_logo_light_id_media_id_fk";
   
-  ALTER TABLE "appearance_settings" DROP CONSTRAINT "appearance_settings_logo_dark_id_media_id_fk";
+  ALTER TABLE "appearance_settings" DROP CONSTRAINT IF EXISTS "appearance_settings_logo_dark_id_media_id_fk";
   
-  ALTER TABLE "appearance_settings" DROP CONSTRAINT "appearance_settings_compact_logo_light_id_media_id_fk";
+  ALTER TABLE "appearance_settings" DROP CONSTRAINT IF EXISTS "appearance_settings_compact_logo_light_id_media_id_fk";
   
-  ALTER TABLE "appearance_settings" DROP CONSTRAINT "appearance_settings_compact_logo_dark_id_media_id_fk";
+  ALTER TABLE "appearance_settings" DROP CONSTRAINT IF EXISTS "appearance_settings_compact_logo_dark_id_media_id_fk";
   
-  ALTER TABLE "appearance_settings" DROP CONSTRAINT "appearance_settings_favicon_light_id_media_id_fk";
+  ALTER TABLE "appearance_settings" DROP CONSTRAINT IF EXISTS "appearance_settings_favicon_light_id_media_id_fk";
   
-  ALTER TABLE "appearance_settings" DROP CONSTRAINT "appearance_settings_favicon_dark_id_media_id_fk";
+  ALTER TABLE "appearance_settings" DROP CONSTRAINT IF EXISTS "appearance_settings_favicon_dark_id_media_id_fk";
   
   -- Delete any activity_modules with type='file' before recreating enum without 'file' value.
   -- Data loss is acceptable as we're rolling back the file feature.
   DELETE FROM "activity_modules" WHERE "type" = 'file';
   ALTER TABLE "activity_modules" ALTER COLUMN "type" SET DATA TYPE text;
-  DROP TYPE "public"."enum_activity_modules_type";
-  CREATE TYPE "public"."enum_activity_modules_type" AS ENUM('page', 'whiteboard', 'assignment', 'quiz', 'discussion');
+  DROP TYPE IF EXISTS "public"."enum_activity_modules_type";
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_activity_modules_type') THEN
+      CREATE TYPE "public"."enum_activity_modules_type" AS ENUM('page', 'whiteboard', 'assignment', 'quiz', 'discussion');
+    END IF;
+  END $$;
   ALTER TABLE "activity_modules" ALTER COLUMN "type" SET DATA TYPE "public"."enum_activity_modules_type" USING "type"::"public"."enum_activity_modules_type";
-  DROP INDEX "activity_modules_file_idx";
-  DROP INDEX "file_idx";
-  DROP INDEX "dueDate_idx";
-  DROP INDEX "payload_locked_documents_rels_files_id_idx";
-  DROP INDEX "appearance_settings_logo_light_idx";
-  DROP INDEX "appearance_settings_logo_dark_idx";
-  DROP INDEX "appearance_settings_compact_logo_light_idx";
-  DROP INDEX "appearance_settings_compact_logo_dark_idx";
-  DROP INDEX "appearance_settings_favicon_light_idx";
-  DROP INDEX "appearance_settings_favicon_dark_idx";
-  ALTER TABLE "assignments" ADD COLUMN "due_date" timestamp(3) with time zone;
-  ALTER TABLE "assignments" ADD COLUMN "max_attempts" numeric DEFAULT 1;
-  ALTER TABLE "assignments" ADD COLUMN "allow_late_submissions" boolean DEFAULT false;
-  ALTER TABLE "quizzes" ADD COLUMN "due_date" timestamp(3) with time zone;
-  ALTER TABLE "quizzes" ADD COLUMN "max_attempts" numeric DEFAULT 1;
-  ALTER TABLE "quizzes" ADD COLUMN "allow_late_submissions" boolean DEFAULT false;
-  CREATE INDEX "assignment_idx" ON "activity_modules" USING btree ("assignment_id");
-  CREATE INDEX "dueDate_idx" ON "assignments" USING btree ("due_date");
-  CREATE INDEX "dueDate_1_idx" ON "quizzes" USING btree ("due_date");
-  CREATE INDEX "dueDate_2_idx" ON "discussions" USING btree ("due_date");
-  ALTER TABLE "activity_modules" DROP COLUMN "file_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "files_id";
-  ALTER TABLE "appearance_settings" DROP COLUMN "logo_light_id";
-  ALTER TABLE "appearance_settings" DROP COLUMN "logo_dark_id";
-  ALTER TABLE "appearance_settings" DROP COLUMN "compact_logo_light_id";
-  ALTER TABLE "appearance_settings" DROP COLUMN "compact_logo_dark_id";
-  ALTER TABLE "appearance_settings" DROP COLUMN "favicon_light_id";
-  ALTER TABLE "appearance_settings" DROP COLUMN "favicon_dark_id";`)
+  DROP INDEX IF EXISTS "activity_modules_file_idx";
+  DROP INDEX IF EXISTS "file_idx";
+  DROP INDEX IF EXISTS "dueDate_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_files_id_idx";
+  DROP INDEX IF EXISTS "appearance_settings_logo_light_idx";
+  DROP INDEX IF EXISTS "appearance_settings_logo_dark_idx";
+  DROP INDEX IF EXISTS "appearance_settings_compact_logo_light_idx";
+  DROP INDEX IF EXISTS "appearance_settings_compact_logo_dark_idx";
+  DROP INDEX IF EXISTS "appearance_settings_favicon_light_idx";
+  DROP INDEX IF EXISTS "appearance_settings_favicon_dark_idx";
+  ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "due_date" timestamp(3) with time zone;
+  ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "max_attempts" numeric DEFAULT 1;
+  ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "allow_late_submissions" boolean DEFAULT false;
+  ALTER TABLE "quizzes" ADD COLUMN IF NOT EXISTS "due_date" timestamp(3) with time zone;
+  ALTER TABLE "quizzes" ADD COLUMN IF NOT EXISTS "max_attempts" numeric DEFAULT 1;
+  ALTER TABLE "quizzes" ADD COLUMN IF NOT EXISTS "allow_late_submissions" boolean DEFAULT false;
+  CREATE INDEX IF NOT EXISTS "assignment_idx" ON "activity_modules" USING btree ("assignment_id");
+  CREATE INDEX IF NOT EXISTS "dueDate_idx" ON "assignments" USING btree ("due_date");
+  CREATE INDEX IF NOT EXISTS "dueDate_1_idx" ON "quizzes" USING btree ("due_date");
+  CREATE INDEX IF NOT EXISTS "dueDate_2_idx" ON "discussions" USING btree ("due_date");
+  ALTER TABLE "activity_modules" DROP COLUMN IF EXISTS "file_id";
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "files_id";
+  ALTER TABLE "appearance_settings" DROP COLUMN IF EXISTS "logo_light_id";
+  ALTER TABLE "appearance_settings" DROP COLUMN IF EXISTS "logo_dark_id";
+  ALTER TABLE "appearance_settings" DROP COLUMN IF EXISTS "compact_logo_light_id";
+  ALTER TABLE "appearance_settings" DROP COLUMN IF EXISTS "compact_logo_dark_id";
+  ALTER TABLE "appearance_settings" DROP COLUMN IF EXISTS "favicon_light_id";
+  ALTER TABLE "appearance_settings" DROP COLUMN IF EXISTS "favicon_dark_id";`)
 }
