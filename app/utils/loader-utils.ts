@@ -7,6 +7,7 @@ import { badRequest } from "~/utils/responses";
 import { paramsSchema, type ParamsType } from "~/utils/params-schema";
 import { createLoader, type ParserMap } from "nuqs/server";
 
+type ParamsSchema = typeof paramsSchema;
 /**
  * Makes a property optional if the type has no keys, required otherwise.
  * Useful for conditional property requirements based on type emptiness.
@@ -32,14 +33,9 @@ type PreserveOptionalParams<T extends LoaderFunctionArgs> = {
 };
 
 export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
-	return <
-		ParamsSchema extends z.ZodTypeAny | undefined = undefined,
-		SearchParamsSchema extends ParserMap | undefined = undefined,
-	>({
-		paramsSchema: customParamsSchema,
+	return <SearchParamsSchema extends ParserMap | undefined = undefined>({
 		searchParams,
 	}: {
-		paramsSchema?: ParamsSchema;
 		searchParams?: SearchParamsSchema;
 	} = {}) => {
 		const loadSearchParams = searchParams
@@ -47,9 +43,10 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 			: undefined;
 
 		// Compute SearchParamsType
-		type SearchParamsType = SearchParamsSchema extends Record<string, unknown>
-			? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
-			: never;
+		type SearchParamsType =
+			SearchParamsSchema extends Record<string, unknown>
+				? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+				: never;
 
 		type Params = PreserveOptionalParams<T>;
 
@@ -114,9 +111,12 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 						: {}),
 				} as unknown as BaseArgs;
 
+				let _params: Record<string, string | number | undefined> = {};
+
 				// parse and validate custom params schema if provided
-				if (customParamsSchema) {
-					const parsed = customParamsSchema.safeParse(params);
+				for (const [key, value] of Object.entries(params)) {
+					const parsed =
+						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
 
 					if (!parsed.success) {
 						return badRequest({
@@ -124,14 +124,13 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 							error: z.prettifyError(parsed.error),
 						});
 					}
-
-					return loader({
-						...baseArgs,
-						params: parsed.data,
-					} as unknown as ArgsWithParams);
+					_params[key as keyof typeof _params] = parsed.data;
 				}
 
-				return loader(baseArgs as unknown as ArgsWithParams);
+				return loader({
+					...baseArgs,
+					params: _params,
+				});
 			})!;
 
 			const hook = () => {

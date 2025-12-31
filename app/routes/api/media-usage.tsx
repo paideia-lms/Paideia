@@ -2,36 +2,33 @@ import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindMediaUsages } from "server/internal/media-management";
-import z from "zod";
 import { badRequest, NotFoundResponse, ok } from "~/utils/responses";
 import { typeCreateLoaderRpc } from "~/utils/loader-utils";
 import type { Route } from "./+types/media-usage";
 import { serverOnly$ } from "vite-env-only/macros";
 
-const paramsSchema = z.object({
-	mediaId: z.union([z.number(), z.string()]).transform((val) => {
-		if (typeof val === "string") {
-			const parsed = Number.parseInt(val, 10);
-			if (Number.isNaN(parsed)) {
-				throw new z.ZodError([
-					{
-						code: "custom",
-						path: ["mediaId"],
-						message: "Media ID must be a valid number",
-					},
-				]);
-			}
-			return parsed;
-		}
-		return val;
-	}),
-});
+// const paramsSchema = z.object({
+// 	mediaId: z.union([z.number(), z.string()]).transform((val) => {
+// 		if (typeof val === "string") {
+// 			const parsed = Number.parseInt(val, 10);
+// 			if (Number.isNaN(parsed)) {
+// 				throw new z.ZodError([
+// 					{
+// 						code: "custom",
+// 						path: ["mediaId"],
+// 						message: "Media ID must be a valid number",
+// 					},
+// 				]);
+// 			}
+// 			return parsed;
+// 		}
+// 		return val;
+// 	}),
+// });
 
 const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
 
-const [loaderFn, useMediaUsageData] = createLoaderRpc({
-	paramsSchema,
-})(serverOnly$(async ({ context, params }) => {
+const [loaderFn, useMediaUsageData] = createLoaderRpc({})(serverOnly$(async ({ context, params }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -47,6 +44,7 @@ const [loaderFn, useMediaUsageData] = createLoaderRpc({
 	}
 
 	const { mediaId } = params;
+	console.log(mediaId);
 
 	const result = await tryFindMediaUsages({
 		payload,

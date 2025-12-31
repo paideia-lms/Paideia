@@ -199,14 +199,13 @@ export const middleware = [
 			const currentUser =
 				userSession?.effectiveUser || userSession?.authenticatedUser;
 
-			// Allow access to login and admin maintenance page
-			const isApi = Object.keys(pageInfo.is).some((id) =>
-				id.startsWith("routes/api/"),
-			);
+
 			if (
 				pageInfo.is["routes/login"] ||
 				pageInfo.is["routes/admin/maintenance"] ||
-				isApi
+				Object.keys(pageInfo.is).some((id) =>
+					id.startsWith("routes/api/"),
+				)
 			) {
 				return;
 			}
@@ -233,9 +232,7 @@ export const middleware = [
 		// check if the user is in a course
 		if (pageInfo.is["layouts/course-layout"]) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			const { courseId: _courseId } =
-				pageInfo.is["layouts/course-layout"].params;
-			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
+			let courseId = 	pageInfo.is["layouts/course-layout"].params.courseId ?? null 
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.is["layouts/course-module-layout"]) {
 				const { moduleLinkId } =
@@ -256,14 +253,11 @@ export const middleware = [
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.is["layouts/course-section-layout"]) {
-				const { sectionId } =
-					params as RouteParams<"layouts/course-section-layout">;
-
-				if (Number.isNaN(sectionId)) return;
+				const { sectionId } = pageInfo.is["layouts/course-section-layout"].params;
 
 				const sectionContext = await tryFindSectionById({
 					payload,
-					sectionId: Number(sectionId),
+					sectionId: sectionId,
 					req: payloadRequest,
 				});
 
@@ -299,11 +293,7 @@ export const middleware = [
 		// Check if we're in a course section layout
 		if (pageInfo.is["layouts/course-section-layout"]) {
 			// Get section ID from params
-			const { sectionId } =
-				params as RouteParams<"layouts/course-section-layout">;
-
-			if (Number.isNaN(sectionId)) return;
-
+			const { sectionId } = pageInfo.is["layouts/course-section-layout"].params;
 			if (courseContext) {
 				const courseSectionContextResult = await tryGetCourseSectionContext({
 					payload,
@@ -392,8 +382,8 @@ export const middleware = [
 	// set the course module context
 	async ({ context, params, request }) => {
 		// get the enrolment context
-		const enrolmentContext = context.get(enrolmentContextKey);
 		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 
@@ -403,17 +393,15 @@ export const middleware = [
 			pageInfo.is["layouts/course-module-layout"] &&
 			courseContext
 		) {
-			const { moduleLinkId } =
-				params as RouteParams<"layouts/course-module-layout">;
+			const { moduleLinkId } = pageInfo.is["layouts/course-module-layout"].params;
 
 			// Get module link ID from params
-			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
 				// Extract threadId from URL search params if present
 				const { threadId } = loadSearchParams(request);
 
 				const courseModuleContext = await tryGetCourseModuleContext({
 					payload,
-					moduleLinkId: Number(moduleLinkId),
+					moduleLinkId: moduleLinkId,
 					courseId: courseContext.courseId,
 					enrolment: enrolmentContext?.enrolment ?? null,
 					threadId: threadId !== null ? String(threadId) : null,
@@ -423,7 +411,6 @@ export const middleware = [
 				if (courseModuleContext) {
 					context.set(courseModuleContextKey, courseModuleContext);
 				}
-			}
 		}
 	},
 	// set the user module context

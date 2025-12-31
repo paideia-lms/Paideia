@@ -76,6 +76,7 @@
 		"@payloadcms/storage-s3": "^3.69.0",
 		"@payloadcms/translations": "^3.69.0",
 		"@react-router/fs-routes": "^7.11.0",
+		"@react-router/node": "^7.11.0",
 		"@scalar/api-reference-react": "^0.8.15",
 		"@tabler/icons-react": "^3.36.0",
 		"@tiptap/core": "^3.14.0",
