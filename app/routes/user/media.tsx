@@ -948,8 +948,6 @@ function MediaUsageModal({
 		}
 	}, [opened, file, previousOpened, previousFileId, fetchMediaUsage]);
 
-	console.log(mediaUsageData);
-
 	return (
 		<Modal
 			opened={opened}
@@ -1019,8 +1017,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1111,8 +1109,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1191,8 +1189,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1473,8 +1471,6 @@ function MediaPagination({
 				total={totalPages}
 				value={currentPage}
 				onChange={(page) => {
-					// TODO: Implement pagination navigation
-					console.log("Navigate to page:", page);
 					onPageChange(page);
 				}}
 			/>

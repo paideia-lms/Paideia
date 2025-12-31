@@ -244,10 +244,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const userOptions = usersResult.ok
 		? usersResult.value.docs.map((user) => ({
-				value: user.id.toString(),
-				label:
-					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-			}))
+			value: user.id.toString(),
+			label:
+				`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+		}))
 		: [];
 
 	// Fetch orphaned media files
@@ -948,8 +948,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1045,8 +1045,7 @@ function MediaUsageModal({
 			// Fetch if modal just opened or file ID changed
 			if (!previousOpened || file.id !== previousFileId) {
 				dataFileIdRef.current = file.id;
-				console.log("fetching media usage", fetchMediaUsage);
-				// fetchMediaUsage({ params: { mediaId: file.id } });
+				fetchMediaUsage({ params: { mediaId: file.id } });
 			}
 		}
 	}, [opened, file, previousOpened, previousFileId, fetchMediaUsage]);
@@ -1126,8 +1125,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1206,8 +1205,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	// Get creator info
@@ -1218,7 +1217,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-				"Unknown"
+			"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1229,13 +1228,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: creatorAvatarId.toString(),
-			})
+			mediaId: creatorAvatarId.toString(),
+		})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-				id: creatorId.toString(),
-			})
+			id: creatorId.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1492,7 +1491,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-							"Unknown"
+						"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1503,13 +1502,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:mediaId`, {
-							mediaId: creatorAvatarId.toString(),
-						})
+						mediaId: creatorAvatarId.toString(),
+					})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-							id: creatorId.toString(),
-						})
+						id: creatorId.toString(),
+					})
 					: undefined;
 
 				return (
