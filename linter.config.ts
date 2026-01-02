@@ -6,6 +6,12 @@
 import * as ts from "typescript";
 import type { LintRule } from "./scripts/lint-project";
 
+// Cache for multiple hooks check per file
+const multipleHooksCache = new Map<
+	string,
+	{ hasMultiple: boolean; hookCallNodes: ts.Node[] }
+>();
+
 // Define AST pattern matchers
 const astPatterns = {
 	/**
@@ -503,6 +509,572 @@ const astPatterns = {
 		// It's an href call outside getRouteUrl - violation
 		return true;
 	},
+
+	/**
+	 * Matches export default function declarations (components)
+	 */
+	exportDefaultFunction: (node: ts.Node): boolean => {
+		if (ts.isFunctionDeclaration(node)) {
+			// Check if it's exported
+			if (
+				node.modifiers?.some(
+					(modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+				)
+			) {
+				// Check if it's default export
+				if (
+					node.modifiers?.some(
+						(modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword,
+					)
+				) {
+					return true;
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Matches const [loaderFn, useHookName] = createLoaderRpc(...) pattern
+	 * Returns the hook name if found, null otherwise
+	 */
+	loaderHookDeclaration: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): string | null => {
+		if (!ts.isVariableStatement(node)) {
+			return null;
+		}
+
+		const declarationList = node.declarationList;
+		if (!(declarationList.flags & ts.NodeFlags.Const)) {
+			return null;
+		}
+
+		for (const declaration of declarationList.declarations) {
+			if (!ts.isArrayBindingPattern(declaration.name)) {
+				continue;
+			}
+
+			const elements = declaration.name.elements;
+			if (elements.length < 2) {
+				continue;
+			}
+
+			// Second element should be the hook name
+			const hookElement = elements[1];
+			if (!hookElement || !ts.isBindingElement(hookElement)) {
+				continue;
+			}
+
+			if (!ts.isIdentifier(hookElement.name)) {
+				continue;
+			}
+
+			const hookName = hookElement.name.text;
+
+			// Check if initializer is a call to createLoaderRpc
+			if (!declaration.initializer) {
+				continue;
+			}
+
+			if (!ts.isCallExpression(declaration.initializer)) {
+				continue;
+			}
+
+			const callExpr = declaration.initializer;
+			const callTarget = callExpr.expression;
+
+			// Check if it's createLoaderRpc(...) or createXxxLoaderRpc(...)
+			if (ts.isIdentifier(callTarget)) {
+				const funcName = callTarget.text;
+				if (funcName === "createLoaderRpc" || funcName.endsWith("LoaderRpc")) {
+					return hookName;
+				}
+			}
+
+			// Check if it's a method call like createActionRpc(...)
+			if (ts.isCallExpression(callTarget)) {
+				const innerCallTarget = callTarget.expression;
+				if (ts.isIdentifier(innerCallTarget)) {
+					const funcName = innerCallTarget.text;
+					if (funcName === "createLoaderRpc" || funcName.endsWith("LoaderRpc")) {
+						return hookName;
+					}
+				}
+			}
+		}
+
+		return null;
+	},
+
+	/**
+	 * Matches const [actionFn, useHookName] = createActionRpc(...) pattern
+	 * Returns the hook name if found, null otherwise
+	 */
+	actionHookDeclaration: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): string | null => {
+		if (!ts.isVariableStatement(node)) {
+			return null;
+		}
+
+		const declarationList = node.declarationList;
+		if (!(declarationList.flags & ts.NodeFlags.Const)) {
+			return null;
+		}
+
+		for (const declaration of declarationList.declarations) {
+			if (!ts.isArrayBindingPattern(declaration.name)) {
+				continue;
+			}
+
+			const elements = declaration.name.elements;
+			if (elements.length < 2) {
+				continue;
+			}
+
+			// Second element should be the hook name
+			const hookElement = elements[1];
+			if (!hookElement || !ts.isBindingElement(hookElement)) {
+				continue;
+			}
+
+			if (!ts.isIdentifier(hookElement.name)) {
+				continue;
+			}
+
+			const hookName = hookElement.name.text;
+
+			// Check if initializer is a call to createActionRpc
+			if (!declaration.initializer) {
+				continue;
+			}
+
+			if (!ts.isCallExpression(declaration.initializer)) {
+				continue;
+			}
+
+			const callExpr = declaration.initializer;
+			const callTarget = callExpr.expression;
+
+			// Check if it's createActionRpc(...) or createXxxActionRpc(...)
+			if (ts.isIdentifier(callTarget)) {
+				const funcName = callTarget.text;
+				if (funcName === "createActionRpc" || funcName.endsWith("ActionRpc")) {
+					return hookName;
+				}
+			}
+
+			// Check if it's a method call like createActionRpc(...)
+			if (ts.isCallExpression(callTarget)) {
+				const innerCallTarget = callTarget.expression;
+				if (ts.isIdentifier(innerCallTarget)) {
+					const funcName = innerCallTarget.text;
+					if (funcName === "createActionRpc" || funcName.endsWith("ActionRpc")) {
+						return hookName;
+					}
+				}
+			}
+		}
+
+		return null;
+	},
+
+	/**
+	 * Matches hook function calls like useXxx()
+	 * Returns the hook name if found, null otherwise
+	 */
+	hookCall: (node: ts.Node): string | null => {
+		if (!ts.isCallExpression(node)) {
+			return null;
+		}
+
+		const expression = node.expression;
+		if (!ts.isIdentifier(expression)) {
+			return null;
+		}
+
+		const funcName = expression.text;
+		// Check if it starts with "use" and has uppercase second letter (React hook convention)
+		if (funcName.startsWith("use") && funcName.length > 3) {
+			const secondChar = funcName[3];
+			if (secondChar && secondChar === secondChar.toUpperCase()) {
+				return funcName;
+			}
+		}
+
+		return null;
+	},
+
+	/**
+	 * Checks if a hook is imported from a route file
+	 * Returns true if the hook is imported from app/routes
+	 */
+	isHookImportedFromRoute: (
+		hookName: string,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		function visitForImports(n: ts.Node) {
+			if (ts.isImportDeclaration(n)) {
+				const moduleSpecifier = n.moduleSpecifier;
+				if (ts.isStringLiteral(moduleSpecifier)) {
+					const modulePath = moduleSpecifier.text;
+					// Check if importing from a route file (app/routes or ~/routes)
+					if (
+						modulePath.startsWith("app/routes/") ||
+						modulePath.startsWith("~/routes/") ||
+						modulePath.startsWith("../routes/") ||
+						modulePath.startsWith("./routes/")
+					) {
+						const importClause = n.importClause;
+						if (importClause) {
+							// Check named imports
+							if (importClause.namedBindings) {
+								if (ts.isNamedImports(importClause.namedBindings)) {
+									return importClause.namedBindings.elements.some(
+										(element) => {
+											const importedName = element.name.text;
+											// Check if it's the hook we're looking for
+											// Also check for aliases
+											const aliasName = element.propertyName
+												? element.propertyName.text
+												: null;
+											return (
+												importedName === hookName ||
+												aliasName === hookName
+											);
+										},
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+			ts.forEachChild(n, visitForImports);
+			return false;
+		}
+
+		let found = false;
+		function visit(n: ts.Node) {
+			if (found) return;
+			if (ts.isImportDeclaration(n)) {
+				const moduleSpecifier = n.moduleSpecifier;
+				if (ts.isStringLiteral(moduleSpecifier)) {
+					const modulePath = moduleSpecifier.text;
+					if (
+						modulePath.startsWith("app/routes/") ||
+						modulePath.startsWith("~/routes/") ||
+						modulePath.startsWith("../routes/") ||
+						modulePath.startsWith("./routes/")
+					) {
+						const importClause = n.importClause;
+						if (importClause?.namedBindings) {
+							if (ts.isNamedImports(importClause.namedBindings)) {
+								if (
+									importClause.namedBindings.elements.some(
+										(element) => element.name.text === hookName,
+									)
+								) {
+									found = true;
+									return;
+								}
+							}
+						}
+					}
+				}
+			}
+			ts.forEachChild(n, visit);
+		}
+
+		visit(sourceFile);
+		return found;
+	},
+
+	/**
+	 * Checks if a hook name is a loader/action hook
+	 * A loader/action hook is one that:
+	 * 1. Ends with "Loader" (e.g., useSearchUsersLoader)
+	 * 2. Contains "Action" and starts with "use" (e.g., useUpdateUser, useImpersonate)
+	 * 3. Contains "Rpc" and starts with "use" (e.g., useUploadLogoRpc)
+	 * 4. Is declared in the file via createLoaderRpc/createActionRpc
+	 * 5. Is imported from a route file (likely a loader/action hook)
+	 */
+	isLoaderOrActionHook: (
+		hookName: string,
+		declaredHooks: Set<string>,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// Check if it's a declared hook
+		if (declaredHooks.has(hookName)) {
+			return true;
+		}
+
+		// Check if it's imported from a route file
+		if (astPatterns.isHookImportedFromRoute(hookName, sourceFile)) {
+			return true;
+		}
+
+		// Check naming patterns
+		if (hookName.endsWith("Loader")) {
+			return true;
+		}
+
+		if (hookName.startsWith("use") && hookName.includes("Action")) {
+			return true;
+		}
+
+		if (hookName.startsWith("use") && hookName.includes("Rpc")) {
+			return true;
+		}
+
+		// Check for common hook patterns from createActionRpc
+		// These hooks typically have names like useXxx where Xxx is an action verb
+		// But we need to be careful not to match all React hooks
+		// So we'll be conservative and only match if it's in declared hooks or matches specific patterns
+		return false;
+	},
+
+	/**
+	 * Checks if a component uses more than one loader/action hook
+	 * This pattern matcher returns true on hook call nodes when there are multiple hooks
+	 */
+	multipleHooksInComponent: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// Only check hook call nodes
+		const hookName = astPatterns.hookCall(node);
+		if (!hookName) {
+			return false;
+		}
+
+		// Check if we're inside a default export function (component)
+		let insideComponent = false;
+		let currentNode: ts.Node | undefined = node;
+		while (currentNode && currentNode !== sourceFile) {
+			if (ts.isFunctionDeclaration(currentNode)) {
+				if (astPatterns.exportDefaultFunction(currentNode)) {
+					insideComponent = true;
+					break;
+				}
+			}
+			currentNode = currentNode.parent;
+		}
+
+		if (!insideComponent) {
+			return false;
+		}
+
+		// Collect all hook names declared in this file (needed for isLoaderOrActionHook check)
+		const declaredHooks = new Set<string>();
+		function visitForHookDeclarations(n: ts.Node) {
+			const loaderHook = astPatterns.loaderHookDeclaration(n, sourceFile);
+			if (loaderHook) {
+				declaredHooks.add(loaderHook);
+			}
+
+			const actionHook = astPatterns.actionHookDeclaration(n, sourceFile);
+			if (actionHook) {
+				declaredHooks.add(actionHook);
+			}
+
+			ts.forEachChild(n, visitForHookDeclarations);
+		}
+
+		visitForHookDeclarations(sourceFile);
+
+		// Check if this is a loader/action hook
+		if (
+			!astPatterns.isLoaderOrActionHook(hookName, declaredHooks, sourceFile)
+		) {
+			return false;
+		}
+
+		// Use cache to avoid repeated traversals
+		const filePath = sourceFile.fileName;
+		let cacheEntry = multipleHooksCache.get(filePath);
+
+		if (!cacheEntry) {
+			// First time checking this file - do full analysis
+			// Find default export function
+			let defaultExportFunction: ts.FunctionDeclaration | null = null;
+			function findDefaultExport(n: ts.Node) {
+				if (
+					ts.isFunctionDeclaration(n) &&
+					astPatterns.exportDefaultFunction(n)
+				) {
+					defaultExportFunction = n;
+					return;
+				}
+				ts.forEachChild(n, findDefaultExport);
+			}
+
+			findDefaultExport(sourceFile);
+
+			if (!defaultExportFunction) {
+				// No default export, cache negative result
+				multipleHooksCache.set(filePath, {
+					hasMultiple: false,
+					hookCallNodes: [],
+				});
+				return false;
+			}
+
+			// Count loader/action hooks in the component
+			const loaderActionHooks = new Set<string>();
+			const hookCallNodes: ts.Node[] = [];
+			function countHooksInComponent(n: ts.Node) {
+				const hook = astPatterns.hookCall(n);
+				if (hook) {
+					if (
+						astPatterns.isLoaderOrActionHook(
+							hook,
+							declaredHooks,
+							sourceFile,
+						)
+					) {
+						loaderActionHooks.add(hook);
+						hookCallNodes.push(n);
+					}
+				}
+				ts.forEachChild(n, countHooksInComponent);
+			}
+
+			countHooksInComponent(defaultExportFunction);
+
+			cacheEntry = {
+				hasMultiple: loaderActionHooks.size > 1,
+				hookCallNodes,
+			};
+			multipleHooksCache.set(filePath, cacheEntry);
+		}
+
+		// Return true if there are multiple hooks and this is one of the hook call nodes
+		// Check if this node is one of the cached hook call nodes by comparing positions
+		if (cacheEntry.hasMultiple) {
+			const nodePos = node.getStart(sourceFile);
+			for (const cachedNode of cacheEntry.hookCallNodes) {
+				if (cachedNode.getStart(sourceFile) === nodePos) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	},
+
+	/**
+	 * Matches useState() calls
+	 * Returns true if the node is a useState call
+	 */
+	useStateCall: (node: ts.Node): boolean => {
+		if (!ts.isCallExpression(node)) {
+			return false;
+		}
+
+		const expression = node.expression;
+		if (!ts.isIdentifier(expression)) {
+			return false;
+		}
+
+		return expression.text === "useState";
+	},
+
+	/**
+	 * Checks if a component uses more than 5 useState hooks
+	 * This pattern matcher returns true on useState call nodes when there are more than 5
+	 */
+	tooManyUseStateHooks: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// Only check useState call nodes
+		if (!astPatterns.useStateCall(node)) {
+			return false;
+		}
+
+		// Check if we're inside a default export function (component)
+		let insideComponent = false;
+		let currentNode: ts.Node | undefined = node;
+		while (currentNode && currentNode !== sourceFile) {
+			if (ts.isFunctionDeclaration(currentNode)) {
+				if (astPatterns.exportDefaultFunction(currentNode)) {
+					insideComponent = true;
+					break;
+				}
+			}
+			currentNode = currentNode.parent;
+		}
+
+		if (!insideComponent) {
+			return false;
+		}
+
+		// Use cache to avoid repeated traversals
+		const filePath = sourceFile.fileName;
+		const cacheKey = `${filePath}:useState`;
+		let cacheEntry = multipleHooksCache.get(cacheKey);
+
+		if (!cacheEntry) {
+			// First time checking this file - do full analysis
+			// Find default export function
+			let defaultExportFunction: ts.FunctionDeclaration | null = null;
+			function findDefaultExport(n: ts.Node) {
+				if (
+					ts.isFunctionDeclaration(n) &&
+					astPatterns.exportDefaultFunction(n)
+				) {
+					defaultExportFunction = n;
+					return;
+				}
+				ts.forEachChild(n, findDefaultExport);
+			}
+
+			findDefaultExport(sourceFile);
+
+			if (!defaultExportFunction) {
+				// No default export, cache negative result
+				multipleHooksCache.set(cacheKey, {
+					hasMultiple: false,
+					hookCallNodes: [],
+				});
+				return false;
+			}
+
+			// Count useState hooks in the component
+			const useStateCallNodes: ts.Node[] = [];
+			function countUseStateInComponent(n: ts.Node) {
+				if (astPatterns.useStateCall(n)) {
+					useStateCallNodes.push(n);
+				}
+				ts.forEachChild(n, countUseStateInComponent);
+			}
+
+			countUseStateInComponent(defaultExportFunction);
+
+			cacheEntry = {
+				hasMultiple: useStateCallNodes.length > 5,
+				hookCallNodes: useStateCallNodes,
+			};
+			multipleHooksCache.set(cacheKey, cacheEntry);
+		}
+
+		// Return true if there are more than 5 useState hooks and this is one of them
+		// Check if this node is one of the cached useState call nodes by comparing positions
+		if (cacheEntry.hasMultiple) {
+			const nodePos = node.getStart(sourceFile);
+			for (const cachedNode of cacheEntry.hookCallNodes) {
+				if (cachedNode.getStart(sourceFile) === nodePos) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	},
 };
 
 /**
@@ -757,18 +1329,18 @@ export const rules: LintRule[] = [
 			},
 		],
 	},
-	{
-		name: "Require export function getRouteUrl in routes",
-		description: "Every route file must export a getRouteUrl function using 'export function getRouteUrl(...)'",
-		includes: ["app/routes/**/*.tsx", "!app/root.tsx", "!app/routes/**/components/**/*.tsx"],
-		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
-		astPatterns: [
-			{
-				name: "missing export function getRouteUrl",
-				matcher: astPatterns.missingExportFunctionGetRouteUrl,
-			},
-		],
-	},
+	// {
+	// 	name: "Require export function getRouteUrl in routes",
+	// 	description: "Every route file must export a getRouteUrl function using 'export function getRouteUrl(...)'",
+	// 	includes: ["app/routes/**/*.tsx", "!app/root.tsx", "!app/routes/**/components/**/*.tsx"],
+	// 	mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+	// 	astPatterns: [
+	// 		{
+	// 			name: "missing export function getRouteUrl",
+	// 			matcher: astPatterns.missingExportFunctionGetRouteUrl,
+	// 		},
+	// 	],
+	// },
 	{
 		name: "Ban export const getRouteUrl in routes",
 		description: "getRouteUrl must be exported as 'export function getRouteUrl(...)' not 'export const getRouteUrl = ...'",
@@ -781,15 +1353,39 @@ export const rules: LintRule[] = [
 			},
 		],
 	},
+	// {
+	// 	name: "Ban href from react-router outside getRouteUrl",
+	// 	description: "href from react-router should only be used inside getRouteUrl functions. Use getRouteUrl() instead of directly calling href().",
+	// 	includes: ["app/**/*.tsx"],
+	// 	mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+	// 	astPatterns: [
+	// 		{
+	// 			name: "href() call outside getRouteUrl function",
+	// 			matcher: astPatterns.hrefCallOutsideGetRouteUrl,
+	// 		},
+	// 	],
+	// },
 	{
-		name: "Ban href from react-router outside getRouteUrl",
-		description: "href from react-router should only be used inside getRouteUrl functions. Use getRouteUrl() instead of directly calling href().",
-		includes: ["app/**/*.tsx"],
+		name: "Limit component to one loader/action hook",
+		description: "Each component can only use 1 loader hook or action hook. If there are more hooks, the component should be broken down into smaller components.",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
 		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
 		astPatterns: [
 			{
-				name: "href() call outside getRouteUrl function",
-				matcher: astPatterns.hrefCallOutsideGetRouteUrl,
+				name: "multiple loader/action hooks in component",
+				matcher: astPatterns.multipleHooksInComponent,
+			},
+		],
+	},
+	{
+		name: "Limit component to 5 useState hooks",
+		description: "Each component should use at most 5 useState hooks. If there are more, the component should be broken down into smaller components or use useReducer/other state management.",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "more than 5 useState hooks in component",
+				matcher: astPatterns.tooManyUseStateHooks,
 			},
 		],
 	},

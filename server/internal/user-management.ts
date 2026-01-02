@@ -106,17 +106,19 @@ export function tryCreateUser(args: CreateUserArgs) {
 			} = args;
 
 			// Check if user already exists
-			const existingUsers = await payload.find({
-				collection: "users",
-				where: {
-					email: {
-						equals: email,
+			const existingUsers = await payload
+				.find({
+					collection: "users",
+					where: {
+						email: {
+							equals: email,
+						},
 					},
-				},
-				limit: 1,
-				req,
-				overrideAccess,
-			});
+					limit: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
 			if (existingUsers.docs.length > 0) {
 				throw new Error(`User with email ${email} already exists`);

@@ -37,8 +37,8 @@ import {
 	getEnrollmentStatusLabel,
 	getEnrolmentRoleBadgeColor,
 	getRoleLabel,
-} from "./course-view-utils";
-import type { Route } from "app/routes/course.$id.participants";
+} from "../../../components/course-view-utils";
+import type { Route } from "app/routes/course.$id.participants/route";
 import { getRouteUrl } from "app/routes/course.$id.participants.profile";
 
 type Enrollment = NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>;

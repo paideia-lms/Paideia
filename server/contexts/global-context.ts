@@ -38,7 +38,20 @@ export type SystemGlobals = {
 	};
 	appearanceSettings: {
 		additionalCssStylesheets: { id: number | string; url: string }[];
-		color: string;
+		color:
+			| "blue"
+			| "pink"
+			| "indigo"
+			| "green"
+			| "orange"
+			| "gray"
+			| "grape"
+			| "cyan"
+			| "lime"
+			| "red"
+			| "violet"
+			| "teal"
+			| "yellow";
 		radius: "xs" | "sm" | "md" | "lg" | "xl";
 		logoLight?: Media | null;
 		logoDark?: Media | null;

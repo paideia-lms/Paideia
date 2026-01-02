@@ -278,18 +278,16 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
+interface CreateGroupModalProps {
+	courseId: number;
+	groups: Route.ComponentProps["loaderData"]["groups"];
+}
+
+function CreateGroupModal({ courseId, groups }: CreateGroupModalProps) {
 	const { submit: createGroup, isLoading: isCreatingGroup } = useCreateGroup();
-	const { submit: deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
-	const { groups, currentUser, course, enrolment, canManage } = loaderData;
-	// Modal states
 	const [
-		createModalOpened,
+		opened,
 		{ open: openCreateModal, close: closeCreateModal },
-	] = useDisclosure(false);
-	const [
-		deleteModalOpened,
-		{ open: openDeleteModal, close: closeDeleteModal },
 	] = useDisclosure(false);
 
 	// Form states
@@ -298,14 +296,6 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 	const [groupParent, setGroupParent] = useState<string | null>(null);
 	const [groupColor, setGroupColor] = useState("");
 	const [groupMaxMembers, setGroupMaxMembers] = useState<number | string>("");
-	const [deletingGroupId, setDeletingGroupId] = useState<number | null>(null);
-
-	// Get group members with their details
-	const getGroupMembers = (groupId: number) => {
-		return course.enrollments.filter((enrollment) =>
-			enrollment.groups.some((group) => group.id === groupId),
-		);
-	};
 
 	const handleCreateGroup = async () => {
 		if (!groupName) return;
@@ -318,7 +308,7 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 				color: groupColor || undefined,
 				maxMembers: groupMaxMembers ? Number(groupMaxMembers) : undefined,
 			},
-			params: { courseId: course.id },
+			params: { courseId },
 		});
 		closeCreateModal();
 		setGroupName("");
@@ -326,24 +316,6 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 		setGroupParent(null);
 		setGroupColor("");
 		setGroupMaxMembers("");
-	};
-
-	const handleDeleteGroup = (groupId: number) => {
-		setDeletingGroupId(groupId);
-		openDeleteModal();
-	};
-
-	const handleConfirmDeleteGroup = async () => {
-		if (deletingGroupId) {
-			await deleteGroup({
-				values: {
-					groupId: deletingGroupId,
-				},
-				params: { courseId: course.id },
-			});
-			closeDeleteModal();
-			setDeletingGroupId(null);
-		}
 	};
 
 	// Prepare parent group options
@@ -354,94 +326,15 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<>
-			<Stack gap="md">
-				<Group justify="space-between">
-					<Title order={3}>Course Groups</Title>
-					{canManage && (
-						<Button
-							leftSection={<IconPlus size={16} />}
-							onClick={openCreateModal}
-						>
-							Create Group
-						</Button>
-					)}
-				</Group>
-
-				{groups.length === 0 ? (
-					<Paper p="xl" withBorder>
-						<Text c="dimmed" ta="center">
-							No groups created yet. Click "Create Group" to add one.
-						</Text>
-					</Paper>
-				) : (
-					<Paper withBorder>
-						<Table striped highlightOnHover>
-							<Table.Thead>
-								<Table.Tr>
-									<Table.Th>Name</Table.Th>
-									<Table.Th>Path</Table.Th>
-									<Table.Th>Description</Table.Th>
-									<Table.Th>Members</Table.Th>
-									{canManage && <Table.Th>Actions</Table.Th>}
-								</Table.Tr>
-							</Table.Thead>
-							<Table.Tbody>
-								{groups.map((group) => (
-									<Table.Tr key={group.id}>
-										<Table.Td>
-											<Group gap="xs">
-												{group.color && (
-													<div
-														style={{
-															width: 12,
-															height: 12,
-															borderRadius: "50%",
-															backgroundColor: group.color,
-														}}
-													/>
-												)}
-												<Text fw={500}>{group.name}</Text>
-											</Group>
-										</Table.Td>
-										<Table.Td>
-											<Text size="sm" c="dimmed">
-												{group.path}
-											</Text>
-										</Table.Td>
-										<Table.Td>
-											<Text size="sm" lineClamp={1}>
-												{group.description || "-"}
-											</Text>
-										</Table.Td>
-										<Table.Td>
-											<GroupMemberList members={getGroupMembers(group.id)} />
-										</Table.Td>
-										{canManage && (
-											<Table.Td>
-												<ActionIcon
-													color="red"
-													variant="subtle"
-													onClick={() => handleDeleteGroup(group.id)}
-												>
-													<IconTrash size={16} />
-												</ActionIcon>
-											</Table.Td>
-										)}
-									</Table.Tr>
-								))}
-							</Table.Tbody>
-						</Table>
-					</Paper>
-				)}
-			</Stack>
-
-			{/* Create Group Modal */}
-			<Modal
-				opened={createModalOpened}
-				onClose={closeCreateModal}
-				title="Create Group"
-				size="md"
+			<Button
+				leftSection={<IconPlus size={16} />}
+				onClick={openCreateModal}
+				loading={isCreatingGroup}
 			>
+				Create Group
+			</Button>
+
+			<Modal opened={opened} onClose={closeCreateModal} title="Create Group" size="md">
 				<Stack gap="md">
 					<TextInput
 						label="Group Name"
@@ -498,33 +391,113 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 					</Group>
 				</Stack>
 			</Modal>
-
-			{/* Delete Group Modal */}
-			<Modal
-				opened={deleteModalOpened}
-				onClose={closeDeleteModal}
-				title="Delete Group"
-				size="sm"
-			>
-				<Stack gap="md">
-					<Text>
-						Are you sure you want to delete this group? This action cannot be
-						undone.
-					</Text>
-					<Group justify="flex-end" mt="md">
-						<Button variant="subtle" onClick={closeDeleteModal}>
-							Cancel
-						</Button>
-						<Button
-							color="red"
-							onClick={handleConfirmDeleteGroup}
-							loading={isDeletingGroup}
-						>
-							Delete Group
-						</Button>
-					</Group>
-				</Stack>
-			</Modal>
 		</>
+	);
+}
+
+interface DeleteGroupActionIconProps {
+	groupId: number;
+	courseId: number;
+}
+
+function DeleteGroupActionIcon({ groupId, courseId }: DeleteGroupActionIconProps) {
+
+	const { submit: deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
+
+	const handleDeleteGroup = async () => {
+		if (window.confirm("Are you sure you want to delete this group? This action cannot be undone.")) {
+			await deleteGroup({
+				values: {
+					groupId,
+				},
+				params: { courseId },
+			});
+		}
+	};
+	return (
+		<ActionIcon color="red" variant="subtle" onClick={handleDeleteGroup} loading={isDeletingGroup}>
+			<IconTrash size={16} />
+		</ActionIcon>
+	);
+}
+
+export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
+	const { groups, course, canManage } = loaderData;
+
+	// Get group members with their details
+	const getGroupMembers = (groupId: number) => {
+		return course.enrollments.filter((enrollment) =>
+			enrollment.groups.some((group) => group.id === groupId),
+		);
+	};
+
+	return (
+		<Stack gap="md">
+			<Group justify="space-between">
+				<Title order={3}>Course Groups</Title>
+				{canManage && <CreateGroupModal courseId={course.id} groups={groups} />}
+			</Group>
+
+			{groups.length === 0 ? (
+				<Paper p="xl" withBorder>
+					<Text c="dimmed" ta="center">
+						No groups created yet. Click "Create Group" to add one.
+					</Text>
+				</Paper>
+			) : (
+				<Paper withBorder>
+					<Table striped highlightOnHover>
+						<Table.Thead>
+							<Table.Tr>
+								<Table.Th>Name</Table.Th>
+								<Table.Th>Path</Table.Th>
+								<Table.Th>Description</Table.Th>
+								<Table.Th>Members</Table.Th>
+								{canManage && <Table.Th>Actions</Table.Th>}
+							</Table.Tr>
+						</Table.Thead>
+						<Table.Tbody>
+							{groups.map((group) => (
+								<Table.Tr key={group.id}>
+									<Table.Td>
+										<Group gap="xs">
+											{group.color && (
+												<div
+													style={{
+														width: 12,
+														height: 12,
+														borderRadius: "50%",
+														backgroundColor: group.color,
+													}}
+												/>
+											)}
+											<Text fw={500}>{group.name}</Text>
+										</Group>
+									</Table.Td>
+									<Table.Td>
+										<Text size="sm" c="dimmed">
+											{group.path}
+										</Text>
+									</Table.Td>
+									<Table.Td>
+										<Text size="sm" lineClamp={1}>
+											{group.description || "-"}
+										</Text>
+									</Table.Td>
+									<Table.Td>
+										<GroupMemberList members={getGroupMembers(group.id)} />
+									</Table.Td>
+									{canManage && (
+										<Table.Td>
+											<DeleteGroupActionIcon groupId={group.id} courseId={course.id} />
+										</Table.Td>
+									)}
+								</Table.Tr>
+							))}
+						</Table.Tbody>
+					</Table>
+				</Paper>
+			)}
+		</Stack>
 	);
 }

@@ -17,10 +17,10 @@ import {
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
 import type { Enrollment } from "server/payload-types";
-import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
-import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
-import { EnrollUserModal } from "~/components/enroll-user-modal";
-import { EnrollmentsSection } from "~/components/enrollments-section";
+import { DeleteEnrollmentModal } from "./components/delete-enrollment-modal";
+import { EditEnrollmentModal } from "./components/edit-enrollment-modal";
+import { EnrollUserModal } from "./components/enroll-user-modal";
+import { EnrollmentsSection } from "./components/enrollments-section";
 import type { SearchUser } from "~/routes/api/search-users";
 import {
 	badRequest,
@@ -28,7 +28,7 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/course.$id.participants";
+import type { Route } from "./+types/route";
 import { parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
 import { createLoader } from "nuqs/server";
 import { stringify } from "qs";
@@ -115,6 +115,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 };
 
 // Shared authorization check
+// TODO: this should be moved to payload collection level 
 const checkAuthorization = async (
 	context: Route.ActionArgs["context"],
 	courseId: number,

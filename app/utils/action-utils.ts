@@ -367,10 +367,7 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 				// Build base args object
 				const baseArgs = {
 					...args,
-					request: {
-						...request,
-						method: method as Method,
-					},
+					request: request as Omit<T["request"], "method"> & { method: Method },
 					...(parsedSearchParams !== undefined
 						? { searchParams: parsedSearchParams }
 						: {}),

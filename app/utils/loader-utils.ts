@@ -194,6 +194,8 @@ export function typeCreateLoader<T extends LoaderFunctionArgs>() {
 					? // biome-ignore lint/complexity/noBannedTypes: it is intented
 						{}
 					: SearchParamsType;
+			} & {
+				request: Omit<T["request"], "method"> & { method: "GET" };
 			};
 
 		// Args with validated params when schema is provided

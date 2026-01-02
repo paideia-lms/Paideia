@@ -360,7 +360,6 @@ export const middleware = [
 							profileUserId,
 							userSession,
 							globalContext,
-							overrideAccess: false,
 						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -684,21 +683,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
 
 	// Create theme dynamically with color and radius from appearance settings
 	const mantineTheme = createTheme({
-		primaryColor: primaryColor as
-			| "blue"
-			| "pink"
-			| "indigo"
-			| "green"
-			| "orange"
-			| "gray"
-			| "grape"
-			| "cyan"
-			| "lime"
-			| "red"
-			| "violet"
-			| "teal"
-			| "yellow",
-		defaultRadius: defaultRadius as "xs" | "sm" | "md" | "lg" | "xl",
+		primaryColor: primaryColor,
+		defaultRadius: defaultRadius,
 		components: {
 			Textarea: Textarea.extend({
 				defaultProps: {

@@ -1072,7 +1072,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references(() : AnyPgColumn => users.id, {
+      .references(() => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {

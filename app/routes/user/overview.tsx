@@ -294,6 +294,33 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+interface ImpersonateButtonProps {
+	userId: number;
+}
+
+function ImpersonateButton({ userId }: ImpersonateButtonProps) {
+	const { submit: impersonate, isLoading: isImpersonating } = useImpersonate();
+
+	return (
+		<Button
+			variant="light"
+			color="orange"
+			onClick={() =>
+				impersonate({
+					params: {
+						id: userId,
+					},
+					values: {},
+				})
+			}
+			loading={isImpersonating}
+			leftSection={<IconUserCheck size={16} />}
+		>
+			Impersonate User
+		</Button>
+	);
+}
+
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const {
 		user,
@@ -310,7 +337,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		canEdit,
 	} = loaderData;
 	const { submit: updateUser, isLoading: isUpdating } = useUpdateUser();
-	const { submit: impersonate, isLoading: isImpersonating } = useImpersonate();
 
 	const location = useLocation();
 
@@ -412,24 +438,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 					>
 						View Public Profile
 					</Button>
-					{canImpersonate && (
-						<Button
-							variant="light"
-							color="orange"
-							onClick={() =>
-								impersonate({
-									params: {
-										id: user.id,
-									},
-									values: {},
-								})
-							}
-							loading={isImpersonating}
-							leftSection={<IconUserCheck size={16} />}
-						>
-							Impersonate User
-						</Button>
-					)}
+					{canImpersonate && <ImpersonateButton userId={user.id} />}
 				</Group>
 
 				{/* Edit Profile Form */}

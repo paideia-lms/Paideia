@@ -86,6 +86,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/media";
 import { z } from "zod";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 // Define search params
 export const mediaSearchParams = {
@@ -148,7 +149,11 @@ export function getRouteUrl(action: Action) {
 	return href("/admin/media") + "?" + stringify({ action });
 }
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRRLoader({
+	searchParams: mediaSearchParams,
+})(async ({ context, request, searchParams }) => {
 	const globalContext = context.get(globalContextKey);
 	const { payload, s3Client, payloadRequest } = globalContext;
 	const userSession = context.get(userContextKey);
@@ -165,7 +170,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	}
 
 	// Get search params
-	const { userId, page, orphanedPage } = loadSearchParams(request);
+	const { userId, page, orphanedPage } = searchParams;
 	const limit = 20;
 
 	// Fetch media - either for a specific user or all media
@@ -280,8 +285,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		selectedUserId: userId ?? null,
 		userOptions,
 		orphanedMedia,
+		searchParams,
 	};
-};
+});
 
 const [updateMediaAction, useUpdateMedia] = createUpdateMediaActionRpc(
 	serverOnly$(async ({ context, formData }) => {
@@ -1624,11 +1630,7 @@ function MediaPagination({
 }
 
 // Orphaned Media File Type
-type OrphanedMediaFile = {
-	filename: string;
-	size: number;
-	lastModified?: Date;
-};
+type OrphanedMediaFile = NonNullable<Route.ComponentProps["loaderData"]["orphanedMedia"]>['files'][number];
 
 // Orphaned Media Table Component
 function OrphanedMediaTable({
@@ -1732,6 +1734,7 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 		selectedUserId: initialUserId,
 		userOptions,
 		orphanedMedia,
+
 	} = loaderData;
 	const [viewMode, setViewMode] = useState<"card" | "table">("card");
 	const [selectedRecords, setSelectedRecords] = useState<Media[]>([]);

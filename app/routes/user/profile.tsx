@@ -27,6 +27,7 @@ import { setImpersonationCookie } from "~/utils/cookie";
 import { z } from "zod";
 import {
 	badRequest,
+	notFound,
 	NotFoundResponse,
 	StatusCode,
 	unauthorized,
@@ -54,34 +55,23 @@ export function getRouteUrl(action: Action, userId?: number) {
 }
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		throw new NotFoundResponse("Unauthorized");
-	}
 
 	if (!userProfileContext) {
 		throw new NotFoundResponse("User profile context not found");
 	}
 
 	// Use effectiveUser if impersonating, otherwise use authenticatedUser
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser = userProfileContext.currentUser;
 
 	// Get user ID from route params, or use current user
 	const userId = params.id ? Number(params.id) : currentUser.id;
 
 	// Check if user can edit this profile
-	const editPermission = permissions.user.profile.canEdit(currentUser, userId);
+	const editPermission = userProfileContext.permissions.canEdit;
 
 	// Check if user can impersonate
-	const impersonatePermission = permissions.user.canImpersonate(
-		userSession.authenticatedUser,
-		userId,
-		userProfileContext.profileUser.role,
-		userSession.isImpersonating,
-	);
+	const impersonatePermission = userProfileContext.permissions.canImpersonate;
 
 	return {
 		user: userProfileContext.profileUser,
@@ -89,8 +79,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		isOwnProfile: userId === currentUser.id,
 		canEdit: editPermission.allowed,
 		canImpersonate: impersonatePermission.allowed,
-		isImpersonating: userSession.isImpersonating,
-		authenticatedUser: userSession.authenticatedUser,
 	};
 };
 
@@ -108,16 +96,10 @@ export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
 	serverOnly$(async ({ context, formData, request, params }) => {
 		const { payload, requestInfo, payloadRequest } =
 			context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+		const userProfileContext = context.get(userProfileContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
-
-		const { authenticatedUser: currentUser } = userSession;
-
-		if (currentUser.role !== "admin") {
-			return unauthorized({ error: "Only admins can impersonate users" });
+		if (!userProfileContext) {
+			return notFound({ error: "User profile context not found" });
 		}
 
 		if (!params.id) {
@@ -127,7 +109,7 @@ export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
 			});
 		}
 
-		if (params.id === currentUser.id) {
+		if (params.id === userProfileContext.profileUserId) {
 			return badRequest({ error: "You cannot impersonate yourself" });
 		}
 
@@ -192,8 +174,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (
-		actionData?.status === StatusCode.BadRequest ||
-		actionData?.status === StatusCode.Unauthorized
+		actionData?.status === StatusCode.BadRequest
 	) {
 		notifications.show({
 			title: "Error",

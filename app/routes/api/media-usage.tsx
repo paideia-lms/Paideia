@@ -7,25 +7,6 @@ import { typeCreateLoaderRpc } from "~/utils/loader-utils";
 import type { Route } from "./+types/media-usage";
 import { serverOnly$ } from "vite-env-only/macros";
 
-// const paramsSchema = z.object({
-// 	mediaId: z.union([z.number(), z.string()]).transform((val) => {
-// 		if (typeof val === "string") {
-// 			const parsed = Number.parseInt(val, 10);
-// 			if (Number.isNaN(parsed)) {
-// 				throw new z.ZodError([
-// 					{
-// 						code: "custom",
-// 						path: ["mediaId"],
-// 						message: "Media ID must be a valid number",
-// 					},
-// 				]);
-// 			}
-// 			return parsed;
-// 		}
-// 		return val;
-// 	}),
-// });
-
 const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
 
 const [loaderFn, useMediaUsageData] = createLoaderRpc({})(

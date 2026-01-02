@@ -189,6 +189,7 @@ export const convertUserAccessContextToUserProfileContext = (
 	return {
 		profileUserId: currentUser.id,
 		profileUser,
+		currentUser,
 		activityModules: userAccessContext.activityModules,
 		enrollments: userAccessContext.enrollments,
 		notes: userAccessContext.notes,
@@ -363,6 +364,7 @@ export const getUserProfileContext = async (
 	return {
 		profileUserId,
 		profileUser,
+		currentUser,
 		activityModules: activityModules.filter(
 			// unique by id
 			(module, index, self) =>

@@ -16,6 +16,10 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import { getTypeLabel } from "./course-view-utils";
 import type { ActivityModule as PayloadActivityModule } from "server/payload-types";
+import {
+	useCreateModuleLink,
+	useDeleteModuleLink,
+} from "~/routes/course.$id.modules";
 
 interface ActivityModule {
 	id: number;
@@ -39,28 +43,96 @@ interface ActivityModulesSectionProps {
 	existingLinks: ActivityModuleLink[];
 	availableModules: ActivityModule[];
 	canEdit: boolean;
-	fetcherState: string;
-	onAddModule: (activityModuleId: number) => void;
-	onDeleteLink: (linkId: number) => void;
+	courseId: number;
+}
+
+interface AddModuleButtonProps {
+	availableModules: ActivityModule[];
+	courseId: number;
+}
+
+function AddModuleButton({
+	availableModules,
+	courseId,
+}: AddModuleButtonProps) {
+	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+	const { submit: createModuleLink, isLoading: isCreating } =
+		useCreateModuleLink();
+
+	const handleAddModule = async () => {
+		if (selectedModuleId) {
+			await createModuleLink({
+				values: {
+					activityModuleId: Number.parseInt(selectedModuleId, 10),
+				},
+				params: { courseId },
+			});
+			setSelectedModuleId(null);
+		}
+	};
+
+	return (
+		<>
+			<Select
+				placeholder="Select activity module"
+				data={availableModules.map((module) => ({
+					value: module.id.toString(),
+					label: `${module.title} (${getTypeLabel(module.type)})`,
+				}))}
+				value={selectedModuleId}
+				onChange={setSelectedModuleId}
+				disabled={isCreating}
+				style={{ minWidth: 300 }}
+			/>
+			<Button
+				leftSection={<IconPlus size={16} />}
+				onClick={handleAddModule}
+				disabled={isCreating || !selectedModuleId}
+			>
+				Add Module
+			</Button>
+		</>
+	);
+}
+
+interface DeleteModuleButtonProps {
+	linkId: number;
+	courseId: number;
+}
+
+function DeleteModuleButton({ linkId, courseId }: DeleteModuleButtonProps) {
+	const { submit: deleteModuleLink, isLoading: isDeleting } =
+		useDeleteModuleLink();
+
+	const handleDelete = async () => {
+		await deleteModuleLink({
+			values: {
+				linkId,
+			},
+			params: { courseId },
+		});
+	};
+
+	return (
+		<ActionIcon
+			variant="light"
+			color="red"
+			size="md"
+			aria-label="Delete link"
+			onClick={handleDelete}
+			disabled={isDeleting}
+		>
+			<IconTrash size={16} />
+		</ActionIcon>
+	);
 }
 
 export function ActivityModulesSection({
 	existingLinks,
 	availableModules,
 	canEdit,
-	fetcherState,
-	onAddModule,
-	onDeleteLink,
+	courseId,
 }: ActivityModulesSectionProps) {
-	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
-
-	const handleAddModule = () => {
-		if (selectedModuleId) {
-			onAddModule(Number.parseInt(selectedModuleId, 10));
-			setSelectedModuleId(null);
-		}
-	};
-
 	return (
 		<Paper withBorder shadow="sm" p="xl" radius="md">
 			<Stack gap="lg">
@@ -69,28 +141,10 @@ export function ActivityModulesSection({
 					{canEdit && (
 						<Group gap="sm">
 							{availableModules.length > 0 ? (
-								<>
-									<Select
-										placeholder="Select activity module"
-										data={availableModules.map((module) => ({
-											value: module.id.toString(),
-											label: `${module.title} (${getTypeLabel(module.type)})`,
-										}))}
-										value={selectedModuleId}
-										onChange={setSelectedModuleId}
-										disabled={fetcherState === "submitting"}
-										style={{ minWidth: 300 }}
-									/>
-									<Button
-										leftSection={<IconPlus size={16} />}
-										onClick={handleAddModule}
-										disabled={
-											fetcherState === "submitting" || !selectedModuleId
-										}
-									>
-										Add Module
-									</Button>
-								</>
+								<AddModuleButton
+									availableModules={availableModules}
+									courseId={courseId}
+								/>
 							) : (
 								<Text size="sm" c="dimmed">
 									No available modules to link
@@ -145,16 +199,7 @@ export function ActivityModulesSection({
 										</Table.Td>
 										{canEdit && (
 											<Table.Td>
-												<ActionIcon
-													variant="light"
-													color="red"
-													size="md"
-													aria-label="Delete link"
-													onClick={() => onDeleteLink(link.id)}
-													disabled={fetcherState === "submitting"}
-												>
-													<IconTrash size={16} />
-												</ActionIcon>
+												<DeleteModuleButton linkId={link.id} courseId={courseId} />
 											</Table.Td>
 										)}
 									</Table.Tr>
