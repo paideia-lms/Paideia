@@ -24,11 +24,9 @@ import {
 	IconCopy,
 	IconDots,
 	IconDownload,
-	IconEdit,
 	IconMail,
 	IconSend,
 	IconTrash,
-	IconUserPlus,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -41,6 +39,8 @@ import {
 import type { Route } from "app/routes/course.$id.participants/route";
 import { getRouteUrl } from "app/routes/course.$id.participants.profile";
 import { DeleteEnrollmentButton } from "./delete-enrollment-modal";
+import { EditEnrollmentButton } from "./edit-enrollment-modal";
+import { EnrollUserButton } from "./enroll-user-modal";
 
 type Enrollment = NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>;
 
@@ -48,9 +48,8 @@ interface EnrollmentsSectionProps {
 	courseId: number;
 	enrollments: Enrollment[];
 	currentUserRole: string;
-	fetcherState: string;
-	onOpenEnrollModal: () => void;
-	onEditEnrollment: (enrollment: Enrollment) => void;
+	availableGroups: Array<{ value: string; label: string }>;
+	enrolledUserIds: number[];
 }
 
 // Batch email button component with integrated modal
@@ -169,9 +168,8 @@ export function EnrollmentsSection({
 	enrollments,
 	courseId,
 	currentUserRole,
-	fetcherState,
-	onOpenEnrollModal,
-	onEditEnrollment,
+	availableGroups,
+	enrolledUserIds,
 }: EnrollmentsSectionProps) {
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
 	const clipboard = useClipboard({ timeout: 2000 });
@@ -345,13 +343,11 @@ export function EnrollmentsSection({
 							</>
 						)}
 						{currentUserRole === "admin" && (
-							<Button
-								leftSection={<IconUserPlus size={16} />}
-								onClick={onOpenEnrollModal}
-								disabled={fetcherState === "submitting"}
-							>
-								Enrol User
-							</Button>
+							<EnrollUserButton
+								courseId={courseId}
+								enrolledUserIds={enrolledUserIds}
+								availableGroups={availableGroups}
+							/>
 						)}
 					</Group>
 				</Group>
@@ -479,16 +475,11 @@ export function EnrollmentsSection({
 											{currentUserRole === "admin" && (
 												<Table.Td>
 													<Group gap="xs">
-														<ActionIcon
-															variant="light"
-															color="blue"
-															size="md"
-															aria-label="Edit enrollment"
-															onClick={() => onEditEnrollment(enrollment)}
-															disabled={fetcherState === "submitting"}
-														>
-															<IconEdit size={16} />
-														</ActionIcon>
+														<EditEnrollmentButton
+															enrollment={enrollment}
+															courseId={courseId}
+															availableGroups={availableGroups}
+														/>
 														<DeleteEnrollmentButton
 															enrollmentId={enrollment.id}
 															courseId={courseId}
