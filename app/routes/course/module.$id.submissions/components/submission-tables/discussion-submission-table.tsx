@@ -28,6 +28,7 @@ import {
 	type Route,
 	View,
 	getRouteUrl,
+	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
@@ -43,16 +44,13 @@ function DiscussionStudentSubmissionRow({
 	enrollment,
 	studentSubmissions,
 	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
 }: {
 	courseId: number;
 	enrollment: Enrollment;
 	studentSubmissions: InterestedSubmissionType[] | undefined;
 	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 }) {
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 	// Filter to only published submissions and sort by date
 	const publishedSubmissions = filterPublishedSubmissions(studentSubmissions);
 	const sortedSubmissions = sortSubmissionsByDate(publishedSubmissions);
@@ -160,12 +158,19 @@ function DiscussionStudentSubmissionRow({
 									Grade
 								</Menu.Item>
 								{(gradingStatus === "graded" ||
-									gradingStatus === "partially-graded") &&
-									onReleaseGrade && (
+									gradingStatus === "partially-graded") && (
 										<Menu.Item
 											leftSection={<IconSend size={14} />}
 											onClick={() => {
-												onReleaseGrade(moduleLinkId, enrollment.id);
+												releaseGrade({
+													params: {
+														moduleLinkId: moduleLinkId,
+													},
+													values: {
+														courseModuleLinkId: moduleLinkId,
+														enrollmentId: enrollment.id,
+													},
+												});
 											}}
 											disabled={isReleasing}
 										>
@@ -190,15 +195,11 @@ export function DiscussionSubmissionTable({
 	enrollments,
 	submissions,
 	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
 }: {
 	courseId: number;
 	enrollments: Enrollment[];
 	submissions: DiscussionSubmissionType[];
 	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 }) {
 	// Filter and validate submissions, then group and sort by student
 	const interestedSubmissions = submissions.filter(
@@ -237,8 +238,6 @@ export function DiscussionSubmissionTable({
 									enrollment={enrollment}
 									studentSubmissions={studentSubmissions}
 									moduleLinkId={moduleLinkId}
-									onReleaseGrade={onReleaseGrade}
-									isReleasing={isReleasing}
 								/>
 							);
 						})}

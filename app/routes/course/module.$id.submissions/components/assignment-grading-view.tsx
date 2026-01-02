@@ -21,7 +21,7 @@ import { href, Link, useNavigate } from "react-router";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-import { useGradeSubmission } from "../route";
+import { useGradeSubmission, useReleaseGrade } from "../route";
 
 // ============================================================================
 // Types
@@ -80,8 +80,6 @@ export interface GradingViewProps {
 		maxGrade: number | null;
 		feedback: string | null;
 	} | null;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 	enrollment?:
 		| {
 				id: number;
@@ -107,11 +105,10 @@ export function AssignmentGradingView({
 	course,
 	moduleLinkId,
 	grade,
-	onReleaseGrade,
-	isReleasing = false,
 	enrollment,
 	courseModuleLink,
 }: GradingViewProps) {
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 	// Track individual attachment expansion state (all expanded by default)
 	const [expandedAttachments, setExpandedAttachments] = useState<
 		Record<string, boolean>
@@ -360,7 +357,6 @@ export function AssignmentGradingView({
 									{grade?.baseGrade !== null &&
 										grade?.baseGrade !== undefined &&
 										submission.status === "graded" &&
-										onReleaseGrade &&
 										enrollment &&
 										courseModuleLink && (
 											<Button
@@ -375,7 +371,15 @@ export function AssignmentGradingView({
 														typeof courseModuleLink === "number"
 															? courseModuleLink
 															: courseModuleLink.id;
-													onReleaseGrade(courseModuleLinkId, enrollmentId);
+													releaseGrade({
+														params: {
+															moduleLinkId: moduleLinkId,
+														},
+														values: {
+															courseModuleLinkId: courseModuleLinkId,
+															enrollmentId: enrollmentId,
+														},
+													});
 												}}
 											>
 												Release Grade

@@ -16,7 +16,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
-import { useGradeSubmission } from "../route";
+import { useGradeSubmission, useReleaseGrade } from "../route";
 
 // ============================================================================
 // Types
@@ -86,8 +86,6 @@ export interface QuizGradingViewProps {
 		maxGrade: number | null;
 		feedback: string | null;
 	} | null;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 	enrollment?:
 		| {
 				id: number;
@@ -113,11 +111,10 @@ export function QuizGradingView({
 	course,
 	moduleLinkId,
 	grade,
-	onReleaseGrade,
-	isReleasing = false,
 	enrollment,
 	courseModuleLink,
 }: QuizGradingViewProps) {
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 	const form = useForm<GradingFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
@@ -297,7 +294,6 @@ export function QuizGradingView({
 									{grade?.baseGrade !== null &&
 										grade?.baseGrade !== undefined &&
 										submission.status === "graded" &&
-										onReleaseGrade &&
 										enrollment &&
 										courseModuleLink && (
 											<Button
@@ -312,7 +308,15 @@ export function QuizGradingView({
 														typeof courseModuleLink === "number"
 															? courseModuleLink
 															: courseModuleLink.id;
-													onReleaseGrade(courseModuleLinkId, enrollmentId);
+													releaseGrade({
+														params: {
+															moduleLinkId: moduleLinkId,
+														},
+														values: {
+															courseModuleLinkId: courseModuleLinkId,
+															enrollmentId: enrollmentId,
+														},
+													});
 												}}
 											>
 												Release Grade

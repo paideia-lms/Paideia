@@ -1,4 +1,4 @@
-import { Container, Stack } from "@mantine/core";
+import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
@@ -7,7 +7,6 @@ import {
 	parseAsStringEnum,
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
-import { useState } from "react";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -36,11 +35,10 @@ import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/
 import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
 import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
 import {
-	AssignmentBatchActions,
 	AssignmentSubmissionTable,
-	DiscussionSubmissionTable,
-	QuizSubmissionTable,
-} from "app/routes/course/module.$id.submissions/components/submission-tables";
+} from "app/routes/course/module.$id.submissions/components/submission-tables/assignment-submission-table";
+import { QuizSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/quiz-submission-table";
+import { DiscussionSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/discussion-submission-table";
 import {
 	badRequest,
 	BadRequestResponse,
@@ -196,18 +194,18 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
-					baseGrade: submission.grade,
-					maxGrade,
-					feedback: submission.feedback || null,
-				}
+				baseGrade: submission.grade,
+				maxGrade,
+				feedback: submission.feedback || null,
+			}
 			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -252,20 +250,20 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -312,7 +310,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -323,12 +321,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const author =
 					typeof student === "object" && student !== null
 						? {
-								id: student.id,
-								firstName: student.firstName ?? null,
-								lastName: student.lastName ?? null,
-								email: student.email ?? null,
-								avatar: student.avatar ?? null,
-							}
+							id: student.id,
+							firstName: student.firstName ?? null,
+							lastName: student.lastName ?? null,
+							email: student.email ?? null,
+							avatar: student.avatar ?? null,
+						}
 						: null;
 
 				return [
@@ -365,7 +363,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -428,12 +426,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Add student submissions to gradingSubmission for display
@@ -451,9 +449,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -475,8 +473,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Not in grading mode - return list view data
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-		courseModuleContext.type === "quiz" ||
-		courseModuleContext.type === "discussion"
+			courseModuleContext.type === "quiz" ||
+			courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -491,13 +489,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
@@ -506,9 +504,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -529,9 +527,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -552,9 +550,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -943,12 +941,6 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function ModuleSubmissionsPage({
 	loaderData,
 }: Route.ComponentProps) {
-	// Call hooks unconditionally at the top
-	const [selectedRows, setSelectedRows] = useState<number[]>([]);
-	const { submit: deleteSubmission, isLoading: isDeleting } =
-		useDeleteSubmission();
-	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
-
 	// If we're in grading mode, show the appropriate grading view
 	if (loaderData.mode === "grading") {
 		if (loaderData.gradingModuleType === "assignment") {
@@ -966,18 +958,6 @@ export default function ModuleSubmissionsPage({
 					course={loaderData.course}
 					moduleLinkId={loaderData.moduleLinkId}
 					grade={loaderData.gradingGrade}
-					onReleaseGrade={(courseModuleLinkId, enrollmentId) =>
-						releaseGrade({
-							params: {
-								moduleLinkId: loaderData.moduleLinkId,
-							},
-							values: {
-								courseModuleLinkId: courseModuleLinkId,
-								enrollmentId: enrollmentId,
-							},
-						})
-					}
-					isReleasing={isReleasing}
 					enrollment={submissionWithRelations.enrollment}
 					courseModuleLink={submissionWithRelations.courseModuleLink}
 				/>
@@ -999,18 +979,6 @@ export default function ModuleSubmissionsPage({
 					course={loaderData.course}
 					moduleLinkId={loaderData.moduleLinkId}
 					grade={loaderData.gradingGrade}
-					onReleaseGrade={(courseModuleLinkId, enrollmentId) =>
-						releaseGrade({
-							params: {
-								moduleLinkId: loaderData.moduleLinkId,
-							},
-							values: {
-								courseModuleLinkId: courseModuleLinkId,
-								enrollmentId: enrollmentId,
-							},
-						})
-					}
-					isReleasing={isReleasing}
 					enrollment={submissionWithRelations.enrollment}
 					courseModuleLink={submissionWithRelations.courseModuleLink}
 				/>
@@ -1036,18 +1004,6 @@ export default function ModuleSubmissionsPage({
 					course={loaderData.course}
 					moduleLinkId={loaderData.moduleLinkId}
 					grade={loaderData.gradingGrade}
-					onReleaseGrade={(courseModuleLinkId, enrollmentId) =>
-						releaseGrade({
-							params: {
-								moduleLinkId: loaderData.moduleLinkId,
-							},
-							values: {
-								courseModuleLinkId: courseModuleLinkId,
-								enrollmentId: enrollmentId,
-							},
-						})
-					}
-					isReleasing={isReleasing}
 					enrollment={submissionWithRelations.enrollment}
 					courseModuleLink={submissionWithRelations.courseModuleLink}
 					maxGrade={loaderData.maxGrade}
@@ -1063,68 +1019,21 @@ export default function ModuleSubmissionsPage({
 			: null;
 	const title = `${moduleName ?? loaderData.module.title} - ${loaderData.module.type === "quiz" ? "Results" : "Submissions"} | ${loaderData.course.title} | Paideia LMS`;
 
-	const handleSelectRow = (enrollmentId: number, checked: boolean) => {
-		setSelectedRows(
-			checked
-				? [...selectedRows, enrollmentId]
-				: selectedRows.filter((id) => id !== enrollmentId),
-		);
-	};
-
-	const handleClearSelection = () => {
-		setSelectedRows([]);
-	};
-
 	// Render content based on module type
 	const renderSubmissions = () => {
 		if (loaderData.moduleType === "assignment") {
-			const selectedEnrollments = loaderData.enrollments.filter((e) =>
-				selectedRows.includes(e.id),
-			);
-
 			return (
-				<Stack gap="md">
-					<AssignmentBatchActions
-						selectedCount={selectedRows.length}
-						selectedEnrollments={selectedEnrollments}
-						onClearSelection={handleClearSelection}
-					/>
-					<AssignmentSubmissionTable
-						courseId={loaderData.course.id}
-						enrollments={loaderData.enrollments}
-						submissions={
-							loaderData.submissions as Parameters<
-								typeof AssignmentSubmissionTable
-							>[0]["submissions"]
-						}
-						selectedRows={selectedRows}
-						onSelectRow={handleSelectRow}
-						canDelete={loaderData.canDelete}
-						onDeleteSubmission={(submissionId) =>
-							deleteSubmission({
-								params: {
-									moduleLinkId: loaderData.moduleLinkId,
-								},
-								values: {
-									submissionId: submissionId,
-								},
-							})
-						}
-						moduleLinkId={loaderData.moduleLinkId}
-						onReleaseGrade={(courseModuleLinkId, enrollmentId) =>
-							releaseGrade({
-								params: {
-									moduleLinkId: loaderData.moduleLinkId,
-								},
-								values: {
-									courseModuleLinkId: courseModuleLinkId,
-									enrollmentId: enrollmentId,
-								},
-							})
-						}
-						isReleasing={isReleasing}
-					/>
-				</Stack>
+				<AssignmentSubmissionTable
+					courseId={loaderData.course.id}
+					enrollments={loaderData.enrollments}
+					submissions={
+						loaderData.submissions as Parameters<
+							typeof AssignmentSubmissionTable
+						>[0]["submissions"]
+					}
+					canDelete={loaderData.canDelete}
+					moduleLinkId={loaderData.moduleLinkId}
+				/>
 			);
 		}
 
@@ -1139,18 +1048,6 @@ export default function ModuleSubmissionsPage({
 						>[0]["submissions"]
 					}
 					moduleLinkId={loaderData.moduleLinkId}
-					onReleaseGrade={(courseModuleLinkId, enrollmentId) =>
-						releaseGrade({
-							params: {
-								moduleLinkId: loaderData.moduleLinkId,
-							},
-							values: {
-								courseModuleLinkId: courseModuleLinkId,
-								enrollmentId: enrollmentId,
-							},
-						})
-					}
-					isReleasing={isReleasing}
 				/>
 			);
 		}
@@ -1162,18 +1059,6 @@ export default function ModuleSubmissionsPage({
 					enrollments={loaderData.enrollments}
 					submissions={loaderData.submissions}
 					moduleLinkId={loaderData.moduleLinkId}
-					onReleaseGrade={(courseModuleLinkId, enrollmentId) =>
-						releaseGrade({
-							params: {
-								moduleLinkId: loaderData.moduleLinkId,
-							},
-							values: {
-								courseModuleLinkId: courseModuleLinkId,
-								enrollmentId: enrollmentId,
-							},
-						})
-					}
-					isReleasing={isReleasing}
 				/>
 			);
 		}
