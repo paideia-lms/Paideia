@@ -1,7 +1,5 @@
-import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useState } from "react";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
@@ -16,19 +14,14 @@ import {
 	tryFindUserEnrollmentInCourse,
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
-import type { Enrollment } from "server/payload-types";
-import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
-import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
-import { EnrollUserModal } from "~/components/enroll-user-modal";
-import { EnrollmentsSection } from "~/components/enrollments-section";
-import type { SearchUser } from "~/routes/api/search-users";
+import { EnrollmentsSection } from "./components/enrollments-section";
 import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/course.$id.participants";
+import type { Route } from "./+types/route";
 import { parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
 import { createLoader } from "nuqs/server";
 import { stringify } from "qs";
@@ -115,6 +108,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 };
 
 // Shared authorization check
+// TODO: this should be moved to payload collection level 
 const checkAuthorization = async (
 	context: Route.ActionArgs["context"],
 	courseId: number,
@@ -160,16 +154,15 @@ const checkAuthorization = async (
 const [enrollUserAction, useEnrollUser] = createEnrollActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const { courseId } = params;
-		const courseIdNum = Number(courseId);
+		const courseId = params.courseId;
 
-		const authError = await checkAuthorization(context, courseIdNum);
+		const authError = await checkAuthorization(context, courseId);
 		if (authError) return authError;
 
 		const createResult = await tryCreateEnrollment({
 			payload,
 			userId: formData.userId,
-			course: courseIdNum,
+			course: courseId,
 			role: formData.role,
 			status: formData.status,
 			groups: formData.groups,
@@ -297,126 +290,11 @@ export default function CourseParticipantsPage({
 }: Route.ComponentProps) {
 	const { course, currentUser } = loaderData;
 
-	// Action hooks
-	const { submit: enrollUser, isLoading: isEnrolling } = useEnrollUser();
-	const { submit: editEnrollment, isLoading: isEditing } = useEditEnrollment();
-	const { submit: deleteEnrollment, isLoading: isDeleting } =
-		useDeleteEnrollment();
-
-	// Modal states
-	const [
-		enrollModalOpened,
-		{ open: openEnrollModal, close: closeEnrollModal },
-	] = useDisclosure(false);
-	const [editModalOpened, { open: openEditModal, close: closeEditModal }] =
-		useDisclosure(false);
-	const [
-		deleteModalOpened,
-		{ open: openDeleteModal, close: closeDeleteModal },
-	] = useDisclosure(false);
-
-	// Form states
-	const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
-	const [selectedRole, setSelectedRole] = useState<string | null>(null);
-	const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-	const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-	const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(
-		null,
-	);
-	const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<
-		number | null
-	>(null);
-
 	// Prepare available groups for selection
 	const availableGroups = course.groups.map((group) => ({
 		value: group.id.toString(),
 		label: `${group.name} (${group.path})`,
 	}));
-
-	// Enrollment handlers
-	const handleEnrollUsers = async () => {
-		if (selectedUsers.length > 0 && selectedRole && selectedStatus) {
-			// Submit each user enrollment
-			for (const user of selectedUsers) {
-				await enrollUser({
-					values: {
-						userId: user.id,
-						role: selectedRole as Enrollment["role"],
-						status: selectedStatus as Enrollment["status"],
-						groups: selectedGroups.map(Number),
-					},
-					params: { courseId: course.id },
-				});
-			}
-			closeEnrollModal();
-			setSelectedUsers([]);
-			setSelectedRole(null);
-			setSelectedStatus(null);
-			setSelectedGroups([]);
-		}
-	};
-
-	const handleEditEnrollment = (
-		enrollment: NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>,
-	) => {
-		// Convert CourseEnrollment to payload Enrollment type for the modal
-		const payloadEnrollment: Enrollment = {
-			id: enrollment.id,
-			user: enrollment.user.id,
-			course: 0, // This will be set by the modal
-			role: enrollment.role,
-			status: enrollment.status,
-			enrolledAt: enrollment.enrolledAt,
-			completedAt: enrollment.completedAt,
-			updatedAt: "",
-			createdAt: "",
-		};
-		setEditingEnrollment(payloadEnrollment);
-		setSelectedRole(enrollment.role);
-		setSelectedStatus(enrollment.status);
-		setSelectedGroups(enrollment.groups.map((g) => g.id.toString()));
-		openEditModal();
-	};
-
-	const handleUpdateEnrollment = async () => {
-		if (editingEnrollment && selectedRole && selectedStatus) {
-			await editEnrollment({
-				values: {
-					enrollmentId: editingEnrollment.id,
-					role: selectedRole as Enrollment["role"],
-					status: selectedStatus as Enrollment["status"],
-					groups: selectedGroups.map(Number),
-				},
-				params: { courseId: course.id },
-			});
-			closeEditModal();
-			setEditingEnrollment(null);
-			setSelectedRole(null);
-			setSelectedStatus(null);
-			setSelectedGroups([]);
-		}
-	};
-
-	const handleDeleteEnrollment = (enrollmentId: number) => {
-		setDeletingEnrollmentId(enrollmentId);
-		openDeleteModal();
-	};
-
-	const handleConfirmDeleteEnrollment = async () => {
-		if (deletingEnrollmentId) {
-			await deleteEnrollment({
-				values: {
-					enrollmentId: deletingEnrollmentId,
-				},
-				params: { courseId: course.id },
-			});
-			closeDeleteModal();
-			setDeletingEnrollmentId(null);
-		}
-	};
-
-	const fetcherState =
-		isEnrolling || isEditing || isDeleting ? "submitting" : "idle";
 
 	// Get enrolled user IDs for exclusion
 	const enrolledUserIds = course.enrollments.map(
@@ -424,54 +302,12 @@ export default function CourseParticipantsPage({
 	);
 
 	return (
-		<>
-			<EnrollmentsSection
-				courseId={course.id}
-				enrollments={course.enrollments}
-				currentUserRole={currentUser.role || "student"}
-				fetcherState={fetcherState}
-				onOpenEnrollModal={openEnrollModal}
-				onEditEnrollment={handleEditEnrollment}
-				onDeleteEnrollment={handleDeleteEnrollment}
-			/>
-
-			<EnrollUserModal
-				opened={enrollModalOpened}
-				onClose={closeEnrollModal}
-				selectedUsers={selectedUsers}
-				onSelectedUsersChange={setSelectedUsers}
-				selectedRole={selectedRole}
-				onSelectedRoleChange={setSelectedRole}
-				selectedStatus={selectedStatus}
-				onSelectedStatusChange={setSelectedStatus}
-				selectedGroups={selectedGroups}
-				onSelectedGroupsChange={setSelectedGroups}
-				availableGroups={availableGroups}
-				enrolledUserIds={enrolledUserIds}
-				fetcherState={fetcherState}
-				onEnrollUsers={handleEnrollUsers}
-			/>
-
-			<EditEnrollmentModal
-				opened={editModalOpened}
-				onClose={closeEditModal}
-				selectedRole={selectedRole}
-				onSelectedRoleChange={setSelectedRole}
-				selectedStatus={selectedStatus}
-				onSelectedStatusChange={setSelectedStatus}
-				selectedGroups={selectedGroups}
-				onSelectedGroupsChange={setSelectedGroups}
-				availableGroups={availableGroups}
-				fetcherState={fetcherState}
-				onUpdateEnrollment={handleUpdateEnrollment}
-			/>
-
-			<DeleteEnrollmentModal
-				opened={deleteModalOpened}
-				onClose={closeDeleteModal}
-				fetcherState={fetcherState}
-				onConfirmDelete={handleConfirmDeleteEnrollment}
-			/>
-		</>
+		<EnrollmentsSection
+			courseId={course.id}
+			enrollments={course.enrollments}
+			currentUserRole={currentUser.role || "student"}
+			availableGroups={availableGroups}
+			enrolledUserIds={enrolledUserIds}
+		/>
 	);
 }

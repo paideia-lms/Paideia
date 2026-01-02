@@ -99,7 +99,7 @@ export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/course.$id.settings"]) return CourseTab.Settings;
-		if (pageInfo.is["routes/course.$id.participants"])
+		if (pageInfo.is["routes/course.$id.participants/route"])
 			return CourseTab.Participants;
 		if (
 			pageInfo.is["routes/course.$id.grades"] ||

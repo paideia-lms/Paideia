@@ -27,6 +27,7 @@ import {
 	type Route,
 	getRouteUrl,
 	View,
+	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
@@ -102,19 +103,19 @@ function QuizSubmissionHistoryItem({
 										: "Returned"}
 						</Badge>
 						{submission.status === "graded" ||
-						submission.status === "returned" ? (
+							submission.status === "returned" ? (
 							<Badge color="green" variant="filled">
 								{submission.totalScore !== null &&
-								submission.totalScore !== undefined &&
-								submission.maxScore !== null &&
-								submission.maxScore !== undefined
+									submission.totalScore !== undefined &&
+									submission.maxScore !== null &&
+									submission.maxScore !== undefined
 									? `${submission.totalScore}/${submission.maxScore}`
 									: submission.totalScore !== null &&
-											submission.totalScore !== undefined
+										submission.totalScore !== undefined
 										? String(submission.totalScore)
 										: "-"}
 								{submission.percentage !== null &&
-								submission.percentage !== undefined
+									submission.percentage !== undefined
 									? ` (${submission.percentage.toFixed(1)}%)`
 									: ""}
 							</Badge>
@@ -153,16 +154,13 @@ function QuizStudentSubmissionRow({
 	enrollment,
 	studentSubmissions,
 	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
 }: {
 	courseId: number;
 	enrollment: Enrollment;
 	studentSubmissions: QuizSubmissionType[] | undefined;
 	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 }) {
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 	const [opened, { toggle }] = useDisclosure(false);
 
 	const latestSubmission = studentSubmissions?.[0];
@@ -171,10 +169,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -204,7 +202,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-				gradedSubmissions.length
+			gradedSubmissions.length
 			: null;
 
 	return (
@@ -339,12 +337,19 @@ function QuizStudentSubmissionRow({
 									</Menu.Item>
 									{latestSubmission.status === "graded" &&
 										latestSubmission.totalScore !== null &&
-										latestSubmission.totalScore !== undefined &&
-										onReleaseGrade && (
+										latestSubmission.totalScore !== undefined && (
 											<Menu.Item
 												leftSection={<IconSend size={14} />}
 												onClick={() => {
-													onReleaseGrade(moduleLinkId, enrollment.id);
+													releaseGrade({
+														params: {
+															moduleLinkId: moduleLinkId,
+														},
+														values: {
+															courseModuleLinkId: moduleLinkId,
+															enrollmentId: enrollment.id,
+														},
+													});
 												}}
 												disabled={isReleasing}
 											>
@@ -412,15 +417,11 @@ export function QuizSubmissionTable({
 	enrollments,
 	submissions,
 	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
 }: {
 	courseId: number;
 	enrollments: Enrollment[];
 	submissions: QuizSubmissionType[];
 	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 }) {
 	// Filter and validate submissions, then group by student
 	const validSubmissions = submissions.filter(
@@ -469,8 +470,6 @@ export function QuizSubmissionTable({
 									enrollment={enrollment}
 									studentSubmissions={studentSubmissions}
 									moduleLinkId={moduleLinkId}
-									onReleaseGrade={onReleaseGrade}
-									isReleasing={isReleasing}
 								/>
 							);
 						})}

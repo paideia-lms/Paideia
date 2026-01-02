@@ -103,9 +103,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -168,9 +168,9 @@ const checkAuthorization = async (
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -318,14 +318,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export default function CourseModulesPage({
 	loaderData,
 }: Route.ComponentProps) {
-	const { submit: createModuleLink, isLoading: isCreating } =
-		useCreateModuleLink();
-	const { submit: deleteModuleLink, isLoading: isDeleting } =
-		useDeleteModuleLink();
-
 	const { course, canEdit, availableModules } = loaderData;
-
-	const fetcherState = isCreating || isDeleting ? "submitting" : "idle";
 
 	const title = `${course.title} - Modules | Paideia LMS`;
 
@@ -352,23 +345,7 @@ export default function CourseModulesPage({
 				}))}
 				availableModules={availableModules}
 				canEdit={canEdit.allowed}
-				fetcherState={fetcherState}
-				onAddModule={async (activityModuleId) => {
-					await createModuleLink({
-						values: {
-							activityModuleId,
-						},
-						params: { courseId: course.id },
-					});
-				}}
-				onDeleteLink={async (linkId) => {
-					await deleteModuleLink({
-						values: {
-							linkId,
-						},
-						params: { courseId: course.id },
-					});
-				}}
+				courseId={course.id}
 			/>
 		</Container>
 	);

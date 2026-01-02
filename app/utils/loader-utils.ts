@@ -4,8 +4,12 @@ import { useFetcher } from "react-router";
 import type { Simplify } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest, BadRequestResponse } from "~/utils/responses";
-import { paramsSchema, type ParamsType } from "~/utils/params-schema";
-import { createLoader, type ParserMap } from "nuqs/server";
+import { paramsSchema, type ParamsType } from "app/utils/route-params-schema";
+import {
+	createLoader,
+	type ParserMap,
+	type inferParserType,
+} from "nuqs/server";
 
 type ParamsSchema = typeof paramsSchema;
 /**
@@ -45,7 +49,7 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 		// Compute SearchParamsType
 		type SearchParamsType =
 			SearchParamsSchema extends Record<string, unknown>
-				? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+				? inferParserType<NonNullable<SearchParamsSchema>>
 				: never;
 
 		type Params = PreserveOptionalParams<T>;
@@ -115,16 +119,20 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 
 				// parse and validate custom params schema if provided
 				for (const [key, value] of Object.entries(params)) {
-					const parsed =
-						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+					const schema = paramsSchema[key as keyof typeof paramsSchema];
+					if (schema) {
+						const parsed = schema.safeParse(value);
 
-					if (!parsed.success) {
-						return badRequest({
-							success: false,
-							error: z.prettifyError(parsed.error),
-						});
+						if (!parsed.success) {
+							return badRequest({
+								success: false,
+								error: z.prettifyError(parsed.error),
+							});
+						}
+						_params[key] = parsed.data;
+					} else {
+						_params[key] = value;
 					}
-					_params[key as keyof typeof _params] = parsed.data;
 				}
 
 				return loader({
@@ -182,7 +190,7 @@ export function typeCreateLoader<T extends LoaderFunctionArgs>() {
 		// Compute SearchParamsType
 		type SearchParamsType =
 			SearchParamsSchema extends Record<string, unknown>
-				? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+				? inferParserType<NonNullable<SearchParamsSchema>>
 				: never;
 
 		type Params = PreserveOptionalParams<T>;
@@ -194,6 +202,8 @@ export function typeCreateLoader<T extends LoaderFunctionArgs>() {
 					? // biome-ignore lint/complexity/noBannedTypes: it is intented
 						{}
 					: SearchParamsType;
+			} & {
+				request: Omit<T["request"], "method"> & { method: "GET" };
 			};
 
 		// Args with validated params when schema is provided
@@ -235,15 +245,19 @@ export function typeCreateLoader<T extends LoaderFunctionArgs>() {
 
 				// parse and validate custom params schema if provided
 				for (const [key, value] of Object.entries(params)) {
-					const parsed =
-						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+					const schema = paramsSchema[key as keyof typeof paramsSchema];
+					if (schema) {
+						const parsed = schema.safeParse(value);
 
-					if (!parsed.success) {
-						throw new BadRequestResponse(
-							`Invalid parameter '${key}': ${z.prettifyError(parsed.error)}`,
-						);
+						if (!parsed.success) {
+							throw new BadRequestResponse(
+								`Invalid parameter '${key}': ${z.prettifyError(parsed.error)}`,
+							);
+						}
+						_params[key] = parsed.data;
+					} else {
+						_params[key] = value;
 					}
-					_params[key as keyof typeof _params] = parsed.data;
 				}
 
 				return loader({

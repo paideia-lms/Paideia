@@ -86,7 +86,7 @@ export const routes = [
 			layout("layouts/course-participants-layout.tsx", [
 				route(
 					"course/:courseId/participants",
-					"routes/course.$id.participants.tsx",
+					"routes/course.$id.participants/route.tsx",
 				),
 				route(
 					"course/:courseId/participants/profile",

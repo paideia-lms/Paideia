@@ -101,8 +101,6 @@ export interface DiscussionGradingViewProps {
 		maxGrade: number | null;
 		feedback: string | null;
 	} | null;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 	enrollment?:
 		| {
 				id: number;
@@ -345,8 +343,6 @@ export function DiscussionGradingView({
 	course,
 	moduleLinkId,
 	grade: _grade,
-	onReleaseGrade: _onReleaseGrade,
-	isReleasing: _isReleasing,
 	enrollment: _enrollment,
 	courseModuleLink: _courseModuleLink,
 	maxGrade,

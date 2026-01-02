@@ -26,3 +26,5 @@ references/
 
 tcg.config.ts
 test.ts
+*.d2
+*.mmd

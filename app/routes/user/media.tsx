@@ -40,12 +40,15 @@ import {
 	createLoader,
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
+import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
 import { stringify } from "qs";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { href } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -83,11 +86,17 @@ import {
 import type { Route } from "./+types/media";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
+// Define search params
+const loaderSearchParams = {
+	viewMode: parseAsStringEnum(["card", "table"]).withDefault("card"),
+	page: parseAsInteger.withDefault(1),
+};
+
+const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRRLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, params, searchParams }) => {
 	const { payload, systemGlobals, payloadRequest } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
@@ -108,8 +117,7 @@ export const loader = async ({
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	// Get user ID from route params, or use current user
-	const userId = params.id ? Number(params.id) : currentUser.id;
+	const userId = params.id ?? currentUser.id;
 
 	// Check if user can access this data
 	if (userId !== currentUser.id && currentUser.role !== "admin") {
@@ -125,7 +133,7 @@ export const loader = async ({
 		payload,
 		userId,
 		limit: 20,
-		page: 1,
+		page: searchParams.page,
 		depth: 0,
 		req: payloadRequest,
 	});
@@ -170,8 +178,9 @@ export const loader = async ({
 		stats,
 		storageLimit,
 		uploadLimit,
+		searchParams,
 	};
-};
+});
 
 enum Action {
 	Upload = "upload",
@@ -550,22 +559,6 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-export function useDeleteMedia(userId?: number) {
-	const { submit: deleteMedia, isLoading, fetcher } = useDelete();
-	return {
-		deleteMedia: async (mediaIds: number | number[]) => {
-			const ids = Array.isArray(mediaIds) ? mediaIds : [mediaIds];
-			await deleteMedia({
-				values: {
-					mediaIds: ids,
-				},
-				params: { id: userId },
-			});
-		},
-		isLoading,
-		fetcher,
-	};
-}
 
 export function useDownloadMedia() {
 	const downloadMedia = (file: Media) => {
@@ -616,22 +609,122 @@ export function useRenameMedia(userId?: number) {
 	};
 }
 
+// Upload Button Component
+function UploadButton({
+	userId,
+	uploadLimit,
+}: {
+	userId: number;
+	uploadLimit?: number;
+}) {
+	const fileInputId = useId();
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const { uploadMedia } = useUploadMedia(userId);
+
+	const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (file) {
+			// Get all MIME types from preset options for media upload
+			const allMimeTypes = PRESET_FILE_TYPE_OPTIONS.map(
+				(option) => option.mimeType,
+			);
+
+			// Also include common text-based MIME types that might not be in preset
+			const additionalTextTypes = [
+				"text/plain",
+				"text/markdown",
+				"text/yaml",
+				"application/json",
+				"application/xml",
+				"text/xml",
+				"text/html",
+				"text/css",
+				"text/javascript",
+				"application/javascript",
+			];
+
+			const allAcceptedTypes = [
+				...new Set([...allMimeTypes, ...additionalTextTypes]),
+			];
+
+			if (!allAcceptedTypes.includes(file.type)) {
+				notifications.show({
+					title: "Upload failed",
+					message: "File type not supported",
+					color: "red",
+				});
+				return;
+			}
+
+			// Validate file size using server-provided limit
+			if (uploadLimit !== undefined && file.size > uploadLimit) {
+				notifications.show({
+					title: "Upload failed",
+					message: `File size exceeds maximum allowed size of ${prettyBytes(uploadLimit)}`,
+					color: "red",
+				});
+				return;
+			}
+
+			uploadMedia(file);
+		}
+		// Reset input so same file can be selected again
+		if (event.target) {
+			event.target.value = "";
+		}
+	};
+
+	const handleUploadClick = () => {
+		fileInputRef.current?.click();
+	};
+
+	return (
+		<>
+			<Button leftSection={<IconPlus size={16} />} onClick={handleUploadClick}>
+				Upload
+			</Button>
+			<input
+				id={fileInputId}
+				ref={fileInputRef}
+				type="file"
+				accept={[
+					...PRESET_FILE_TYPE_OPTIONS.map((opt) => opt.mimeType),
+					"text/plain",
+					"text/markdown",
+					"text/yaml",
+					"application/json",
+					"application/xml",
+					"text/xml",
+					"text/html",
+					"text/css",
+					"text/javascript",
+					"application/javascript",
+				].join(",")}
+				onChange={handleFileSelect}
+				style={{ display: "none" }}
+			/>
+		</>
+	);
+}
+
 // Media Header Component
 function MediaHeader({
 	fullName,
 	isOwnProfile,
 	totalDocs,
 	viewMode,
-	onViewModeChange,
-	onUploadClick,
+	userId,
+	uploadLimit,
 }: {
 	fullName: string;
 	isOwnProfile: boolean;
 	totalDocs: number;
 	viewMode: "card" | "table";
-	onViewModeChange: (value: "card" | "table") => void;
-	onUploadClick: () => void;
+	userId: number;
+	uploadLimit?: number;
 }) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
 	return (
 		<Group justify="space-between" align="center">
 			<Title order={1}>
@@ -642,9 +735,7 @@ function MediaHeader({
 					{totalDocs} file{totalDocs !== 1 ? "s" : ""}
 				</Text>
 				{isOwnProfile && (
-					<Button leftSection={<IconPlus size={16} />} onClick={onUploadClick}>
-						Upload
-					</Button>
+					<UploadButton userId={userId} uploadLimit={uploadLimit} />
 				)}
 				<SegmentedControl
 					data={[
@@ -668,7 +759,9 @@ function MediaHeader({
 						},
 					]}
 					value={viewMode}
-					onChange={(value) => onViewModeChange(value as "card" | "table")}
+					onChange={(value) => {
+						setQueryParams({ viewMode: value as "card" | "table" });
+					}}
 				/>
 			</Group>
 		</Group>
@@ -678,12 +771,41 @@ function MediaHeader({
 // Batch Actions Component
 function BatchActions({
 	selectedCount,
-	onDelete,
+	selectedCardIds,
+	userId,
+	onSelectionClear,
 }: {
 	selectedCount: number;
-	onDelete: () => void;
+	selectedCardIds: number[];
+	userId: number;
+	onSelectionClear: () => void;
 }) {
+	const { submit: deleteMedia } = useDelete();
+
 	if (selectedCount === 0) return null;
+
+	const handleDelete = async () => {
+		if (selectedCardIds.length === 0) {
+			return;
+		}
+
+		if (
+			!window.confirm(
+				`Are you sure you want to delete ${selectedCardIds.length} media file${selectedCardIds.length !== 1 ? "s" : ""}? This action cannot be undone.`,
+			)
+		) {
+			return;
+		}
+
+		await deleteMedia({
+			values: {
+				mediaIds: selectedCardIds,
+			},
+			params: { id: userId },
+		});
+
+		onSelectionClear();
+	};
 
 	return (
 		<Group justify="space-between" align="center">
@@ -701,7 +823,7 @@ function BatchActions({
 						<Menu.Item
 							leftSection={<IconTrash size={16} />}
 							color="red"
-							onClick={onDelete}
+							onClick={handleDelete}
 						>
 							Delete {selectedCount} file{selectedCount !== 1 ? "s" : ""}
 						</Menu.Item>
@@ -857,13 +979,14 @@ function MediaRenameModal({
 	file,
 	opened,
 	onClose,
-	onRename,
+	userId,
 }: {
 	file: Media | null;
 	opened: boolean;
 	onClose: () => void;
-	onRename: (mediaId: number, newFilename: string) => void;
+	userId: number;
 }) {
+	const { renameMedia } = useRenameMedia(userId);
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -883,11 +1006,11 @@ function MediaRenameModal({
 		}
 	}, [file]);
 
-	const handleSubmit = form.onSubmit((values) => {
+	const handleSubmit = form.onSubmit(async (values) => {
 		if (!file) {
 			return;
 		}
-		onRename(file.id, values.filename.trim());
+		await renameMedia(file.id, values.filename.trim());
 		onClose();
 	});
 
@@ -1092,19 +1215,18 @@ function MediaPreviewModal({
 // Media Action Menu Component
 function MediaActionMenu({
 	file,
-	onDownload,
-	onDelete,
-	onPreview,
-	onRename,
-	onShowUsage,
+	userId,
 }: {
 	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onPreview?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onShowUsage?: (file: Media) => void;
+	userId: number;
 }) {
+	const { downloadMedia } = useDownloadMedia();
+	const { submit: deleteMedia } = useDelete();
+
+	const [previewModalOpened, setPreviewModalOpened] = useState(false);
+	const [renameModalOpened, setRenameModalOpened] = useState(false);
+	const [usageModalOpened, setUsageModalOpened] = useState(false);
+
 	const canDelete = file.deletePermission?.allowed ?? false;
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
@@ -1113,57 +1235,102 @@ function MediaActionMenu({
 		})
 		: undefined;
 
+	const handleDelete = async () => {
+		if (!file.deletePermission?.allowed) {
+			notifications.show({
+				title: "Error",
+				message:
+					file.deletePermission?.reason ||
+					"You don't have permission to delete this media",
+				color: "red",
+			});
+			return;
+		}
+
+		if (
+			!window.confirm(
+				"Are you sure you want to delete this media file? This action cannot be undone.",
+			)
+		) {
+			return;
+		}
+
+		await deleteMedia({
+			values: {
+				mediaIds: [file.id],
+			},
+			params: { id: userId },
+		});
+	};
+
 	return (
-		<Menu shadow="md" width={200}>
-			<Menu.Target>
-				<ActionIcon variant="subtle" size="sm">
-					<IconDots size={16} />
-				</ActionIcon>
-			</Menu.Target>
-			<Menu.Dropdown>
-				{canPreviewFile && onPreview && (
-					<Menu.Item
-						leftSection={<IconEye size={16} />}
-						onClick={() => onPreview(file)}
-					>
-						Preview
-					</Menu.Item>
-				)}
-				{mediaUrl && (
-					<Menu.Item
-						leftSection={<IconDownload size={16} />}
-						onClick={() => onDownload(file)}
-					>
-						Download
-					</Menu.Item>
-				)}
-				{onShowUsage && (
+		<>
+			<Menu shadow="md" width={200}>
+				<Menu.Target>
+					<ActionIcon variant="subtle" size="sm">
+						<IconDots size={16} />
+					</ActionIcon>
+				</Menu.Target>
+				<Menu.Dropdown>
+					{canPreviewFile && (
+						<Menu.Item
+							leftSection={<IconEye size={16} />}
+							onClick={() => setPreviewModalOpened(true)}
+						>
+							Preview
+						</Menu.Item>
+					)}
+					{mediaUrl && (
+						<Menu.Item
+							leftSection={<IconDownload size={16} />}
+							onClick={() => downloadMedia(file)}
+						>
+							Download
+						</Menu.Item>
+					)}
 					<Menu.Item
 						leftSection={<IconInfoCircle size={16} />}
-						onClick={() => onShowUsage(file)}
+						onClick={() => setUsageModalOpened(true)}
 					>
 						Show Usage
 					</Menu.Item>
-				)}
-				{onRename && (
 					<Menu.Item
 						leftSection={<IconPencil size={16} />}
-						onClick={() => onRename(file)}
+						onClick={() => setRenameModalOpened(true)}
 					>
 						Rename
 					</Menu.Item>
-				)}
-				{canDelete && (
-					<Menu.Item
-						leftSection={<IconTrash size={16} />}
-						color="red"
-						onClick={() => onDelete(file)}
-					>
-						Delete
-					</Menu.Item>
-				)}
-			</Menu.Dropdown>
-		</Menu>
+					{canDelete && (
+						<Menu.Item
+							leftSection={<IconTrash size={16} />}
+							color="red"
+							onClick={handleDelete}
+						>
+							Delete
+						</Menu.Item>
+					)}
+				</Menu.Dropdown>
+			</Menu>
+
+			<MediaPreviewModal
+				file={file}
+				opened={previewModalOpened}
+				onClose={() => setPreviewModalOpened(false)}
+			/>
+
+			<MediaRenameModal
+				file={file}
+				opened={renameModalOpened}
+				onClose={() => setRenameModalOpened(false)}
+				userId={userId}
+			/>
+
+			<MediaUsageModal
+				file={file}
+				opened={usageModalOpened}
+				onClose={() => setUsageModalOpened(false)}
+			/>
+		</>
 	);
 }
 
@@ -1172,20 +1339,12 @@ function MediaCard({
 	file,
 	isSelected,
 	onSelectionChange,
-	onDownload,
-	onDelete,
-	onOpenModal,
-	onRename,
-	onOpenUsageModal,
+	userId,
 }: {
 	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
 	isSelected: boolean;
 	onSelectionChange: (selected: boolean) => void;
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onOpenModal?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onOpenUsageModal?: (file: Media) => void;
+	userId: number;
 }) {
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
@@ -1286,14 +1445,7 @@ function MediaCard({
 
 							{/* Actions */}
 							<Group gap="xs" justify="flex-end">
-								<MediaActionMenu
-									file={file}
-									onDownload={onDownload}
-									onDelete={onDelete}
-									onPreview={onOpenModal}
-									onRename={onRename}
-									onShowUsage={onOpenUsageModal}
-								/>
+								<MediaActionMenu file={file} userId={userId} />
 							</Group>
 						</Stack>
 					</Group>
@@ -1308,22 +1460,14 @@ function MediaCardView({
 	media,
 	selectedCardIds,
 	onSelectionChange,
-	onDownload,
-	onDelete,
-	onOpenModal,
-	onRename,
-	onOpenUsageModal,
+	userId,
 }: {
 	media: (Media & {
 		deletePermission?: { allowed: boolean; reason: string };
 	})[];
 	selectedCardIds: number[];
 	onSelectionChange: (ids: number[]) => void;
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onOpenModal?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onOpenUsageModal?: (file: Media) => void;
+	userId: number;
 }) {
 	const handleCheckboxChange = (fileId: number, checked: boolean) => {
 		if (checked) {
@@ -1343,11 +1487,7 @@ function MediaCardView({
 					onSelectionChange={(checked) =>
 						handleCheckboxChange(file.id, checked)
 					}
-					onDownload={onDownload}
-					onDelete={onDelete}
-					onOpenModal={onOpenModal}
-					onRename={onRename}
-					onOpenUsageModal={onOpenUsageModal}
+					userId={userId}
 				/>
 			))}
 		</Grid>
@@ -1359,11 +1499,7 @@ function MediaTableView({
 	media,
 	selectedRecords,
 	onSelectionChange,
-	onDownload,
-	onDelete,
-	onOpenModal,
-	onRename,
-	onOpenUsageModal,
+	userId,
 }: {
 	media: (Media & {
 		deletePermission?: { allowed: boolean; reason: string };
@@ -1376,11 +1512,7 @@ function MediaTableView({
 			deletePermission?: { allowed: boolean; reason: string };
 		})[],
 	) => void;
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onOpenModal?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onOpenUsageModal?: (file: Media) => void;
+	userId: number;
 }) {
 	const columns = [
 		{
@@ -1426,14 +1558,7 @@ function MediaTableView({
 					deletePermission?: { allowed: boolean; reason: string };
 				},
 			) => (
-				<MediaActionMenu
-					file={file}
-					onDownload={onDownload}
-					onDelete={onDelete}
-					onPreview={onOpenModal}
-					onRename={onRename}
-					onShowUsage={onOpenUsageModal}
-				/>
+				<MediaActionMenu file={file} userId={userId} />
 			),
 		},
 	];
@@ -1457,12 +1582,12 @@ function MediaTableView({
 function MediaPagination({
 	totalPages,
 	currentPage,
-	onPageChange,
 }: {
 	totalPages: number;
 	currentPage: number;
-	onPageChange: (page: number) => void;
 }) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
 	if (totalPages <= 1) return null;
 
 	return (
@@ -1471,7 +1596,7 @@ function MediaPagination({
 				total={totalPages}
 				value={currentPage}
 				onChange={(page) => {
-					onPageChange(page);
+					setQueryParams({ page });
 				}}
 			/>
 		</Group>
@@ -1487,171 +1612,19 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 		stats,
 		storageLimit,
 		uploadLimit,
+		searchParams: { viewMode },
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const [viewMode, setViewMode] = useState<"card" | "table">("card");
-	const [selectedRecords, setSelectedRecords] = useState<Media[]>([]);
 	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
-	const [previewModalOpened, setPreviewModalOpened] = useState(false);
-	const [previewFile, setPreviewFile] = useState<Media | null>(null);
-	const [renameModalOpened, setRenameModalOpened] = useState(false);
-	const [renameFile, setRenameFile] = useState<Media | null>(null);
-	const [usageModalOpened, setUsageModalOpened] = useState(false);
-	const [usageFile, setUsageFile] = useState<Media | null>(null);
-	const fileInputId = useId();
-	const fileInputRef = useRef<HTMLInputElement>(null);
-	const { deleteMedia } = useDeleteMedia(user.id);
-	const { downloadMedia } = useDownloadMedia();
-	const { uploadMedia } = useUploadMedia(user.id);
-	const { renameMedia } = useRenameMedia(user.id);
 
-	const handleDownload = (file: Media) => {
-		downloadMedia(file);
-	};
-
-	const handleDelete = (
-		file: Media & { deletePermission?: { allowed: boolean; reason: string } },
-	) => {
-		if (!file.deletePermission?.allowed) {
-			notifications.show({
-				title: "Error",
-				message:
-					file.deletePermission?.reason ||
-					"You don't have permission to delete this media",
-				color: "red",
-			});
-			return;
-		}
-
-		if (
-			!window.confirm(
-				"Are you sure you want to delete this media file? This action cannot be undone.",
-			)
-		) {
-			return;
-		}
-
-		deleteMedia(file.id);
-	};
-
-	const handleBatchDelete = () => {
-		const idsToDelete =
-			viewMode === "card" ? selectedCardIds : selectedRecords.map((r) => r.id);
-
-		if (idsToDelete.length === 0) {
-			return;
-		}
-
-		if (
-			!window.confirm(
-				`Are you sure you want to delete ${idsToDelete.length} media file${idsToDelete.length !== 1 ? "s" : ""}? This action cannot be undone.`,
-			)
-		) {
-			return;
-		}
-
-		deleteMedia(idsToDelete);
-
-		// Clear selection after submission
-		setSelectedCardIds([]);
-		setSelectedRecords([]);
-	};
+	// Derive selectedRecords from selectedCardIds and media
+	const selectedRecords = useMemo(
+		() => media.filter((record) => selectedCardIds.includes(record.id)),
+		[media, selectedCardIds],
+	);
 
 	const handleTableSelectionChange = (records: Media[]) => {
-		setSelectedRecords(records);
-		// Sync to card selection state
 		setSelectedCardIds(records.map((r) => r.id));
-	};
-
-	const handleOpenModal = (file: Media) => {
-		setPreviewFile(file);
-		setPreviewModalOpened(true);
-	};
-
-	const handleCloseModal = () => {
-		setPreviewModalOpened(false);
-		setPreviewFile(null);
-	};
-
-	const handleOpenRenameModal = (file: Media) => {
-		setRenameFile(file);
-		setRenameModalOpened(true);
-	};
-
-	const handleCloseRenameModal = () => {
-		setRenameModalOpened(false);
-		setRenameFile(null);
-	};
-
-	const handleRename = (mediaId: number, newFilename: string) => {
-		renameMedia(mediaId, newFilename);
-	};
-
-	const handleOpenUsageModal = (file: Media) => {
-		setUsageFile(file);
-		setUsageModalOpened(true);
-	};
-
-	const handleCloseUsageModal = () => {
-		setUsageModalOpened(false);
-		setUsageFile(null);
-	};
-
-	const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (file) {
-			// Get all MIME types from preset options for media upload
-			const allMimeTypes = PRESET_FILE_TYPE_OPTIONS.map(
-				(option) => option.mimeType,
-			);
-
-			// Also include common text-based MIME types that might not be in preset
-			const additionalTextTypes = [
-				"text/plain",
-				"text/markdown",
-				"text/yaml",
-				"application/json",
-				"application/xml",
-				"text/xml",
-				"text/html",
-				"text/css",
-				"text/javascript",
-				"application/javascript",
-			];
-
-			const allAcceptedTypes = [
-				...new Set([...allMimeTypes, ...additionalTextTypes]),
-			];
-
-			if (!allAcceptedTypes.includes(file.type)) {
-				notifications.show({
-					title: "Upload failed",
-					message: "File type not supported",
-					color: "red",
-				});
-				return;
-			}
-
-			// Validate file size using server-provided limit
-			if (uploadLimit !== undefined && file.size > uploadLimit) {
-				notifications.show({
-					title: "Upload failed",
-					message: `File size exceeds maximum allowed size of ${prettyBytes(uploadLimit)}`,
-					color: "red",
-				});
-				return;
-			}
-
-			uploadMedia(file);
-		}
-		// Reset input so same file can be selected again
-		if (event.target) {
-			event.target.value = "";
-		}
-	};
-
-	const handleUploadClick = () => {
-		fileInputRef.current?.click();
 	};
 
 	return (
@@ -1673,8 +1646,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 					isOwnProfile={isOwnProfile}
 					totalDocs={pagination.totalDocs}
 					viewMode={viewMode}
-					onViewModeChange={setViewMode}
-					onUploadClick={handleUploadClick}
+					userId={user.id}
+					uploadLimit={uploadLimit}
 				/>
 
 				{/* Temporary Stats Section */}
@@ -1766,30 +1739,6 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 					</Card>
 				)}
 
-				{/* Hidden file input */}
-				{isOwnProfile && (
-					<input
-						id={fileInputId}
-						ref={fileInputRef}
-						type="file"
-						accept={[
-							...PRESET_FILE_TYPE_OPTIONS.map((opt) => opt.mimeType),
-							"text/plain",
-							"text/markdown",
-							"text/yaml",
-							"application/json",
-							"application/xml",
-							"text/xml",
-							"text/html",
-							"text/css",
-							"text/javascript",
-							"application/javascript",
-						].join(",")}
-						onChange={handleFileSelect}
-						style={{ display: "none" }}
-					/>
-				)}
-
 				{media.length === 0 ? (
 					<Text c="dimmed" ta="center" py="xl">
 						No media files yet.
@@ -1798,75 +1747,41 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 					<>
 						<BatchActions
 							selectedCount={selectedCardIds.length}
-							onDelete={handleBatchDelete}
+							selectedCardIds={selectedCardIds}
+							userId={user.id}
+							onSelectionClear={() => setSelectedCardIds([])}
 						/>
 						<MediaCardView
 							media={media}
 							selectedCardIds={selectedCardIds}
 							onSelectionChange={setSelectedCardIds}
-							onDownload={handleDownload}
-							onDelete={handleDelete}
-							onOpenModal={handleOpenModal}
-							onRename={handleOpenRenameModal}
-							onOpenUsageModal={handleOpenUsageModal}
+							userId={user.id}
 						/>
 						<MediaPagination
 							totalPages={pagination.totalPages}
 							currentPage={pagination.page}
-							onPageChange={(page: number) => {
-								// TODO: Implement pagination navigation
-								console.log("Navigate to page:", page);
-							}}
 						/>
 					</>
 				) : (
 					<>
 						<BatchActions
 							selectedCount={selectedRecords.length}
-							onDelete={handleBatchDelete}
+							selectedCardIds={selectedCardIds}
+							userId={user.id}
+							onSelectionClear={() => setSelectedCardIds([])}
 						/>
 						<MediaTableView
 							media={media}
 							selectedRecords={selectedRecords}
 							onSelectionChange={handleTableSelectionChange}
-							onDownload={handleDownload}
-							onDelete={handleDelete}
-							onOpenModal={handleOpenModal}
-							onRename={handleOpenRenameModal}
-							onOpenUsageModal={handleOpenUsageModal}
+							userId={user.id}
 						/>
 						<MediaPagination
 							totalPages={pagination.totalPages}
 							currentPage={pagination.page}
-							onPageChange={(page: number) => {
-								// TODO: Implement pagination navigation
-								console.log("Navigate to page:", page);
-							}}
 						/>
 					</>
 				)}
-
-				{/* Media Preview Modal */}
-				<MediaPreviewModal
-					file={previewFile}
-					opened={previewModalOpened}
-					onClose={handleCloseModal}
-				/>
-
-				{/* Media Rename Modal */}
-				<MediaRenameModal
-					file={renameFile}
-					opened={renameModalOpened}
-					onClose={handleCloseRenameModal}
-					onRename={handleRename}
-				/>
-
-				{/* Media Usage Modal */}
-				<MediaUsageModal
-					file={usageFile}
-					opened={usageModalOpened}
-					onClose={handleCloseUsageModal}
-				/>
 			</Stack>
 		</Container>
 	);

@@ -33,7 +33,7 @@ import { tryRunSeed } from "./utils/db/seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
-import { parseParams } from "app/utils/params-schema";
+import { parseParams } from "app/utils/route-params-schema";
 
 const payload = await getPayload({
 	config: sanitizedConfig,

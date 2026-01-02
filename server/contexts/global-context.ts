@@ -4,12 +4,12 @@ import { createContext } from "react-router";
 import type { Media } from "server/payload-types";
 import type { Storage } from "unstorage";
 import type { RouteId, RouteInfo } from "~/utils/routes-utils";
-import type { TypeSafeRouteParams } from "app/utils/params-schema";
+import type { TypeSafeRouteParams } from "app/utils/route-params-schema";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
-import type { ParamsType } from "app/utils/params-schema";
+import type { ParamsType } from "app/utils/route-params-schema";
 
 export type PageInfo = {
 	is: Partial<{
@@ -38,7 +38,20 @@ export type SystemGlobals = {
 	};
 	appearanceSettings: {
 		additionalCssStylesheets: { id: number | string; url: string }[];
-		color: string;
+		color:
+			| "blue"
+			| "pink"
+			| "indigo"
+			| "green"
+			| "orange"
+			| "gray"
+			| "grape"
+			| "cyan"
+			| "lime"
+			| "red"
+			| "violet"
+			| "teal"
+			| "yellow";
 		radius: "xs" | "sm" | "md" | "lg" | "xl";
 		logoLight?: Media | null;
 		logoDark?: Media | null;

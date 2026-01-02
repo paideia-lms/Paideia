@@ -33,7 +33,11 @@ import {
 	type Route,
 	getRouteUrl,
 	View,
+	useDeleteSubmission,
+	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
+import { useState } from "react";
+import { AssignmentBatchActions } from "./assignment-batch-actions";
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
 >[number];
@@ -62,10 +66,7 @@ function StudentSubmissionRow({
 	isSelected,
 	onSelectRow,
 	canDelete,
-	onDeleteSubmission,
 	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
 }: {
 	courseId: number;
 	enrollment: Enrollment;
@@ -73,11 +74,10 @@ function StudentSubmissionRow({
 	isSelected: boolean;
 	onSelectRow: (enrollmentId: number, checked: boolean) => void;
 	canDelete: boolean;
-	onDeleteSubmission: (submissionId: number) => void;
 	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 }) {
+	const { submit: deleteSubmission } = useDeleteSubmission();
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 	const [opened, { toggle }] = useDisclosure(false);
 
 	const latestSubmission = studentSubmissions?.[0];
@@ -86,10 +86,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter out draft submissions for display
@@ -177,8 +177,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-					"submittedAt" in latestSubmission &&
-					latestSubmission.submittedAt
+						"submittedAt" in latestSubmission &&
+						latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -213,12 +213,19 @@ function StudentSubmissionRow({
 									</Menu.Item>
 									{latestSubmission.grade &&
 										latestSubmission.grade.baseGrade !== null &&
-										latestSubmission.grade.baseGrade !== undefined &&
-										onReleaseGrade && (
+										latestSubmission.grade.baseGrade !== undefined && (
 											<Menu.Item
 												leftSection={<IconSend size={14} />}
 												onClick={() => {
-													onReleaseGrade(moduleLinkId, enrollment.id);
+													releaseGrade({
+														params: {
+															moduleLinkId: moduleLinkId,
+														},
+														values: {
+															courseModuleLinkId: moduleLinkId,
+															enrollmentId: enrollment.id,
+														},
+													});
 												}}
 												disabled={isReleasing}
 											>
@@ -267,7 +274,14 @@ function StudentSubmissionRow({
 												submission={submission}
 												showDelete={canDelete}
 												onDelete={(submissionId) => {
-													onDeleteSubmission(submissionId);
+													deleteSubmission({
+														params: {
+															moduleLinkId: moduleLinkId,
+														},
+														values: {
+															submissionId: submissionId,
+														},
+													});
 												}}
 												showGrade={true}
 												moduleLinkId={moduleLinkId}
@@ -287,25 +301,33 @@ export function AssignmentSubmissionTable({
 	courseId,
 	enrollments,
 	submissions,
-	selectedRows,
-	onSelectRow,
 	canDelete,
-	onDeleteSubmission,
 	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
 }: {
 	courseId: number;
 	enrollments: Enrollment[];
 	submissions: SubmissionType[];
-	selectedRows: number[];
-	onSelectRow: (enrollmentId: number, checked: boolean) => void;
 	canDelete: boolean;
-	onDeleteSubmission: (submissionId: number) => void;
 	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 }) {
+	const [selectedRows, setSelectedRows] = useState<number[]>([]);
+
+	const handleSelectRow = (enrollmentId: number, checked: boolean) => {
+		setSelectedRows(
+			checked
+				? [...selectedRows, enrollmentId]
+				: selectedRows.filter((id) => id !== enrollmentId),
+		);
+	};
+
+	const handleClearSelection = () => {
+		setSelectedRows([]);
+	};
+
+	const selectedEnrollments = enrollments.filter((e) =>
+		selectedRows.includes(e.id),
+	);
+
 	// Group submissions by student ID
 	const submissionsByStudent = groupSubmissionsByStudent(submissions);
 
@@ -318,62 +340,66 @@ export function AssignmentSubmissionTable({
 		// Select all or deselect all
 		if (allSelected) {
 			for (const id of allRowIds) {
-				onSelectRow(id, false);
+				handleSelectRow(id, false);
 			}
 		} else {
 			for (const id of allRowIds) {
-				onSelectRow(id, true);
+				handleSelectRow(id, true);
 			}
 		}
 	};
 
 	return (
-		<Paper withBorder shadow="sm" p="md" radius="md">
-			<ScrollArea>
-				<Table highlightOnHover style={{ minWidth: 900 }}>
-					<Table.Thead>
-						<Table.Tr>
-							<Table.Th style={{ width: 40 }}>
-								<Checkbox
-									aria-label="Select all rows"
-									checked={allSelected}
-									indeterminate={someSelected}
-									onChange={handleSelectAll}
-								/>
-							</Table.Th>
-							<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
-							<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
-							<Table.Th style={{ minWidth: 120 }}>Status</Table.Th>
-							<Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
-							<Table.Th style={{ minWidth: 180 }}>Latest Submission</Table.Th>
-							<Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
-						</Table.Tr>
-					</Table.Thead>
-					<Table.Tbody>
-						{enrollments.map((enrollment) => {
-							const studentSubmissions = submissionsByStudent.get(
-								enrollment.user.id,
-							);
+		<Stack gap="md">
+			<AssignmentBatchActions
+				selectedCount={selectedRows.length}
+				selectedEnrollments={selectedEnrollments}
+				onClearSelection={handleClearSelection}
+			/>
+			<Paper withBorder shadow="sm" p="md" radius="md">
+				<ScrollArea>
+					<Table highlightOnHover style={{ minWidth: 900 }}>
+						<Table.Thead>
+							<Table.Tr>
+								<Table.Th style={{ width: 40 }}>
+									<Checkbox
+										aria-label="Select all rows"
+										checked={allSelected}
+										indeterminate={someSelected}
+										onChange={handleSelectAll}
+									/>
+								</Table.Th>
+								<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
+								<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
+								<Table.Th style={{ minWidth: 120 }}>Status</Table.Th>
+								<Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
+								<Table.Th style={{ minWidth: 180 }}>Latest Submission</Table.Th>
+								<Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
+							</Table.Tr>
+						</Table.Thead>
+						<Table.Tbody>
+							{enrollments.map((enrollment) => {
+								const studentSubmissions = submissionsByStudent.get(
+									enrollment.user.id,
+								);
 
-							return (
-								<StudentSubmissionRow
-									key={enrollment.id}
-									courseId={courseId}
-									enrollment={enrollment}
-									studentSubmissions={studentSubmissions}
-									isSelected={selectedRows.includes(enrollment.id)}
-									onSelectRow={onSelectRow}
-									canDelete={canDelete}
-									onDeleteSubmission={onDeleteSubmission}
-									moduleLinkId={moduleLinkId}
-									onReleaseGrade={onReleaseGrade}
-									isReleasing={isReleasing}
-								/>
-							);
-						})}
-					</Table.Tbody>
-				</Table>
-			</ScrollArea>
-		</Paper>
+								return (
+									<StudentSubmissionRow
+										key={enrollment.id}
+										courseId={courseId}
+										enrollment={enrollment}
+										studentSubmissions={studentSubmissions}
+										isSelected={selectedRows.includes(enrollment.id)}
+										onSelectRow={handleSelectRow}
+										canDelete={canDelete}
+										moduleLinkId={moduleLinkId}
+									/>
+								);
+							})}
+						</Table.Tbody>
+					</Table>
+				</ScrollArea>
+			</Paper>
+		</Stack>
 	);
 }

@@ -16,7 +16,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
-import { useGradeSubmission } from "../route";
+import { useGradeSubmission, useReleaseGrade } from "../route";
 
 // ============================================================================
 // Types
@@ -42,11 +42,11 @@ export interface QuizGradingViewProps {
 			questionId: string;
 			questionText?: string | null;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -58,13 +58,13 @@ export interface QuizGradingViewProps {
 			feedback?: string | null;
 		}> | null;
 		student:
-			| {
-					id: number;
-					firstName?: string | null;
-					lastName?: string | null;
-					email?: string | null;
-			  }
-			| number;
+		| {
+			id: number;
+			firstName?: string | null;
+			lastName?: string | null;
+			email?: string | null;
+		}
+		| number;
 	};
 	module: {
 		id: number;
@@ -86,20 +86,18 @@ export interface QuizGradingViewProps {
 		maxGrade: number | null;
 		feedback: string | null;
 	} | null;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
 	enrollment?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 	courseModuleLink?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 }
 
 // ============================================================================
@@ -113,11 +111,10 @@ export function QuizGradingView({
 	course,
 	moduleLinkId,
 	grade,
-	onReleaseGrade,
-	isReleasing = false,
 	enrollment,
 	courseModuleLink,
 }: QuizGradingViewProps) {
+	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
 	const form = useForm<GradingFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
@@ -158,7 +155,7 @@ export function QuizGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-				student.email
+			student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -297,7 +294,6 @@ export function QuizGradingView({
 									{grade?.baseGrade !== null &&
 										grade?.baseGrade !== undefined &&
 										submission.status === "graded" &&
-										onReleaseGrade &&
 										enrollment &&
 										courseModuleLink && (
 											<Button
@@ -312,7 +308,15 @@ export function QuizGradingView({
 														typeof courseModuleLink === "number"
 															? courseModuleLink
 															: courseModuleLink.id;
-													onReleaseGrade(courseModuleLinkId, enrollmentId);
+													releaseGrade({
+														params: {
+															moduleLinkId: moduleLinkId,
+														},
+														values: {
+															courseModuleLinkId: courseModuleLinkId,
+															enrollmentId: enrollmentId,
+														},
+													});
 												}}
 											>
 												Release Grade
