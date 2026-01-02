@@ -1,7 +1,7 @@
 {
 	"name": "paideia",
 	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
-	"version": "0.7.7",
+	"version": "0.7.8",
 	"keywords": [
 		"paideia",
 		"lms",
@@ -78,7 +78,7 @@
 		"@react-router/fs-routes": "^7.11.0",
 		"@react-router/node": "^7.11.0",
 		"@scalar/api-reference-react": "^0.8.15",
-		"@tabler/icons-react": "^3.36.0",
+		"@tabler/icons-react": "^3.36.1",
 		"@tiptap/core": "^3.14.0",
 		"@tiptap/extension-blockquote": "^3.14.0",
 		"@tiptap/extension-code-block-lowlight": "^3.14.0",
@@ -157,10 +157,10 @@
 		"unstorage": "^1.17.3",
 		"vite-env-only": "^3.0.3",
 		"vite-plugin-babel": "^1.3.2",
-		"zod": "^4.3.2"
+		"zod": "^4.3.4"
 	},
 	"devDependencies": {
-		"@aws-sdk/client-s3": "^3.958.0",
+		"@aws-sdk/client-s3": "^3.962.0",
 		"@babel/preset-typescript": "^7.28.5",
 		"@biomejs/biome": "2.3.10",
 		"@faker-js/faker": "^10.1.0",
@@ -172,9 +172,9 @@
 		"@types/react-dom": "^19.2.3",
 		"@types/request-ip": "^0.0.41",
 		"@types/semver": "^7.7.1",
-		"@typescript/native-preview": "^7.0.0-dev.20251231.1",
+		"@typescript/native-preview": "^7.0.0-dev.20260102.1",
 		"json-schema": "^0.4.0",
-		"knip": "^5.78.0",
+		"knip": "^5.79.0",
 		"postcss": "^8.5.6",
 		"postcss-preset-mantine": "^1.18.0",
 		"postcss-simple-vars": "^7.0.1",

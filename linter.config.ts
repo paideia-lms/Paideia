@@ -984,6 +984,67 @@ const astPatterns = {
 	},
 
 	/**
+	 * Matches useEffect() calls
+	 * Returns true if the node is a useEffect call
+	 */
+	useEffectCall: (node: ts.Node): boolean => {
+		if (!ts.isCallExpression(node)) {
+			return false;
+		}
+
+		const expression = node.expression;
+		if (!ts.isIdentifier(expression)) {
+			return false;
+		}
+
+		return expression.text === "useEffect";
+	},
+
+	/**
+	 * Matches useQueryState() calls from nuqs
+	 * Returns true if the node is a useQueryState call
+	 */
+	useQueryStateCall: (node: ts.Node): boolean => {
+		if (!ts.isCallExpression(node)) {
+			return false;
+		}
+
+		const expression = node.expression;
+		if (!ts.isIdentifier(expression)) {
+			return false;
+		}
+
+		return expression.text === "useQueryState";
+	},
+
+	/**
+	 * Matches imports containing useQueryState from nuqs
+	 */
+	useQueryStateImport: (node: ts.Node): boolean => {
+		if (ts.isImportDeclaration(node)) {
+			const moduleSpecifier = node.moduleSpecifier;
+			if (ts.isStringLiteral(moduleSpecifier)) {
+				const modulePath = moduleSpecifier.text;
+				// Check if importing from "nuqs"
+				if (modulePath === "nuqs") {
+					const importClause = node.importClause;
+					if (importClause) {
+						// Check named imports
+						if (importClause.namedBindings) {
+							if (ts.isNamedImports(importClause.namedBindings)) {
+								return importClause.namedBindings.elements.some(
+									(element) => element.name.text === "useQueryState",
+								);
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
 	 * Checks if a component uses more than 5 useState hooks
 	 * This pattern matcher returns true on useState call nodes when there are more than 5
 	 */
@@ -1386,6 +1447,35 @@ export const rules: LintRule[] = [
 			{
 				name: "more than 5 useState hooks in component",
 				matcher: astPatterns.tooManyUseStateHooks,
+			},
+		],
+	},
+	{
+		name: "Warn useEffect usage in TSX files",
+		description: "useEffect should be avoided in TSX files. Consider using React Router's built-in data loading mechanisms (loaders, actions) or other React patterns instead.",
+		includes: ["app/**/*.tsx", "!app/root.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		level: "warning", // Warning level instead of error
+		astPatterns: [
+			{
+				name: "useEffect() call",
+				matcher: astPatterns.useEffectCall,
+			},
+		],
+	},
+	{
+		name: "Ban useQueryState from nuqs",
+		description: "useQueryState from nuqs should not be used directly. Use useNuqsSearchParams from app/utils/search-params-utils.ts instead.",
+		includes: ["app/**/*.tsx", "app/**/*.ts"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "useQueryState() call",
+				matcher: astPatterns.useQueryStateCall,
+			},
+			{
+				name: "useQueryState import from nuqs",
+				matcher: astPatterns.useQueryStateImport,
 			},
 		],
 	},

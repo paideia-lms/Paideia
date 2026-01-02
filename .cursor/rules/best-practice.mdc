@@ -19,13 +19,9 @@ when working with jsx array, we should not use index as key. we should use the i
 
 we should use `<meta>` in the page component.
 
-we should have `getRouteUrl` for getting the action url for each action. see `app/routes/admin/appearance/logo.tsx` for an example. we should use `typeCreateLoader` and `typeCreateActionRpc` to create the loader and action functions.
+we should use `typeCreateLoader` and `typeCreateActionRpc` to create the loader and action functions.
 
 in `clientAction`, we should use `notifications` from `@mantine/notifications` to show notifications. we check the `actionData.status` against `StatusCode` to show the appropriate notification.
-
-it is not necessary to check for access in loader and actions because we already check for access in internal functions and through access hook in collections. 
-
-we only use mantine form uncontrolled mode for all forms. never use `cascadeUpdates` for mantine form.
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
 

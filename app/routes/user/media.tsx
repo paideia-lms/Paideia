@@ -904,12 +904,10 @@ function VideoPreview({
 	fileUrl,
 	filename,
 	inline = false,
-	onOpenModal,
 }: {
 	fileUrl: string;
 	filename: string;
 	inline?: boolean;
-	onOpenModal?: () => void;
 }) {
 	if (inline) {
 		return (
@@ -919,10 +917,8 @@ function VideoPreview({
 					width: "100%",
 					minHeight: 150,
 					maxHeight: 150,
-					cursor: onOpenModal ? "pointer" : "default",
 					overflow: "hidden",
 				}}
-				onClick={onOpenModal}
 			>
 				<video
 					controls
