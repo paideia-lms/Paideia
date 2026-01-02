@@ -88,7 +88,7 @@ import {
 } from "./utils/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { parseParams } from "app/utils/params-schema";
+import { parseParams } from "app/utils/route-params-schema";
 
 const searchParams = {
 	threadId: parseAsInteger,

@@ -85,7 +85,27 @@ export function buildMediaStreamHeaders(
 	}
 
 	if (filename) {
-		headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+		// Create a safe ASCII fallback filename by removing/replacing non-ASCII characters
+		const asciiFallback = filename
+			.replace(/[^\x20-\x7E]/g, "_") // Replace non-ASCII with underscore
+			.replace(/["\\]/g, "_"); // Replace quotes and backslashes
+
+		// Check if filename contains non-ASCII characters
+		const hasNonAscii = /[^\x20-\x7E]/.test(filename);
+
+		if (hasNonAscii) {
+			// Use RFC 5987 encoding: filename*="UTF-8''encoded-filename"
+			// Percent-encode the filename (encodeURIComponent handles UTF-8 properly)
+			const encodedFilename = encodeURIComponent(filename);
+			headers["Content-Disposition"] =
+				`attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
+		} else {
+			// For ASCII-only filenames, use simple format
+			// Still escape quotes and backslashes
+			const escapedFilename = filename.replace(/["\\]/g, "\\$&");
+			headers["Content-Disposition"] =
+				`attachment; filename="${escapedFilename}"`;
+		}
 	}
 
 	return headers;

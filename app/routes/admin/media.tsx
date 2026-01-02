@@ -38,16 +38,16 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
-import { useQueryState } from "nuqs";
 import {
 	createLoader,
 	parseAsInteger,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
+	parseAsStringEnum,
+} from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -80,6 +80,7 @@ import {
 import {
 	badRequest,
 	ForbiddenResponse,
+	InternalServerErrorResponse,
 	ok,
 	StatusCode,
 	unauthorized,
@@ -89,13 +90,14 @@ import { z } from "zod";
 import { typeCreateLoader } from "app/utils/loader-utils";
 
 // Define search params
-export const mediaSearchParams = {
+const loaderSearchParams = {
 	userId: parseAsInteger,
 	page: parseAsInteger.withDefault(1),
 	orphanedPage: parseAsInteger.withDefault(1),
+	viewMode: parseAsStringEnum(["card", "table"]).withDefault("card"),
 };
 
-export const loadSearchParams = createLoader(mediaSearchParams);
+
 
 enum Action {
 	UpdateMedia = "updateMedia",
@@ -105,11 +107,11 @@ enum Action {
 }
 
 // Define search params for media actions
-export const mediaActionSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+const mediaActionSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
-export const loadActionSearchParams = createLoader(mediaActionSearchParams);
+const loadActionSearchParams = createLoader(mediaActionSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -152,7 +154,7 @@ export function getRouteUrl(action: Action) {
 const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRRLoader({
-	searchParams: mediaSearchParams,
+	searchParams: loaderSearchParams,
 })(async ({ context, request, searchParams }) => {
 	const globalContext = context.get(globalContextKey);
 	const { payload, s3Client, payloadRequest } = globalContext;
@@ -173,87 +175,69 @@ export const loader = createRRLoader({
 	const { userId, page, orphanedPage } = searchParams;
 	const limit = 20;
 
-	// Fetch media - either for a specific user or all media
-	let mediaResult:
-		| Awaited<ReturnType<typeof tryFindMediaByUser>>
-		| Awaited<ReturnType<typeof tryGetAllMedia>>;
-	let statsResult:
-		| Awaited<ReturnType<typeof tryGetUserMediaStats>>
-		| Awaited<ReturnType<typeof tryGetSystemMediaStats>>;
-	let systemStatsResult: Awaited<
-		ReturnType<typeof tryGetSystemMediaStats>
-	> | null = null;
-
-	if (userId) {
-		// Fetch media for specific user
-		mediaResult = await tryFindMediaByUser({
-			payload,
-			userId,
-			limit,
-			page,
-			depth: 1, // Include createdBy user info
-			req: payloadRequest,
-			overrideAccess: true,
-		});
-
-		// Get user-specific stats
-		statsResult = await tryGetUserMediaStats({
-			payload,
-			userId,
-			req: payloadRequest,
-			overrideAccess: true,
-		});
-
-		// Also get system-wide stats for comparison
-		systemStatsResult = await tryGetSystemMediaStats({
-			payload,
-			req: payloadRequest,
-		});
-	} else {
-		// Fetch all media in the system
-		mediaResult = await tryGetAllMedia({
-			payload,
-			limit,
-			page,
-			req: payloadRequest,
-		});
-
-		// Get system-wide media stats
-		statsResult = await tryGetSystemMediaStats({
-			payload,
-			req: payloadRequest,
-		});
-	}
-
-	if (!mediaResult.ok) {
+	const mediaResult = (userId ? await tryFindMediaByUser({
+		payload,
+		userId,
+		limit,
+		page,
+		depth: 1, // Include createdBy user info
+		req: payloadRequest,
+		overrideAccess: true,
+	}).getOrElse(() => {
 		throw new ForbiddenResponse("Failed to fetch media");
-	}
-
-	// Admin can delete/rename any media, so all have deletePermission
-	const mediaWithPermissions = mediaResult.value.docs.map((file) => ({
+	}) : await tryGetAllMedia({
+		payload,
+		limit,
+		page,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to fetch media");
+	}));
+	const mediaWithPermissions = mediaResult.docs.map((file) => ({
 		...file,
 		deletePermission: { allowed: true, reason: "" },
 	}));
 
-	const stats = statsResult.ok ? statsResult.value : null;
-	const systemStats = systemStatsResult?.ok ? systemStatsResult.value : null;
+	const stats = userId ? await tryGetUserMediaStats({
+		payload,
+		userId,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to fetch user media stats");
+	}) : await tryGetSystemMediaStats({
+		payload,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to fetch system media stats");
+	});
+
+	const systemStats = await tryGetSystemMediaStats({
+		payload,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to fetch system media stats");
+	});
+
+
 
 	// Fetch users for the filter dropdown
-	const usersResult = await tryFindAllUsers({
+	const userOptions = await tryFindAllUsers({
 		payload,
 		limit: 100,
 		page: 1,
 		sort: "-createdAt",
 		req: payloadRequest,
-	});
-
-	const userOptions = usersResult.ok
-		? usersResult.value.docs.map((user) => ({
-			value: user.id.toString(),
-			label:
-				`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-		}))
-		: [];
+	}).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get users");
+	}).then(
+		(users) => {
+			return users.docs.map((user) => ({
+				value: user.id.toString(),
+				label:
+					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+			}));
+		}
+	)
 
 	// Fetch orphaned media files
 	const orphanedMediaResult = await tryGetOrphanedMedia({
@@ -271,14 +255,14 @@ export const loader = createRRLoader({
 	return {
 		media: mediaWithPermissions,
 		pagination: {
-			totalDocs: mediaResult.value.totalDocs,
-			limit: mediaResult.value.limit,
-			totalPages: mediaResult.value.totalPages,
-			page: mediaResult.value.page,
-			hasPrevPage: mediaResult.value.hasPrevPage,
-			hasNextPage: mediaResult.value.hasNextPage,
-			prevPage: mediaResult.value.prevPage,
-			nextPage: mediaResult.value.nextPage,
+			totalDocs: mediaResult.totalDocs,
+			limit: mediaResult.limit,
+			totalPages: mediaResult.totalPages,
+			page: mediaResult.page,
+			hasPrevPage: mediaResult.hasPrevPage,
+			hasNextPage: mediaResult.hasNextPage,
+			prevPage: mediaResult.prevPage,
+			nextPage: mediaResult.nextPage,
 		},
 		stats,
 		systemStats,
@@ -528,33 +512,26 @@ const [pruneAllOrphanedMediaAction, usePruneAllOrphanedMedia] =
 				return unauthorized({ error: "Only admins can perform this action" });
 			}
 
-			// Handle transaction ID
-			const transactionInfo = await handleTransactionId(
+			const result = await tryPruneAllOrphanedMedia({
 				payload,
-				payloadRequest,
-			);
+				s3Client,
+				req: payloadRequest,
+				// ! we can override access because we are admin
+				overrideAccess: true,
+			});
 
-			return transactionInfo.tx(async ({ reqWithTransaction }) => {
-				const result = await tryPruneAllOrphanedMedia({
-					payload,
-					s3Client,
-					req: reqWithTransaction,
-					overrideAccess: true,
-				});
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
 
-				if (!result.ok) {
-					return badRequest({ error: result.error.message });
-				}
-
-				if (result.value.deletedCount === 0) {
-					return ok({
-						message: "No orphaned files to delete",
-					});
-				}
-
+			if (result.value.deletedCount === 0) {
 				return ok({
-					message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
+					message: "No orphaned files to delete",
 				});
+			}
+
+			return ok({
+				message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
 			});
 		})!,
 		{
@@ -618,12 +595,16 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 };
 
 export function useDownloadMedia() {
-	const downloadMedia = (file: Media) => {
-		if (!file.filename) return;
-		const url = `/api/media/file/${file.filename}?download=true`;
+	const downloadMedia = (file: {
+		filename: string;
+		id: number;
+	}) => {
+		const url = href(`/api/media/file/:mediaId`, { mediaId: file.id.toString() }) + "?download=true";
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = file.filename;
+		// Normalize filename to only allow ASCII and remove unsafe characters, fallback to "download.jpg"
+		const safeFilename = "download.jpg";
+		link.download = safeFilename;
 		link.click();
 	};
 	return { downloadMedia };
@@ -633,18 +614,17 @@ export function useDownloadMedia() {
 function MediaHeader({
 	totalDocs,
 	viewMode,
-	onViewModeChange,
 	selectedUserId,
-	onUserIdChange,
 	userOptions,
 }: {
 	totalDocs: number;
 	viewMode: "card" | "table";
-	onViewModeChange: (value: "card" | "table") => void;
 	selectedUserId: number | null;
-	onUserIdChange: (userId: number | null) => void;
 	userOptions: Array<{ value: string; label: string }>;
 }) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
+
 	return (
 		<Stack gap="md">
 			<Group justify="space-between" align="center">
@@ -677,7 +657,9 @@ function MediaHeader({
 							},
 						]}
 						value={viewMode}
-						onChange={(value) => onViewModeChange(value as "card" | "table")}
+						onChange={(value) => {
+							setQueryParams({ viewMode: value as "card" | "table" });
+						}}
 					/>
 				</Group>
 			</Group>
@@ -687,7 +669,7 @@ function MediaHeader({
 				data={userOptions}
 				value={selectedUserId?.toString() || null}
 				onChange={(value) => {
-					onUserIdChange(value ? Number(value) : null);
+					setQueryParams({ userId: value ? Number(value) : null, page: 1 });
 				}}
 				searchable
 				clearable
@@ -879,13 +861,12 @@ function MediaRenameModal({
 	file,
 	opened,
 	onClose,
-	onRename,
 }: {
 	file: Media | null;
 	opened: boolean;
 	onClose: () => void;
-	onRename: (mediaId: number, newFilename: string) => void;
 }) {
+	const { submit: updateMedia } = useUpdateMedia();
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -905,11 +886,16 @@ function MediaRenameModal({
 		}
 	}, [file]);
 
-	const handleSubmit = form.onSubmit((values) => {
+	const handleSubmit = form.onSubmit(async (values) => {
 		if (!file) {
 			return;
 		}
-		onRename(file.id, values.filename.trim());
+		await updateMedia({
+			values: {
+				mediaId: file.id,
+				newFilename: values.filename.trim(),
+			},
+		});
 		onClose();
 	});
 
@@ -1114,19 +1100,16 @@ function MediaUsageModal({
 // Media Action Menu Component
 function MediaActionMenu({
 	file,
-	onDownload,
-	onDelete,
-	onPreview,
-	onRename,
-	onShowUsage,
 }: {
 	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onPreview?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onShowUsage?: (file: Media) => void;
 }) {
+	const { downloadMedia } = useDownloadMedia();
+	const { submit: deleteMedia, } = useDeleteMedia();
+
+	const [previewModalOpened, setPreviewModalOpened] = useState(false);
+	const [renameModalOpened, setRenameModalOpened] = useState(false);
+	const [usageModalOpened, setUsageModalOpened] = useState(false);
+
 	const canDelete = file.deletePermission?.allowed ?? true; // Admin can always delete
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
@@ -1135,57 +1118,95 @@ function MediaActionMenu({
 		})
 		: undefined;
 
+
+	const handleDelete = async () => {
+		if (
+			!window.confirm(
+				"Are you sure you want to delete this media file? This action cannot be undone.",
+			)
+		) {
+			return;
+		}
+
+		await deleteMedia({
+			values: {
+				mediaIds: String(file.id),
+			},
+		});
+	};
+
 	return (
-		<Menu shadow="md" width={200}>
-			<Menu.Target>
-				<ActionIcon variant="subtle" size="sm">
-					<IconDots size={16} />
-				</ActionIcon>
-			</Menu.Target>
-			<Menu.Dropdown>
-				{canPreviewFile && onPreview && (
-					<Menu.Item
-						leftSection={<IconEye size={16} />}
-						onClick={() => onPreview(file)}
-					>
-						Preview
-					</Menu.Item>
-				)}
-				{mediaUrl && (
-					<Menu.Item
-						leftSection={<IconDownload size={16} />}
-						onClick={() => onDownload(file)}
-					>
-						Download
-					</Menu.Item>
-				)}
-				{onShowUsage && (
+		<>
+			<Menu shadow="md" width={200}>
+				<Menu.Target>
+					<ActionIcon variant="subtle" size="sm">
+						<IconDots size={16} />
+					</ActionIcon>
+				</Menu.Target>
+				<Menu.Dropdown>
+					{canPreviewFile && (
+						<Menu.Item
+							leftSection={<IconEye size={16} />}
+							onClick={() => setPreviewModalOpened(true)}
+						>
+							Preview
+						</Menu.Item>
+					)}
+					{mediaUrl && (
+						<Menu.Item
+							leftSection={<IconDownload size={16} />}
+							onClick={() => {
+								downloadMedia({
+									filename: file.filename ?? `file-${file.id}`,
+									id: file.id,
+								});
+							}}
+						>
+							Download
+						</Menu.Item>
+					)}
 					<Menu.Item
 						leftSection={<IconInfoCircle size={16} />}
-						onClick={() => onShowUsage(file)}
+						onClick={() => setUsageModalOpened(true)}
 					>
 						Show Usage
 					</Menu.Item>
-				)}
-				{onRename && (
 					<Menu.Item
 						leftSection={<IconPencil size={16} />}
-						onClick={() => onRename(file)}
+						onClick={() => setRenameModalOpened(true)}
 					>
 						Rename
 					</Menu.Item>
-				)}
-				{canDelete && (
-					<Menu.Item
-						leftSection={<IconTrash size={16} />}
-						color="red"
-						onClick={() => onDelete(file)}
-					>
-						Delete
-					</Menu.Item>
-				)}
-			</Menu.Dropdown>
-		</Menu>
+					{canDelete && (
+						<Menu.Item
+							leftSection={<IconTrash size={16} />}
+							color="red"
+							onClick={handleDelete}
+						>
+							Delete
+						</Menu.Item>
+					)}
+				</Menu.Dropdown>
+			</Menu>
+
+			<MediaPreviewModal
+				file={file}
+				opened={previewModalOpened}
+				onClose={() => setPreviewModalOpened(false)}
+			/>
+
+			<MediaRenameModal
+				file={file}
+				opened={renameModalOpened}
+				onClose={() => setRenameModalOpened(false)}
+			/>
+
+			<MediaUsageModal
+				file={file}
+				opened={usageModalOpened}
+				onClose={() => setUsageModalOpened(false)}
+			/>
+		</>
 	);
 }
 
@@ -1194,20 +1215,10 @@ function MediaCard({
 	file,
 	isSelected,
 	onSelectionChange,
-	onDownload,
-	onDelete,
-	onOpenModal,
-	onRename,
-	onOpenUsageModal,
 }: {
 	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
 	isSelected: boolean;
 	onSelectionChange: (selected: boolean) => void;
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onOpenModal?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onOpenUsageModal?: (file: Media) => void;
 }) {
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
@@ -1373,14 +1384,7 @@ function MediaCard({
 
 							{/* Actions */}
 							<Group gap="xs" justify="flex-end">
-								<MediaActionMenu
-									file={file}
-									onDownload={onDownload}
-									onDelete={onDelete}
-									onPreview={onOpenModal}
-									onRename={onRename}
-									onShowUsage={onOpenUsageModal}
-								/>
+								<MediaActionMenu file={file} />
 							</Group>
 						</Stack>
 					</Group>
@@ -1395,22 +1399,12 @@ function MediaCardView({
 	media,
 	selectedCardIds,
 	onSelectionChange,
-	onDownload,
-	onDelete,
-	onOpenModal,
-	onRename,
-	onOpenUsageModal,
 }: {
 	media: (Media & {
 		deletePermission?: { allowed: boolean; reason: string };
 	})[];
 	selectedCardIds: number[];
 	onSelectionChange: (ids: number[]) => void;
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onOpenModal?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onOpenUsageModal?: (file: Media) => void;
 }) {
 	const handleCheckboxChange = (fileId: number, checked: boolean) => {
 		if (checked) {
@@ -1430,11 +1424,6 @@ function MediaCardView({
 					onSelectionChange={(checked) =>
 						handleCheckboxChange(file.id, checked)
 					}
-					onDownload={onDownload}
-					onDelete={onDelete}
-					onOpenModal={onOpenModal}
-					onRename={onRename}
-					onOpenUsageModal={onOpenUsageModal}
 				/>
 			))}
 		</Grid>
@@ -1446,34 +1435,18 @@ function MediaTableView({
 	media,
 	selectedRecords,
 	onSelectionChange,
-	onDownload,
-	onDelete,
-	onOpenModal,
-	onRename,
-	onOpenUsageModal,
 }: {
-	media: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
-	selectedRecords: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
+	media: Route.ComponentProps["loaderData"]["media"];
+	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 	onSelectionChange: (
-		records: (Media & {
-			deletePermission?: { allowed: boolean; reason: string };
-		})[],
+		records: Route.ComponentProps["loaderData"]["media"],
 	) => void;
-	onDownload: (file: Media) => void;
-	onDelete: (file: Media) => void;
-	onOpenModal?: (file: Media) => void;
-	onRename?: (file: Media) => void;
-	onOpenUsageModal?: (file: Media) => void;
 }) {
 	const columns = [
 		{
 			accessor: "filename",
 			title: "Name",
-			render: (file: Media) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<Group gap="xs">
 					{file.mimeType?.startsWith("image/") ? (
 						<IconPhoto size={20} />
@@ -1489,7 +1462,7 @@ function MediaTableView({
 		{
 			accessor: "createdBy",
 			title: "Created By",
-			render: (file: Media) => {
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => {
 				const creatorId =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? file.createdBy.id
@@ -1553,7 +1526,7 @@ function MediaTableView({
 		{
 			accessor: "filesize",
 			title: "Size",
-			render: (file: Media) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<Text size="sm" c="dimmed">
 					{prettyBytes(file.filesize || 0)}
 				</Text>
@@ -1562,7 +1535,7 @@ function MediaTableView({
 		{
 			accessor: "createdAt",
 			title: "Created",
-			render: (file: Media) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<Text size="sm" c="dimmed">
 					{dayjs(file.createdAt).format("MMM DD, YYYY")}
 				</Text>
@@ -1573,18 +1546,9 @@ function MediaTableView({
 			title: "",
 			textAlign: "right" as const,
 			render: (
-				file: Media & {
-					deletePermission?: { allowed: boolean; reason: string };
-				},
+				file: Route.ComponentProps["loaderData"]["media"][number],
 			) => (
-				<MediaActionMenu
-					file={file}
-					onDownload={onDownload}
-					onDelete={onDelete}
-					onPreview={onOpenModal}
-					onRename={onRename}
-					onShowUsage={onOpenUsageModal}
-				/>
+				<MediaActionMenu file={file} />
 			),
 		},
 	];
@@ -1725,167 +1689,48 @@ function OrphanedMediaTable({
 	);
 }
 
-export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
-	const {
-		media,
-		pagination,
-		stats,
-		systemStats,
-		selectedUserId: initialUserId,
-		userOptions,
-		orphanedMedia,
+function PruneAllOrphanedButton({ totalFiles }: { totalFiles: number }) {
+	const { submit: pruneAllOrphaned, isLoading: isPruningAll } =
+		usePruneAllOrphanedMedia();
 
-	} = loaderData;
-	const [viewMode, setViewMode] = useState<"card" | "table">("card");
-	const [selectedRecords, setSelectedRecords] = useState<Media[]>([]);
-	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
-	const [previewModalOpened, setPreviewModalOpened] = useState(false);
-	const [previewFile, setPreviewFile] = useState<Media | null>(null);
-	const [renameModalOpened, setRenameModalOpened] = useState(false);
-	const [renameFile, setRenameFile] = useState<Media | null>(null);
-	const [usageModalOpened, setUsageModalOpened] = useState(false);
-	const [usageFile, setUsageFile] = useState<Media | null>(null);
+	const handleClick = () => {
+		if (
+			window.confirm(
+				`Are you sure you want to prune all ${totalFiles} orphaned file${totalFiles !== 1 ? "s" : ""}? This action cannot be undone.`,
+			)
+		) {
+			pruneAllOrphaned({});
+		}
+	};
+
+	return (
+		<Button
+			color="red"
+			leftSection={<IconTrash size={16} />}
+			onClick={handleClick}
+			loading={isPruningAll}
+		>
+			Prune All ({totalFiles})
+		</Button>
+	);
+}
+
+function OrphanedMediaSection({
+	orphanedMedia,
+}: {
+	orphanedMedia: NonNullable<Route.ComponentProps["loaderData"]["orphanedMedia"]>;
+}) {
 	const [selectedOrphanedFilenames, setSelectedOrphanedFilenames] = useState<
 		string[]
 	>([]);
-	const [userId, setUserId] = useQueryState(
-		"userId",
-		parseAsInteger.withOptions({
-			shallow: false,
-		}),
-	);
-	const [, setPage] = useQueryState(
-		"page",
-		parseAsInteger.withDefault(1).withOptions({
-			shallow: false,
-		}),
-	);
-	const [, setOrphanedPage] = useQueryState(
-		"orphanedPage",
-		parseAsInteger.withDefault(1).withOptions({
-			shallow: false,
-		}),
-	);
-	const { submit: deleteMedia } = useDeleteMedia();
-	const { downloadMedia } = useDownloadMedia();
-	const { submit: updateMedia } = useUpdateMedia();
 	const { submit: deleteOrphanedMedia, fetcher: orphanedFetcher } =
 		useDeleteOrphanedMedia();
-	const {
-		submit: pruneAllOrphaned,
-		isLoading: isPruningAll,
-		fetcher: pruneFetcher,
-	} = usePruneAllOrphanedMedia();
-
-	// Sync userId from loader data
-	const currentUserId = userId ?? initialUserId;
-
-	const handleUserIdChange = (newUserId: number | null) => {
-		setUserId(newUserId);
-		// Reset to page 1 when user filter changes
-		setPage(1);
-	};
-
-	const handlePageChange = (newPage: number) => {
-		setPage(newPage);
-	};
-
-	const handleDownload = (file: Media) => {
-		downloadMedia(file);
-	};
-
-	const handleDelete = (
-		file: Media & { deletePermission?: { allowed: boolean; reason: string } },
-	) => {
-		if (
-			!window.confirm(
-				"Are you sure you want to delete this media file? This action cannot be undone.",
-			)
-		) {
-			return;
-		}
-
-		deleteMedia({
-			values: {
-				mediaIds: String(file.id),
-			},
-		});
-	};
-
-	const handleBatchDelete = () => {
-		const idsToDelete =
-			viewMode === "card" ? selectedCardIds : selectedRecords.map((r) => r.id);
-
-		if (idsToDelete.length === 0) {
-			return;
-		}
-
-		if (
-			!window.confirm(
-				`Are you sure you want to delete ${idsToDelete.length} media file${idsToDelete.length !== 1 ? "s" : ""}? This action cannot be undone.`,
-			)
-		) {
-			return;
-		}
-
-		deleteMedia({
-			values: {
-				mediaIds: idsToDelete.join(","),
-			},
-		});
-
-		// Clear selection after submission
-		setSelectedCardIds([]);
-		setSelectedRecords([]);
-	};
-
-	const handleTableSelectionChange = (records: Media[]) => {
-		setSelectedRecords(records);
-		// Sync to card selection state
-		setSelectedCardIds(records.map((r) => r.id));
-	};
-
-	const handleOpenModal = (file: Media) => {
-		setPreviewFile(file);
-		setPreviewModalOpened(true);
-	};
-
-	const handleCloseModal = () => {
-		setPreviewModalOpened(false);
-		setPreviewFile(null);
-	};
-
-	const handleOpenRenameModal = (file: Media) => {
-		setRenameFile(file);
-		setRenameModalOpened(true);
-	};
-
-	const handleCloseRenameModal = () => {
-		setRenameModalOpened(false);
-		setRenameFile(null);
-	};
-
-	const handleRename = (mediaId: number, newFilename: string) => {
-		updateMedia({
-			values: {
-				mediaId,
-				newFilename,
-			},
-		});
-	};
-
-	const handleOpenUsageModal = (file: Media) => {
-		setUsageFile(file);
-		setUsageModalOpened(true);
-	};
-
-	const handleCloseUsageModal = () => {
-		setUsageModalOpened(false);
-		setUsageFile(null);
-	};
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	const handleOrphanedPageChange = (newPage: number) => {
-		setOrphanedPage(newPage);
+		setQueryParams({
+			orphanedPage: newPage,
+		});
 		// Clear selection when page changes
 		setSelectedOrphanedFilenames([]);
 	};
@@ -1905,22 +1750,245 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 		setSelectedOrphanedFilenames([]);
 	};
 
-	const handlePruneAllOrphaned = () => {
-		pruneAllOrphaned({});
-	};
-
 	// Clear orphaned selection when fetcher completes successfully
 	useEffect(() => {
-		if (orphanedFetcher.state === "idle" || pruneFetcher.state === "idle") {
+		if (orphanedFetcher.state === "idle") {
 			if (selectedOrphanedFilenames.length > 0) {
 				setSelectedOrphanedFilenames([]);
 			}
 		}
-	}, [
-		orphanedFetcher.state,
-		pruneFetcher.state,
-		selectedOrphanedFilenames.length,
-	]);
+	}, [orphanedFetcher.state, selectedOrphanedFilenames.length]);
+
+	return (
+		<Card withBorder padding="lg" radius="md">
+			<Stack gap="lg">
+				<Group justify="space-between" align="center">
+					<Title order={2}>Orphaned Media Files</Title>
+					{orphanedMedia.totalFiles > 0 && (
+						<PruneAllOrphanedButton totalFiles={orphanedMedia.totalFiles} />
+					)}
+				</Group>
+				<Text size="sm" c="dimmed">
+					Files in S3 storage that are not managed by the system (not in
+					database). Total: {orphanedMedia.totalFiles} files (
+					{prettyBytes(orphanedMedia.totalSize)})
+				</Text>
+				{orphanedMedia.files.length === 0 ? (
+					<Text c="dimmed" ta="center" py="xl">
+						No orphaned media files found.
+					</Text>
+				) : (
+					<OrphanedMediaTable
+						files={orphanedMedia.files}
+						selectedFilenames={selectedOrphanedFilenames}
+						onSelectionChange={handleOrphanedSelectionChange}
+						onDelete={handleDeleteOrphaned}
+						pagination={{
+							totalPages: orphanedMedia.totalPages,
+							page: orphanedMedia.page,
+							hasPrevPage: orphanedMedia.hasPrevPage,
+							hasNextPage: orphanedMedia.hasNextPage,
+						}}
+						onPageChange={handleOrphanedPageChange}
+					/>
+				)}
+			</Stack>
+		</Card>
+	);
+}
+
+function StatsSection({
+	stats,
+	systemStats,
+	currentUserId,
+}: {
+	stats: NonNullable<Route.ComponentProps["loaderData"]["stats"]>;
+	systemStats: NonNullable<Route.ComponentProps["loaderData"]["systemStats"]> | null;
+	currentUserId: number | null;
+}) {
+	return (
+		<Card withBorder padding="lg" radius="md">
+			<Stack gap="lg">
+				<Title order={3}>
+					{currentUserId
+						? "User Media Statistics"
+						: "System Media Statistics"}
+				</Title>
+				<Grid>
+					<Grid.Col span={{ base: 12, md: 6 }}>
+						<Stack gap="md">
+							<Text fw={500}>Media by Type</Text>
+							<PieChart
+								data={Object.entries(stats.mediaTypeCount)
+									.filter(([, count]) => count > 0)
+									.map(([type, count]) => ({
+										name: type.charAt(0).toUpperCase() + type.slice(1),
+										value: count,
+										color: getTypeColor(type),
+									}))}
+								withTooltip
+								withLabels
+								labelsType="value"
+								h={300}
+								w="100%"
+							/>
+						</Stack>
+					</Grid.Col>
+					<Grid.Col span={{ base: 12, md: 6 }}>
+						<Stack gap="md">
+							<Text fw={500}>Total Storage</Text>
+							{currentUserId && systemStats ? (
+								// User view: show user storage vs system storage
+								<>
+									<DonutChart
+										data={[
+											{
+												name: "User Storage",
+												value: stats.totalSize,
+												color: "blue",
+											},
+											{
+												name: "System Storage",
+												value: Math.max(
+													0,
+													systemStats.totalSize - stats.totalSize,
+												),
+												color: "green",
+											},
+										]}
+										withTooltip
+										withLabels
+										labelsType="value"
+										chartLabel={`${prettyBytes(stats.totalSize)}`}
+										h={300}
+										w="100%"
+									/>
+									<Group gap="xl" mt="md">
+										<Box>
+											<Text size="xs" c="dimmed">
+												User Storage
+											</Text>
+											<Text size="sm" fw={500}>
+												{prettyBytes(stats.totalSize)}
+											</Text>
+										</Box>
+										<Box>
+											<Text size="xs" c="dimmed">
+												System Storage
+											</Text>
+											<Text size="sm" fw={500}>
+												{prettyBytes(systemStats.totalSize)}
+											</Text>
+										</Box>
+									</Group>
+								</>
+							) : (
+								// System view: just show total storage
+								<>
+									<DonutChart
+										data={[
+											{
+												name: "Total Storage",
+												value: stats.totalSize,
+												color: "blue",
+											},
+										]}
+										withTooltip
+										withLabels
+										labelsType="value"
+										chartLabel={`${prettyBytes(stats.totalSize)}`}
+										h={300}
+										w="100%"
+									/>
+									<Group gap="xl" mt="md">
+										<Box>
+											<Text size="xs" c="dimmed">
+												Total Storage
+											</Text>
+											<Text size="sm" fw={500}>
+												{prettyBytes(stats.totalSize)}
+											</Text>
+										</Box>
+									</Group>
+								</>
+							)}
+						</Stack>
+					</Grid.Col>
+				</Grid>
+				<Group gap="md">
+					<Text size="sm" c="dimmed">
+						Total Files: <strong>{stats.count}</strong>
+					</Text>
+					<Text size="sm" c="dimmed">
+						Total Size: <strong>{prettyBytes(stats.totalSize)}</strong>
+					</Text>
+				</Group>
+			</Stack>
+		</Card>
+	);
+}
+
+export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
+	const {
+		media,
+		pagination,
+		stats,
+		systemStats,
+		selectedUserId: initialUserId,
+		userOptions,
+		orphanedMedia,
+		searchParams: {
+			userId,
+			viewMode,
+		},
+	} = loaderData;
+	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+
+	// Derive selectedRecords from selectedCardIds and media
+	const selectedRecords = useMemo(
+		() => media.filter((record) => selectedCardIds.includes(record.id)),
+		[media, selectedCardIds],
+	);
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
+	const { submit: deleteMedia } = useDeleteMedia();
+
+	// Sync userId from loader data
+	const currentUserId = userId ?? initialUserId;
+
+	const handlePageChange = (newPage: number) => {
+		setQueryParams({
+			page: newPage
+		})
+	};
+
+	const handleBatchDelete = () => {
+		if (selectedCardIds.length === 0) {
+			return;
+		}
+
+		if (
+			!window.confirm(
+				`Are you sure you want to delete ${selectedCardIds.length} media file${selectedCardIds.length !== 1 ? "s" : ""}? This action cannot be undone.`,
+			)
+		) {
+			return;
+		}
+
+		deleteMedia({
+			values: {
+				mediaIds: selectedCardIds.join(","),
+			},
+		});
+
+		// Clear selection after submission
+		setSelectedCardIds([]);
+	};
+
+	const handleTableSelectionChange = (records: Route.ComponentProps["loaderData"]["media"]) => {
+		setSelectedCardIds(records.map((r) => r.id));
+	};
+
 
 	return (
 		<Container size="lg" py="xl">
@@ -1937,134 +2005,19 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 
 			<Stack gap="xl">
 				<MediaHeader
-					totalDocs={pagination.totalDocs}
 					viewMode={viewMode}
-					onViewModeChange={setViewMode}
+					totalDocs={pagination.totalDocs}
 					selectedUserId={currentUserId}
-					onUserIdChange={handleUserIdChange}
 					userOptions={userOptions}
 				/>
 
 				{/* Stats Section */}
 				{stats && (
-					<Card withBorder padding="lg" radius="md">
-						<Stack gap="lg">
-							<Title order={3}>
-								{currentUserId
-									? "User Media Statistics"
-									: "System Media Statistics"}
-							</Title>
-							<Grid>
-								<Grid.Col span={{ base: 12, md: 6 }}>
-									<Stack gap="md">
-										<Text fw={500}>Media by Type</Text>
-										<PieChart
-											data={Object.entries(stats.mediaTypeCount)
-												.filter(([, count]) => count > 0)
-												.map(([type, count]) => ({
-													name: type.charAt(0).toUpperCase() + type.slice(1),
-													value: count,
-													color: getTypeColor(type),
-												}))}
-											withTooltip
-											withLabels
-											labelsType="value"
-											h={300}
-											w="100%"
-										/>
-									</Stack>
-								</Grid.Col>
-								<Grid.Col span={{ base: 12, md: 6 }}>
-									<Stack gap="md">
-										<Text fw={500}>Total Storage</Text>
-										{currentUserId && systemStats ? (
-											// User view: show user storage vs system storage
-											<>
-												<DonutChart
-													data={[
-														{
-															name: "User Storage",
-															value: stats.totalSize,
-															color: "blue",
-														},
-														{
-															name: "System Storage",
-															value: Math.max(
-																0,
-																systemStats.totalSize - stats.totalSize,
-															),
-															color: "green",
-														},
-													]}
-													withTooltip
-													withLabels
-													labelsType="value"
-													chartLabel={`${prettyBytes(stats.totalSize)}`}
-													h={300}
-													w="100%"
-												/>
-												<Group gap="xl" mt="md">
-													<Box>
-														<Text size="xs" c="dimmed">
-															User Storage
-														</Text>
-														<Text size="sm" fw={500}>
-															{prettyBytes(stats.totalSize)}
-														</Text>
-													</Box>
-													<Box>
-														<Text size="xs" c="dimmed">
-															System Storage
-														</Text>
-														<Text size="sm" fw={500}>
-															{prettyBytes(systemStats.totalSize)}
-														</Text>
-													</Box>
-												</Group>
-											</>
-										) : (
-											// System view: just show total storage
-											<>
-												<DonutChart
-													data={[
-														{
-															name: "Total Storage",
-															value: stats.totalSize,
-															color: "blue",
-														},
-													]}
-													withTooltip
-													withLabels
-													labelsType="value"
-													chartLabel={`${prettyBytes(stats.totalSize)}`}
-													h={300}
-													w="100%"
-												/>
-												<Group gap="xl" mt="md">
-													<Box>
-														<Text size="xs" c="dimmed">
-															Total Storage
-														</Text>
-														<Text size="sm" fw={500}>
-															{prettyBytes(stats.totalSize)}
-														</Text>
-													</Box>
-												</Group>
-											</>
-										)}
-									</Stack>
-								</Grid.Col>
-							</Grid>
-							<Group gap="md">
-								<Text size="sm" c="dimmed">
-									Total Files: <strong>{stats.count}</strong>
-								</Text>
-								<Text size="sm" c="dimmed">
-									Total Size: <strong>{prettyBytes(stats.totalSize)}</strong>
-								</Text>
-							</Group>
-						</Stack>
-					</Card>
+					<StatsSection
+						stats={stats}
+						systemStats={systemStats}
+						currentUserId={currentUserId}
+					/>
 				)}
 
 				{media.length === 0 ? (
@@ -2081,11 +2034,6 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 							media={media}
 							selectedCardIds={selectedCardIds}
 							onSelectionChange={setSelectedCardIds}
-							onDownload={handleDownload}
-							onDelete={handleDelete}
-							onOpenModal={handleOpenModal}
-							onRename={handleOpenRenameModal}
-							onOpenUsageModal={handleOpenUsageModal}
 						/>
 						<MediaPagination
 							totalPages={pagination.totalPages}
@@ -2103,11 +2051,6 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 							media={media}
 							selectedRecords={selectedRecords}
 							onSelectionChange={handleTableSelectionChange}
-							onDownload={handleDownload}
-							onDelete={handleDelete}
-							onOpenModal={handleOpenModal}
-							onRename={handleOpenRenameModal}
-							onOpenUsageModal={handleOpenUsageModal}
 						/>
 						<MediaPagination
 							totalPages={pagination.totalPages}
@@ -2117,79 +2060,11 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 					</>
 				)}
 
-				{/* Media Preview Modal */}
-				<MediaPreviewModal
-					file={previewFile}
-					opened={previewModalOpened}
-					onClose={handleCloseModal}
-				/>
-
-				{/* Media Rename Modal */}
-				<MediaRenameModal
-					file={renameFile}
-					opened={renameModalOpened}
-					onClose={handleCloseRenameModal}
-					onRename={handleRename}
-				/>
-
-				{/* Media Usage Modal */}
-				<MediaUsageModal
-					file={usageFile}
-					opened={usageModalOpened}
-					onClose={handleCloseUsageModal}
-				/>
-
 				{/* Orphaned Media Section */}
 				{orphanedMedia && (
-					<Card withBorder padding="lg" radius="md">
-						<Stack gap="lg">
-							<Group justify="space-between" align="center">
-								<Title order={2}>Orphaned Media Files</Title>
-								{orphanedMedia.totalFiles > 0 && (
-									<Button
-										color="red"
-										leftSection={<IconTrash size={16} />}
-										onClick={() => {
-											if (
-												window.confirm(
-													`Are you sure you want to prune all ${orphanedMedia.totalFiles} orphaned file${orphanedMedia.totalFiles !== 1 ? "s" : ""}? This action cannot be undone.`,
-												)
-											) {
-												handlePruneAllOrphaned();
-											}
-										}}
-										loading={isPruningAll}
-									>
-										Prune All ({orphanedMedia.totalFiles})
-									</Button>
-								)}
-							</Group>
-							<Text size="sm" c="dimmed">
-								Files in S3 storage that are not managed by the system (not in
-								database). Total: {orphanedMedia.totalFiles} files (
-								{prettyBytes(orphanedMedia.totalSize)})
-							</Text>
-							{orphanedMedia.files.length === 0 ? (
-								<Text c="dimmed" ta="center" py="xl">
-									No orphaned media files found.
-								</Text>
-							) : (
-								<OrphanedMediaTable
-									files={orphanedMedia.files}
-									selectedFilenames={selectedOrphanedFilenames}
-									onSelectionChange={handleOrphanedSelectionChange}
-									onDelete={handleDeleteOrphaned}
-									pagination={{
-										totalPages: orphanedMedia.totalPages,
-										page: orphanedMedia.page,
-										hasPrevPage: orphanedMedia.hasPrevPage,
-										hasNextPage: orphanedMedia.hasNextPage,
-									}}
-									onPageChange={handleOrphanedPageChange}
-								/>
-							)}
-						</Stack>
-					</Card>
+					<OrphanedMediaSection
+						orphanedMedia={orphanedMedia}
+					/>
 				)}
 			</Stack>
 		</Container>

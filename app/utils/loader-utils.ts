@@ -4,8 +4,12 @@ import { useFetcher } from "react-router";
 import type { Simplify } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest, BadRequestResponse } from "~/utils/responses";
-import { paramsSchema, type ParamsType } from "~/utils/params-schema";
-import { createLoader, type ParserMap } from "nuqs/server";
+import { paramsSchema, type ParamsType } from "app/utils/route-params-schema";
+import {
+	createLoader,
+	type ParserMap,
+	type inferParserType,
+} from "nuqs/server";
 
 type ParamsSchema = typeof paramsSchema;
 /**
@@ -45,7 +49,7 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 		// Compute SearchParamsType
 		type SearchParamsType =
 			SearchParamsSchema extends Record<string, unknown>
-				? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+				? inferParserType<NonNullable<SearchParamsSchema>>
 				: never;
 
 		type Params = PreserveOptionalParams<T>;
@@ -182,7 +186,7 @@ export function typeCreateLoader<T extends LoaderFunctionArgs>() {
 		// Compute SearchParamsType
 		type SearchParamsType =
 			SearchParamsSchema extends Record<string, unknown>
-				? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+				? inferParserType<NonNullable<SearchParamsSchema>>
 				: never;
 
 		type Params = PreserveOptionalParams<T>;

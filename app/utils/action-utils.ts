@@ -4,9 +4,14 @@ import { useFetcher } from "react-router";
 import type { Simplify, UnionToIntersection } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest } from "~/utils/responses";
-import { paramsSchema, type ParamsType } from "./params-schema";
+import { paramsSchema, type ParamsType } from "./route-params-schema";
 import { isRequestMethod } from "~/utils/assert-request-method";
-import { createLoader, parseAsStringEnum, type ParserMap } from "nuqs/server";
+import {
+	createLoader,
+	parseAsStringEnum,
+	type ParserMap,
+	type inferParserType,
+} from "nuqs/server";
 import { ContentType } from "~/utils/get-content-type";
 
 /**
@@ -295,11 +300,11 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 			UnionToIntersection<
 				Exclude<
 					HasBoth extends true
-						? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+						? inferParserType<NonNullable<typeof mergedSearchParams>>
 						: HasAction extends true
 							? { action: Action }
 							: HasSearchParams extends true
-								? Awaited<ReturnType<NonNullable<typeof loadSearchParams>>>
+								? inferParserType<NonNullable<SearchParamsSchema>>
 								: never,
 					{ action: never }
 				>
