@@ -40,6 +40,7 @@ import {
 } from "../../../components/course-view-utils";
 import type { Route } from "app/routes/course.$id.participants/route";
 import { getRouteUrl } from "app/routes/course.$id.participants.profile";
+import { DeleteEnrollmentButton } from "./delete-enrollment-modal";
 
 type Enrollment = NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>;
 
@@ -50,18 +51,19 @@ interface EnrollmentsSectionProps {
 	fetcherState: string;
 	onOpenEnrollModal: () => void;
 	onEditEnrollment: (enrollment: Enrollment) => void;
-	onDeleteEnrollment: (enrollmentId: number) => void;
 }
 
-// Email modal component
-interface EmailModalProps {
-	opened: boolean;
-	onClose: () => void;
-	recipients: Array<{ name: string; email: string }>;
-	onSend: (subject: string, message: string) => void;
+// Batch email button component with integrated modal
+interface BatchEmailButtonProps {
+	selectedEnrollments: Enrollment[];
+	onEmailSent?: () => void;
 }
 
-function EmailModal({ opened, onClose, recipients, onSend }: EmailModalProps) {
+function BatchEmailButton({
+	selectedEnrollments,
+	onEmailSent,
+}: BatchEmailButtonProps) {
+	const [opened, setOpened] = useState(false);
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -76,57 +78,90 @@ function EmailModal({ opened, onClose, recipients, onSend }: EmailModalProps) {
 		},
 	});
 
+	const recipients = selectedEnrollments.map((e) => ({
+		name: e.user.firstName + " " + e.user.lastName,
+		email: e.user.email || "",
+	}));
+
 	const handleSubmit = form.onSubmit((values) => {
-		onSend(values.subject, values.message);
+		// TODO: Implement actual email sending via API
+		console.log(
+			"Sending email to:",
+			selectedEnrollments.map((e) => e.user.email),
+		);
+		console.log("Subject:", values.subject);
+		console.log("Message:", values.message);
+
+		notifications.show({
+			title: "NOT IMPLEMENTED",
+			message: `This feature is not implemented yet.`,
+			color: "red",
+		});
+
 		form.reset();
-		onClose();
+		setOpened(false);
+		onEmailSent?.();
 	});
 
+	if (selectedEnrollments.length === 0) {
+		return null;
+	}
+
 	return (
-		<Modal opened={opened} onClose={onClose} title="Send Email" size="lg">
-			<form onSubmit={handleSubmit}>
-				<Stack gap="md">
-					<Box>
-						<Text size="sm" fw={500} mb="xs">
-							Recipients ({recipients.length})
-						</Text>
-						<Paper withBorder p="sm" bg="gray.0">
-							<Group gap="xs">
-								{recipients.map((recipient) => (
-									<Badge key={recipient.email} size="sm" variant="light">
-										{recipient.name}
-									</Badge>
-								))}
-							</Group>
-						</Paper>
-					</Box>
+		<>
+			<Button
+				variant="light"
+				leftSection={<IconMail size={16} />}
+				onClick={() => setOpened(true)}
+				size="sm"
+			>
+				Email Selected
+			</Button>
+			<Modal opened={opened} onClose={() => setOpened(false)} title="Send Email" size="lg">
+				<form onSubmit={handleSubmit}>
+					<Stack gap="md">
+						<Box>
+							<Text size="sm" fw={500} mb="xs">
+								Recipients ({recipients.length})
+							</Text>
+							<Paper withBorder p="sm" bg="gray.0">
+								<Group gap="xs">
+									{recipients.map((recipient) => (
+										<Badge key={recipient.email} size="sm" variant="light">
+											{recipient.name}
+										</Badge>
+									))}
+								</Group>
+							</Paper>
+						</Box>
 
-					<Input.Wrapper label="Subject" required>
-						<Input
-							placeholder="Enter email subject..."
-							{...form.getInputProps("subject")}
+						<Input.Wrapper label="Subject" required>
+							<Input
+								placeholder="Enter email subject..."
+								{...form.getInputProps("subject")}
+							/>
+						</Input.Wrapper>
+
+						<Textarea
+							label="Message"
+							placeholder="Enter your message..."
+							minRows={6}
+							required
+							{...form.getInputProps("message")}
 						/>
-					</Input.Wrapper>
 
-					<Textarea
-						label="Message"
-						placeholder="Enter your message..."
-						minRows={6}
-						required
-						{...form.getInputProps("message")}
-					/>
-
-					<Group justify="flex-end" gap="xs">
-						<Button variant="default" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" leftSection={<IconSend size={16} />}>
-							Send Email
-						</Button>
-					</Group>
-				</Stack>
-			</form>
-		</Modal>
+						<Group justify="flex-end" gap="xs">
+							<Button variant="default" onClick={() => setOpened(false)}>
+								Cancel
+							</Button>
+							<Button type="submit" leftSection={<IconSend size={16} />}>
+								Send Email
+							</Button>
+						</Group>
+					</Stack>
+				</form>
+			</Modal>
+		</>
 	);
 }
 
@@ -137,10 +172,8 @@ export function EnrollmentsSection({
 	fetcherState,
 	onOpenEnrollModal,
 	onEditEnrollment,
-	onDeleteEnrollment,
 }: EnrollmentsSectionProps) {
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
-	const [emailModalOpened, setEmailModalOpened] = useState(false);
 	const clipboard = useClipboard({ timeout: 2000 });
 
 	const allRowIds = enrollments.map((e) => e.id);
@@ -165,26 +198,7 @@ export function EnrollmentsSection({
 		selectedRows.includes(e.id),
 	);
 
-	// Batch email functionality
-	const handleBatchEmail = () => {
-		setEmailModalOpened(true);
-	};
-
-	const handleSendEmail = (subject: string, message: string) => {
-		// TODO: Implement actual email sending via API
-		console.log(
-			"Sending email to:",
-			selectedEnrollments.map((e) => e.user.email),
-		);
-		console.log("Subject:", subject);
-		console.log("Message:", message);
-
-		notifications.show({
-			title: "Email Sent",
-			message: `Email sent to ${selectedEnrollments.length} recipient${selectedEnrollments.length === 1 ? "" : "s"}`,
-			color: "green",
-		});
-
+	const handleEmailSent = () => {
 		setSelectedRows([]);
 	};
 
@@ -271,249 +285,225 @@ export function EnrollmentsSection({
 	};
 
 	return (
-		<>
-			<EmailModal
-				opened={emailModalOpened}
-				onClose={() => setEmailModalOpened(false)}
-				recipients={selectedEnrollments.map((e) => ({
-					name: e.user.firstName + " " + e.user.lastName,
-					email: e.user.email || "",
-				}))}
-				onSend={handleSendEmail}
-			/>
-
-			<Paper withBorder shadow="sm" p="xl" radius="md">
-				<Stack gap="lg">
-					<Group justify="space-between">
-						<Group gap="md">
-							<Title order={2}>Enrollments</Title>
-							{selectedRows.length > 0 && (
-								<Badge size="lg" variant="filled">
-									{selectedRows.length} selected
-								</Badge>
-							)}
-						</Group>
-						<Group gap="xs">
-							{selectedRows.length > 0 && (
-								<>
-									<Button
-										variant="light"
-										leftSection={<IconMail size={16} />}
-										onClick={handleBatchEmail}
-										size="sm"
-									>
-										Email Selected
-									</Button>
-									<Button
-										variant="light"
-										color={clipboard.copied ? "teal" : undefined}
-										leftSection={
-											clipboard.copied ? (
-												<IconCheck size={16} />
-											) : (
-												<IconCopy size={16} />
-											)
-										}
-										onClick={handleCopyEmails}
-										size="sm"
-									>
-										{clipboard.copied ? "Copied!" : "Copy Emails"}
-									</Button>
-									<Button
-										variant="light"
-										leftSection={<IconDownload size={16} />}
-										onClick={handleBatchExport}
-										size="sm"
-									>
-										Export CSV
-									</Button>
-									<Menu position="bottom-end">
-										<Menu.Target>
-											<ActionIcon variant="light" size="lg">
-												<IconDots size={18} />
-											</ActionIcon>
-										</Menu.Target>
-										<Menu.Dropdown>
-											<Menu.Item
-												color="red"
-												leftSection={<IconTrash size={16} />}
-												onClick={handleBatchDelete}
-											>
-												Delete Selected
-											</Menu.Item>
-										</Menu.Dropdown>
-									</Menu>
-								</>
-							)}
-							{currentUserRole === "admin" && (
-								<Button
-									leftSection={<IconUserPlus size={16} />}
-									onClick={onOpenEnrollModal}
-									disabled={fetcherState === "submitting"}
-								>
-									Enrol User
-								</Button>
-							)}
-						</Group>
+		<Paper withBorder shadow="sm" p="xl" radius="md">
+			<Stack gap="lg">
+				<Group justify="space-between">
+					<Group gap="md">
+						<Title order={2}>Enrollments</Title>
+						{selectedRows.length > 0 && (
+							<Badge size="lg" variant="filled">
+								{selectedRows.length} selected
+							</Badge>
+						)}
 					</Group>
+					<Group gap="xs">
+						{selectedRows.length > 0 && (
+							<>
+								<BatchEmailButton
+									selectedEnrollments={selectedEnrollments}
+									onEmailSent={handleEmailSent}
+								/>
+								<Button
+									variant="light"
+									color={clipboard.copied ? "teal" : undefined}
+									leftSection={
+										clipboard.copied ? (
+											<IconCheck size={16} />
+										) : (
+											<IconCopy size={16} />
+										)
+									}
+									onClick={handleCopyEmails}
+									size="sm"
+								>
+									{clipboard.copied ? "Copied!" : "Copy Emails"}
+								</Button>
+								<Button
+									variant="light"
+									leftSection={<IconDownload size={16} />}
+									onClick={handleBatchExport}
+									size="sm"
+								>
+									Export CSV
+								</Button>
+								<Menu position="bottom-end">
+									<Menu.Target>
+										<ActionIcon variant="light" size="lg">
+											<IconDots size={18} />
+										</ActionIcon>
+									</Menu.Target>
+									<Menu.Dropdown>
+										<Menu.Item
+											color="red"
+											leftSection={<IconTrash size={16} />}
+											onClick={handleBatchDelete}
+										>
+											Delete Selected
+										</Menu.Item>
+									</Menu.Dropdown>
+								</Menu>
+							</>
+						)}
+						{currentUserRole === "admin" && (
+							<Button
+								leftSection={<IconUserPlus size={16} />}
+								onClick={onOpenEnrollModal}
+								disabled={fetcherState === "submitting"}
+							>
+								Enrol User
+							</Button>
+						)}
+					</Group>
+				</Group>
 
-					{enrollments.length === 0 ? (
-						<Text c="dimmed" ta="center" py="xl">
-							No users enrolled in this course yet.
-						</Text>
-					) : (
-						<Box style={{ overflowX: "auto" }}>
-							<Table striped highlightOnHover>
-								<Table.Thead>
-									<Table.Tr>
-										<Table.Th style={{ width: 40 }}>
-											<Checkbox
-												aria-label="Select all rows"
-												checked={allSelected}
-												indeterminate={someSelected}
-												onChange={handleSelectAll}
-											/>
-										</Table.Th>
-										<Table.Th>Name</Table.Th>
-										<Table.Th>Email</Table.Th>
-										<Table.Th>Role</Table.Th>
-										<Table.Th>Status</Table.Th>
-										<Table.Th>Groups</Table.Th>
-										<Table.Th>Last Access</Table.Th>
-										{currentUserRole === "admin" && (
-											<Table.Th>Actions</Table.Th>
-										)}
-									</Table.Tr>
-								</Table.Thead>
-								<Table.Tbody>
-									{enrollments.map((enrollment) => {
-										const email = enrollment.user.email || "Unknown";
-										const fullName =
-											enrollment.user.firstName +
-											" " +
-											enrollment.user.lastName;
-										const isSelected = selectedRows.includes(enrollment.id);
+				{enrollments.length === 0 ? (
+					<Text c="dimmed" ta="center" py="xl">
+						No users enrolled in this course yet.
+					</Text>
+				) : (
+					<Box style={{ overflowX: "auto" }}>
+						<Table striped highlightOnHover>
+							<Table.Thead>
+								<Table.Tr>
+									<Table.Th style={{ width: 40 }}>
+										<Checkbox
+											aria-label="Select all rows"
+											checked={allSelected}
+											indeterminate={someSelected}
+											onChange={handleSelectAll}
+										/>
+									</Table.Th>
+									<Table.Th>Name</Table.Th>
+									<Table.Th>Email</Table.Th>
+									<Table.Th>Role</Table.Th>
+									<Table.Th>Status</Table.Th>
+									<Table.Th>Groups</Table.Th>
+									<Table.Th>Last Access</Table.Th>
+									{currentUserRole === "admin" && (
+										<Table.Th>Actions</Table.Th>
+									)}
+								</Table.Tr>
+							</Table.Thead>
+							<Table.Tbody>
+								{enrollments.map((enrollment) => {
+									const email = enrollment.user.email || "Unknown";
+									const fullName =
+										enrollment.user.firstName +
+										" " +
+										enrollment.user.lastName;
+									const isSelected = selectedRows.includes(enrollment.id);
 
-										return (
-											<Table.Tr
-												key={enrollment.id}
-												bg={
-													isSelected
-														? "var(--mantine-color-blue-light)"
-														: undefined
-												}
-											>
+									return (
+										<Table.Tr
+											key={enrollment.id}
+											bg={
+												isSelected
+													? "var(--mantine-color-blue-light)"
+													: undefined
+											}
+										>
+											<Table.Td>
+												<Checkbox
+													aria-label="Select row"
+													checked={isSelected}
+													onChange={(event) =>
+														handleSelectRow(
+															enrollment.id,
+															event.currentTarget.checked,
+														)
+													}
+												/>
+											</Table.Td>
+											<Table.Td>
+												<Group gap="sm">
+													<Avatar size="sm" color="blue">
+														{fullName.charAt(0)}
+													</Avatar>
+													<Text
+														fw={500}
+														component={Link}
+														to={getRouteUrl(courseId, enrollment.user.id)}
+													>
+														{fullName}
+													</Text>
+												</Group>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm">{email}</Text>
+											</Table.Td>
+											<Table.Td>
+												<Badge
+													color={getEnrolmentRoleBadgeColor(enrollment.role)}
+													variant="light"
+												>
+													{getRoleLabel(enrollment.role)}
+												</Badge>
+											</Table.Td>
+											<Table.Td>
+												<Badge
+													color={getEnrollmentStatusBadgeColor(
+														enrollment.status,
+													)}
+												>
+													{getEnrollmentStatusLabel(enrollment.status)}
+												</Badge>
+											</Table.Td>
+											<Table.Td>
+												{enrollment.groups.length > 0 ? (
+													<Group gap="xs">
+														{enrollment.groups.map((group) => (
+															<Badge
+																key={group.id}
+																size="sm"
+																styles={{
+																	root: {
+																		"--badge-bg": group.color,
+																	},
+																}}
+															>
+																{group.name}
+															</Badge>
+														))}
+													</Group>
+												) : (
+													<Text size="sm" c="dimmed">
+														No groups
+													</Text>
+												)}
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm" c="dimmed">
+													Never
+												</Text>
+											</Table.Td>
+											{currentUserRole === "admin" && (
 												<Table.Td>
-													<Checkbox
-														aria-label="Select row"
-														checked={isSelected}
-														onChange={(event) =>
-															handleSelectRow(
-																enrollment.id,
-																event.currentTarget.checked,
-															)
-														}
-													/>
-												</Table.Td>
-												<Table.Td>
-													<Group gap="sm">
-														<Avatar size="sm" color="blue">
-															{fullName.charAt(0)}
-														</Avatar>
-														<Text
-															fw={500}
-															component={Link}
-															to={getRouteUrl(courseId, enrollment.user.id)}
+													<Group gap="xs">
+														<ActionIcon
+															variant="light"
+															color="blue"
+															size="md"
+															aria-label="Edit enrollment"
+															onClick={() => onEditEnrollment(enrollment)}
+															disabled={fetcherState === "submitting"}
 														>
-															{fullName}
-														</Text>
+															<IconEdit size={16} />
+														</ActionIcon>
+														<DeleteEnrollmentButton
+															enrollmentId={enrollment.id}
+															courseId={courseId}
+														/>
 													</Group>
 												</Table.Td>
-												<Table.Td>
-													<Text size="sm">{email}</Text>
-												</Table.Td>
-												<Table.Td>
-													<Badge
-														color={getEnrolmentRoleBadgeColor(enrollment.role)}
-														variant="light"
-													>
-														{getRoleLabel(enrollment.role)}
-													</Badge>
-												</Table.Td>
-												<Table.Td>
-													<Badge
-														color={getEnrollmentStatusBadgeColor(
-															enrollment.status,
-														)}
-													>
-														{getEnrollmentStatusLabel(enrollment.status)}
-													</Badge>
-												</Table.Td>
-												<Table.Td>
-													{enrollment.groups.length > 0 ? (
-														<Group gap="xs">
-															{enrollment.groups.map((group) => (
-																<Badge
-																	key={group.id}
-																	size="sm"
-																	styles={{
-																		root: {
-																			"--badge-bg": group.color,
-																		},
-																	}}
-																>
-																	{group.name}
-																</Badge>
-															))}
-														</Group>
-													) : (
-														<Text size="sm" c="dimmed">
-															No groups
-														</Text>
-													)}
-												</Table.Td>
-												<Table.Td>
-													<Text size="sm" c="dimmed">
-														Never
-													</Text>
-												</Table.Td>
-												{currentUserRole === "admin" && (
-													<Table.Td>
-														<Group gap="xs">
-															<ActionIcon
-																variant="light"
-																color="blue"
-																size="md"
-																aria-label="Edit enrollment"
-																onClick={() => onEditEnrollment(enrollment)}
-																disabled={fetcherState === "submitting"}
-															>
-																<IconEdit size={16} />
-															</ActionIcon>
-															<ActionIcon
-																variant="light"
-																color="red"
-																size="md"
-																aria-label="Delete enrollment"
-																onClick={() =>
-																	onDeleteEnrollment(enrollment.id)
-																}
-																disabled={fetcherState === "submitting"}
-															>
-																<IconTrash size={16} />
-															</ActionIcon>
-														</Group>
-													</Table.Td>
-												)}
-											</Table.Tr>
-										);
-									})}
-								</Table.Tbody>
-							</Table>
-						</Box>
-					)}
-				</Stack>
-			</Paper>
-		</>
+											)}
+										</Table.Tr>
+									);
+								})}
+							</Table.Tbody>
+						</Table>
+					</Box>
+				)}
+			</Stack>
+		</Paper>
 	);
 }

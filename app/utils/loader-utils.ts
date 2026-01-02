@@ -119,16 +119,20 @@ export function typeCreateLoaderRpc<T extends LoaderFunctionArgs>() {
 
 				// parse and validate custom params schema if provided
 				for (const [key, value] of Object.entries(params)) {
-					const parsed =
-						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+					const schema = paramsSchema[key as keyof typeof paramsSchema];
+					if (schema) {
+						const parsed = schema.safeParse(value);
 
-					if (!parsed.success) {
-						return badRequest({
-							success: false,
-							error: z.prettifyError(parsed.error),
-						});
+						if (!parsed.success) {
+							return badRequest({
+								success: false,
+								error: z.prettifyError(parsed.error),
+							});
+						}
+						_params[key] = parsed.data;
+					} else {
+						_params[key] = value;
 					}
-					_params[key as keyof typeof _params] = parsed.data;
 				}
 
 				return loader({
@@ -241,15 +245,19 @@ export function typeCreateLoader<T extends LoaderFunctionArgs>() {
 
 				// parse and validate custom params schema if provided
 				for (const [key, value] of Object.entries(params)) {
-					const parsed =
-						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
+					const schema = paramsSchema[key as keyof typeof paramsSchema];
+					if (schema) {
+						const parsed = schema.safeParse(value);
 
-					if (!parsed.success) {
-						throw new BadRequestResponse(
-							`Invalid parameter '${key}': ${z.prettifyError(parsed.error)}`,
-						);
+						if (!parsed.success) {
+							throw new BadRequestResponse(
+								`Invalid parameter '${key}': ${z.prettifyError(parsed.error)}`,
+							);
+						}
+						_params[key] = parsed.data;
+					} else {
+						_params[key] = value;
 					}
-					_params[key as keyof typeof _params] = parsed.data;
 				}
 
 				return loader({

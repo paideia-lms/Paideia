@@ -352,15 +352,22 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 					});
 				}
 
-				// check every params in the schema
+				// parse and validate custom params schema if provided
+				const _params: Record<string, string | number | undefined> = {};
+
 				for (const [key, value] of Object.entries(params)) {
-					const result =
-						paramsSchema[key as keyof typeof paramsSchema].safeParse(value);
-					if (!result.success) {
-						return badRequest({
-							success: false,
-							error: z.prettifyError(result.error),
-						});
+					const schema = paramsSchema[key as keyof typeof paramsSchema];
+					if (schema) {
+						const result = schema.safeParse(value);
+						if (!result.success) {
+							return badRequest({
+								success: false,
+								error: z.prettifyError(result.error),
+							});
+						}
+						_params[key] = result.data;
+					} else {
+						_params[key] = value;
 					}
 				}
 
@@ -372,6 +379,7 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 				// Build base args object
 				const baseArgs = {
 					...args,
+					params: _params,
 					request: request as Omit<T["request"], "method"> & { method: Method },
 					...(parsedSearchParams !== undefined
 						? { searchParams: parsedSearchParams }

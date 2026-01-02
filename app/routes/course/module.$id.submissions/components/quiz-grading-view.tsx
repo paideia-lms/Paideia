@@ -42,11 +42,11 @@ export interface QuizGradingViewProps {
 			questionId: string;
 			questionText?: string | null;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -58,13 +58,13 @@ export interface QuizGradingViewProps {
 			feedback?: string | null;
 		}> | null;
 		student:
-			| {
-					id: number;
-					firstName?: string | null;
-					lastName?: string | null;
-					email?: string | null;
-			  }
-			| number;
+		| {
+			id: number;
+			firstName?: string | null;
+			lastName?: string | null;
+			email?: string | null;
+		}
+		| number;
 	};
 	module: {
 		id: number;
@@ -87,17 +87,17 @@ export interface QuizGradingViewProps {
 		feedback: string | null;
 	} | null;
 	enrollment?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 	courseModuleLink?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 }
 
 // ============================================================================
@@ -155,7 +155,7 @@ export function QuizGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-				student.email
+			student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 

@@ -17,7 +17,6 @@ import {
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
 import type { Enrollment } from "server/payload-types";
-import { DeleteEnrollmentModal } from "./components/delete-enrollment-modal";
 import { EditEnrollmentModal } from "./components/edit-enrollment-modal";
 import { EnrollUserModal } from "./components/enroll-user-modal";
 import { EnrollmentsSection } from "./components/enrollments-section";
@@ -161,16 +160,15 @@ const checkAuthorization = async (
 const [enrollUserAction, useEnrollUser] = createEnrollActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
-		const { courseId } = params;
-		const courseIdNum = Number(courseId);
+		const courseId = params.courseId;
 
-		const authError = await checkAuthorization(context, courseIdNum);
+		const authError = await checkAuthorization(context, courseId);
 		if (authError) return authError;
 
 		const createResult = await tryCreateEnrollment({
 			payload,
 			userId: formData.userId,
-			course: courseIdNum,
+			course: courseId,
 			role: formData.role,
 			status: formData.status,
 			groups: formData.groups,
@@ -301,8 +299,7 @@ export default function CourseParticipantsPage({
 	// Action hooks
 	const { submit: enrollUser, isLoading: isEnrolling } = useEnrollUser();
 	const { submit: editEnrollment, isLoading: isEditing } = useEditEnrollment();
-	const { submit: deleteEnrollment, isLoading: isDeleting } =
-		useDeleteEnrollment();
+	const { isLoading: isDeleting } = useDeleteEnrollment();
 
 	// Modal states
 	const [
@@ -311,10 +308,6 @@ export default function CourseParticipantsPage({
 	] = useDisclosure(false);
 	const [editModalOpened, { open: openEditModal, close: closeEditModal }] =
 		useDisclosure(false);
-	const [
-		deleteModalOpened,
-		{ open: openDeleteModal, close: closeDeleteModal },
-	] = useDisclosure(false);
 
 	// Form states
 	const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
@@ -324,9 +317,6 @@ export default function CourseParticipantsPage({
 	const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(
 		null,
 	);
-	const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<
-		number | null
-	>(null);
 
 	// Prepare available groups for selection
 	const availableGroups = course.groups.map((group) => ({
@@ -398,23 +388,6 @@ export default function CourseParticipantsPage({
 		}
 	};
 
-	const handleDeleteEnrollment = (enrollmentId: number) => {
-		setDeletingEnrollmentId(enrollmentId);
-		openDeleteModal();
-	};
-
-	const handleConfirmDeleteEnrollment = async () => {
-		if (deletingEnrollmentId) {
-			await deleteEnrollment({
-				values: {
-					enrollmentId: deletingEnrollmentId,
-				},
-				params: { courseId: course.id },
-			});
-			closeDeleteModal();
-			setDeletingEnrollmentId(null);
-		}
-	};
 
 	const fetcherState =
 		isEnrolling || isEditing || isDeleting ? "submitting" : "idle";
@@ -433,7 +406,6 @@ export default function CourseParticipantsPage({
 				fetcherState={fetcherState}
 				onOpenEnrollModal={openEnrollModal}
 				onEditEnrollment={handleEditEnrollment}
-				onDeleteEnrollment={handleDeleteEnrollment}
 			/>
 
 			<EnrollUserModal
@@ -467,12 +439,6 @@ export default function CourseParticipantsPage({
 				onUpdateEnrollment={handleUpdateEnrollment}
 			/>
 
-			<DeleteEnrollmentModal
-				opened={deleteModalOpened}
-				onClose={closeDeleteModal}
-				fetcherState={fetcherState}
-				onConfirmDelete={handleConfirmDeleteEnrollment}
-			/>
 		</>
 	);
 }

@@ -1,38 +1,43 @@
-import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { ActionIcon } from "@mantine/core";
+import { IconTrash } from "@tabler/icons-react";
+import { useDeleteEnrollment } from "../route";
 
-interface DeleteEnrollmentModalProps {
-	opened: boolean;
-	onClose: () => void;
-	fetcherState: string;
-	onConfirmDelete: () => void;
+interface DeleteEnrollmentButtonProps {
+	enrollmentId: number;
+	courseId: number;
 }
 
-export function DeleteEnrollmentModal({
-	opened,
-	onClose,
-	fetcherState,
-	onConfirmDelete,
-}: DeleteEnrollmentModalProps) {
+export function DeleteEnrollmentButton({
+	enrollmentId,
+	courseId,
+}: DeleteEnrollmentButtonProps) {
+	const { submit: deleteEnrollment, isLoading: isDeleting } =
+		useDeleteEnrollment();
+
+	const handleDelete = async () => {
+		const confirmed = window.confirm(
+			"Are you sure you want to delete this enrollment? This action cannot be undone.",
+		);
+		if (!confirmed) return;
+
+		await deleteEnrollment({
+			values: {
+				enrollmentId: enrollmentId,
+			},
+			params: { courseId: courseId },
+		});
+	};
+
 	return (
-		<Modal opened={opened} onClose={onClose} title="Delete Enrollment" centered>
-			<Stack gap="md">
-				<Text>
-					Are you sure you want to delete this enrollment? This action cannot be
-					undone.
-				</Text>
-				<Group justify="flex-end" gap="sm">
-					<Button variant="default" onClick={onClose}>
-						Cancel
-					</Button>
-					<Button
-						color="red"
-						onClick={onConfirmDelete}
-						loading={fetcherState === "submitting"}
-					>
-						Delete
-					</Button>
-				</Group>
-			</Stack>
-		</Modal>
+		<ActionIcon
+			variant="light"
+			color="red"
+			size="md"
+			aria-label="Delete enrollment"
+			onClick={handleDelete}
+			loading={isDeleting}
+		>
+			<IconTrash size={16} />
+		</ActionIcon>
 	);
 }

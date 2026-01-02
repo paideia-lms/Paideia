@@ -114,19 +114,6 @@ export function tryCreateEnrollment(args: CreateEnrollmentArgs) {
 				overrideAccess = false,
 			} = args;
 
-			// Validate required fields
-			if (!userId) {
-				throw new InvalidArgumentError("User ID is required");
-			}
-
-			if (!course) {
-				throw new InvalidArgumentError("Course ID is required");
-			}
-
-			if (!role) {
-				throw new InvalidArgumentError("Role is required");
-			}
-
 			// Handle transaction
 			const transactionInfo = await handleTransactionId(payload, req);
 
@@ -177,7 +164,16 @@ export function tryCreateEnrollment(args: CreateEnrollmentArgs) {
 						overrideAccess,
 						depth: 0,
 					})
-					.then(stripDepth<0, "create">());
+					.then(stripDepth<0, "create">())
+					.catch((error) => {
+						interceptPayloadError({
+							error,
+							functionNamePrefix: "tryCreateEnrollment",
+							args: { payload, req, overrideAccess },
+						});
+						console.log(JSON.stringify(error, null, 2));
+						throw error;
+					});
 
 				return newEnrollment;
 			});
