@@ -24,6 +24,7 @@ import type {
 import { useCreateModuleLink } from "~/routes/course.$id.modules";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, ok } from "~/utils/responses";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/section.$id";
 
 export function getRouteUrl(sectionId: number) {
@@ -53,7 +54,9 @@ function findSectionInStructure(
 	return null;
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseSectionContext = context.get(courseSectionContextKey);
@@ -84,14 +87,14 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureSection => item.type === "section",
-			)
+			(item): item is CourseStructureSection => item.type === "section",
+		)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureItem => item.type === "activity-module",
-			)
+			(item): item is CourseStructureItem => item.type === "activity-module",
+		)
 		: [];
 
 	// Get available modules from user access context
@@ -110,7 +113,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		modules,
 		availableModules,
 	});
-};
+});
 
 export default function SectionPage({ loaderData }: Route.ComponentProps) {
 	const { submit: createModuleLink, isLoading } = useCreateModuleLink();

@@ -1,9 +1,9 @@
 import { Alert, Container, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { href } from "react-router";
-import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindUserById } from "server/internal/user-management";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/grades";
 
@@ -13,12 +13,19 @@ export function getRouteUrl(userId?: number) {
 	});
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
+	}
+
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User profile context not found");
 	}
 
 	// Use effectiveUser if impersonating, otherwise use authenticatedUser
@@ -33,28 +40,16 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("You can only view your own data");
 	}
 
-	// Fetch the user profile
-	const userResult = await tryFindUserById({
-		payload,
-		userId,
-		req: payloadRequest,
-	});
-
-	if (!userResult.ok) {
-		throw new NotFoundResponse("User not found");
-	}
-
-	const profileUser = userResult.value;
-
 	return {
 		user: {
-			id: profileUser.id,
-			firstName: profileUser.firstName ?? "",
-			lastName: profileUser.lastName ?? "",
+			id: userProfileContext.profileUser.id,
+			firstName: userProfileContext.profileUser.firstName,
+			lastName: userProfileContext.profileUser.lastName,
 		},
 		isOwnData: userId === currentUser.id,
+		params,
 	};
-};
+})!;
 
 export default function UserGradesPage({ loaderData }: Route.ComponentProps) {
 	const { user, isOwnData } = loaderData;

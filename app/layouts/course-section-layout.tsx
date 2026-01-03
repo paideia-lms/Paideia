@@ -10,13 +10,18 @@ import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-section-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum SectionTab {
 	Section = "section",
 	Setting = "setting",
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -44,8 +49,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser: currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,
+		params,
 	};
-};
+});
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;

@@ -20,6 +20,7 @@ import {
 } from "@tabler/icons-react";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -61,7 +62,9 @@ export function getRouteUrl() {
 	return href("/admin/test-email");
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -103,7 +106,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		smtpUser: envVars.SMTP_USER.value || "",
 		emailConfigured,
 	};
-};
+});
 
 const [sendTestEmailAction, useSendTestEmail] = createSendTestEmailActionRpc(
 	serverOnly$(async ({ context, formData }) => {
@@ -251,15 +254,15 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 				values:
 					values.messageType === "custom"
 						? {
-								messageType: "custom",
-								recipient: values.recipient,
-								subject: values.subject,
-								body: values.body,
-							}
+							messageType: "custom",
+							recipient: values.recipient,
+							subject: values.subject,
+							body: values.body,
+						}
 						: {
-								messageType: "predefined",
-								recipient: values.recipient,
-							},
+							messageType: "predefined",
+							recipient: values.recipient,
+						},
 			});
 		}
 		// If email is not configured, show confirmation modal

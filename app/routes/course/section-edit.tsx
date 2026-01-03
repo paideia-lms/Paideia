@@ -20,6 +20,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { useDeleteCourseSection } from "~/routes/api/section-delete";
 import { useUpdateCourseSection } from "~/routes/api/section-update";
 import { ForbiddenResponse, ok } from "~/utils/responses";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/section-edit";
 
 export function getRouteUrl(sectionId: number) {
@@ -28,7 +29,9 @@ export function getRouteUrl(sectionId: number) {
 	});
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseSectionContext = context.get(courseSectionContextKey);
@@ -51,7 +54,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		section: courseSectionContext,
 		course: courseContext.course,
 	});
-};
+});
 
 type DangerZoneProps = {
 	section: Route.ComponentProps["loaderData"]["section"];

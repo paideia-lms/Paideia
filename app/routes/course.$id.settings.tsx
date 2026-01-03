@@ -17,6 +17,7 @@ import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useId, useRef, useState } from "react";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -147,7 +148,9 @@ const [updateCourseAction, useEditCourse] = createUpdateCourseActionRpc(
 // Export hook for use in component
 export { useEditCourse };
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context, request }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -193,8 +196,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailId
 		? href("/api/media/file/:mediaId", {
-				mediaId: thumbnailId,
-			})
+			mediaId: thumbnailId,
+		})
 		: null;
 
 	return {
@@ -210,7 +213,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		},
 		categories: flatCategories,
 	};
-};
+});
 
 export const action = updateCourseAction;
 

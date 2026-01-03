@@ -37,13 +37,17 @@ import {
 import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import type { Media } from "server/payload-types";
-import { permissions } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { envVars, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const currentUser =
@@ -61,10 +65,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession,
 		theme,
 		isSandboxMode,
-		canSeeUserModules: permissions.user.canSeeModules(currentUser).allowed,
+		canSeeUserModules: userSession?.permissions.canSeeUserModules ?? false,
 		logoMedia,
+		params,
 	};
-};
+})!;
 
 export default function UserLayout({
 	loaderData,
@@ -316,7 +321,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-													"Anonymous"
+												"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -362,8 +367,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-											// component={Link}
-											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

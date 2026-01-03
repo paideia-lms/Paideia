@@ -13,18 +13,20 @@ import {
 } from "@tabler/icons-react";
 import { Outlet } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
 import { CourseStructureTree } from "~/components/course-structure-tree";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-content-layout";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const courseContext = context.get(courseContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!courseContext) {
@@ -37,12 +39,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// console.log("courseStructureTree", courseContext.courseStructureTree);
-	const canEdit = permissions.course.canUpdateStructure(
-		currentUser,
-		enrolmentContext?.enrolment,
-	).allowed;
-
 	return {
 		course: courseContext.course,
 		courseStructure: courseContext.courseStructure,
@@ -50,10 +46,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseStructureTreeSimple: courseContext.courseStructureTreeSimple,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
-		enrolment: enrolmentContext?.enrolment,
-		canEdit,
+		enrolment: courseContext.enrolment,
+		canEdit: courseContext.permissions.canUpdateStructure.allowed,
+		params,
 	};
-};
+})!;
 
 export default function CourseContentLayout({
 	loaderData,
@@ -62,15 +59,8 @@ export default function CourseContentLayout({
 	const {
 		course,
 		courseStructure,
-		currentUser,
-		enrolment,
 		canEdit,
-		pageInfo: {
-			is: {
-				"routes/course/section.$id": isCourseSection,
-				"layouts/course-module-layout": isCourseModule,
-			},
-		},
+		pageInfo
 	} = loaderData;
 	const { courseId, sectionId, moduleLinkId } = params;
 
@@ -95,9 +85,9 @@ export default function CourseContentLayout({
 								{navbarOpened && (
 									<CourseStructureTree
 										currentItemId={
-											isCourseSection
+											pageInfo.is["routes/course/section.$id"]
 												? `s${sectionId}`
-												: isCourseModule
+												: pageInfo.is["layouts/course-module-layout"]
 													? `m${moduleLinkId}`
 													: undefined
 										}

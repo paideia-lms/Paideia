@@ -143,6 +143,18 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 
 			const user = req?.user;
 
+			// Calculate base permissions for all module types
+			const basePermissions = {
+				canSeeSettings: permissions.course.module.canSeeSettings(
+					user ?? undefined,
+					enrolment ?? undefined,
+				),
+				canSeeSubmissions: permissions.course.module.canSeeSubmissions(
+					user ?? undefined,
+					enrolment ?? undefined,
+				),
+			};
+
 			// Fetch the module link
 			const moduleLinkResult = await tryFindCourseActivityModuleLinkById({
 				payload,
@@ -313,6 +325,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					formattedModuleSettings,
 					previousModule,
 					nextModule,
+					permissions: basePermissions,
 				};
 			} else if (moduleLink.type === "quiz") {
 				// Fetch quiz submissions
@@ -432,20 +445,23 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					previousModule,
 					nextModule,
 					permissions: {
-						canPreview: permissions.course.module.quiz.canPreview(
-							user ?? undefined,
-							enrolment ?? undefined,
-						),
-						canStartAttempt: permissions.course.module.quiz.canStartAttempt(
-							quiz?.maxAttempts ?? null,
-							allQuizSubmissionsForDisplay.length,
-							hasActiveQuizAttempt,
-						),
-						canDeleteSubmissions:
-							permissions.course.module.quiz.canDeleteSubmissions(
+						...basePermissions,
+						quiz: {
+							canPreview: permissions.course.module.quiz.canPreview(
 								user ?? undefined,
 								enrolment ?? undefined,
 							),
+							canStartAttempt: permissions.course.module.quiz.canStartAttempt(
+								quiz?.maxAttempts ?? null,
+								allQuizSubmissionsForDisplay.length,
+								hasActiveQuizAttempt,
+							),
+							canDeleteSubmissions:
+								permissions.course.module.quiz.canDeleteSubmissions(
+									user ?? undefined,
+									enrolment ?? undefined,
+								),
+						},
 					},
 				};
 			} else if (moduleLink.type === "discussion") {
@@ -569,6 +585,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					previousModule,
 					nextModule,
 					formattedModuleSettings,
+					permissions: basePermissions,
 				};
 			} else {
 				return {
@@ -576,6 +593,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					previousModule,
 					nextModule,
 					formattedModuleSettings,
+					permissions: basePermissions,
 				};
 			}
 		},

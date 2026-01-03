@@ -20,10 +20,10 @@ import type { GradebookSetupItem } from "app/components/gradebook/setup-view";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useQueryState } from "nuqs";
-import { createLoader, parseAsInteger } from "nuqs/server";
+import { parseAsInteger, } from "nuqs";
 import { useState } from "react";
 import { href, Link } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -32,6 +32,7 @@ import { tryGetAdjustedSingleUserGrades } from "server/internal/user-grade-manag
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
 export function getRouteUrl(courseId: number) {
 	return href("/course/:courseId/grades/singleview", {
@@ -42,24 +43,27 @@ export function getRouteUrl(courseId: number) {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Define search params for user selection
-export const singleViewSearchParams = {
-	userId: parseAsInteger,
-};
-
-export const loadSearchParams = createLoader(singleViewSearchParams);
-
 const defaultSingleUserGradesResult = {
 	json: null,
 	yaml: null,
 	markdown: null,
 };
 
-export const loader = async ({
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loaderSearchParams = {
+	userId: parseAsInteger,
+};
+
+const createRouteLoader = createLoader({
+	searchParams: loaderSearchParams,
+});
+
+export const loader = createRouteLoader(async ({
 	context,
+	searchParams,
 	params,
-	request,
-}: Route.LoaderArgs) => {
+}) => {
 	const { payload, hints, payloadRequest } = context.get(globalContextKey);
 	const courseContext = context.get(courseContextKey);
 	const userSession = context.get(userContextKey);
@@ -79,7 +83,7 @@ export const loader = async ({
 
 	// Prepare user object for internal functions
 	// Get selected user from search params
-	const { userId } = loadSearchParams(request);
+	const userId = searchParams.userId;
 
 	// Filter to only student enrollments
 	const studentEnrollments = courseContext.course.enrollments.filter(
@@ -92,11 +96,11 @@ export const loader = async ({
 	const singleUserGradesResult =
 		userId && enrollment
 			? await tryGetAdjustedSingleUserGrades({
-					payload,
-					req: payloadRequest,
-					courseId: courseContext.course.id,
-					enrollmentId: enrollment.id,
-				}).getOrDefault(defaultSingleUserGradesResult)
+				payload,
+				req: payloadRequest,
+				courseId: courseContext.course.id,
+				enrollmentId: enrollment.id,
+			}).getOrDefault(defaultSingleUserGradesResult)
 			: defaultSingleUserGradesResult;
 
 	return {
@@ -105,11 +109,12 @@ export const loader = async ({
 		singleUserGrades: singleUserGradesResult.json,
 		singleUserGradesYaml: singleUserGradesResult.yaml,
 		singleUserGradesMarkdown: singleUserGradesResult.markdown,
-		selectedUserId: userId,
 		timeZone,
 		gradebookSetupForUI: courseContext.gradebookSetupForUI,
+		searchParams,
+		params,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -121,15 +126,12 @@ export default function CourseGradesSingleViewPage({
 	const {
 		enrollments,
 		singleUserGrades,
-		selectedUserId: _selectedUserId,
+		course,
+		searchParams: {
+			userId: selectedUserId,
+		},
 	} = loaderData;
-
-	const [selectedUserId, setSelectedUserId] = useQueryState(
-		"userId",
-		parseAsInteger.withOptions({
-			shallow: false,
-		}),
-	);
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	// Prepare user select options
 	const userOptions = enrollments.map((enrollment) => ({
@@ -137,7 +139,7 @@ export default function CourseGradesSingleViewPage({
 		label: enrollment.user.firstName + " " + enrollment.user.lastName,
 	}));
 
-	const title = `Single User Grade View | ${loaderData.course.title} | Paideia LMS`;
+	const title = `Single User Grade View | ${course.title} | Paideia LMS`;
 	return (
 		<Stack gap="lg">
 			<title>{title}</title>
@@ -159,7 +161,7 @@ export default function CourseGradesSingleViewPage({
 						data={userOptions}
 						value={selectedUserId?.toString() || null}
 						onChange={(value) => {
-							setSelectedUserId(value ? Number(value) : null);
+							setQueryParams({ userId: value ? Number(value) : null });
 						}}
 						searchable
 						clearable
@@ -486,15 +488,15 @@ function matchItemsToStructure(
 				weight: gradeData?.weight ?? item.weight,
 				gradeData: gradeData
 					? {
-							base_grade: gradeData.base_grade ?? null,
-							override_grade: gradeData.override_grade ?? null,
-							is_overridden: gradeData.is_overridden,
-							feedback: gradeData.feedback ?? null,
-							graded_at: gradeData.graded_at ?? null,
-							submitted_at: gradeData.submitted_at ?? null,
-							status: gradeData.status,
-							adjustments: gradeData.adjustments ?? [],
-						}
+						base_grade: gradeData.base_grade ?? null,
+						override_grade: gradeData.override_grade ?? null,
+						is_overridden: gradeData.is_overridden,
+						feedback: gradeData.feedback ?? null,
+						graded_at: gradeData.graded_at ?? null,
+						submitted_at: gradeData.submitted_at ?? null,
+						status: gradeData.status,
+						adjustments: gradeData.adjustments ?? [],
+					}
 					: undefined,
 			});
 		}
@@ -608,7 +610,7 @@ function SingleUserGradeTableView({
 							</Text>
 							<Text size="lg" fw={700}>
 								{enrollment.final_grade !== null &&
-								enrollment.final_grade !== undefined
+									enrollment.final_grade !== undefined
 									? enrollment.final_grade.toFixed(2)
 									: "-"}
 							</Text>

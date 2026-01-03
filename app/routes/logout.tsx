@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { href, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { removeCookie, removeImpersonationCookie } from "~/utils/cookie";
 import { UnauthorizedResponse } from "~/utils/responses";
 
@@ -9,7 +10,9 @@ export function getRouteUrl() {
 	return href("/logout");
 }
 
-export const loader = async ({ context, request }: LoaderFunctionArgs) => {
+const createRouteLoader = typeCreateLoader<LoaderFunctionArgs>();
+
+export const loader = createRouteLoader()(async ({ context, request }) => {
 	const payload = context.get(globalContextKey).payload;
 	const requestInfo = context.get(globalContextKey).requestInfo;
 	const userSession = context.get(userContextKey);
@@ -37,4 +40,4 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 			["Set-Cookie", impersonationCookieRemoval],
 		],
 	});
-};
+});

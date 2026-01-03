@@ -318,6 +318,35 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 							role: e.role,
 						})),
 					),
+					canUpdateStructure: permissions.course.canUpdateStructure(
+						user,
+						enrolment,
+					),
+					canSeeGrades: permissions.course.canSeeGrades(
+						user,
+						enrolment
+							? {
+									id: enrolment.id,
+									userId: enrolment.user.id,
+									role: enrolment.role,
+								}
+							: undefined,
+					),
+					canSeeParticipants: permissions.course.canSeeParticipants(
+						user,
+						enrolment,
+					),
+					canSeeModules: permissions.course.canSeeModules(
+						user,
+						enrolment
+							? {
+									id: enrolment.id,
+									role: enrolment.role,
+								}
+							: undefined,
+					),
+					canSeeBin: permissions.course.canSeeBin(user, enrolment),
+					canSeeBackup: permissions.course.canSeeBackup(user, enrolment),
 				},
 			};
 		},

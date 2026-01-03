@@ -1,6 +1,7 @@
 import { Container, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { useState } from "react";
 import { href, redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -23,7 +24,10 @@ export function getRouteUrl() {
 	return href("/user/note/create");
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -37,8 +41,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	return { user: currentUser };
-};
+	return { user: currentUser, params };
+})!;
 
 enum Action {
 	CreateNote = "createNote",

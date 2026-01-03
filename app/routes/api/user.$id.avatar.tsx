@@ -8,6 +8,7 @@ import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 export function getRouteUrl(userId: number) {
 	return href("/api/user/:id/avatar", {
@@ -15,23 +16,21 @@ export function getRouteUrl(userId: number) {
 	});
 }
 
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoader({});
+
 /**
  * ! we are return error rather than throwing error because this a non component route
  */
-export const loader = async ({
+export const loader = createRouteLoader(async ({
 	params,
 	context,
 	request,
-}: Route.LoaderArgs) => {
+}) => {
 	const userId = params.id;
 
 	if (!userId) {
 		return badRequest({ error: "User ID is required" });
-	}
-
-	const userIdNum = Number.parseInt(userId, 10);
-	if (Number.isNaN(userIdNum)) {
-		return badRequest({ error: "Invalid user ID" });
 	}
 
 	const { payload, payloadRequest, s3Client } = context.get(globalContextKey);
@@ -39,7 +38,7 @@ export const loader = async ({
 	// Fetch user with avatar populated (depth 1 to get avatar object)
 	const userResult = await tryFindUserById({
 		payload,
-		userId: userIdNum,
+		userId: params.id,
 		req: payloadRequest,
 	});
 
@@ -55,10 +54,6 @@ export const loader = async ({
 		return notFound({ error: "User has no avatar" });
 	}
 
-	// Extract avatar media ID
-	// Avatar can be an object (when depth > 0) or just an ID (when depth = 0)
-	const avatarMediaId = user.avatar;
-
 	// Parse Range header if present (we'll get file size from the media record)
 	const rangeHeader = request.headers.get("Range");
 
@@ -66,7 +61,7 @@ export const loader = async ({
 	let result = await tryGetMediaStreamFromId({
 		payload,
 		s3Client,
-		id: avatarMediaId,
+		id: user.avatar,
 		req: payloadRequest,
 	});
 
@@ -86,7 +81,7 @@ export const loader = async ({
 		result = await tryGetMediaStreamFromId({
 			payload,
 			s3Client,
-			id: avatarMediaId,
+			id: user.avatar,
 			range,
 			req: payloadRequest,
 		});
@@ -124,4 +119,4 @@ export const loader = async ({
 	return new Response(stream, {
 		headers,
 	});
-};
+});

@@ -1,6 +1,7 @@
 import { Badge, Box, Stack, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { parseAsStringEnum, useQueryState } from "nuqs";
+import { parseAsStringEnum } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { href, Link } from "react-router";
 import type { Route } from "./+types/index";
 
@@ -8,12 +9,7 @@ export function getRouteUrl() {
 	return href("/admin/*", { "*": "" });
 }
 
-export const loader = async ({ request }: Route.LoaderArgs) => {
-	const url = new URL(request.url);
-	const tabParam = url.searchParams.get("tab") ?? "general";
-
-	return { tabParam };
-};
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return <DefaultErrorBoundary error={error} />;
@@ -627,14 +623,26 @@ const adminTabs = {
 	},
 } as const satisfies { [key: string]: AdminTab };
 
-export default function AdminPage() {
-	const [activeTab] = useQueryState(
-		"tab",
-		parseAsStringEnum(
-			Object.keys(adminTabs) as (keyof typeof adminTabs)[],
-		).withDefault("general"),
-	);
+// Define search params
+export const loaderSearchParams = {
+	tab: parseAsStringEnum(
+		Object.keys(adminTabs) as (keyof typeof adminTabs)[],
+	).withDefault("general"),
+};
 
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ searchParams }) => {
+	return {
+		tabParam: searchParams.tab,
+		searchParams,
+	};
+});
+
+export default function AdminPage({ loaderData }: Route.ComponentProps) {
+	const { searchParams } = loaderData;
+
+	const activeTab = searchParams.tab;
 	const tabData = adminTabs[activeTab];
 
 	return (

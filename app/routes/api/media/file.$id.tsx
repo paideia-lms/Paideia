@@ -14,7 +14,7 @@ export const loaderSearchParams = {
 	download: parseAsBoolean.withDefault(false),
 };
 
-const createLoader = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export function getRouteUrl(mediaId: number) {
 	return href("/api/media/file/:mediaId", {
@@ -22,7 +22,7 @@ export function getRouteUrl(mediaId: number) {
 	});
 }
 
-export const loader = createLoader({
+export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({
 	searchParams,

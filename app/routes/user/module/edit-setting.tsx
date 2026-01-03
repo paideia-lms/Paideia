@@ -1,9 +1,6 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
+import { parseAsStringEnum } from "nuqs/server";
 import { stringify } from "qs";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -42,8 +39,12 @@ import {
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
 
@@ -65,8 +66,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		module: userModuleContext.module,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit ?? undefined,
 		hasLinkedCourses,
+		params
 	};
-};
+})!;
 
 enum Action {
 	UpdatePage = "updatePage",
@@ -77,12 +79,10 @@ enum Action {
 	UpdateDiscussion = "updateDiscussion",
 }
 
-// Define search params for module update
+// Define search params for module update (used in actions)
 export const moduleUpdateSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
-
-export const loadSearchParams = createLoader(moduleUpdateSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 const createUpdatePageActionRpc = createActionRpc({
@@ -267,7 +267,7 @@ const [updateAssignmentAction, useUpdateAssignment] =
 
 			const allowedFileTypes =
 				formData.assignmentAllowedFileTypes &&
-				formData.assignmentAllowedFileTypes.length > 0
+					formData.assignmentAllowedFileTypes.length > 0
 					? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 					: undefined;
 

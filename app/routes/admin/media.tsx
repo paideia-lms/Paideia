@@ -145,10 +145,10 @@ export function getRouteUrl(action: Action) {
 	return href("/admin/media") + "?" + stringify({ action });
 }
 
-const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 
-export const loader = createRRLoader({
+export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, request, searchParams }) => {
 	const globalContext = context.get(globalContextKey);

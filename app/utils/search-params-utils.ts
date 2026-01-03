@@ -54,17 +54,17 @@ type ExtractSearchParams<Module> = Simplify<
 	| (Module extends {
 			searchParams?: infer S extends ParserMap;
 	  }
-			? inferParserType<S>
+			? LoaderFunctionInput<S>
 			: never)
 	| (Module extends {
 			loaderSearchParams?: infer S extends ParserMap;
 	  }
-			? inferParserType<S>
+			? LoaderFunctionInput<S>
 			: never)
 	| (Module extends {
 			actionSearchParams?: infer S extends ParserMap;
 	  }
-			? inferParserType<S>
+			? LoaderFunctionInput<S>
 			: never)
 >;
 
@@ -111,6 +111,18 @@ type RouteSearchParamsOption<T extends keyof Register["pages"]> =
  */
 type RouteUrlOptions<T extends keyof Register["pages"]> = Simplify<
 	RouteParamsOption<T> & RouteSearchParamsOption<T>
+>;
+
+export type LoaderFunctionInput<T extends ParserMap> = Simplify<
+	{
+		[K in keyof T as T[K] extends { defaultValue: infer DefaultValue }
+			? never
+			: K]: inferParserType<T[K]>;
+	} & {
+		[K in keyof T as T[K] extends { defaultValue: infer DefaultValue }
+			? K
+			: never]?: inferParserType<T[K]>;
+	}
 >;
 
 export function getRouteUrl<T extends keyof Register["pages"]>(

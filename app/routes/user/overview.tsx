@@ -27,10 +27,7 @@ import {
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
+import { parseAsStringEnum } from "nuqs/server";
 import { stringify } from "qs";
 import { useEffect, useState } from "react";
 import { href, Link, useLocation } from "react-router";
@@ -50,9 +47,13 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -126,19 +127,18 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		avatarPermission,
 		rolePermission,
 		canEdit,
+		params,
 	};
-};
+})!;
 
 enum Action {
 	Update = "update",
 }
 
-// Define search params for user profile update
+// Define search params for user profile update (used in actions)
 export const userOverviewSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
-
-export const loadSearchParams = createLoader(userOverviewSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 

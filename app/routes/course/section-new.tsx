@@ -12,9 +12,10 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { createLoader, parseAsInteger } from "nuqs/server";
+import { parseAsInteger } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
@@ -32,13 +33,12 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/section-new";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 // Define search params for parent section prefill
-export const sectionNewSearchParams = {
+export const loaderSearchParams = {
 	parentSection: parseAsInteger,
 };
-
-export const loadSearchParams = createLoader(sectionNewSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -51,11 +51,6 @@ const createCreateSectionActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/section/new", {
-		courseId: courseId.toString(),
-	});
-}
 
 const [createSectionAction, useCreateSection] = createCreateSectionActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
@@ -103,18 +98,20 @@ const [createSectionAction, useCreateSection] = createCreateSectionActionRpc(
 		);
 	})!,
 	{
-		action: ({ params }) => getRouteUrl(Number(params.courseId)),
+		action: ({ params }) => href("/course/:courseId/section/new", {
+			courseId: params.courseId.toString(),
+		}),
 	},
 );
 
 // Export hook for use in component
 export { useCreateSection };
 
-export const loader = async ({
-	request,
-	context,
-	params,
-}: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const { courseId } = params;
@@ -122,11 +119,6 @@ export const loader = async ({
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
-
-	if (Number.isNaN(courseId)) {
-		throw new ForbiddenResponse("Invalid course ID");
-	}
-
 	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
@@ -147,14 +139,12 @@ export const loader = async ({
 		throw new ForbiddenResponse(editPermission.reason);
 	}
 
-	// Get search params for parent section prefill
-	const { parentSection } = loadSearchParams(request);
 
 	// Fetch all sections for parent dropdown
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const sectionsResult = await tryFindSectionsByCourse({
 		payload,
-		courseId: Number(courseId),
+		courseId: courseId,
 		req: payloadRequest,
 		overrideAccess: false,
 	});
@@ -165,9 +155,10 @@ export const loader = async ({
 		course: courseContext.course,
 		sections,
 		currentUser,
-		parentSectionId: parentSection,
+		parentSectionId: searchParams.parentSection,
+		searchParams,
 	};
-};
+});
 
 export const action = createSectionAction;
 
@@ -288,8 +279,8 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 									variant="subtle"
 									onClick={() =>
 										navigate(
-											href("/course/:courseId", {
-												courseId: course.id.toString(),
+											getRouteUrl("/course/:courseId", {
+												params: { courseId: course.id.toString(), }
 											}),
 										)
 									}

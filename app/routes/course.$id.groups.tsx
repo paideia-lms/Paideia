@@ -19,8 +19,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum as parseAsStringEnum,
 } from "nuqs/server";
 import { stringify } from "qs";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
@@ -29,6 +28,7 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -58,12 +58,10 @@ enum Action {
 	DeleteGroup = "deleteGroup",
 }
 
-// Define search params for group actions
+// Define search params for group actions (used in actions)
 export const groupSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
-
-export const loadSearchParams = createLoader(groupSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -143,7 +141,9 @@ function GroupMemberList({ members }: { members: Enrollment[] }) {
 	);
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -173,7 +173,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser: currentUser,
 		canManage,
 	};
-};
+});
 
 const [createGroupAction, useCreateGroup] = createCreateGroupActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {

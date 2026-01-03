@@ -15,8 +15,9 @@ import {
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
-import { useQueryState } from "nuqs";
-import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
+import { parseAsInteger, parseAsString } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -39,9 +40,11 @@ export const usersSearchParams = {
 	page: parseAsInteger.withDefault(1),
 };
 
-export const loadSearchParams = createLoader(usersSearchParams);
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = createRouteLoader({
+	searchParams: usersSearchParams,
+})(async ({ context, searchParams }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -54,7 +57,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	}
 
 	// Get search params from URL
-	const { query, page } = loadSearchParams(request);
+	const { query, page } = searchParams;
 
 	// Fetch users with search and pagination
 	const usersResult = await tryFindAllUsers({
@@ -74,14 +77,15 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 			totalPages: 0,
 			currentPage: 1,
 			error: usersResult.error.message,
+			searchParams,
 		});
 	}
 
 	const users = usersResult.value.docs.map((user) => {
 		const avatarUrl = user.avatar
 			? href(`/api/media/file/:mediaId`, {
-					mediaId: user.avatar.id.toString(),
-				})
+				mediaId: user.avatar.id.toString(),
+			})
 			: null;
 
 		return {
@@ -100,39 +104,54 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		totalUsers: usersResult.value.totalDocs,
 		totalPages: usersResult.value.totalPages,
 		currentPage: usersResult.value.page,
+		searchParams,
 	};
+});
+
+type UserSearchInputProps = {
+	query: string;
 };
 
-export default function UsersPage({ loaderData }: Route.ComponentProps) {
-	const { users, totalUsers, totalPages, currentPage } = loaderData;
+function UserSearchInput({ query }: UserSearchInputProps) {
+	const setQueryParams = useNuqsSearchParams(usersSearchParams);
+	const [input, setInput] = useState(query || "");
 
-	const [query, setQuery] = useQueryState(
-		"query",
-		parseAsString.withDefault("").withOptions({ shallow: false }),
-	);
-
-	const [, setPage] = useQueryState(
-		"page",
-		parseAsInteger.withDefault(1).withOptions({ shallow: false }),
-	);
-
-	// Local search state for immediate UI updates
-	const [input, setInput] = useState(query);
-
-	// Sync input with URL query when it changes (e.g., back/forward navigation)
 	useEffect(() => {
-		setInput(query);
+		setInput(query || "");
 	}, [query]);
 
-	// Debounce the search query
 	const debouncedSetQuery = useDebouncedCallback((value: string) => {
-		setQuery(value || null);
-		setPage(1); // Reset to page 1 when search changes
+		setQueryParams({
+			query: value || null,
+			page: 1, // Reset to page 1 when search changes
+		});
 	}, 500);
+
+	return (
+		<TextInput
+			placeholder="Search by name, email, or use role:admin, role:user..."
+			leftSection={<IconSearch size={16} />}
+			value={input}
+			onChange={(e) => {
+				const v = e.currentTarget.value;
+				setInput(v);
+				debouncedSetQuery(v);
+			}}
+			mb="md"
+		/>
+	);
+}
+
+export default function UsersPage({ loaderData }: Route.ComponentProps) {
+	const { users, totalUsers, totalPages, currentPage, searchParams } =
+		loaderData;
+
+	// Get setter from useNuqsSearchParams
+	const setQueryParams = useNuqsSearchParams(usersSearchParams);
 
 	// Handle page change
 	const handlePageChange = (newPage: number) => {
-		setPage(newPage);
+		setQueryParams({ page: newPage });
 	};
 
 	return (
@@ -160,17 +179,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
-					<TextInput
-						placeholder="Search by name, email, or use role:admin, role:user..."
-						leftSection={<IconSearch size={16} />}
-						value={input}
-						onChange={(e) => {
-							const v = e.currentTarget.value;
-							setInput(v);
-							debouncedSetQuery(v);
-						}}
-						mb="md"
-					/>
+					<UserSearchInput query={searchParams.query} />
 
 					<Box style={{ overflowX: "auto" }}>
 						<Table striped highlightOnHover>

@@ -2,6 +2,7 @@ import { Container, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { useState } from "react";
 import { href, redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -23,7 +24,10 @@ export function getRouteUrl(noteId: number) {
 	});
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -52,8 +56,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	return {
 		note,
+		params,
 	};
-};
+})!;
 
 enum Action {
 	UpdateNote = "updateNote",

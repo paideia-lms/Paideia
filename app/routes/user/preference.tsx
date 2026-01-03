@@ -12,6 +12,7 @@ import { notifications } from "@mantine/notifications";
 import { pick } from "es-toolkit";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -44,7 +45,10 @@ export function getRouteUrl(userId?: number) {
 	});
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
@@ -88,8 +92,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			"theme",
 			"direction",
 		]),
+		params,
 	};
-};
+})!;
 
 const [updatePreferenceAction, useUpdateUserPreference] =
 	createUpdatePreferenceActionRpc(

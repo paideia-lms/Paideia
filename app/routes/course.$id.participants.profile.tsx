@@ -11,7 +11,6 @@ import {
 } from "@mantine/core";
 import { IconUserCheck } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useQueryState } from "nuqs";
 import { parseAsInteger } from "nuqs/server";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";

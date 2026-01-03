@@ -14,8 +14,11 @@ import {
 	Stack,
 	Table,
 	Text,
+	TextInput,
 	Title,
+	Tooltip,
 } from "@mantine/core";
+import { useDebouncedCallback } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { href } from "react-router";
 import {
@@ -23,14 +26,15 @@ import {
 	IconDots,
 	IconEye,
 	IconFolder,
+	IconInfoCircle,
 	IconPlus,
 	IconReportAnalytics,
+	IconSearch,
 	IconSettings,
 	IconUsers,
 } from "@tabler/icons-react";
-import { useQueryState } from "nuqs";
-import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
-import { useState } from "react";
+import { parseAsInteger, parseAsString } from "nuqs";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -40,24 +44,33 @@ import {
 } from "server/internal/course-category-management";
 import { tryFindAllCourses } from "server/internal/course-management";
 import type { Course } from "server/payload-types";
-import CourseSearchInput from "~/components/course-search-input";
+import {
+	getStatusBadgeColor,
+	getStatusLabel,
+} from "~/components/course-view-utils";
 import { ForbiddenResponse } from "~/utils/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "~/utils/search-params-utils";
 
 export function getRouteUrl() {
 	return href("/admin/courses");
 }
 
 // Define search params
-export const coursesSearchParams = {
+export const loaderSearchParams = {
 	query: parseAsString.withDefault(""),
 	page: parseAsInteger.withDefault(1),
 };
 
-export const loadSearchParams = createLoader(coursesSearchParams);
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams, params }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -73,7 +86,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	}
 
 	// Get search params from URL
-	const { query, page } = loadSearchParams(request);
+	const { query, page } = searchParams;
 
 	// Fetch courses with search and pagination
 	const coursesResult = await tryFindAllCourses({
@@ -111,7 +124,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -135,46 +148,76 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		totalPages: coursesResult.totalPages,
 		currentPage: coursesResult.page,
 		categories: flatCategories,
+		searchParams, params
 	};
+});
+
+type CourseSearchInputProps = {
+	query: string;
 };
 
-export default function CoursesPage({ loaderData }: Route.ComponentProps) {
-	const { courses, totalCourses, totalPages, currentPage, categories } =
-		loaderData;
-	const [_page, setPage] = useQueryState(
-		"page",
-		parseAsInteger.withDefault(1).withOptions({ shallow: false }),
+function CourseSearchInput({ query }: CourseSearchInputProps) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+	const [input, setInput] = useState(query || "");
+
+	useEffect(() => {
+		setInput(query || "");
+	}, [query]);
+
+	const debouncedSetQuery = useDebouncedCallback((value: string) => {
+		setQueryParams({ query: value || null });
+	}, 500);
+
+	return (
+		<TextInput
+			placeholder='Search... e.g. status:published category:123 category:none category:"computer science"'
+			leftSection={<IconSearch size={16} />}
+			value={input}
+			onChange={(e) => {
+				const v = e.currentTarget.value;
+				setInput(v);
+				debouncedSetQuery(v);
+			}}
+			mb="md"
+			label={
+				<Group gap="xs" wrap="nowrap" align="center">
+					<Text>Search</Text>
+					<Tooltip
+						withArrow
+						multiline
+						w={360}
+						label={
+							<div>
+								<Text size="xs">
+									Free text matches title, description, slug. You can also use
+									filters:
+								</Text>
+								<Text size="xs">- status:published</Text>
+								<Text size="xs">- category:123 (by ID)</Text>
+								<Text size="xs">- category:none (uncategorized)</Text>
+								<Text size="xs">
+									- category:&quot;computer science&quot; (by name, partial
+									match)
+								</Text>
+							</div>
+						}
+					>
+						<IconInfoCircle size={14} />
+					</Tooltip>
+				</Group>
+			}
+		/>
 	);
+}
+
+export default function CoursesPage({ loaderData }: Route.ComponentProps) {
+	const { courses, totalCourses, totalPages, currentPage, categories, searchParams } =
+		loaderData;
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	// Handle page change
 	const handlePageChange = (newPage: number) => {
-		setPage(newPage);
-	};
-
-	const getStatusBadgeColor = (status: Course["status"]) => {
-		switch (status) {
-			case "published":
-				return "green";
-			case "draft":
-				return "yellow";
-			case "archived":
-				return "gray";
-			default:
-				return "gray";
-		}
-	};
-
-	const getStatusLabel = (status: Course["status"]) => {
-		switch (status) {
-			case "published":
-				return "Published";
-			case "draft":
-				return "Draft";
-			case "archived":
-				return "Archived";
-			default:
-				return status;
-		}
+		setQueryParams({ page: newPage });
 	};
 
 	const [selectedCourseIds, setSelectedCourseIds] = useState<number[]>([]);
@@ -286,7 +329,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 							</Menu>
 						</Group>
 					)}
-					<CourseSearchInput />
+					<CourseSearchInput query={searchParams.query} />
 
 					<Box style={{ overflowX: "auto" }}>
 						<Table striped highlightOnHover>
@@ -337,8 +380,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																		(id) => id !== course.id,
-																	),
+																	(id) => id !== course.id,
+																),
 														)
 													}
 												/>

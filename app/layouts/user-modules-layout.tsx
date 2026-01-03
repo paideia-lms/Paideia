@@ -18,24 +18,28 @@ import {
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconEdit, IconPlus, IconSearch } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useQueryState } from "nuqs";
-import { useState } from "react";
-import { href, Link, Outlet } from "react-router";
-import { globalContextKey } from "server/contexts/global-context";
+import { parseAsString } from "nuqs/server";
+import { useEffect, useState } from "react";
+import { Link, Outlet } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { permissions } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
-import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams, getRouteUrl } from "~/utils/search-params-utils";
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
-	const { payload, pageInfo } = context.get(globalContextKey);
+export const loaderSearchParams = {
+	search: parseAsString.withDefault(""),
+};
+
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({
+	searchParams: loaderSearchParams,
+});
+
+export const loader = createRouteLoader(async ({ context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -58,7 +62,7 @@ export const loader = async ({
 		throw new ForbiddenResponse("You can only view your own data");
 	}
 
-	if (!permissions.user.canSeeModules(currentUser).allowed) {
+	if (!userSession.permissions.canSeeUserModules) {
 		throw new ForbiddenResponse(
 			"You don't have permission to access this page",
 		);
@@ -68,27 +72,6 @@ export const loader = async ({
 
 	const modules = userProfileContext.activityModules;
 
-	// Check if user can create modules (only for own profile)
-	const canCreateModules =
-		userId === currentUser.id &&
-		(currentUser.role === "admin" ||
-			currentUser.role === "instructor" ||
-			currentUser.role === "content-manager");
-
-	// Check if user can manage modules (edit/delete) - only for own profile or if admin
-	const canManageModules =
-		userId === currentUser.id || currentUser.role === "admin";
-
-	const isInUserModuleEditLayout =
-		pageInfo.is["layouts/user-module-edit-layout"];
-
-	let moduleId: number | null = null;
-	if (isInUserModuleEditLayout) {
-		const { moduleId: moduleIdParam } =
-			params as RouteParams<"layouts/user-module-edit-layout">;
-		moduleId = Number(moduleIdParam);
-	}
-
 	return {
 		user: {
 			id: targetUser.id,
@@ -97,34 +80,52 @@ export const loader = async ({
 		},
 		isOwnProfile: userId === currentUser.id,
 		modules: modules,
-		canCreateModules,
-		canManageModules,
-		moduleId,
+		canCreateModules: userProfileContext.permissions.canCreateModules.allowed,
+		canManageModules: userProfileContext.permissions.canManageModules.allowed,
+		searchParams,
+		params,
 	};
-};
+});
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
+type ModuleSearchInputProps = {
+	search: string;
+};
+
+function ModuleSearchInput({ search }: ModuleSearchInputProps) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+	const [input, setInput] = useState(search || "");
+
+	useEffect(() => {
+		setInput(search || "");
+	}, [search]);
+
+	const debouncedSetQuery = useDebouncedCallback((value: string) => {
+		setQueryParams({ search: value || "" });
+	}, 500);
+
+	return (
+		<TextInput
+			placeholder="Search modules by title or type..."
+			leftSection={<IconSearch size={16} />}
+			value={input}
+			onChange={(e) => {
+				const v = e.currentTarget.value;
+				setInput(v);
+				debouncedSetQuery(v);
+			}}
+			mb="md"
+		/>
+	);
+}
+
 export default function UserModulesLayout({
 	loaderData,
 }: Route.ComponentProps) {
-	const { modules, canCreateModules, canManageModules, moduleId } = loaderData;
-	const [searchQuery, setSearchQuery] = useQueryState("search");
-	const [inputValue, setInputValue] = useState(searchQuery ?? "");
-
-	// Debounced function to update URL query state
-	const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
-		setSearchQuery(value || null);
-	}, 500);
-
-	// Handle input change with immediate feedback
-	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const value = event.currentTarget.value;
-		setInputValue(value);
-		debouncedSetSearchQuery(value);
-	};
+	const { modules, canCreateModules, canManageModules, searchParams, params } = loaderData;
 
 	// Helper function to format type display
 	const formatType = (type: string) => {
@@ -136,8 +137,8 @@ export default function UserModulesLayout({
 
 	// Filter modules based on search query from URL
 	const filteredModules = modules.filter((module) => {
-		if (!searchQuery) return true;
-		const query = searchQuery.toLowerCase();
+		if (!searchParams.search) return true;
+		const query = searchParams.search.toLowerCase();
 		return (
 			module.title.toLowerCase().includes(query) ||
 			module.type.toLowerCase().includes(query)
@@ -169,13 +170,7 @@ export default function UserModulesLayout({
 									)}
 								</Group>
 
-								<TextInput
-									placeholder="Search modules by title or type..."
-									leftSection={<IconSearch size={16} />}
-									value={inputValue}
-									onChange={handleSearchChange}
-									mb="md"
-								/>
+								<ModuleSearchInput search={searchParams.search} />
 
 								{modules.length === 0 ? (
 									<Text c="dimmed" ta="center" py="xl" size="sm">
@@ -184,7 +179,7 @@ export default function UserModulesLayout({
 									</Text>
 								) : filteredModules.length === 0 ? (
 									<Text c="dimmed" ta="center" py="xl" size="sm">
-										No modules found matching "{inputValue}"
+										No modules found matching "{searchParams.search}"
 									</Text>
 								) : (
 									<ScrollArea h={600}>
@@ -198,13 +193,13 @@ export default function UserModulesLayout({
 													// if moduleId is set and it is the same as the module.id, then add a class to the paper
 													style={{ cursor: "pointer" }}
 													bg={
-														moduleId === module.id
+														params.moduleId === module.id
 															? alpha(getThemeColor("blue", theme), 0.1)
 															: undefined
 													}
 													component={Link}
-													to={href("/user/module/edit/:moduleId", {
-														moduleId: String(module.id),
+													to={getRouteUrl("/user/module/edit/:moduleId", {
+														params: { moduleId: String(module.id) },
 													})}
 												>
 													<Group justify="space-between" mb="xs">
@@ -227,20 +222,10 @@ export default function UserModulesLayout({
 															size="xs"
 															variant="light"
 															color={getModuleColor(
-																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																module.type,
 															)}
 															leftSection={getModuleIcon(
-																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																module.type,
 																12,
 															)}
 														>

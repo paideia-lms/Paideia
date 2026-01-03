@@ -2,11 +2,10 @@ import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
-	createLoader,
 	parseAsInteger,
 	parseAsStringEnum,
-	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -84,13 +83,13 @@ export function getRouteUrl(
 }
 
 // Define search params
-export const submissionsSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+const submissionsSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
 	submissionId: parseAsInteger,
 	view: parseAsStringEnum(Object.values(View)),
 };
 
-export const loadSearchParams = createLoader(submissionsSearchParams);
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -121,7 +120,9 @@ const createReleaseGradeActionRpc = createActionRpc({
 	action: Action.ReleaseGrade,
 });
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+export const loader = createRouteLoader({
+	searchParams: submissionsSearchParams,
+})(async ({ context, searchParams }) => {
 	const { payloadRequest, payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -167,7 +168,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	);
 
 	// Parse search params to check if we're in grading mode
-	const { submissionId, view } = loadSearchParams(request);
+	const { submissionId, view } = searchParams;
 
 	const showGradingView = view === View.GRADING && submissionId !== null;
 
@@ -221,6 +222,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingGrade,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -279,6 +281,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingGrade,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -467,6 +470,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingGrade,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -520,6 +524,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -543,6 +548,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -566,11 +572,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
 	throw new BadRequestResponse("Unsupported module type");
-};
+});
 
 const [deleteSubmissionAction, useDeleteSubmission] =
 	createDeleteSubmissionActionRpc(

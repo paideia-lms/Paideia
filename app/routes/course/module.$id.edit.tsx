@@ -18,11 +18,12 @@ import { notifications } from "@mantine/notifications";
 import { IconTrash } from "@tabler/icons-react";
 import {
 	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum as parseAsStringEnum,
 } from "nuqs/server";
 import { stringify } from "qs";
 import { href, redirect, useNavigate } from "react-router";
 import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
@@ -56,7 +57,10 @@ import {
 import type { Route } from "./+types/module.$id.edit";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -103,7 +107,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		module: courseModuleContext,
 		displayName,
 	};
-};
+})!;
 
 enum Action {
 	UpdatePage = "updatePage",
@@ -116,7 +120,7 @@ enum Action {
 
 // Define search params for module settings update
 export const moduleSettingsSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
 export const loadSearchParams = createLoader(moduleSettingsSearchParams);

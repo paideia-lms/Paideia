@@ -22,9 +22,9 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
-import { parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
-import { createLoader } from "nuqs/server";
+import { parseAsStringEnum } from "nuqs/server";
 import { stringify } from "qs";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 export type { Route };
 
@@ -34,12 +34,7 @@ enum Action {
 	DeleteEnrollment = "deleteEnrollment",
 }
 
-// Define search params for participant actions
-export const participantActionSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
 
-export const loadSearchParams = createLoader(participantActionSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -83,7 +78,11 @@ export function getRouteUrl(action: Action, courseId: number) {
 	);
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createLoaderRpc({
+	// searchParams: participantActionSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -104,8 +103,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		currentUser: currentUser,
+		searchParams,
 	};
-};
+});
 
 // Shared authorization check
 // TODO: this should be moved to payload collection level 

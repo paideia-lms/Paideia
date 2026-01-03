@@ -23,6 +23,7 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
@@ -186,7 +187,9 @@ function CourseTable({ courses, onCourseClick }: CourseTableProps) {
 	);
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
 
@@ -206,8 +209,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		const thumbnailUrl = enrollment.course.thumbnail
 			? href(`/api/media/file/:mediaId`, {
-					mediaId: enrollment.course.thumbnail.toString(),
-				})
+				mediaId: enrollment.course.thumbnail.toString(),
+			})
 			: null;
 		return {
 			...enrollment.course,
@@ -227,7 +230,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		canManageCourses,
 		currentUserId: currentUser.id,
 	};
-};
+});
 
 export default function CoursePage({ loaderData }: Route.ComponentProps) {
 	const { courses, canManageCourses, currentUserId } = loaderData;

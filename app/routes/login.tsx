@@ -11,8 +11,9 @@ import {
 } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, Link, type LoaderFunctionArgs, redirect } from "react-router";
+import { href, Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -24,7 +25,9 @@ import { setCookie } from "~/utils/cookie";
 import { badRequest, InternalServerErrorResponse } from "~/utils/responses";
 import type { Route } from "./+types/login";
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	// Mock loader - just return some basic data
 	const userSession = context.get(userContextKey);
 
@@ -66,7 +69,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 		DEV_CONSTANTS: devConstants,
 		registrationDisabled,
 	};
-};
+});
 
 const loginSchema = z.object({
 	email: z.email(),

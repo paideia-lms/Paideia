@@ -12,6 +12,7 @@ import { notifications } from "@mantine/notifications";
 import type { Migration as MigrationType } from "payload";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -42,7 +43,9 @@ export function getRouteUrl() {
 	return href("/admin/migrations");
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -65,7 +68,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	return {
 		statuses: statuses || [],
 	};
-};
+});
 
 const [dumpAction, useDumpPostgres] = createDumpActionRpc(
 	serverOnly$(async ({ context }) => {

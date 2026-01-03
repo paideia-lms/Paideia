@@ -38,7 +38,6 @@ import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
 import {
 	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
@@ -92,9 +91,9 @@ const loaderSearchParams = {
 	page: parseAsInteger.withDefault(1),
 };
 
-const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRRLoader({
+export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, params, searchParams }) => {
 	const { payload, systemGlobals, payloadRequest } =
@@ -190,7 +189,7 @@ enum Action {
 
 // Define search params for media actions
 export const mediaSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
 export const loadSearchParams = createLoader(mediaSearchParams);

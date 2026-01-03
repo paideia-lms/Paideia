@@ -11,10 +11,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
+import { parseAsStringEnum } from "nuqs/server";
 import { stringify } from "qs";
 import { IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
@@ -39,6 +36,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-access";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
 enum Action {
@@ -46,12 +44,10 @@ enum Action {
 	RevokeAccess = "revokeAccess",
 }
 
-// Define search params for access actions
+// Define search params for access actions (used in actions)
 export const accessSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
-
-export const loadSearchParams = createLoader(accessSearchParams);
 
 export function getRouteUrl(action: Action, moduleId: string) {
 	return (
@@ -63,7 +59,10 @@ export function getRouteUrl(action: Action, moduleId: string) {
 	);
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userModuleContext = context.get(userModuleContextKey);
 
 	if (!userModuleContext) {
@@ -83,8 +82,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		linkedCourses: userModuleContext.linkedCourses,
 		grants: userModuleContext.grants,
 		instructors: userModuleContext.instructors,
+		params,
 	};
-};
+})!;
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 

@@ -50,6 +50,7 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 
 export function getRouteUrl() {
@@ -98,7 +99,9 @@ export function formatSchedule(schedule: string): string {
 	return formatted;
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload, hints, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timeZone = hints.timeZone;
@@ -283,31 +286,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseTitle: string;
 		courseId: number;
 	}> = [
-		{
-			id: 1,
-			title: "Databases CW1",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(10).minute(0).toISOString(),
-			courseTitle: "Databases",
-			courseId: 2,
-		},
-		{
-			id: 2,
-			title: "Functional Programming CW2",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(16).minute(0).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-		{
-			id: 3,
-			title: "Week 1: Object Oriented vs Functional Programming",
-			type: "discussion" as const,
-			dueDate: dayjs().hour(23).minute(59).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-	];
+			{
+				id: 1,
+				title: "Databases CW1",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(10).minute(0).toISOString(),
+				courseTitle: "Databases",
+				courseId: 2,
+			},
+			{
+				id: 2,
+				title: "Functional Programming CW2",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(16).minute(0).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+			{
+				id: 3,
+				title: "Week 1: Object Oriented vs Functional Programming",
+				type: "discussion" as const,
+				dueDate: dayjs().hour(23).minute(59).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+		];
 
 	// Mock program data
 	const mockProgram = {
@@ -821,7 +824,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		todaysDueItems,
 		timeZone,
 	};
-};
+});
 
 // Curriculum Map Component with Semester-based Layout (Left to Right)
 function CurriculumMap({
@@ -1014,7 +1017,7 @@ function CurriculumMap({
 								<Stack gap={6}>
 									<Text size="xs" fw={600} c="dimmed">
 										{course.status === "completed" ||
-										course.status === "in progress"
+											course.status === "in progress"
 											? course.shortcode
 											: course.code}
 									</Text>
@@ -1134,19 +1137,19 @@ function AuthenticatedDashboard({
 	const neonClassNames =
 		colorScheme === "dark"
 			? {
-					glassWrapper: classes.glassWrapper,
-					clockFace: classes.clockFace,
-					hourTick: classes.hourTick,
-					minuteTick: classes.minuteTick,
-					primaryNumber: classes.primaryNumber,
-					secondaryNumber: classes.secondaryNumber,
-					hourHand: classes.hourHand,
-					minuteHand: classes.minuteHand,
-					secondHand: classes.secondHand,
-					secondHandCounterweight: classes.secondHandCounterweight,
-					centerDot: classes.centerDot,
-					centerBlur: classes.centerBlur,
-				}
+				glassWrapper: classes.glassWrapper,
+				clockFace: classes.clockFace,
+				hourTick: classes.hourTick,
+				minuteTick: classes.minuteTick,
+				primaryNumber: classes.primaryNumber,
+				secondaryNumber: classes.secondaryNumber,
+				hourHand: classes.hourHand,
+				minuteHand: classes.minuteHand,
+				secondHand: classes.secondHand,
+				secondHandCounterweight: classes.secondHandCounterweight,
+				centerDot: classes.centerDot,
+				centerBlur: classes.centerBlur,
+			}
 			: undefined;
 
 	// Sort today's schedule by start time, then end time

@@ -14,7 +14,8 @@ import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { parseAsStringEnum } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import prettyBytes from "pretty-bytes";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -60,8 +61,6 @@ export const logoSearchParams = {
 	field: parseAsStringEnum(Object.values(Field)),
 };
 
-export const loadSearchParams = createLoader(logoSearchParams);
-
 type LogoData = {
 	logoLight?: Media | null;
 	logoDark?: Media | null;
@@ -71,7 +70,9 @@ type LogoData = {
 	faviconDark?: Media | null;
 };
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -100,7 +101,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		logos: logoData,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit,
 	};
-};
+});
 
 const urlSchema = z
 	.url()

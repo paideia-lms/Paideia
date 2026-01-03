@@ -44,12 +44,11 @@ import { QuizInstructionsView } from "app/components/activity-modules-preview/qu
 import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsString, useQueryState } from "nuqs";
 import {
-	createLoader,
 	createParser,
 	parseAsInteger,
 	parseAsStringEnum,
-	parseAsString as parseAsStringServer,
 } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
@@ -108,8 +107,6 @@ export const actionSearchParams = {
 	threadId: parseAsInteger,
 };
 
-export const loadSearchParams = createLoader(actionSearchParams);
-
 /**
  * Custom parser for replyTo parameter
  * Accepts either "thread" (string) or a number (comment/reply ID)
@@ -136,15 +133,14 @@ const parseAsReplyTo = createParser({
 	},
 }).withDefault("thread");
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
+const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createLoaderRpc({
+	searchParams: actionSearchParams,
+})(async ({ context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-	const { action, threadId } = loadSearchParams(request);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -162,12 +158,11 @@ export const loader = async ({
 
 	return {
 		...courseModuleContext,
-		action,
-		threadId,
 		moduleLinkId,
 		isStudent,
+		searchParams,
 	};
-};
+});
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 const createThreadActionRpc = createActionRpc({
@@ -1061,9 +1056,9 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 						params: { moduleLinkId: loaderData.id },
 					});
 				}}
-				canStartAttempt={loaderData.permissions.canStartAttempt.allowed}
+				canStartAttempt={loaderData.permissions.quiz?.canStartAttempt.allowed ?? false}
 				quizRemainingTime={loaderData.quizRemainingTime}
-				canPreview={loaderData.permissions?.canPreview.allowed ?? false}
+				canPreview={loaderData.permissions.quiz?.canPreview.allowed ?? false}
 			/>
 			{allQuizSubmissionsForDisplay.length > 0 && (
 				<SubmissionHistory
@@ -1162,7 +1157,6 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 		course,
 		previousModule,
 		nextModule,
-		threadId,
 	} = loaderData;
 
 	const title = `${settings?.name ?? activityModule.title} | ${course.title} | Paideia LMS`;

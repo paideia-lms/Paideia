@@ -2,13 +2,12 @@ import { Container, Group, Tabs, Text, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
-import { permissions } from "server/utils/permissions";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum CourseTab {
 	Course = "course",
@@ -20,64 +19,37 @@ enum CourseTab {
 	Backup = "backup",
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params, searchParams }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
 	// Get course view data for tab context
 	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const enrolment = enrolmentContext?.enrolment;
-
-	const canSeeSettings = permissions.course.canSeeSettings(
-		currentUser,
-		enrolment,
-	).allowed;
-	const canSeeParticipants = permissions.course.canSeeParticipants(
-		currentUser,
-		enrolment,
-	).allowed;
-	const canSeeGrades = permissions.course.canSeeGrades(
-		currentUser,
-		enrolment,
-	).allowed;
-	const canSeeModules = permissions.course.canSeeModules(
-		currentUser,
-		enrolment,
-	).allowed;
-	const canSeeBin = permissions.course.canSeeBin(
-		currentUser,
-		enrolment,
-	).allowed;
-	const canSeeBackup = permissions.course.canSeeBackup(
-		currentUser,
-		enrolment,
-	).allowed;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	return {
 		course: courseContext.course,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
-		enrolment: enrolment,
-		canSeeSettings: canSeeSettings,
-		canSeeParticipants: canSeeParticipants,
-		canSeeGrades: canSeeGrades,
-		canSeeModules: canSeeModules,
-		canSeeBin: canSeeBin,
-		canSeeBackup: canSeeBackup,
+		enrolment: courseContext.enrolment,
+		permissions: courseContext.permissions,
+		params,
+		searchParams,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -88,12 +60,7 @@ export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 	const {
 		course,
 		pageInfo,
-		canSeeSettings,
-		canSeeParticipants,
-		canSeeGrades,
-		canSeeModules,
-		canSeeBin,
-		canSeeBackup,
+		permissions,
 	} = loaderData;
 
 	// Determine current tab based on route matches
@@ -171,24 +138,24 @@ export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 						>
 							<Tabs.List>
 								<Tabs.Tab value={CourseTab.Course}>Course</Tabs.Tab>
-								{canSeeSettings && (
+								{permissions.canSeeSettings.allowed && (
 									<Tabs.Tab value={CourseTab.Settings}>Settings</Tabs.Tab>
 								)}
-								{canSeeParticipants && (
+								{permissions.canSeeParticipants.allowed && (
 									<Tabs.Tab value={CourseTab.Participants}>
 										Participants
 									</Tabs.Tab>
 								)}
-								{canSeeGrades && (
+								{permissions.canSeeGrades.allowed && (
 									<Tabs.Tab value={CourseTab.Grades}>Grades</Tabs.Tab>
 								)}
-								{canSeeModules && (
+								{permissions.canSeeModules.allowed && (
 									<Tabs.Tab value={CourseTab.Modules}>Modules</Tabs.Tab>
 								)}
-								{canSeeBin && (
+								{permissions.canSeeBin.allowed && (
 									<Tabs.Tab value={CourseTab.Bin}>Recycle Bin</Tabs.Tab>
 								)}
-								{canSeeBackup && (
+								{permissions.canSeeBackup.allowed && (
 									<Tabs.Tab value={CourseTab.Backup}>Course Reuse</Tabs.Tab>
 								)}
 							</Tabs.List>

@@ -11,6 +11,7 @@ import {
 } from "@mantine/core";
 import { IconEdit, IconFolder, IconPlus } from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -29,7 +30,9 @@ export function getRouteUrl(courseId: number) {
 	});
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -77,7 +80,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		currentUser: currentUser,
 		canEdit,
 	};
-};
+});
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 	const { course, instructors, courseStructure, canEdit } = loaderData;

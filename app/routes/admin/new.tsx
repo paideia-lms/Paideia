@@ -17,13 +17,13 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum as parseAsStringEnum,
 } from "nuqs/server";
 import { stringify } from "qs";
 import { useState } from "react";
 import { href, redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
@@ -42,7 +42,18 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/new";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+enum Action {
+	Create = "create",
+}
+
+// Define search params for user creation
+export const userSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
+};
+
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -61,20 +72,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	return {
-		success: true,
+		searchParams,
+		params,
 	};
-};
-
-enum Action {
-	Create = "create",
-}
-
-// Define search params for user creation
-export const userSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
-
-export const loadSearchParams = createLoader(userSearchParams);
+});
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 

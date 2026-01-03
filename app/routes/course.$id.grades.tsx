@@ -1,15 +1,13 @@
 import { notifications } from "@mantine/notifications";
-import { useQueryState } from "nuqs";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
+	parseAsStringEnum,
+} from "nuqs";
 import { stringify } from "qs";
 import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
 	tryCreateGradebookCategory,
@@ -46,11 +44,9 @@ enum Action {
 	GetCategory = "get-category",
 }
 
-export const gradesSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+export const loaderSearchParams = {
+	tab: parseAsStringEnum(["report", "setup"]).withDefault("report"),
 };
-
-export const loadSearchParams = createLoader(gradesSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -152,7 +148,11 @@ export function getRouteUrl(action: Action, courseId: number) {
 // Loader
 // ============================================================================
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams, params }) => {
 	const courseContext = context.get(courseContextKey);
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
@@ -192,8 +192,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		extraCreditCategories: gradebookSetupForUI?.extraCreditCategories ?? [],
 		totalMaxGrade: gradebookSetupForUI?.totals.totalMaxGrade ?? 0,
 		userGrades,
+		searchParams,
+		params,
 	};
-};
+});
 
 const [createItemAction, useCreateItem] = createCreateItemActionRpc(
 	serverOnly$(async ({ context, formData, params }) => {
@@ -385,9 +387,8 @@ const [getItemAction, useGetItem] = createGetItemActionRpc(
 
 		// Handle category as number or object
 		const categoryId =
-			typeof item.category === "number"
-				? item.category
-				: (item.category?.id ?? null);
+			item.category
+			?? null;
 
 		return ok({
 			success: true,
@@ -545,13 +546,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const [activeTab] = useQueryState("tab", {
-		defaultValue: "report",
-	});
+	const { searchParams } = loaderData;
 
 	return (
 		<>
-			{activeTab === "setup" ? (
+			{searchParams.tab === "setup" ? (
 				<GradebookSetupView data={loaderData} />
 			) : (
 				<GraderReportView data={loaderData} />

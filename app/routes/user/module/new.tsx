@@ -1,11 +1,6 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { useQueryState } from "nuqs";
-import {
-	createLoader,
-	parseAsStringEnum,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
+import { parseAsStringEnum } from "nuqs";
 import { stringify } from "qs";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -36,12 +31,31 @@ import {
 import type { Route } from "./+types/new";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { serverOnly$ } from "vite-env-only/macros";
 import { redirect } from "react-router";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+// Define search params for module creation
+export const loaderSearchParams = {
+	type: parseAsStringEnum([
+		"page",
+		"whiteboard",
+		"file",
+		"assignment",
+		"quiz",
+		"discussion",
+	]).withDefault("page"),
+};
+
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({
+	searchParams: loaderSearchParams,
+});
+
+export const loader = createRouteLoader(async ({ context, searchParams }) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -55,8 +69,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	return {
 		user: currentUser,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit ?? undefined,
+		searchParams,
 	};
-};
+})!;
 
 enum Action {
 	CreatePage = "createPage",
@@ -67,12 +82,10 @@ enum Action {
 	CreateDiscussion = "createDiscussion",
 }
 
-// Define search params for module creation
+// Define search params for module creation (used in actions)
 export const moduleSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
-
-export const loadSearchParams = createLoader(moduleSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -248,7 +261,7 @@ const [createAssignmentAction, useCreateAssignment] =
 
 			const allowedFileTypes =
 				formData.assignmentAllowedFileTypes &&
-				formData.assignmentAllowedFileTypes.length > 0
+					formData.assignmentAllowedFileTypes.length > 0
 					? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 					: undefined;
 
@@ -606,22 +619,9 @@ function DiscussionFormWrapper() {
 }
 
 export default function NewModulePage({ loaderData }: Route.ComponentProps) {
-	const { uploadLimit } = loaderData;
-	const [selectedType, setSelectedType] = useQueryState(
-		"type",
-		parseAsStringEnum([
-			"page",
-			"whiteboard",
-			"file",
-			"assignment",
-			"quiz",
-			"discussion",
-		])
-			.withDefault("page")
-			.withOptions({
-				shallow: false,
-			}),
-	);
+	const { uploadLimit, searchParams } = loaderData;
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+	const selectedType = searchParams.type;
 
 	return (
 		<Container size="md" py="xl">
@@ -648,7 +648,9 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 					<Select
 						value={selectedType}
 						onChange={(value) =>
-							setSelectedType(value as ActivityModuleFormValues["type"])
+							setQueryParams({
+								type: (value as ActivityModuleFormValues["type"]) || null,
+							})
 						}
 						label="Module Type"
 						placeholder="Select module type"

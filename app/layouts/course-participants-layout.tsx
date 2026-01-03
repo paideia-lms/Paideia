@@ -8,6 +8,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-participants-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum ParticipantsTab {
 	Participants = "participants",
@@ -15,12 +16,15 @@ enum ParticipantsTab {
 	Groups = "groups",
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -35,8 +39,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		pageInfo,
+		params,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;

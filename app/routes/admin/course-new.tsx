@@ -13,6 +13,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -53,7 +54,9 @@ export function getRouteUrl() {
 	return href("/admin/course/new");
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -88,7 +91,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			label: cat.name,
 		})),
 	};
-};
+});
 
 const [createCourseAction, useCreateCourse] = createCreateCourseActionRpc(
 	serverOnly$(async ({ context, formData }) => {

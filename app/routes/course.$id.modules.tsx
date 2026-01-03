@@ -1,12 +1,12 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum as parseAsStringEnum,
 } from "nuqs/server";
 import { stringify } from "qs";
 import { href, redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -42,12 +42,10 @@ enum Action {
 	Delete = "delete",
 }
 
-// Define search params for module link actions
+// Define search params for module link actions (used in actions)
 export const moduleLinkSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
-
-export const loadSearchParams = createLoader(moduleLinkSearchParams);
 
 export function getRouteUrl(action: Action, courseId: number) {
 	return (
@@ -79,7 +77,9 @@ const createDeleteModuleLinkActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -94,21 +94,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const canEdit = permissions.course.canSeeModules(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrolmentContext?.enrolment
-			? {
-				id: enrolmentContext.enrolment.id,
-				role: enrolmentContext.enrolment.role,
-			}
-			: undefined,
-	);
+	const canEdit = courseContext.permissions.canEdit;
 
 	if (!canEdit) {
 		throw new ForbiddenResponse(
@@ -131,7 +117,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		canEdit,
 		availableModules,
 	};
-};
+});
 
 // Shared authorization check
 const checkAuthorization = async (
