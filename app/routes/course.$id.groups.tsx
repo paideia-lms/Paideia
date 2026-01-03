@@ -43,9 +43,11 @@ import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.groups";
+import { createActionMap } from "app/utils/action-utils";
 
 export type { Route };
 
@@ -237,34 +239,24 @@ const [deleteGroupAction, useDeleteGroup] = createDeleteGroupActionRpc(
 // Export hooks for use in components
 export { useCreateGroup, useDeleteGroup };
 
-const actionMap = {
+
+const [action] = createActionMap({
 	[Action.CreateGroup]: createGroupAction,
 	[Action.DeleteGroup]: deleteGroupAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData && "success" in actionData && actionData.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData && "error" in actionData) {
+	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,

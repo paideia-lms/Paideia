@@ -28,7 +28,7 @@ export function ReplyFormWrapper({
 				createReply({
 					params: { moduleLinkId },
 					searchParams: {
-						replyTo: _replyTo || "thread",
+						replyTo: _replyTo ? Number(_replyTo) : "thread",
 					},
 					values: {
 						content: replyContent.trim(),

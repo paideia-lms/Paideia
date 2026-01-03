@@ -13,7 +13,7 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { createLoader, parseAsStringEnum } from "nuqs/server";
 import prettyBytes from "pretty-bytes";
 import { href } from "react-router";
@@ -244,21 +244,12 @@ const [uploadAction, useUploadLogoRpc] = createUploadActionRpc(
 	},
 );
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Clear]: clearAction,
 	[Action.Upload]: uploadAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -338,8 +329,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: logo.id.toString(),
-			})
+			mediaId: logo.id.toString(),
+		})
 		: null;
 
 	return (

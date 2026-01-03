@@ -38,7 +38,7 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-access";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
 enum Action {
@@ -169,24 +169,14 @@ const [revokeAccessAction, useRevokeAccess] = createRevokeAccessActionRpc(
 	},
 );
 
-const actionMap = {
+
+
+const [action] = createActionMap({
 	[Action.GrantAccess]: grantAccessAction,
 	[Action.RevokeAccess]: revokeAccessAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

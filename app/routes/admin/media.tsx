@@ -46,7 +46,7 @@ import {
 import prettyBytes from "pretty-bytes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { href, Link } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -90,7 +90,7 @@ import { z } from "zod";
 import { typeCreateLoader } from "app/utils/loader-utils";
 
 // Define search params
-const loaderSearchParams = {
+export const loaderSearchParams = {
 	userId: parseAsInteger,
 	page: parseAsInteger.withDefault(1),
 	orphanedPage: parseAsInteger.withDefault(1),
@@ -106,12 +106,6 @@ enum Action {
 	PruneAllOrphanedMedia = "pruneAllOrphanedMedia",
 }
 
-// Define search params for media actions
-const mediaActionSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
-};
-
-const loadActionSearchParams = createLoader(mediaActionSearchParams);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
 
@@ -152,6 +146,7 @@ export function getRouteUrl(action: Action) {
 }
 
 const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
+
 
 export const loader = createRRLoader({
 	searchParams: loaderSearchParams,
@@ -547,28 +542,14 @@ export {
 	usePruneAllOrphanedMedia,
 };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.UpdateMedia]: updateMediaAction,
 	[Action.DeleteMedia]: deleteMediaAction,
 	[Action.DeleteOrphanedMedia]: deleteOrphanedMediaAction,
 	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadActionSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	const actionHandler = actionMap[actionType];
-	if (!actionHandler) {
-		return badRequest({ error: "Invalid action" });
-	}
-
-	return actionHandler(args);
-};
+export { action }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

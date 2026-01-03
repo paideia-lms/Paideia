@@ -1,7 +1,7 @@
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
@@ -243,24 +243,13 @@ const [deleteEnrollmentAction, useDeleteEnrollment] =
 // Export hooks for use in components
 export { useEnrollUser, useEditEnrollment, useDeleteEnrollment };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Enroll]: enrollUserAction,
 	[Action.EditEnrollment]: editEnrollmentAction,
 	[Action.DeleteEnrollment]: deleteEnrollmentAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -268,7 +257,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData && "success" in actionData && actionData.success) {
 		notifications.show({
 			title: "Success",
-			message: actionData.message,
+			message: "message" in actionData ? actionData.message : "Operation completed successfully",
 			color: "green",
 		});
 	} else if (actionData && "error" in actionData) {

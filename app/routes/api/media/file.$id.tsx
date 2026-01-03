@@ -2,11 +2,19 @@ import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import type { Route } from "./+types/file.$id";
-import { badRequest, notFound } from "app/utils/responses";
+import { BadRequestResponse, NotFoundResponse } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
+import { parseAsBoolean } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
+
+export const loaderSearchParams = {
+	download: parseAsBoolean.withDefault(false),
+};
+
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export function getRouteUrl(mediaId: number) {
 	return href("/api/media/file/:mediaId", {
@@ -14,22 +22,21 @@ export function getRouteUrl(mediaId: number) {
 	});
 }
 
-export const loader = async ({
+export const loader = createLoader({
+	searchParams: loaderSearchParams,
+})(async ({
+	searchParams,
 	params,
 	context,
 	request,
-}: Route.LoaderArgs) => {
+}) => {
 	const id = params.mediaId;
 
-	if (!id) {
-		return badRequest({ error: "ID is required" });
-	}
 
 	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 
 	// Check if download is requested via query parameter
-	const url = new URL(request.url);
-	const isDownload = url.searchParams.get("download") === "true";
+	const isDownload = searchParams.download;
 
 	// Parse Range header if present (we'll get file size from the media record)
 	const rangeHeader = request.headers.get("Range");
@@ -45,7 +52,7 @@ export const loader = async ({
 
 	if (!result.ok) {
 		console.error("Failed to get media stream:", result.error.message);
-		return notFound({ error: "File not found" });
+		throw new NotFoundResponse("File not found");
 	}
 
 	const media = result.value.media;
@@ -69,7 +76,7 @@ export const loader = async ({
 				"Failed to get media stream with range:",
 				result.error.message,
 			);
-			return notFound({ error: "File not found" });
+			throw new NotFoundResponse("File not found");
 		}
 	}
 
@@ -99,4 +106,4 @@ export const loader = async ({
 		status: 200,
 		headers,
 	});
-};
+});

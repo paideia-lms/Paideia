@@ -23,7 +23,7 @@ import {
 import { stringify } from "qs";
 import { useState } from "react";
 import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
@@ -162,23 +162,11 @@ const [createAction, useCreateUser] = createCreateUserActionRpc(
 // Export hook for use in component
 export { useCreateUser };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Create]: createAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

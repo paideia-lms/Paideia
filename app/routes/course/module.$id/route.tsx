@@ -23,6 +23,7 @@ import { permissions } from "server/utils/permissions";
 import z from "zod";
 import {
 	badRequest,
+	forbidden,
 	ForbiddenResponse,
 	ok,
 	StatusCode,
@@ -44,13 +45,14 @@ import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsString, useQueryState } from "nuqs";
 import {
 	createLoader,
+	createParser,
 	parseAsInteger,
 	parseAsStringEnum,
 	parseAsString as parseAsStringServer,
 } from "nuqs/server";
 import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { stringify } from "qs";
 
@@ -108,6 +110,32 @@ export const actionSearchParams = {
 
 export const loadSearchParams = createLoader(actionSearchParams);
 
+/**
+ * Custom parser for replyTo parameter
+ * Accepts either "thread" (string) or a number (comment/reply ID)
+ */
+const parseAsReplyTo = createParser({
+	parse(queryValue) {
+		if (queryValue === "thread") {
+			return "thread";
+		}
+		const parsed = Number.parseInt(queryValue, 10);
+		if (Number.isNaN(parsed) || parsed <= 0) {
+			return null;
+		}
+		return parsed;
+	},
+	serialize(value) {
+		if (value === "thread") {
+			return "thread";
+		}
+		if (typeof value === "number") {
+			return String(value);
+		}
+		return "thread"; // fallback
+	},
+}).withDefault("thread");
+
 export const loader = async ({
 	context,
 	params,
@@ -162,7 +190,7 @@ const createReplyActionRpc = createActionRpc({
 		/**
 		 * it is either "thread" or the comment id
 		 */
-		replyTo: parseAsStringServer.withDefault("thread"),
+		replyTo: parseAsReplyTo,
 	},
 });
 
@@ -477,27 +505,18 @@ const [createReplyAction, useCreateReply] = createReplyActionRpc(
 			throw new ForbiddenResponse(canParticipate.reason);
 		}
 
-		if (!searchParams.replyTo) {
-			return badRequest({ error: "Reply target is required" });
-		}
-
 		// Determine post type and parent based on replyTo URL parameter
-		const isReplyingToThread = searchParams.replyTo === "thread";
-		const postType = isReplyingToThread ? "reply" : "comment";
+		const postType = searchParams.replyTo === "thread" ? "reply" : "comment";
 
 		// For nested comments, parentThread should point to the parent comment/reply
 		// For top-level replies, parentThread should point to the thread
-		const actualParentThread = isReplyingToThread
+		const actualParentThread = searchParams.replyTo === "thread"
 			? formData.parentThread
-			: Number.parseInt(searchParams.replyTo, 10);
-
-		if (Number.isNaN(actualParentThread)) {
-			return badRequest({ error: "Invalid parent thread ID" });
-		}
+			: searchParams.replyTo;
 
 		const createResult = await tryCreateDiscussionSubmission({
 			payload,
-			courseModuleLinkId: Number(moduleLinkId),
+			courseModuleLinkId: moduleLinkId,
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
 			postType,
@@ -555,26 +574,26 @@ const [markQuizAttemptAsCompleteAction, useMarkQuizAttemptAsComplete] =
 					enrolmentContext.enrolment,
 				).allowed
 			) {
-				throw new ForbiddenResponse("Only students can submit assignments");
+				return forbidden({ error: "Only students can submit assignments" });
 			}
 
 			// Parse answers if provided
 			let answers:
 				| Array<{
-						questionId: string;
-						questionText: string;
-						questionType:
-							| "multiple_choice"
-							| "true_false"
-							| "short_answer"
-							| "essay"
-							| "fill_blank";
-						selectedAnswer?: string;
-						multipleChoiceAnswers?: Array<{
-							option: string;
-							isSelected: boolean;
-						}>;
-				  }>
+					questionId: string;
+					questionText: string;
+					questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+					selectedAnswer?: string;
+					multipleChoiceAnswers?: Array<{
+						option: string;
+						isSelected: boolean;
+					}>;
+				}>
 				| undefined;
 
 			if (formData.answers) {
@@ -765,8 +784,8 @@ const [submitAssignmentAction, useSubmitAssignment] =
 			const maxAttemptNumber =
 				userSubmissions.length > 0
 					? Math.max(
-							...userSubmissions.map((sub) => sub.attemptNumber as number),
-						)
+						...userSubmissions.map((sub) => sub.attemptNumber as number),
+					)
 					: 0;
 			const nextAttemptNumber = maxAttemptNumber + 1;
 
@@ -799,18 +818,6 @@ const [submitAssignmentAction, useSubmitAssignment] =
 		},
 	);
 
-const actionMap = {
-	[DiscussionActions.REPLY]: createReplyAction,
-	[DiscussionActions.CREATE_THREAD]: createThreadAction,
-	[DiscussionActions.UPVOTE_THREAD]: upvoteThreadAction,
-	[DiscussionActions.REMOVE_UPVOTE_THREAD]: removeUpvoteThreadAction,
-	[DiscussionActions.UPVOTE_REPLY]: upvoteReplyAction,
-	[DiscussionActions.REMOVE_UPVOTE_REPLY]: removeUpvoteReplyAction,
-	[QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE]: markQuizAttemptAsCompleteAction,
-	[QuizActions.START_ATTEMPT]: startQuizAttemptAction,
-	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
-};
-
 export {
 	useUpvoteThread,
 	useRemoveUpvoteThread,
@@ -823,15 +830,19 @@ export {
 	useMarkQuizAttemptAsComplete,
 };
 
-export const action = async (args: Route.ActionArgs) => {
-	const { action: actionParam } = loadSearchParams(args.request);
+const [action] = createActionMap({
+	[DiscussionActions.REPLY]: createReplyAction,
+	[DiscussionActions.CREATE_THREAD]: createThreadAction,
+	[DiscussionActions.UPVOTE_THREAD]: upvoteThreadAction,
+	[DiscussionActions.REMOVE_UPVOTE_THREAD]: removeUpvoteThreadAction,
+	[DiscussionActions.UPVOTE_REPLY]: upvoteReplyAction,
+	[DiscussionActions.REMOVE_UPVOTE_REPLY]: removeUpvoteReplyAction,
+	[QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE]: markQuizAttemptAsCompleteAction,
+	[QuizActions.START_ATTEMPT]: startQuizAttemptAction,
+	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
+});
 
-	if (!actionParam) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionParam](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -991,8 +1002,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-			"status" in loaderData.userSubmission &&
-			loaderData.userSubmission.status === "in_progress"
+				"status" in loaderData.userSubmission &&
+				loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 

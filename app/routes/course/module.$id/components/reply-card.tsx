@@ -19,6 +19,7 @@ import type { DiscussionReply } from "~/components/activity-modules-preview/disc
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
 import { useCreateReply } from "../route";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 dayjs.extend(relativeTime);
 
@@ -74,7 +75,7 @@ export function ReplyCardWithUpvote({
 						parentThread: threadIdNum,
 					},
 					searchParams: {
-						replyTo: reply.id,
+						replyTo: Number(reply.id),
 					},
 				});
 				setReplyContent("");
@@ -94,9 +95,13 @@ export function ReplyCardWithUpvote({
 							<Link
 								to={
 									courseId && reply.authorId
-										? href("/course/:courseId/participants/profile", {
-												courseId: String(courseId),
-											}) + `?userId=${reply.authorId}`
+										? getRouteUrl("/course/:courseId/participants/profile", {
+											params: {
+												courseId: courseId.toString(),
+											}, searchParams: {
+												userId: reply.authorId,
+											}
+										})
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}

@@ -457,3 +457,69 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
 		};
 	};
 }
+
+/**
+ * Creates a type-safe action map handler that automatically:
+ * 1. Extracts action keys from the map to create search params
+ * 2. Creates a loader for the action search param
+ * 3. Returns an action function that routes to the correct handler
+ *
+ * @example
+ * ```ts
+ * const [action, loadSearchParams] = createActionMap({
+ *   [Action.GrantAccess]: grantAccessAction,
+ *   [Action.RevokeAccess]: revokeAccessAction,
+ * });
+ *
+ * export { action, loadSearchParams };
+ * ```
+ */
+export function createActionMap<
+	ActionMap extends Record<string, (args: any) => Promise<any>>,
+>(actionMap: ActionMap) {
+	// Extract action keys from the map
+	const actionKeys = Object.keys(actionMap) as Array<keyof ActionMap & string>;
+
+	// Create search params with action enum
+	const actionSearchParams = {
+		action: parseAsStringEnum(actionKeys),
+	};
+
+	// Create loader for search params
+	const loadSearchParams = createLoader(actionSearchParams);
+
+	// Infer the common argument type from the action handlers
+	// Extract the argument type from the first handler
+	type FirstHandler = ActionMap[keyof ActionMap];
+	type ActionArgs = FirstHandler extends (args: infer A) => any ? A : never;
+
+	// Return the action function
+	// The return type is a union of all possible return types from action handlers
+	type ActionReturnType = ReturnType<ActionMap[keyof ActionMap]>;
+
+	const action = async (args: ActionArgs): Promise<ActionReturnType> => {
+		// Type assertion needed because ActionArgs might not have request in its type
+		// but all ActionFunctionArgs should have it
+		const request = (args as { request: Request }).request;
+		const { action: actionType } = loadSearchParams(request);
+
+		if (!actionType) {
+			return badRequest({
+				success: false,
+				error: "Action is required",
+			}) as unknown as ActionReturnType;
+		}
+
+		const actionHandler = actionMap[actionType];
+		if (!actionHandler) {
+			return badRequest({
+				success: false,
+				error: "Invalid action",
+			}) as unknown as ActionReturnType;
+		}
+
+		return (await actionHandler(args)) as unknown as ActionReturnType;
+	};
+
+	return [action, loadSearchParams] as const;
+}

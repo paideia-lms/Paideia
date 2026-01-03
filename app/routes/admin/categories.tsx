@@ -65,6 +65,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/categories";
+import { createActionMap } from "app/utils/action-utils";
 
 export type { Route };
 
@@ -282,23 +283,12 @@ const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
 // Export hooks for use in components
 export { useEditCategory, useDeleteCategory };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Edit]: editCategoryAction,
 	[Action.Delete]: deleteCategoryAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -493,11 +483,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent("category:none")
+							"?query=" +
+							encodeURIComponent("category:none")
 							: href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent(`category:"${d.name}"`);
+							"?query=" +
+							encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">

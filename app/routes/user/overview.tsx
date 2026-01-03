@@ -49,7 +49,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -252,23 +252,11 @@ export function getRouteUrl(action: Action, userId?: number) {
 	);
 }
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Update]: updateAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

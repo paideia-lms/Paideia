@@ -6,7 +6,7 @@ import {
 } from "nuqs/server";
 import { stringify } from "qs";
 import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -31,6 +31,7 @@ import {
 	BadRequestResponse,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.modules";
@@ -278,34 +279,24 @@ const [deleteAction, useDeleteModuleLink] = createDeleteModuleLinkActionRpc(
 // Export hooks for use in components
 export { useCreateModuleLink, useDeleteModuleLink };
 
-const actionMap = {
+
+const [action] = createActionMap({
 	[Action.Create]: createAction,
 	[Action.Delete]: deleteAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData && "success" in actionData && actionData.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData && "error" in actionData) {
+	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,

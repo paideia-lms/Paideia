@@ -35,7 +35,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/new";
 import { z } from "zod";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { serverOnly$ } from "vite-env-only/macros";
@@ -349,28 +349,16 @@ const [createDiscussionAction, useCreateDiscussion] =
 		},
 	);
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.CreatePage]: createPageAction,
 	[Action.CreateWhiteboard]: createWhiteboardAction,
 	[Action.CreateFile]: createFileAction,
 	[Action.CreateAssignment]: createAssignmentAction,
 	[Action.CreateQuiz]: createQuizAction,
 	[Action.CreateDiscussion]: createDiscussionAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export const clientAction = async ({
 	serverAction,

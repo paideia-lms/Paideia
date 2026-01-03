@@ -41,7 +41,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -375,28 +375,16 @@ const [updateDiscussionAction, useUpdateDiscussion] =
 		},
 	);
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.UpdatePage]: updatePageAction,
 	[Action.UpdateWhiteboard]: updateWhiteboardAction,
 	[Action.UpdateFile]: updateFileAction,
 	[Action.UpdateAssignment]: updateAssignmentAction,
 	[Action.UpdateQuiz]: updateQuizAction,
 	[Action.UpdateDiscussion]: updateDiscussionAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export const clientAction = async ({
 	serverAction,

@@ -22,7 +22,7 @@ import {
 } from "nuqs/server";
 import { stringify } from "qs";
 import { href, redirect, useNavigate } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
@@ -81,11 +81,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-					{
-						userId: enrolmentContext.enrolment.user.id,
-						role: enrolmentContext.enrolment.role,
-					},
-				]
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
 			: undefined,
 	);
 
@@ -413,27 +413,16 @@ export {
 	useUpdateDiscussionSettings,
 };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.UpdatePage]: updatePageSettingsAction,
 	[Action.UpdateWhiteboard]: updateWhiteboardSettingsAction,
 	[Action.UpdateFile]: updateFileSettingsAction,
 	[Action.UpdateAssignment]: updateAssignmentSettingsAction,
 	[Action.UpdateQuiz]: updateQuizSettingsAction,
 	[Action.UpdateDiscussion]: updateDiscussionSettingsAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

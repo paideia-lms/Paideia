@@ -46,7 +46,7 @@ import { stringify } from "qs";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { href } from "react-router";
 import { z } from "zod";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import { serverOnly$ } from "vite-env-only/macros";
@@ -512,22 +512,13 @@ const [deleteAction, useDelete] = createDeleteActionRpc(
 	},
 );
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Upload]: uploadAction,
 	[Action.Update]: updateAction,
 	[Action.Delete]: deleteAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

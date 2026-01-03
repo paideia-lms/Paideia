@@ -33,7 +33,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/profile";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 
 enum Action {
@@ -153,22 +153,11 @@ export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
 	},
 );
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Impersonate]: impersonateAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

@@ -9,7 +9,7 @@ import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
 	tryCreateGradebookCategory,
@@ -184,8 +184,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0 ||
-				gradebookSetupForUI.extraCreditCategories.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -508,7 +508,9 @@ export {
 	useDeleteCategory,
 };
 
-const actionMap = {
+
+
+const [action] = createActionMap({
 	[Action.CreateItem]: createItemAction,
 	[Action.CreateCategory]: createCategoryAction,
 	[Action.UpdateItem]: updateItemAction,
@@ -517,31 +519,9 @@ const actionMap = {
 	[Action.DeleteCategory]: deleteCategoryAction,
 	[Action.GetItem]: getItemAction,
 	[Action.GetCategory]: getCategoryAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request, context } = args;
-	const userSession = context.get(userContextKey);
-	const courseContext = context.get(courseContextKey);
-
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found or access denied");
-	}
-
-	if (!userSession?.isAuthenticated) {
-		return badRequest({ error: "Unauthorized" });
-	}
-
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

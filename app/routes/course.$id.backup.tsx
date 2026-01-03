@@ -54,12 +54,12 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const canSeeBackup = permissions.course.canSeeBackup(
 		{
 			id: currentUser.id,
-			role: currentUser.role ?? "student",
+			role: currentUser.role,
 		},
 		enrolmentContext?.enrolment
 			? {
-					role: enrolmentContext.enrolment.role,
-				}
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 

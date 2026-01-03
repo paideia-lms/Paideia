@@ -30,7 +30,7 @@ import {
 } from "server/internal/user-grade-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { permissions } from "server/utils/permissions";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion-grading-view";
 import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
 import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
@@ -888,22 +888,13 @@ const [releaseGradeAction, useReleaseGrade] = createReleaseGradeActionRpc(
 
 export { useDeleteSubmission, useGradeSubmission, useReleaseGrade };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.DeleteSubmission]: deleteSubmissionAction,
 	[Action.GradeSubmission]: gradeSubmissionAction,
 	[Action.ReleaseGrade]: releaseGradeAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

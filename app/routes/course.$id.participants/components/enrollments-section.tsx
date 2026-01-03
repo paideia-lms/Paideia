@@ -37,10 +37,10 @@ import {
 	getRoleLabel,
 } from "../../../components/course-view-utils";
 import type { Route } from "app/routes/course.$id.participants/route";
-import { getRouteUrl } from "app/routes/course.$id.participants.profile";
 import { DeleteEnrollmentButton } from "./delete-enrollment-modal";
 import { EditEnrollmentButton } from "./edit-enrollment-modal";
 import { EnrollUserButton } from "./enroll-user-modal";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 type Enrollment = NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>;
 
@@ -418,7 +418,7 @@ export function EnrollmentsSection({
 													<Text
 														fw={500}
 														component={Link}
-														to={getRouteUrl(courseId, enrollment.user.id)}
+														to={getRouteUrl("/course/:courseId/participants/profile", { params: { courseId: courseId.toString() }, searchParams: { userId: enrollment.user.id } })}
 													>
 														{fullName}
 													</Text>

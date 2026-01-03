@@ -12,7 +12,7 @@ import {
 import { IconUserCheck } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
-import { createLoader, parseAsInteger } from "nuqs/server";
+import { parseAsInteger } from "nuqs/server";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -27,36 +27,32 @@ import {
 import { useImpersonate } from "~/routes/user/profile";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants.profile";
-import { stringify } from "qs";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
 export type { Route };
 
 // Define search params for user selection
-export const profileSearchParams = {
+export const loaderSearchParams = {
 	userId: parseAsInteger,
 };
 
-export const loadSearchParams = createLoader(profileSearchParams);
 
-export function getRouteUrl(courseId: number, userId?: number) {
-	return (
-		href("/course/:courseId/participants/profile", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ userId })
-	);
-}
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({
+export const loader = createLoader({
+	searchParams: loaderSearchParams,
+})(async ({
 	request,
 	context,
 	params,
-}: Route.LoaderArgs) => {
+	searchParams,
+}) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 	const { courseId } = params;
+	const { userId } = searchParams;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -70,30 +66,28 @@ export const loader = async ({
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	// Get selected user from search params
-	const { userId } = loadSearchParams(request);
 
 	// Check if user can impersonate the selected user
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? permissions.admin.canImpersonateUser(
-				userSession.authenticatedUser,
-				{
-					id: userId,
-					role: "student", // Enrolled users are not admins
-				},
-				userSession.isImpersonating,
-			).allowed
+			userSession.authenticatedUser,
+			{
+				id: userId,
+				role: "student", // Enrolled users are not admins
+			},
+			userSession.isImpersonating,
+		).allowed
 		: false;
 
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		currentUser: currentUser,
-		selectedUserId: userId,
 		canImpersonate,
+		searchParams,
 	};
-};
+});
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -104,21 +98,18 @@ export default function CourseParticipantsProfilePage({
 }: Route.ComponentProps) {
 	const {
 		course,
-		selectedUserId: _selectedUserId,
+		searchParams: {
+			userId: selectedUserId,
+		},
 		canImpersonate,
 	} = loaderData;
 	const { submit: impersonate, isLoading } = useImpersonate();
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	// Redirect back to the course page after impersonation
 	const redirectPath = href("/course/:courseId", {
 		courseId: String(course.id),
 	});
-	const [selectedUserId, setSelectedUserId] = useQueryState(
-		"userId",
-		parseAsInteger.withOptions({
-			shallow: false,
-		}),
-	);
 
 	// Find selected enrollment
 	const selectedEnrollment = selectedUserId
@@ -142,7 +133,7 @@ export default function CourseParticipantsProfilePage({
 						data={userOptions}
 						value={selectedUserId?.toString() || null}
 						onChange={(value) => {
-							setSelectedUserId(value ? Number(value) : null);
+							setQueryParams({ userId: value ? Number(value) : null });
 						}}
 						searchable
 						clearable
@@ -194,8 +185,8 @@ export default function CourseParticipantsProfilePage({
 								src={
 									selectedEnrollment.user.avatar
 										? href(`/api/media/file/:mediaId`, {
-												mediaId: selectedEnrollment.user.avatar.toString(),
-											})
+											mediaId: selectedEnrollment.user.avatar.toString(),
+										})
 										: undefined
 								}
 								alt={

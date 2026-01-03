@@ -1,6 +1,6 @@
 import { Container, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { useState } from "react";
 import { href, redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -107,21 +107,11 @@ const [createNoteAction, useCreateNoteRpc] = createCreateNoteActionRpc(
 	},
 );
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.CreateNote]: createNoteAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const url = new URL(request.url);
-	const actionFromUrl = url.searchParams.get("action") as Action | null;
-
-	if (!actionFromUrl || !(actionFromUrl in actionMap)) {
-		return badRequest({ error: "Invalid action" });
-	}
-
-	return actionMap[actionFromUrl](args);
-};
+export { action };
 
 export const clientAction = async ({
 	serverAction,
