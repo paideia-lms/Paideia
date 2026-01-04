@@ -497,8 +497,8 @@ export function GraderReportView({
 										})}
 										<Table.Td>
 											{finalGrade !== null &&
-											finalGrade !== undefined &&
-											typeof finalGrade === "number" ? (
+												finalGrade !== undefined &&
+												typeof finalGrade === "number" ? (
 												<Text size="sm" fw={500}>
 													{finalGrade.toFixed(2)}
 												</Text>

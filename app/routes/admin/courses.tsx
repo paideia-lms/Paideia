@@ -64,8 +64,6 @@ export const loaderSearchParams = {
 	page: parseAsInteger.withDefault(1),
 };
 
-
-
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader({
