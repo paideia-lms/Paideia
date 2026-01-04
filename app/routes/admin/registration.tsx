@@ -18,10 +18,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/registration";
 
-export function getRouteUrl() {
-	return href("/admin/registration");
-}
-
 export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);

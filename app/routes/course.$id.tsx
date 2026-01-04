@@ -24,19 +24,12 @@ import {
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId", {
-		courseId: courseId.toString(),
-	});
-}
-
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context, params }) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");

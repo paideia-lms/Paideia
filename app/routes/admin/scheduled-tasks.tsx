@@ -21,11 +21,6 @@ import {
 } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/scheduled-tasks";
-import { href } from "react-router";
-
-export function getRouteUrl() {
-	return href("/admin/scheduled-tasks");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 

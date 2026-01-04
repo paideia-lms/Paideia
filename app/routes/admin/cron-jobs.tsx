@@ -12,11 +12,6 @@ import {
 } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/cron-jobs";
-import { href } from "react-router";
-
-export function getRouteUrl() {
-	return href("/admin/cron-jobs");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 

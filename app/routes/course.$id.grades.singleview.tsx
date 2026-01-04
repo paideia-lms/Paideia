@@ -34,12 +34,6 @@ import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/grades/singleview", {
-		courseId: courseId.toString(),
-	});
-}
-
 dayjs.extend(utc);
 dayjs.extend(timezone);
 

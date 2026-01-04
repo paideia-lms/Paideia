@@ -6,10 +6,6 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import { removeCookie, removeImpersonationCookie } from "~/utils/cookie";
 import { UnauthorizedResponse } from "~/utils/responses";
 
-export function getRouteUrl() {
-	return href("/logout");
-}
-
 const createRouteLoader = typeCreateLoader<LoaderFunctionArgs>();
 
 export const loader = createRouteLoader()(async ({ context, request }) => {

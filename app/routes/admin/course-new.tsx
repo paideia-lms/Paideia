@@ -75,15 +75,13 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		payload,
 		req: payloadRequest,
 		sort: "name",
+	}).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get categories");
 	});
-
-	if (!categoriesResult.ok) {
-		throw new InternalServerErrorResponse(categoriesResult.error.message);
-	}
 
 	return {
 		success: true,
-		categories: categoriesResult.value.map((cat) => ({
+		categories: categoriesResult.map((cat) => ({
 			value: cat.id.toString(),
 			label: cat.name,
 		})),

@@ -28,10 +28,6 @@ import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course";
-
-export function getRouteUrl() {
-	return href("/course");
-}
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,

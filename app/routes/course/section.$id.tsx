@@ -27,12 +27,6 @@ import { ForbiddenResponse, ok } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/section.$id";
 
-export function getRouteUrl(sectionId: number) {
-	return href("/course/section/:sectionId", {
-		sectionId: sectionId.toString(),
-	});
-}
-
 // Helper function to recursively find a section in the course structure
 function findSectionInStructure(
 	sections: CourseStructureSection[],

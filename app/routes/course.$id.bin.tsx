@@ -1,20 +1,13 @@
 import { Container, Paper, Text, Title } from "@mantine/core";
-import { href } from "react-router";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.bin";
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/bin", {
-		courseId: courseId.toString(),
-	});
-}
-
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context, params }) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 
@@ -38,7 +31,6 @@ export const loader = createRouteLoader()(async ({ context, params }) => {
 	// TODO: Fetch deleted items data
 	return {
 		deletedItems: [], // Placeholder data
-		params
 	};
 });
 

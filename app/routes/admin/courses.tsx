@@ -54,10 +54,6 @@ import type { Route } from "./+types/courses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
 
-export function getRouteUrl() {
-	return href("/admin/courses");
-}
-
 // Define search params
 export const loaderSearchParams = {
 	query: parseAsString.withDefault(""),

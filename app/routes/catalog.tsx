@@ -26,10 +26,6 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/catalog";
 
-export function getRouteUrl() {
-	return href("/catalog");
-}
-
 // Define search params
 export const catalogSearchParams = {
 	code: parseAsString.withDefault(""),

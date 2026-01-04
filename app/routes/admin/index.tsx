@@ -5,10 +5,6 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import { href, Link } from "react-router";
 import type { Route } from "./+types/index";
 
-export function getRouteUrl() {
-	return href("/admin/*", { "*": "" });
-}
-
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

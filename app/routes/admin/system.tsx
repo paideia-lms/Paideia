@@ -12,7 +12,6 @@ import {
 	Title,
 } from "@mantine/core";
 import { useInterval } from "@mantine/hooks";
-import { href } from "react-router";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -21,10 +20,6 @@ import { detectSystemResources } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/system";
-
-export function getRouteUrl() {
-	return href("/admin/system");
-}
 
 function getServerTimezone() {
 	return (

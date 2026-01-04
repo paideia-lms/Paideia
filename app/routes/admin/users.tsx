@@ -29,10 +29,8 @@ import {
 	getUserRoleBadgeColor,
 	getUserRoleLabel,
 } from "app/components/course-view-utils";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
-export function getRouteUrl() {
-	return href("/admin/users");
-}
 
 // Define search params
 export const usersSearchParams = {
@@ -171,7 +169,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 					</div>
 					<Button
 						component={Link}
-						to="/admin/user/new"
+						to={getRouteUrl("/admin/user/new", {})}
 						leftSection={<IconPlus size={16} />}
 					>
 						Add User

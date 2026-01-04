@@ -1,4 +1,3 @@
-import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import { tryFindUserById } from "server/internal/user-management";
@@ -9,12 +8,6 @@ import {
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-
-export function getRouteUrl(userId: number) {
-	return href("/api/user/:id/avatar", {
-		id: userId.toString(),
-	});
-}
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoader({});

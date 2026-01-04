@@ -19,7 +19,6 @@ import {
 	IconTrash,
 	IconUpload,
 } from "@tabler/icons-react";
-import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -28,19 +27,12 @@ import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.backup";
 import { typeCreateLoader } from "app/utils/loader-utils";
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/backup", {
-		courseId: courseId.toString(),
-	});
-}
-
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-	const { courseId } = params;
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}

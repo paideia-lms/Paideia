@@ -1,8 +1,8 @@
-import { href } from "react-router";
+
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import type { Route } from "./+types/file.$id";
-import { BadRequestResponse, NotFoundResponse } from "app/utils/responses";
+import { NotFoundResponse } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
@@ -15,12 +15,6 @@ export const loaderSearchParams = {
 };
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
-
-export function getRouteUrl(mediaId: number) {
-	return href("/api/media/file/:mediaId", {
-		mediaId: mediaId.toString(),
-	});
-}
 
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,

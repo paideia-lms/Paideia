@@ -23,12 +23,6 @@ import { ForbiddenResponse, ok } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/section-edit";
 
-export function getRouteUrl(sectionId: number) {
-	return href("/course/section/:sectionId/edit", {
-		sectionId: sectionId.toString(),
-	});
-}
-
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {

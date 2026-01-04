@@ -1,14 +1,9 @@
 import { Alert, Badge, Box, Paper, Stack, Table, Title } from "@mantine/core";
-import { href } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
 import { ForbiddenResponse } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/dependencies";
-
-export function getRouteUrl() {
-	return href("/admin/dependencies");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
