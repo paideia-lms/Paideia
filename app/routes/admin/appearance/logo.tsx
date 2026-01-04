@@ -25,7 +25,6 @@ import {
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
 import type { Media } from "server/payload-types";
-import { serverOnly$ } from "vite-env-only/macros";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -36,11 +35,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/logo";
 import { z } from "zod";
-import { stringify } from "qs";
-
-export function getRouteUrl() {
-	return href("/admin/appearance/logo");
-}
 
 enum Action {
 	Clear = "clear",
@@ -138,23 +132,25 @@ const inputSchema = z.object({
 	faviconDark: z.file().nullish(),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/appearance/logo",
+});
 
-const createClearActionRpc = createActionRpc({
+const clearRpc = createActionRpc({
 	searchParams: logoSearchParams,
 	method: "POST",
 	action: Action.Clear,
 });
 
-const createUploadActionRpc = createActionRpc({
+const uploadRpc = createActionRpc({
 	formDataSchema: inputSchema,
 	searchParams: logoSearchParams,
 	method: "POST",
 	action: Action.Upload,
 });
 
-const [clearAction, useClearLogoRpc] = createClearActionRpc(
-	serverOnly$(async ({ context, searchParams }) => {
+const clearAction = clearRpc.createAction(
+	async ({ context, searchParams }) => {
 		const { field } = searchParams;
 		if (!field) {
 			return badRequest({ error: "Field is required" });
@@ -188,23 +184,13 @@ const [clearAction, useClearLogoRpc] = createClearActionRpc(
 			message: "Logo cleared successfully",
 			logoField: field,
 		});
-	})!,
-	{
-		action: ({ searchParams }) => {
-			if (!searchParams.field) {
-				throw new Error("Field is required");
-			}
-			return (
-				href("/admin/appearance/logo") +
-				"?" +
-				stringify({ action: searchParams.action, field: searchParams.field })
-			);
-		},
 	},
 );
 
-const [uploadAction, useUploadLogoRpc] = createUploadActionRpc(
-	serverOnly$(async ({ context, formData, searchParams: _searchParams }) => {
+const useClearLogoRpc = clearRpc.createHook<typeof clearAction>();
+
+const uploadAction = uploadRpc.createAction(
+	async ({ context, formData, searchParams: _searchParams }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -233,17 +219,10 @@ const [uploadAction, useUploadLogoRpc] = createUploadActionRpc(
 		return ok({
 			message: "Logo uploaded successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams }) => {
-			return (
-				href("/admin/appearance/logo") +
-				"?" +
-				stringify({ action: searchParams.action })
-			);
-		},
 	},
 );
+
+const useUploadLogoRpc = uploadRpc.createHook<typeof uploadAction>();
 
 const [action] = createActionMap({
 	[Action.Clear]: clearAction,

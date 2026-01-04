@@ -13,7 +13,7 @@ import {
 	type inferParserType,
 } from "nuqs/server";
 import { ContentType } from "~/utils/get-content-type";
-import type { RouteIdFromRoute } from "./routes-utils";
+import type { RouteIdFromRouteFunctionArgs, RoutePage } from "./routes-utils";
 import { stringify } from "qs";
 
 /**
@@ -252,220 +252,6 @@ type PreserveOptionalParams<T extends ActionFunctionArgs> = {
 };
 
 /**
- * @deprecated use typeCreateActionRpcV2 instead
- */
-export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
-	return <
-		Method extends "POST" | "GET" | "PATCH" | "PUT" | "DELETE",
-		FormDataSchema extends z.ZodTypeAny | undefined,
-		SearchParamsSchema extends ParserMap | undefined,
-		Action extends string | undefined = undefined,
-	>({
-		formDataSchema,
-		method = "POST" as Method,
-		searchParams,
-		action,
-	}: {
-		formDataSchema?: FormDataSchema;
-		method?: Method;
-		searchParams?: SearchParamsSchema;
-		/**
-		 *  if action is provided, it will be merged with searchParams.
-		 * it is the shortcut for
-		 *
-		 * ```
-		 * { action: parseAsStringEnum([action]).withDefault(action), ...searchParams }
-		 * ```
-		 */
-		action?: Action;
-	} = {}) => {
-		// Merge action shortcut with searchParams if both are provided
-		const mergedSearchParams = action
-			? {
-					action: parseAsStringEnum([action]).withDefault(action),
-					...(searchParams ?? {}),
-				}
-			: searchParams;
-
-		const loadSearchParams = mergedSearchParams
-			? createLoader(mergedSearchParams)
-			: undefined;
-
-		// Compute SearchParamsType (preserving original logic for correctness)
-		type HasSearchParams =
-			SearchParamsSchema extends Record<string, unknown> ? true : false;
-		type HasAction = Action extends string ? true : false;
-		type HasBoth = HasSearchParams extends true
-			? HasAction extends true
-				? true
-				: false
-			: false;
-
-		type SearchParamsType = Simplify<
-			UnionToIntersection<
-				Exclude<
-					HasBoth extends true
-						? inferParserType<NonNullable<typeof mergedSearchParams>>
-						: HasAction extends true
-							? { action: Action }
-							: HasSearchParams extends true
-								? inferParserType<NonNullable<SearchParamsSchema>>
-								: never,
-					{ action: never }
-				>
-			>
-		>;
-
-		type Params = PreserveOptionalParams<T>;
-
-		// Base args structure
-		type BaseArgs = Omit<T, "params" | "request" | "searchParams"> &
-			Params & {
-				searchParams: SearchParamsType;
-				request: Omit<T["request"], "method"> & { method: Method };
-			};
-
-		// Args with formData when schema is provided
-		type ArgsWithFormData = FormDataSchema extends z.ZodTypeAny
-			? Simplify<BaseArgs & { formData: z.infer<FormDataSchema> }>
-			: Simplify<BaseArgs>;
-
-		const _action = mergedSearchParams?.action.defaultValue;
-
-		type OtherSearchParams = SearchParamsType extends never
-			? // biome-ignore lint/complexity/noBannedTypes: it is intented
-				{}
-			: Omit<SearchParamsType, "action">;
-
-		return <A extends (args: ArgsWithFormData) => ReturnType<A>>(
-			a: A,
-			options: {
-				action: (args: {
-					params: Params["params"];
-					searchParams: SearchParamsType extends never ? {} : SearchParamsType;
-				}) => string;
-			},
-		) => {
-			const action = serverOnly$(async (args: T) => {
-				const { params, request } = args;
-
-				// check request method
-				if (!isRequestMethod(request.method, method)) {
-					return badRequest({
-						success: false,
-						error: `Method ${request.method} not allowed. Expected ${method}.`,
-					});
-				}
-
-				// parse and validate custom params schema if provided
-				const _params: Record<string, string | number | undefined> = {};
-
-				for (const [key, value] of Object.entries(params)) {
-					const schema = paramsSchema[key as keyof typeof paramsSchema];
-					if (schema) {
-						const result = schema.safeParse(value);
-						if (!result.success) {
-							return badRequest({
-								success: false,
-								error: z.prettifyError(result.error),
-							});
-						}
-						_params[key] = result.data;
-					} else {
-						_params[key] = value;
-					}
-				}
-
-				// parse search params if schema is provided
-				const parsedSearchParams = loadSearchParams
-					? loadSearchParams(request)
-					: undefined;
-
-				// Build base args object
-				const baseArgs = {
-					...args,
-					params: _params,
-					request: request as Omit<T["request"], "method"> & { method: Method },
-					...(parsedSearchParams !== undefined
-						? { searchParams: parsedSearchParams }
-						: {}),
-				} as unknown as BaseArgs;
-
-				// parse form data if schema is provided
-				if (formDataSchema) {
-					const parsed = await request
-						.formData()
-						.then(convertMyFormDataToObject)
-						.then(formDataSchema.safeParse);
-
-					if (!parsed.success) {
-						return badRequest({
-							success: false,
-							error: z.prettifyError(parsed.error),
-						});
-					}
-
-					return a({
-						...baseArgs,
-						formData: parsed.data,
-					} as unknown as ArgsWithFormData);
-				}
-
-				return a(baseArgs as unknown as ArgsWithFormData);
-			})!;
-
-			const hook = () => {
-				const fetcher = useFetcher<ReturnType<A>>();
-
-				const submit = async (
-					args: Simplify<
-						OptionalIfEmpty<z.infer<FormDataSchema>, "values"> &
-							OptionalIfEmpty<OtherSearchParams, "searchParams"> &
-							OptionalIfEmpty<Params["params"], "params">
-					>,
-				) => {
-					const providedSearchParams =
-						"searchParams" in args ? args.searchParams : {};
-					const providedParams = "params" in args ? args.params : {};
-					const url = options.action({
-						params: providedParams as Params["params"],
-						searchParams: {
-							...providedSearchParams,
-							action: _action,
-						} as unknown as SearchParamsType,
-					});
-
-					await fetcher.submit(
-						new MyFormData(
-							(args.values ?? {}) as Record<
-								string,
-								string | number | boolean | object | Blob | null | undefined
-							>,
-						),
-						{
-							method,
-							action: url,
-							encType: ContentType.MULTIPART,
-						},
-					);
-				};
-
-				return {
-					submit,
-					isLoading: fetcher.state !== "idle",
-					data: fetcher.data,
-					fetcher,
-				};
-			};
-
-			return [action, hook] as const;
-		};
-	};
-}
-
-/**
- * V2 version of typeCreateActionRpc with a different API structure.
- * Instead of returning [action, hook], it returns { createAction, createHook }.
  * The hook automatically derives the URL from the routeId using getRouteUrl.
  *
  * @example
@@ -487,10 +273,10 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>() {
  * const useCreateItem = createItemRpc.createHook<typeof createItemAction>();
  * ```
  */
-export function typeCreateActionRpcV2<T extends ActionFunctionArgs>({
-	routeId,
+export function typeCreateActionRpc<T extends ActionFunctionArgs>({
+	route,
 }: {
-	routeId: RouteIdFromRoute<T>;
+	route: RoutePage<RouteIdFromRouteFunctionArgs<T>>;
 }) {
 	return <
 		Method extends "POST" | "GET" | "PATCH" | "PUT" | "DELETE",
@@ -643,18 +429,6 @@ export function typeCreateActionRpcV2<T extends ActionFunctionArgs>({
 									formData: parsed.data,
 								} as unknown as ArgsWithFormData);
 							});
-
-						// if (!parsed.success) {
-						// 	return badRequest({
-						// 		success: false,
-						// 		error: z.prettifyError(parsed.error),
-						// 	});
-						// }
-
-						// return a({
-						// 	...baseArgs,
-						// 	formData: parsed.data,
-						// } as unknown as ArgsWithFormData);
 					}
 
 					return a(baseArgs as unknown as ArgsWithFormData);
@@ -679,7 +453,7 @@ export function typeCreateActionRpcV2<T extends ActionFunctionArgs>({
 
 						// Build URL using href with routeId and params
 						const baseUrl = href(
-							routeId as any,
+							route as any,
 							...(providedParams ? [providedParams] : []),
 						);
 

@@ -16,7 +16,6 @@ import { parseAsInteger } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -40,9 +39,11 @@ export const loaderSearchParams = {
 	parentSection: parseAsInteger,
 };
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/section/new",
+});
 
-const createCreateSectionActionRpc = createActionRpc({
+const createSectionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1, "Section title is required"),
 		description: z.string().min(1, "Section description is required"),
@@ -51,9 +52,8 @@ const createCreateSectionActionRpc = createActionRpc({
 	method: "POST",
 });
 
-
-const [createSectionAction, useCreateSection] = createCreateSectionActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createSectionAction = createSectionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { courseId } = params;
@@ -96,13 +96,10 @@ const [createSectionAction, useCreateSection] = createCreateSectionActionRpc(
 				sectionId: newSection.id.toString(),
 			}),
 		);
-	})!,
-	{
-		action: ({ params }) => href("/course/:courseId/section/new", {
-			courseId: params.courseId.toString(),
-		}),
 	},
 );
+
+const useCreateSection = createSectionRpc.createHook<typeof createSectionAction>();
 
 // Export hook for use in component
 export { useCreateSection };

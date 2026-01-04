@@ -18,7 +18,6 @@ import { useId, useRef, useState } from "react";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -78,21 +77,17 @@ export const actionInputSchema = z.object({
 		),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/settings",
+});
 
-const createUpdateCourseActionRpc = createActionRpc({
+const updateCourseRpc = createActionRpc({
 	formDataSchema: actionInputSchema,
 	method: "POST",
 });
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/settings", {
-		courseId: String(courseId),
-	});
-}
-
-const [updateCourseAction, useEditCourse] = createUpdateCourseActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const updateCourseAction = updateCourseRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
@@ -139,18 +134,17 @@ const [updateCourseAction, useEditCourse] = createUpdateCourseActionRpc(
 			message: "Course updated successfully",
 			id: courseId,
 		});
-	})!,
-	{
-		action: ({ params }) => getRouteUrl(Number(params.courseId)),
 	},
 );
+
+const useEditCourse = updateCourseRpc.createHook<typeof updateCourseAction>();
 
 // Export hook for use in component
 export { useEditCourse };
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context, request }) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);

@@ -1,7 +1,6 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { parseAsStringEnum } from "nuqs";
-import { stringify } from "qs";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -35,7 +34,6 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
-import { serverOnly$ } from "vite-env-only/macros";
 import { redirect } from "react-router";
 
 // Define search params for module creation
@@ -87,7 +85,9 @@ export const moduleSearchParams = {
 	action: parseAsStringEnum(Object.values(Action)),
 };
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/module/new",
+});
 
 const createCreatePageActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -162,12 +162,8 @@ const createCreateDiscussionActionRpc = createActionRpc({
 	action: Action.CreateDiscussion,
 });
 
-export function getRouteUrl(action: Action) {
-	return href("/user/module/new") + "?" + stringify({ action });
-}
-
-const [createPageAction, useCreatePage] = createCreatePageActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createPageAction = createCreatePageActionRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const createResult = await tryCreatePageModule({
@@ -189,44 +185,41 @@ const [createPageAction, useCreatePage] = createCreatePageActionRpc(
 			success: true,
 			message: "Module created successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [createWhiteboardAction, useCreateWhiteboard] =
-	createCreateWhiteboardActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+const useCreatePage = createCreatePageActionRpc.createHook<typeof createPageAction>();
 
-			const createResult = await tryCreateWhiteboardModule({
-				payload,
-				title: formData.title,
-				description: formData.description,
-				content: formData.whiteboardContent,
-				req: payloadRequest,
+const createWhiteboardAction = createCreateWhiteboardActionRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const createResult = await tryCreateWhiteboardModule({
+			payload,
+			title: formData.title,
+			description: formData.description,
+			content: formData.whiteboardContent,
+			req: payloadRequest,
+		});
+
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
 			});
+		}
 
-			if (!createResult.ok) {
-				return badRequest({
-					success: false,
-					error: createResult.error.message,
-				});
-			}
+		return ok({
+			success: true,
+			message: "Module created successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Module created successfully",
-			});
-		})!,
-		{
-			action: ({ searchParams }) => getRouteUrl(searchParams.action),
-		},
-	);
+const useCreateWhiteboard = createCreateWhiteboardActionRpc.createHook<typeof createWhiteboardAction>();
 
-const [createFileAction, useCreateFile] = createCreateFileActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createFileAction = createCreateFileActionRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const createResult = await tryCreateFileModule({
@@ -248,55 +241,52 @@ const [createFileAction, useCreateFile] = createCreateFileActionRpc(
 			success: true,
 			message: "Module created successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [createAssignmentAction, useCreateAssignment] =
-	createCreateAssignmentActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+const useCreateFile = createCreateFileActionRpc.createHook<typeof createFileAction>();
 
-			const allowedFileTypes =
-				formData.assignmentAllowedFileTypes &&
-					formData.assignmentAllowedFileTypes.length > 0
-					? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
-					: undefined;
+const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-			const createResult = await tryCreateAssignmentModule({
-				payload,
-				title: formData.title,
-				description: formData.description,
-				instructions: formData.assignmentInstructions,
-				requireTextSubmission: formData.assignmentRequireTextSubmission,
-				requireFileSubmission: formData.assignmentRequireFileSubmission,
-				allowedFileTypes,
-				maxFileSize: formData.assignmentMaxFileSize,
-				maxFiles: formData.assignmentMaxFiles,
-				req: payloadRequest,
+		const allowedFileTypes =
+			formData.assignmentAllowedFileTypes &&
+				formData.assignmentAllowedFileTypes.length > 0
+				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
+				: undefined;
+
+		const createResult = await tryCreateAssignmentModule({
+			payload,
+			title: formData.title,
+			description: formData.description,
+			instructions: formData.assignmentInstructions,
+			requireTextSubmission: formData.assignmentRequireTextSubmission,
+			requireFileSubmission: formData.assignmentRequireFileSubmission,
+			allowedFileTypes,
+			maxFileSize: formData.assignmentMaxFileSize,
+			maxFiles: formData.assignmentMaxFiles,
+			req: payloadRequest,
+		});
+
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
 			});
+		}
 
-			if (!createResult.ok) {
-				return badRequest({
-					success: false,
-					error: createResult.error.message,
-				});
-			}
+		return ok({
+			success: true,
+			message: "Module created successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Module created successfully",
-			});
-		})!,
-		{
-			action: ({ searchParams }) => getRouteUrl(searchParams.action),
-		},
-	);
+const useCreateAssignment = createCreateAssignmentActionRpc.createHook<typeof createAssignmentAction>();
 
-const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createQuizAction = createCreateQuizActionRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const createResult = await tryCreateQuizModule({
@@ -322,45 +312,42 @@ const [createQuizAction, useCreateQuiz] = createCreateQuizActionRpc(
 			success: true,
 			message: "Module created successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [createDiscussionAction, useCreateDiscussion] =
-	createCreateDiscussionActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+const useCreateQuiz = createCreateQuizActionRpc.createHook<typeof createQuizAction>();
 
-			const createResult = await tryCreateDiscussionModule({
-				payload,
-				title: formData.title,
-				description: formData.description,
-				instructions: formData.discussionInstructions,
-				dueDate: formData.discussionDueDate ?? undefined,
-				requireThread: formData.discussionRequireThread,
-				requireReplies: formData.discussionRequireReplies,
-				minReplies: formData.discussionMinReplies,
-				req: payloadRequest,
+const createDiscussionAction = createCreateDiscussionActionRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const createResult = await tryCreateDiscussionModule({
+			payload,
+			title: formData.title,
+			description: formData.description,
+			instructions: formData.discussionInstructions,
+			dueDate: formData.discussionDueDate ?? undefined,
+			requireThread: formData.discussionRequireThread,
+			requireReplies: formData.discussionRequireReplies,
+			minReplies: formData.discussionMinReplies,
+			req: payloadRequest,
+		});
+
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
 			});
+		}
 
-			if (!createResult.ok) {
-				return badRequest({
-					success: false,
-					error: createResult.error.message,
-				});
-			}
+		return ok({
+			success: true,
+			message: "Module created successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Module created successfully",
-			});
-		})!,
-		{
-			action: ({ searchParams }) => getRouteUrl(searchParams.action),
-		},
-	);
+const useCreateDiscussion = createCreateDiscussionActionRpc.createHook<typeof createDiscussionAction>();
 
 const [action] = createActionMap({
 	[Action.CreatePage]: createPageAction,

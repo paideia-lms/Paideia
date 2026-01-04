@@ -13,7 +13,6 @@ import { notifications } from "@mantine/notifications";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -30,19 +29,17 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/category-new";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/category/new",
+});
 
-const createCreateCategoryActionRpc = createActionRpc({
+const createCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().min(1, "Name is required"),
 		parent: z.coerce.number().optional().nullable(),
 	}),
 	method: "POST",
 });
-
-export function getRouteUrl() {
-	return href("/admin/category/new");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -76,8 +73,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 });
 
-const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createCategoryAction = createCategoryRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -96,11 +93,10 @@ const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
 		}
 
 		return ok({ success: true, id: createResult.value.id });
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useCreateCategory = createCategoryRpc.createHook<typeof createCategoryAction>();
 
 // Export hook for use in components
 export { useCreateCategory };

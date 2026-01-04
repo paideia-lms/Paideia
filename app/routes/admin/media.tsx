@@ -39,7 +39,6 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
 import {
-	createLoader,
 	parseAsInteger,
 	parseAsStringEnum,
 } from "nuqs";
@@ -65,9 +64,7 @@ import {
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { tryFindAllUsers } from "server/internal/user-management";
 import type { Media } from "server/payload-types";
-import { serverOnly$ } from "vite-env-only/macros";
 import { useMediaUsageData } from "~/routes/api/media-usage";
-import { stringify } from "qs";
 import {
 	canPreview,
 	getFileIcon,
@@ -107,9 +104,11 @@ enum Action {
 }
 
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/media",
+});
 
-const createUpdateMediaActionRpc = createActionRpc({
+const updateMediaRpc = createActionRpc({
 	formDataSchema: z.object({
 		mediaId: z.coerce.number(),
 		newFilename: z.string().optional(),
@@ -120,7 +119,7 @@ const createUpdateMediaActionRpc = createActionRpc({
 	action: Action.UpdateMedia,
 });
 
-const createDeleteMediaActionRpc = createActionRpc({
+const deleteMediaRpc = createActionRpc({
 	formDataSchema: z.object({
 		mediaIds: z.string().min(1),
 	}),
@@ -128,7 +127,7 @@ const createDeleteMediaActionRpc = createActionRpc({
 	action: Action.DeleteMedia,
 });
 
-const createDeleteOrphanedMediaActionRpc = createActionRpc({
+const deleteOrphanedMediaRpc = createActionRpc({
 	formDataSchema: z.object({
 		filenames: z.string().min(1),
 	}),
@@ -136,21 +135,17 @@ const createDeleteOrphanedMediaActionRpc = createActionRpc({
 	action: Action.DeleteOrphanedMedia,
 });
 
-const createPruneAllOrphanedMediaActionRpc = createActionRpc({
+const pruneAllOrphanedMediaRpc = createActionRpc({
 	method: "POST",
 	action: Action.PruneAllOrphanedMedia,
 });
-
-export function getRouteUrl(action: Action) {
-	return href("/admin/media") + "?" + stringify({ action });
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
-})(async ({ context, request, searchParams }) => {
+})(async ({ context, searchParams }) => {
 	const globalContext = context.get(globalContextKey);
 	const { payload, s3Client, payloadRequest } = globalContext;
 	const userSession = context.get(userContextKey);
@@ -268,8 +263,8 @@ export const loader = createRouteLoader({
 	};
 });
 
-const [updateMediaAction, useUpdateMedia] = createUpdateMediaActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const updateMediaAction = updateMediaRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -338,14 +333,13 @@ const [updateMediaAction, useUpdateMedia] = createUpdateMediaActionRpc(
 				message: "Media updated successfully",
 			});
 		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [deleteMediaAction, useDeleteMedia] = createDeleteMediaActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const useUpdateMedia = updateMediaRpc.createHook<typeof updateMediaAction>();
+
+const deleteMediaAction = deleteMediaRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -418,121 +412,118 @@ const [deleteMediaAction, useDeleteMedia] = createDeleteMediaActionRpc(
 				return result.data.status === StatusCode.BadRequest;
 			},
 		);
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [deleteOrphanedMediaAction, useDeleteOrphanedMedia] =
-	createDeleteOrphanedMediaActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, s3Client, payloadRequest } =
-				context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+const useDeleteMedia = deleteMediaRpc.createHook<typeof deleteMediaAction>();
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+const deleteOrphanedMediaAction = deleteOrphanedMediaRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, s3Client, payloadRequest } =
+			context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			if (!currentUser || currentUser.role !== "admin") {
-				return unauthorized({ error: "Only admins can perform this action" });
-			}
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-			// Handle transaction ID
-			const transactionInfo = await handleTransactionId(
-				payload,
-				payloadRequest,
-			);
+		if (!currentUser || currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can perform this action" });
+		}
 
-			return transactionInfo.tx(
-				async ({ reqWithTransaction }) => {
-					// Parse filenames - can be a single filename or comma-separated filenames
-					const filenames = formData.filenames
-						.split(",")
-						.map((name) => name.trim())
-						.filter((name) => name.length > 0);
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(
+			payload,
+			payloadRequest,
+		);
 
-					if (filenames.length === 0) {
-						return badRequest({ error: "At least one filename is required" });
-					}
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				// Parse filenames - can be a single filename or comma-separated filenames
+				const filenames = formData.filenames
+					.split(",")
+					.map((name) => name.trim())
+					.filter((name) => name.length > 0);
 
-					const result = await tryDeleteOrphanedMedia({
-						payload,
-						s3Client,
-						filenames,
-						req: reqWithTransaction,
-						overrideAccess: true,
-					});
+				if (filenames.length === 0) {
+					return badRequest({ error: "At least one filename is required" });
+				}
 
-					if (!result.ok) {
-						return badRequest({ error: result.error.message });
-					}
-
-					return ok({
-						message:
-							result.value.deletedCount === 1
-								? "Orphaned file deleted successfully"
-								: `${result.value.deletedCount} orphaned files deleted successfully`,
-					});
-				},
-				(result) => {
-					return result.data.status === StatusCode.BadRequest;
-				},
-			);
-		})!,
-		{
-			action: ({ searchParams }) => getRouteUrl(searchParams.action),
-		},
-	);
-
-const [pruneAllOrphanedMediaAction, usePruneAllOrphanedMedia] =
-	createPruneAllOrphanedMediaActionRpc(
-		serverOnly$(async ({ context }) => {
-			const { payload, s3Client, payloadRequest } =
-				context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
-
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-
-			if (!currentUser || currentUser.role !== "admin") {
-				return unauthorized({ error: "Only admins can perform this action" });
-			}
-
-			const result = await tryPruneAllOrphanedMedia({
-				payload,
-				s3Client,
-				req: payloadRequest,
-				// ! we can override access because we are admin
-				overrideAccess: true,
-			});
-
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
-
-			if (result.value.deletedCount === 0) {
-				return ok({
-					message: "No orphaned files to delete",
+				const result = await tryDeleteOrphanedMedia({
+					payload,
+					s3Client,
+					filenames,
+					req: reqWithTransaction,
+					overrideAccess: true,
 				});
-			}
 
+				if (!result.ok) {
+					return badRequest({ error: result.error.message });
+				}
+
+				return ok({
+					message:
+						result.value.deletedCount === 1
+							? "Orphaned file deleted successfully"
+							: `${result.value.deletedCount} orphaned files deleted successfully`,
+				});
+			},
+			(result) => {
+				return result.data.status === StatusCode.BadRequest;
+			},
+		);
+	},
+);
+
+const useDeleteOrphanedMedia =
+	deleteOrphanedMediaRpc.createHook<typeof deleteOrphanedMediaAction>();
+
+const pruneAllOrphanedMediaAction = pruneAllOrphanedMediaRpc.createAction(
+	async ({ context }) => {
+		const { payload, s3Client, payloadRequest } =
+			context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		if (!currentUser || currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can perform this action" });
+		}
+
+		const result = await tryPruneAllOrphanedMedia({
+			payload,
+			s3Client,
+			req: payloadRequest,
+			// ! we can override access because we are admin
+			overrideAccess: true,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		if (result.value.deletedCount === 0) {
 			return ok({
-				message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
+				message: "No orphaned files to delete",
 			});
-		})!,
-		{
-			action: ({ searchParams }) => getRouteUrl(searchParams.action),
-		},
-	);
+		}
+
+		return ok({
+			message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
+		});
+	},
+);
+
+const usePruneAllOrphanedMedia =
+	pruneAllOrphanedMediaRpc.createHook<typeof pruneAllOrphanedMediaAction>();
 
 // Export hooks for use in components
 export {
@@ -543,10 +534,10 @@ export {
 };
 
 const [action] = createActionMap({
-	[Action.UpdateMedia]: updateMediaAction,
-	[Action.DeleteMedia]: deleteMediaAction,
-	[Action.DeleteOrphanedMedia]: deleteOrphanedMediaAction,
-	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction,
+	[Action.UpdateMedia]: updateMediaAction as any,
+	[Action.DeleteMedia]: deleteMediaAction as any,
+	[Action.DeleteOrphanedMedia]: deleteOrphanedMediaAction as any,
+	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction as any,
 });
 
 export { action }

@@ -4,25 +4,18 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useState } from "react";
-import { href, redirect, useNavigate } from "react-router";
+import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { serverOnly$ } from "vite-env-only/macros";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 import { z } from "zod";
-
-export function getRouteUrl(noteId: number) {
-	return href("/user/note/edit/:noteId", {
-		noteId: noteId.toString(),
-	});
-}
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
@@ -69,7 +62,9 @@ const inputSchema = z.object({
 	isPublic: z.boolean().optional(),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/note/edit/:noteId",
+});
 
 const createUpdateNoteActionRpc = createActionRpc({
 	formDataSchema: inputSchema,
@@ -77,8 +72,8 @@ const createUpdateNoteActionRpc = createActionRpc({
 	action: Action.UpdateNote,
 });
 
-const [updateNoteAction, useUpdateNoteRpc] = createUpdateNoteActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const updateNoteAction = createUpdateNoteActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -117,12 +112,10 @@ const [updateNoteAction, useUpdateNoteRpc] = createUpdateNoteActionRpc(
 		}
 
 		return redirect("/user/notes");
-	})!,
-	{
-		action: ({ params }) =>
-			href("/user/note/edit/:noteId", { noteId: String(params.noteId) }),
 	},
 );
+
+const useUpdateNoteRpc = createUpdateNoteActionRpc.createHook<typeof updateNoteAction>();
 
 const [action] = createActionMap({
 	[Action.UpdateNote]: updateNoteAction,

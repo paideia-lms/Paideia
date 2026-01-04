@@ -1,11 +1,9 @@
 import { TagsInput } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
-import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
 import { parseAsInteger, parseAsString } from "nuqs/server";
-import { serverOnly$ } from "vite-env-only/macros";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -23,12 +21,16 @@ export const searchUsersSearchParams = {
 	limit: parseAsInteger.withDefault(10),
 };
 
-const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
+const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>({
+	route: "/api/search-users",
+});
 
-const [loaderFn, useSearchUsersLoader] = createLoaderRpc({
+const loaderRpc = createLoaderRpc({
 	searchParams: searchUsersSearchParams,
-})(
-	serverOnly$(async ({ context, searchParams }) => {
+});
+
+export const loader = loaderRpc.createLoader(
+	async ({ context, searchParams }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -61,23 +63,10 @@ const [loaderFn, useSearchUsersLoader] = createLoaderRpc({
 		}
 
 		return ok({ users: usersResult.value.docs });
-	})!,
-	{
-		getRouteUrl: ({ searchParams }) => {
-			const params = new URLSearchParams();
-			if (searchParams?.query) {
-				params.set("query", searchParams.query);
-			}
-			if (searchParams?.limit !== undefined) {
-				params.set("limit", searchParams.limit.toString());
-			}
-			const queryString = params.toString();
-			return href("/api/search-users") + (queryString ? `?${queryString}` : "");
-		},
 	},
 );
 
-export const loader = loaderFn;
+export const useSearchUsersLoader = loaderRpc.createHook<typeof loader>();
 
 function useDebouncedSearch(
 	searchFn: (query: string) => void,

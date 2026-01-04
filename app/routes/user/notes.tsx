@@ -42,8 +42,6 @@ import type { Route } from "./+types/notes";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
-import { serverOnly$ } from "vite-env-only/macros";
-import { href } from "react-router";
 
 // Define search params for date selection
 export const loaderSearchParams = {
@@ -124,7 +122,9 @@ export const loader = createRouteLoader(async ({
 	};
 })!;
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/notes/:id?",
+});
 
 const createDeleteNoteActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -133,14 +133,8 @@ const createDeleteNoteActionRpc = createActionRpc({
 	method: "DELETE",
 });
 
-export function getRouteUrl(id?: number) {
-	return href("/user/notes/:id?", {
-		id: id ? id.toString() : undefined,
-	});
-}
-
-const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const deleteNoteAction = createDeleteNoteActionRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -166,11 +160,10 @@ const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
 		}
 
 		return ok({ message: "Note deleted successfully" });
-	})!,
-	{
-		action: () => getRouteUrl(),
 	},
 );
+
+const useDeleteNote = createDeleteNoteActionRpc.createHook<typeof deleteNoteAction>();
 
 // Export hook for use in components
 export { useDeleteNote };

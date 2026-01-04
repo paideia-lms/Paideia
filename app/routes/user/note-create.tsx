@@ -8,7 +8,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateNote } from "server/internal/note-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { serverOnly$ } from "vite-env-only/macros";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import {
@@ -19,10 +18,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/note-create";
 import { z } from "zod";
-
-export function getRouteUrl() {
-	return href("/user/note/create");
-}
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
@@ -53,7 +48,9 @@ const inputSchema = z.object({
 	isPublic: z.boolean().optional(),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/note/create",
+});
 
 const createCreateNoteActionRpc = createActionRpc({
 	formDataSchema: inputSchema,
@@ -61,8 +58,8 @@ const createCreateNoteActionRpc = createActionRpc({
 	action: Action.CreateNote,
 });
 
-const [createNoteAction, useCreateNoteRpc] = createCreateNoteActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createNoteAction = createCreateNoteActionRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -105,11 +102,10 @@ const [createNoteAction, useCreateNoteRpc] = createCreateNoteActionRpc(
 			// redirect on the server side
 			return redirect(href("/user/notes/:id?", { id: "" }));
 		});
-	})!,
-	{
-		action: () => href("/user/note/create"),
 	},
 );
+
+const useCreateNoteRpc = createCreateNoteActionRpc.createHook<typeof createNoteAction>();
 
 const [action] = createActionMap({
 	[Action.CreateNote]: createNoteAction,

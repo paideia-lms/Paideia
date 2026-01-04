@@ -1,16 +1,18 @@
-import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindMediaUsages } from "server/internal/media-management";
 import { badRequest, ok, unauthorized } from "~/utils/responses";
 import { typeCreateLoaderRpc } from "~/utils/loader-utils";
 import type { Route } from "./+types/media-usage";
-import { serverOnly$ } from "vite-env-only/macros";
 
-const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>();
+const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>({
+	route: "/api/media-usage/:mediaId",
+});
 
-const [loaderFn, useMediaUsageData] = createLoaderRpc({})(
-	serverOnly$(async ({ context, params }) => {
+const loaderRpc = createLoaderRpc({});
+
+export const loader = loaderRpc.createLoader(
+	async ({ context, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -42,15 +44,9 @@ const [loaderFn, useMediaUsageData] = createLoaderRpc({})(
 			usages: result.value.usages,
 			totalUsages: result.value.totalUsages,
 		});
-	})!,
-	{
-		getRouteUrl: ({ params }) =>
-			href("/api/media-usage/:mediaId", {
-				mediaId: params.mediaId.toString(),
-			}),
 	},
 );
 
-export const loader = loaderFn;
+export const useMediaUsageData = loaderRpc.createHook<typeof loader>();
 
-export { useMediaUsageData };
+

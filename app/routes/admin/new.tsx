@@ -17,14 +17,12 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import {
-	parseAsStringEnum as parseAsStringEnum,
+	parseAsStringEnum,
 } from "nuqs/server";
-import { stringify } from "qs";
 import { useState } from "react";
-import { href, redirect } from "react-router";
+import { redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -77,9 +75,11 @@ export const loader = createRouteLoader()(async ({ context, params, searchParams
 	};
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/user/new",
+});
 
-const createCreateUserActionRpc = createActionRpc({
+const createUserRpc = createActionRpc({
 	formDataSchema: z.object({
 		email: z.email(),
 		password: z.string().min(8),
@@ -93,12 +93,8 @@ const createCreateUserActionRpc = createActionRpc({
 	action: Action.Create,
 });
 
-export function getRouteUrl(action: Action) {
-	return href("/admin/user/new") + "?" + stringify({ action });
-}
-
-const [createAction, useCreateUser] = createCreateUserActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createAction = createUserRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -154,11 +150,10 @@ const [createAction, useCreateUser] = createCreateUserActionRpc(
 			message: "User created successfully",
 			id: createResult.value.id,
 		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
+
+const useCreateUser = createUserRpc.createHook<typeof createAction>();
 
 // Export hook for use in component
 export { useCreateUser };

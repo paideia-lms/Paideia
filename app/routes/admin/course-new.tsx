@@ -11,10 +11,9 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, redirect } from "react-router";
+import { redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCourse } from "server/internal/course-management";
@@ -31,9 +30,11 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/course-new";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/course/new",
+});
 
-const createCreateCourseActionRpc = createActionRpc({
+const createCourseRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1, "Title is required"),
 		slug: z
@@ -49,10 +50,6 @@ const createCreateCourseActionRpc = createActionRpc({
 	}),
 	method: "POST",
 });
-
-export function getRouteUrl() {
-	return href("/admin/course/new");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -93,8 +90,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 });
 
-const [createCourseAction, useCreateCourse] = createCreateCourseActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createCourseAction = createCourseRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -132,11 +129,10 @@ const [createCourseAction, useCreateCourse] = createCreateCourseActionRpc(
 			message: "Course created successfully",
 			id: createResult.value.id,
 		});
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useCreateCourse = createCourseRpc.createHook<typeof createCourseAction>();
 
 // Export hook for use in components
 export { useCreateCourse };

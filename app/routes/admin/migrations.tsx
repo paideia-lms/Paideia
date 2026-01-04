@@ -13,7 +13,6 @@ import type { Migration as MigrationType } from "payload";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { dumpDatabase } from "server/utils/db/dump";
@@ -32,16 +31,14 @@ enum Action {
 	Dump = "dump",
 }
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/migrations",
+});
 
-const createDumpActionRpc = createActionRpc({
+const dumpRpc = createActionRpc({
 	method: "POST",
 	action: Action.Dump,
 });
-
-export function getRouteUrl() {
-	return href("/admin/migrations");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -70,38 +67,35 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 });
 
-const [dumpAction, useDumpPostgres] = createDumpActionRpc(
-	serverOnly$(async ({ context }) => {
-		const { payload } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+const dumpAction = dumpRpc.createAction(async ({ context }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
 
-		const currentUser =
-			userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-		if (currentUser.role !== "admin") {
-			return unauthorized({ error: "Only admins can dump database" });
-		}
+	if (currentUser.role !== "admin") {
+		return unauthorized({ error: "Only admins can dump database" });
+	}
 
-		const result = await dumpDatabase({ payload });
+	const result = await dumpDatabase({ payload });
 
-		if (!result.success) {
-			return badRequest({ error: result.error || "Failed to dump database" });
-		}
+	if (!result.success) {
+		return badRequest({ error: result.error || "Failed to dump database" });
+	}
 
-		return ok({
-			success: true,
-			message: `Database dump completed: ${result.outputPath}`,
-			outputPath: result.outputPath,
-		});
-	})!,
-	{
-		action: getRouteUrl,
-	},
-);
+	return ok({
+		success: true,
+		message: `Database dump completed: ${result.outputPath}`,
+		outputPath: result.outputPath,
+	});
+});
+
+const useDumpPostgres = dumpRpc.createHook<typeof dumpAction>();
 
 // Export hook for use in components
 export { useDumpPostgres };

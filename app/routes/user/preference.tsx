@@ -13,7 +13,6 @@ import { pick } from "es-toolkit";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -28,22 +27,6 @@ import {
 	ok,
 } from "~/utils/responses";
 import type { Route } from "./+types/preference";
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
-
-const createUpdatePreferenceActionRpc = createActionRpc({
-	formDataSchema: z.object({
-		theme: z.enum(["light", "dark"]),
-		direction: z.enum(["ltr", "rtl"]),
-	}),
-	method: "POST",
-});
-
-export function getRouteUrl(userId?: number) {
-	return href("/user/preference/:id?", {
-		id: userId ? userId.toString() : undefined,
-	});
-}
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
@@ -96,45 +79,54 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	};
 })!;
 
-const [updatePreferenceAction, useUpdateUserPreference] =
-	createUpdatePreferenceActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/preference/:id?",
+});
 
-			if (!userSession?.isAuthenticated) {
-				throw new NotFoundResponse("Unauthorized");
-			}
+const createUpdatePreferenceActionRpc = createActionRpc({
+	formDataSchema: z.object({
+		theme: z.enum(["light", "dark"]),
+		direction: z.enum(["ltr", "rtl"]),
+	}),
+	method: "POST",
+});
 
-			// Use effectiveUser if impersonating, otherwise use authenticatedUser
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
+const updatePreferenceAction = createUpdatePreferenceActionRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-			// Update user theme and direction
-			const updateResult = await tryUpdateUser({
-				payload,
-				userId: currentUser.id,
-				data: {
-					theme: formData.theme,
-					direction: formData.direction,
-				},
-				req: payloadRequest,
+		if (!userSession?.isAuthenticated) {
+			throw new NotFoundResponse("Unauthorized");
+		}
+
+		// Use effectiveUser if impersonating, otherwise use authenticatedUser
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		// Update user theme and direction
+		const updateResult = await tryUpdateUser({
+			payload,
+			userId: currentUser.id,
+			data: {
+				theme: formData.theme,
+				direction: formData.direction,
+			},
+			req: payloadRequest,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: "Failed to update preferences.",
 			});
+		}
 
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: "Failed to update preferences.",
-				});
-			}
+		return ok({ success: true });
+	},
+);
 
-			return ok({ success: true });
-		})!,
-		{
-			action: (args) =>
-				getRouteUrl(args.params?.id ? Number(args.params.id) : undefined),
-		},
-	);
+const useUpdateUserPreference = createUpdatePreferenceActionRpc.createHook<typeof updatePreferenceAction>();
 
 // Export hook for use in components
 export { useUpdateUserPreference };

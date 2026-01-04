@@ -41,14 +41,12 @@ import {
 } from "nuqs/server";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { stringify } from "qs";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { href } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -194,7 +192,9 @@ export const mediaSearchParams = {
 
 export const loadSearchParams = createLoader(mediaSearchParams);
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/media/:id?",
+});
 
 const createUploadActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -225,15 +225,8 @@ const createDeleteActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-export function getRouteUrl(action: Action, userId?: number) {
-	const baseUrl = href("/user/media/:id?", {
-		id: userId ? userId.toString() : undefined,
-	});
-	return baseUrl + "?" + stringify({ action });
-}
-
-const [uploadAction, useUpload] = createUploadActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const uploadAction = createUploadActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, systemGlobals, payloadRequest } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
@@ -298,18 +291,13 @@ const [uploadAction, useUpload] = createUploadActionRpc(
 		return ok({
 			message: "Media uploaded successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-const [updateAction, useUpdate] = createUpdateActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useUpload = createUploadActionRpc.createHook<typeof uploadAction>();
+
+const updateAction = createUpdateActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -404,18 +392,13 @@ const [updateAction, useUpdate] = createUpdateActionRpc(
 				message: "Media updated successfully",
 			});
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-const [deleteAction, useDelete] = createDeleteActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useUpdate = createUpdateActionRpc.createHook<typeof updateAction>();
+
+const deleteAction = createDeleteActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -501,15 +484,10 @@ const [deleteAction, useDelete] = createDeleteActionRpc(
 					? "Media deleted successfully"
 					: `${formData.mediaIds.length} media files deleted successfully`,
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
+
+const useDelete = createDeleteActionRpc.createHook<typeof deleteAction>();
 
 const [action] = createActionMap({
 	[Action.Upload]: uploadAction,

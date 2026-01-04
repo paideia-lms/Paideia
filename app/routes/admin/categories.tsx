@@ -34,14 +34,12 @@ import {
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import {
 	parseAsInteger,
-	parseAsStringEnum as parseAsStringEnum,
+	parseAsStringEnum,
 } from "nuqs/server";
 import { useEffect } from "react";
-import { stringify } from "qs";
 import { href, Link } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -85,9 +83,11 @@ export const loaderSearchParams = {
 	edit: parseAsInteger,
 };
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/categories",
+});
 
-const createEditCategoryActionRpc = createActionRpc({
+const editCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 		name: z.string().optional(),
@@ -97,17 +97,13 @@ const createEditCategoryActionRpc = createActionRpc({
 	action: Action.Edit,
 });
 
-const createDeleteCategoryActionRpc = createActionRpc({
+const deleteCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 	}),
 	method: "POST",
 	action: Action.Delete,
 });
-
-export function getRouteUrl(action: Action) {
-	return href("/admin/categories") + "?" + stringify({ action });
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -224,8 +220,8 @@ const checkAuthorization = (context: Route.ActionArgs["context"]) => {
 	return null;
 };
 
-const [editCategoryAction, useEditCategory] = createEditCategoryActionRpc(
-	serverOnly$(async ({ context, formData, request }) => {
+const editCategoryAction = editCategoryRpc.createAction(
+	async ({ context, formData, request }) => {
 		const { payload } = context.get(globalContextKey);
 
 		const authError = checkAuthorization(context);
@@ -251,14 +247,13 @@ const [editCategoryAction, useEditCategory] = createEditCategoryActionRpc(
 		}
 
 		return ok({ success: true });
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const useEditCategory = editCategoryRpc.createHook<typeof editCategoryAction>();
+
+const deleteCategoryAction = deleteCategoryRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const authError = checkAuthorization(context);
@@ -281,11 +276,10 @@ const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
 		}
 
 		return ok({ success: true });
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
+
+const useDeleteCategory = deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
 
 // Export hooks for use in components
 export { useEditCategory, useDeleteCategory };

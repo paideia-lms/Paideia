@@ -13,7 +13,7 @@ import type { GetAnnotations } from "react-router/internal";
 export type RouteId = keyof Register["routeModules"];
 type RouteModule = Register["routeModules"][RouteId];
 export type RouteFile = keyof Register["routeFiles"];
-type RoutePage<T extends RouteId> = Simplify<
+export type RoutePage<T extends RouteId> = Simplify<
 	Extract<Register["routeFiles"][RouteFile], { id: T }>
 >["page"];
 export type RouteParams<T extends RouteId> = AllUnionFields<
@@ -121,24 +121,21 @@ type CreateClientActionArgs<T extends RouteInfo> = GetAnnotations<
 	false
 >["ClientActionArgs"];
 
-type InferInfo<
+export type InferInfo<
 	T extends
 		| ActionFunctionArgs
 		| ClientLoaderFunctionArgs
 		| ClientActionFunctionArgs
 		| LoaderFunctionArgs,
-> =
-	T extends CreateServerActionArgs<infer S>
-		? S
-		: T extends CreateServerLoaderArgs<infer S>
-			? S
-			: T extends CreateClientLoaderArgs<infer S>
-				? S
-				: T extends CreateClientActionArgs<infer S>
-					? S
-					: never;
+> = T extends
+	| CreateServerLoaderArgs<infer S>
+	| CreateServerActionArgs<infer S>
+	| CreateClientLoaderArgs<infer S>
+	| CreateClientActionArgs<infer S>
+	? S
+	: never;
 
-export type RouteIdFromRoute<
+export type RouteIdFromRouteFunctionArgs<
 	T extends
 		| ActionFunctionArgs
 		| ClientLoaderFunctionArgs

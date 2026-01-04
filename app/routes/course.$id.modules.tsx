@@ -1,13 +1,8 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-	parseAsStringEnum as parseAsStringEnum,
-} from "nuqs/server";
-import { stringify } from "qs";
-import { href, redirect } from "react-router";
+import { redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -42,24 +37,11 @@ enum Action {
 	Delete = "delete",
 }
 
-// Define search params for module link actions (used in actions)
-export const moduleLinkSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
-};
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/modules",
+});
 
-export function getRouteUrl(action: Action, courseId: number) {
-	return (
-		href("/course/:courseId/modules", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
-
-const createCreateModuleLinkActionRpc = createActionRpc({
+const createModuleLinkRpc = createActionRpc({
 	formDataSchema: z.object({
 		activityModuleId: z.coerce.number(),
 		sectionId: z.coerce.number().optional(),
@@ -68,7 +50,7 @@ const createCreateModuleLinkActionRpc = createActionRpc({
 	action: Action.Create,
 });
 
-const createDeleteModuleLinkActionRpc = createActionRpc({
+const deleteModuleLinkRpc = createActionRpc({
 	formDataSchema: z.object({
 		linkId: z.coerce.number(),
 		redirectTo: z.string().nullish(),
@@ -170,8 +152,8 @@ const checkAuthorization = async (
 	return null;
 };
 
-const [createAction, useCreateModuleLink] = createCreateModuleLinkActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createAction = createModuleLinkRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const { courseId } = params;
 		const courseIdNum = Number(courseId);
@@ -223,15 +205,13 @@ const [createAction, useCreateModuleLink] = createCreateModuleLinkActionRpc(
 			success: true,
 			message: "Activity module linked successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
 
-const [deleteAction, useDeleteModuleLink] = createDeleteModuleLinkActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useCreateModuleLink = createModuleLinkRpc.createHook<typeof createAction>();
+
+const deleteAction = deleteModuleLinkRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const { courseId } = params;
 		const courseIdNum = Number(courseId);
@@ -255,12 +235,10 @@ const [deleteAction, useDeleteModuleLink] = createDeleteModuleLinkActionRpc(
 		}
 
 		return ok({ success: true, message: "Link deleted successfully" });
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
+
+const useDeleteModuleLink = deleteModuleLinkRpc.createHook<typeof deleteAction>();
 
 // Export hooks for use in components
 export { useCreateModuleLink, useDeleteModuleLink };

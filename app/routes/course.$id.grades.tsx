@@ -4,7 +4,7 @@ import {
 } from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
-import { createActionMap, typeCreateActionRpcV2 } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
@@ -46,8 +46,8 @@ export const loaderSearchParams = {
 	tab: parseAsStringEnum(["report", "setup"]).withDefault("report"),
 };
 
-const createActionRpc = typeCreateActionRpcV2<Route.ActionArgs>({
-	routeId: "routes/course.$id.grades"
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/grades"
 });
 
 const createItemRpc = createActionRpc({
@@ -495,6 +495,7 @@ const [action] = createActionMap({
 	[Action.GetItem]: getItemAction,
 	[Action.GetCategory]: getCategoryAction,
 });
+
 
 export { action };
 

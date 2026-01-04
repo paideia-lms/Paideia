@@ -31,11 +31,11 @@ import { groupSubmissionsByStudent } from "./helpers";
 
 import {
 	type Route,
-	getRouteUrl,
 	View,
 	useDeleteSubmission,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
+import { getRouteUrl } from "~/utils/search-params-utils";
 import { useState } from "react";
 import { AssignmentBatchActions } from "./assignment-batch-actions";
 type Enrollment = NonNullable<
@@ -200,11 +200,15 @@ function StudentSubmissionRow({
 											// }) +
 											// `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
 											getRouteUrl(
+												"/course/module/:moduleLinkId/submissions",
 												{
-													view: View.GRADING,
-													submissionId: latestSubmission.id,
+													params: { moduleLinkId: moduleLinkId.toString() },
+													searchParams: {
+														action: null,
+														view: View.GRADING,
+														submissionId: latestSubmission.id,
+													},
 												},
-												moduleLinkId,
 											)
 										}
 										leftSection={<IconPencil size={14} />}

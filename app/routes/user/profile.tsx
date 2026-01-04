@@ -12,7 +12,6 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck } from "@tabler/icons-react";
-import { stringify } from "qs";
 import { href, Link, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
@@ -28,7 +27,6 @@ import {
 import type { Route } from "./+types/profile";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 
 enum Action {
 	Impersonate = "impersonate",
@@ -66,7 +64,9 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	};
 })!;
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/profile/:id?",
+});
 
 const createImpersonateActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -76,8 +76,8 @@ const createImpersonateActionRpc = createActionRpc({
 	action: Action.Impersonate,
 });
 
-export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
-	serverOnly$(async ({ context, formData, request, params }) => {
+export const impersonateAction = createImpersonateActionRpc.createAction(
+	async ({ context, formData, request, params }) => {
 		const { payload, requestInfo, payloadRequest } =
 			context.get(globalContextKey);
 		const userProfileContext = context.get(userProfileContextKey);
@@ -127,14 +127,10 @@ export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
 				),
 			},
 		});
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			href("/user/profile/:id?", {
-				id: params.id?.toString(),
-			}) + "?" + stringify({ searchParams }),
 	},
 );
+
+export const useImpersonate = createImpersonateActionRpc.createHook<typeof impersonateAction>();
 
 const [action] = createActionMap({
 	[Action.Impersonate]: impersonateAction,

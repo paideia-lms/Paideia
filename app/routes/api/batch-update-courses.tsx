@@ -14,9 +14,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/batch-update-courses";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/api/batch-update-courses",
+});
 
 const inputSchema = z
 	.object({
@@ -28,63 +29,58 @@ const inputSchema = z
 		message: "Provide at least one of status or category",
 	});
 
-const createBatchUpdateCoursesActionRpc = createActionRpc({
+const batchUpdateCoursesRpc = createActionRpc({
 	formDataSchema: inputSchema,
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/api/batch-update-courses");
-}
+const batchUpdateCoursesAction = batchUpdateCoursesRpc.createAction(
+	async ({ request, context }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const [batchUpdateCoursesAction, useBatchUpdateCourses] =
-	createBatchUpdateCoursesActionRpc(
-		serverOnly$(async ({ request, context }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "User not found" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "User not found" });
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+
+		if (currentUser.role !== "admin") {
+			throw new ForbiddenResponse("Only admins can batch update courses");
+		}
+
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsed = inputSchema.safeParse(data);
+		if (!parsed.success) {
+			return badRequest({ error: z.prettifyError(parsed.error) });
+		}
+
+		const { courseIds, status, category } = parsed.data;
+
+		// Perform per-course updates; keep simple and robust
+		for (const courseId of courseIds) {
+			const updateResult = await tryUpdateCourse({
+				payload,
+				courseId,
+				data: {
+					...(status ? { status } : {}),
+					...(category !== undefined ? { category: category ?? null } : {}),
+				},
+				req: payloadRequest,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({ error: updateResult.error.message });
 			}
+		}
 
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
+		return ok({ success: true });
+	},
+);
 
-			if (currentUser.role !== "admin") {
-				throw new ForbiddenResponse("Only admins can batch update courses");
-			}
-
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			const parsed = inputSchema.safeParse(data);
-			if (!parsed.success) {
-				return badRequest({ error: z.prettifyError(parsed.error) });
-			}
-
-			const { courseIds, status, category } = parsed.data;
-
-			// Perform per-course updates; keep simple and robust
-			for (const courseId of courseIds) {
-				const updateResult = await tryUpdateCourse({
-					payload,
-					courseId,
-					data: {
-						...(status ? { status } : {}),
-						...(category !== undefined ? { category: category ?? null } : {}),
-					},
-					req: payloadRequest,
-				});
-
-				if (!updateResult.ok) {
-					return badRequest({ error: updateResult.error.message });
-				}
-			}
-
-			return ok({ success: true });
-		})!,
-		{
-			action: getRouteUrl,
-		},
-	);
+const useBatchUpdateCourses =
+	batchUpdateCoursesRpc.createHook<typeof batchUpdateCoursesAction>();
 
 export const action = batchUpdateCoursesAction;
 export { useBatchUpdateCourses };

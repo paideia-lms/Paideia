@@ -20,8 +20,8 @@ export default defineConfig({
 		devtoolsJson(),
 		denyImports({
 			client: {
-			  specifiers: ["payload"],
-			  files: ["server/contexts/user-context.ts"],
+			//   specifiers: ["payload"],
+			  files: ["server/contexts/user-context.ts", "server/internal/utils/internal-function-utils.ts"],
 			},
 			server: {
 

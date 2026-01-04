@@ -14,7 +14,6 @@ import { notifications } from "@mantine/notifications";
 import { href, Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
@@ -76,19 +75,17 @@ const loginSchema = z.object({
 	password: z.string().min(6),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/login",
+});
 
-const createLoginActionRpc = createActionRpc({
+const loginRpc = createActionRpc({
 	formDataSchema: loginSchema,
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/login");
-}
-
-const [loginAction, useLogin] = createLoginActionRpc(
-	serverOnly$(async ({ context, formData, request }) => {
+const loginAction = loginRpc.createAction(
+	async ({ context, formData, request }) => {
 		const { payload, requestInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (userSession?.isAuthenticated) {
@@ -122,11 +119,10 @@ const [loginAction, useLogin] = createLoginActionRpc(
 				),
 			},
 		});
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useLogin = loginRpc.createHook<typeof loginAction>();
 
 // Export hook for use in component
 export { useLogin };

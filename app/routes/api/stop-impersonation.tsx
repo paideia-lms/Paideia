@@ -3,7 +3,6 @@ import { notifications } from "@mantine/notifications";
 import React from "react";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -11,52 +10,49 @@ import { removeImpersonationCookie } from "~/utils/cookie";
 import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/stop-impersonation";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/api/stop-impersonation",
+});
 
-const createStopImpersonationActionRpc = createActionRpc({
+const stopImpersonationRpc = createActionRpc({
 	formDataSchema: z.object({
 		redirectTo: z.string().optional(),
 	}),
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/api/stop-impersonation");
-}
+const stopImpersonationAction = stopImpersonationRpc.createAction(
+	async ({ context, formData, request }) => {
+		const payload = context.get(globalContextKey).payload;
+		const requestInfo = context.get(globalContextKey).requestInfo;
+		const userSession = context.get(userContextKey);
 
-const [stopImpersonationAction, useStopImpersonating] =
-	createStopImpersonationActionRpc(
-		serverOnly$(async ({ context, formData, request }) => {
-			const payload = context.get(globalContextKey).payload;
-			const requestInfo = context.get(globalContextKey).requestInfo;
-			const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+		if (!userSession.isImpersonating) {
+			return badRequest({ error: "Not currently impersonating" });
+		}
 
-			if (!userSession.isImpersonating) {
-				return badRequest({ error: "Not currently impersonating" });
-			}
+		// Get redirect URL from form data, default to "/"
+		const redirectTo = formData.redirectTo ?? "/";
 
-			// Get redirect URL from form data, default to "/"
-			const redirectTo = formData.redirectTo ?? "/";
+		// Remove impersonation cookie and redirect
+		return redirect(redirectTo, {
+			headers: {
+				"Set-Cookie": removeImpersonationCookie(
+					requestInfo.domainUrl,
+					request.headers,
+					payload,
+				),
+			},
+		});
+	},
+);
 
-			// Remove impersonation cookie and redirect
-			return redirect(redirectTo, {
-				headers: {
-					"Set-Cookie": removeImpersonationCookie(
-						requestInfo.domainUrl,
-						request.headers,
-						payload,
-					),
-				},
-			});
-		})!,
-		{
-			action: getRouteUrl,
-		},
-	);
+const useStopImpersonating =
+	stopImpersonationRpc.createHook<typeof stopImpersonationAction>();
 
 // Export hook for use in components
 export { useStopImpersonating };

@@ -21,7 +21,6 @@ import {
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { trySendEmail } from "server/internal/email";
@@ -34,7 +33,9 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/test-email";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/test-email",
+});
 
 const predefinedSchema = z.object({
 	messageType: z.literal("predefined"),
@@ -53,14 +54,10 @@ const actionSchema = z.discriminatedUnion("messageType", [
 	customSchema,
 ]);
 
-const createSendTestEmailActionRpc = createActionRpc({
+const sendTestEmailRpc = createActionRpc({
 	formDataSchema: actionSchema,
 	method: "POST",
 });
-
-export function getRouteUrl() {
-	return href("/admin/test-email");
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -108,8 +105,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 });
 
-const [sendTestEmailAction, useSendTestEmail] = createSendTestEmailActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const sendTestEmailAction = sendTestEmailRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, platformInfo, payloadRequest } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
@@ -187,11 +184,10 @@ const [sendTestEmailAction, useSendTestEmail] = createSendTestEmailActionRpc(
 			success: true,
 			message: `Test email sent successfully to ${formData.recipient}`,
 		});
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useSendTestEmail = sendTestEmailRpc.createHook<typeof sendTestEmailAction>();
 
 // Export hook for use in components
 export { useSendTestEmail };
