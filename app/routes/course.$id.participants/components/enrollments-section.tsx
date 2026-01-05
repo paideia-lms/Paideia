@@ -35,7 +35,7 @@ import {
 	getEnrollmentStatusLabel,
 	getEnrolmentRoleBadgeColor,
 	getRoleLabel,
-} from "../../../components/course-view-utils";
+} from "../../../utils/course-view-utils";
 import type { Route } from "app/routes/course.$id.participants/route";
 import { DeleteEnrollmentButton } from "./delete-enrollment-modal";
 import { EditEnrollmentButton } from "./edit-enrollment-modal";

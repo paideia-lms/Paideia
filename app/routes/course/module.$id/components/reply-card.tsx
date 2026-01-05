@@ -16,7 +16,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { useState } from "react";
 import { href, Link } from "react-router";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
+import { SimpleRichTextEditor } from "app/components/rich-text/simple-rich-text-editor";
 import { useCreateReply } from "../route";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
 import { getRouteUrl } from "app/utils/search-params-utils";

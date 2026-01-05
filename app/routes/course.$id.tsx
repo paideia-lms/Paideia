@@ -1,13 +1,17 @@
 import {
+	Avatar,
 	Badge,
 	Button,
 	Card,
 	Container,
 	Group,
+	Image,
 	Paper,
 	Stack,
 	Text,
 	Title,
+	Tooltip,
+	Typography,
 } from "@mantine/core";
 import { IconEdit, IconFolder, IconPlus } from "@tabler/icons-react";
 import { href, Link } from "react-router";
@@ -15,14 +19,13 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
-import { CourseInfo } from "~/components/course-info";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
-} from "~/components/course-view-utils";
+} from "app/utils/course-view-utils";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -35,48 +38,128 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
 	// Get course view data using the course context
 	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	// Get instructors and TAs from course context enrollments
-	const instructors = courseContext.course.enrollments
-		.filter(
-			(enrollment) => enrollment.role === "teacher" || enrollment.role === "ta",
-		)
-		.filter((enrollment) => enrollment.status === "active")
-		.map((enrollment) => ({
-			id: enrollment.user.id,
-			name: enrollment.user.firstName + " " + enrollment.user.lastName,
-			email: enrollment.user.email,
-			role: enrollment.role as "teacher" | "ta",
-			avatar: enrollment.user.avatar,
-		}));
-
-	// Check if user can edit the course
-	const canEdit = permissions.course.canEdit(
-		currentUser,
-		courseContext.course.enrollments.map((e) => ({
-			userId: e.user.id,
-			role: e.role,
-		})),
-	).allowed;
-
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
-		instructors,
-		currentUser: currentUser,
-		canEdit,
+		canEdit: courseContext.permissions.canEdit.allowed,
 	};
 });
 
+type CourseInfoProps = {
+	course: Route.ComponentProps["loaderData"]['course']
+}
+function CourseInfo({ course }: CourseInfoProps) {
+	const instructors = course.enrollments.filter(enrollment => (enrollment.role === "teacher" || enrollment.role === "ta") && enrollment.status === "active");
+	return (
+		<Paper withBorder shadow="sm" p="xl" radius="md">
+			<Stack gap="xl">
+				{course.thumbnail && (
+					<Image
+						src={`/api/media/file/${typeof course.thumbnail === "object" ? course.thumbnail.filename : course.thumbnail}`}
+						alt={course.title}
+						radius="md"
+						h={200}
+						fit="cover"
+					/>
+				)}
+
+				<div>
+					<Text fw={600} size="sm" c="dimmed" mb="xs">
+						Description
+					</Text>
+					<Typography
+						classNames={{
+							root: "tiptap",
+						}}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: HTML content from rich text editor
+						dangerouslySetInnerHTML={{ __html: course.description }}
+					/>
+				</div>
+
+				<Group grow>
+					<Card withBorder>
+						<Text fw={600} size="sm" c="dimmed" mb="xs">
+							Instructors
+						</Text>
+						{course.enrollments.length > 0 ? (
+							<Avatar.Group>
+								{instructors.map((instructor) => (
+									<Tooltip
+										key={instructor.id}
+										label={
+											<div>
+												<Text size="sm" fw={500}>
+													{instructor.user.firstName} {instructor.user.lastName}
+												</Text>
+												<Text size="xs" c="dimmed">
+													{instructor.role === "teacher"
+														? "Teacher"
+														: "Teaching Assistant"}
+												</Text>
+											</div>
+										}
+										withArrow
+									>
+										<Avatar
+											component={Link}
+											to={href("/user/profile/:id?", {
+												id: String(instructor.id),
+											})}
+											src={
+												instructor.user.avatar
+													? getRouteUrl("/api/user/:id/avatar", {
+														params: {
+															id: instructor.user.id.toString(),
+														}
+													})
+													: undefined
+											}
+											name={instructor.user.firstName + " " + instructor.user.lastName}
+											style={{ cursor: "pointer" }}
+										/>
+									</Tooltip>
+								))}
+							</Avatar.Group>
+						) : (
+							<Text size="sm" c="dimmed">
+								No instructors assigned
+							</Text>
+						)}
+					</Card>
+
+					<Card withBorder>
+						<Text fw={600} size="sm" c="dimmed" mb="xs">
+							Enrollments
+						</Text>
+						<Text>{course.enrollments.length}</Text>
+					</Card>
+
+					<Card withBorder>
+						<Text fw={600} size="sm" c="dimmed" mb="xs">
+							Created
+						</Text>
+						<Text>{new Date(course.createdAt).toLocaleDateString()}</Text>
+					</Card>
+
+					<Card withBorder>
+						<Text fw={600} size="sm" c="dimmed" mb="xs">
+							Updated
+						</Text>
+						<Text>{new Date(course.updatedAt).toLocaleDateString()}</Text>
+					</Card>
+				</Group>
+			</Stack>
+		</Paper>
+	);
+}
+
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-	const { course, instructors, courseStructure, canEdit } = loaderData;
+	const { course, courseStructure, canEdit } = loaderData;
 
 	const directSections = courseStructure.sections;
 
@@ -114,18 +197,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<CourseInfo
-					course={{
-						id: course.id,
-						title: course.title,
-						slug: course.slug,
-						description: course.description,
-						status: course.status,
-						thumbnail: course.thumbnail,
-						instructors,
-						createdAt: course.createdAt,
-						updatedAt: course.updatedAt,
-						enrollmentCount: course.enrollments.length,
-					}}
+					course={course}
 				/>
 
 				<Paper shadow="sm" p="md" withBorder>

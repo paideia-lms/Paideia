@@ -18,7 +18,7 @@ import { notifications } from "@mantine/notifications";
 import { getRouteUrl } from "app/utils/search-params-utils";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
-import { RichTextRenderer } from "~/components/rich-text-renderer";
+import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
 import { useGradeSubmission } from "../route";
 
 // ============================================================================

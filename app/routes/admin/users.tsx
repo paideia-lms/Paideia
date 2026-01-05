@@ -28,7 +28,7 @@ import type { Route } from "./+types/users";
 import {
 	getUserRoleBadgeColor,
 	getUserRoleLabel,
-} from "app/components/course-view-utils";
+} from "app/utils/course-view-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
 
 

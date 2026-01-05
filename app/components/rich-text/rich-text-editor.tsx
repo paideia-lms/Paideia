@@ -1,4 +1,9 @@
-import { useMantineColorScheme } from "@mantine/core";
+import {
+	useMantineColorScheme, Paper,
+	Stack,
+	Text,
+	UnstyledButton,
+} from "@mantine/core";
 import { useDebouncedCallback, useFileDialog } from "@mantine/hooks";
 import {
 	getTaskListExtension,
@@ -83,13 +88,275 @@ import {
 	useImperativeHandle,
 	useRef,
 	useState,
+	type ForwardedRef,
 } from "react";
 import rehypeFormat from "rehype-format";
 import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
 import { getTextContentFromHtmlServer } from "~/utils/html-utils";
-import { createMentionSuggestion } from "./mention-suggestion";
+import { computePosition, flip, shift } from "@floating-ui/dom";
+import { posToDOMRect, ReactRenderer } from "@tiptap/react";
+import type { SuggestionOptions, SuggestionProps } from "@tiptap/suggestion";
+
+export interface MentionItem {
+	id: string;
+	label: string;
+}
+
+interface MentionListProps {
+	items: MentionItem[];
+	command: (item: MentionItem) => void;
+}
+
+export interface MentionListRef {
+	onKeyDown: (props: { event: KeyboardEvent }) => boolean;
+	getSelectedItem: () => MentionItem | null;
+	selectedItem: MentionItem | null;
+}
+
+export const MentionList = forwardRef(
+	({ items, command }: MentionListProps, ref: ForwardedRef<MentionListRef>) => {
+		const { colorScheme } = useMantineColorScheme();
+		const [selectedIndex, setSelectedIndex] = useState(0);
+		const [selectedItem, setSelectedItem] = useState<MentionItem | null>(null);
+
+		const selectItem = (index: number) => {
+			const item = items[index];
+
+			if (item) {
+				setSelectedItem(item);
+				command(item);
+			}
+		};
+
+		const upHandler = () => {
+			setSelectedIndex((selectedIndex + items.length - 1) % items.length);
+		};
+
+		const downHandler = () => {
+			setSelectedIndex((selectedIndex + 1) % items.length);
+		};
+
+		const enterHandler = () => {
+			selectItem(selectedIndex);
+		};
+
+		// biome-ignore lint/correctness/useExhaustiveDependencies: reset selection index when items change
+		useEffect(() => setSelectedIndex(0), [items]);
+
+		useImperativeHandle(ref, () => ({
+			onKeyDown: ({ event }: { event: KeyboardEvent }) => {
+				if (event.key === "ArrowUp") {
+					upHandler();
+					return true;
+				}
+
+				if (event.key === "ArrowDown") {
+					downHandler();
+					return true;
+				}
+
+				if (event.key === "Enter") {
+					enterHandler();
+					return true;
+				}
+
+				return false;
+			},
+			getSelectedItem: () => selectedItem,
+			selectedItem,
+		}));
+
+		return (
+			<Paper
+				withBorder
+				shadow="md"
+				p="xs"
+				style={{
+					maxHeight: "300px",
+					overflowY: "auto",
+					minWidth: "200px",
+				}}
+			>
+				{items.length > 0 ? (
+					<Stack gap="2px">
+						{items.map((item, index) => (
+							<UnstyledButton
+								key={item.id}
+								onClick={() => selectItem(index)}
+								style={{
+									padding: "8px 12px",
+									borderRadius: "4px",
+									backgroundColor:
+										index === selectedIndex
+											? colorScheme === "dark"
+												? "var(--mantine-color-dark-6)"
+												: "var(--mantine-color-gray-2)"
+											: "transparent",
+									transition: "background-color 0.1s",
+									textAlign: "left",
+									width: "100%",
+								}}
+								onMouseEnter={() => setSelectedIndex(index)}
+							>
+								<Text size="sm">{item.label}</Text>
+							</UnstyledButton>
+						))}
+					</Stack>
+				) : (
+					<Text size="sm" c="dimmed" p="xs">
+						No results
+					</Text>
+				)}
+			</Paper>
+		);
+	},
+);
+
+MentionList.displayName = "MentionList";
+
+
+// Extended type that includes the event property at runtime
+type SuggestionKeyDownProps = { event: KeyboardEvent };
+
+const updatePosition = (
+	editor: SuggestionProps["editor"],
+	element: HTMLElement,
+) => {
+	const virtualElement = {
+		getBoundingClientRect: () =>
+			posToDOMRect(
+				editor.view,
+				editor.state.selection.from,
+				editor.state.selection.to,
+			),
+	};
+
+	computePosition(virtualElement, element, {
+		placement: "bottom-start",
+		strategy: "absolute",
+		middleware: [shift(), flip()],
+	}).then(({ x, y, strategy }) => {
+		element.style.width = "max-content";
+		element.style.position = strategy;
+		element.style.left = `${x}px`;
+		element.style.top = `${y}px`;
+	});
+};
+
+// Mock data for mentions
+const MOCK_USERS: MentionItem[] = [
+	{ id: "user-1", label: "Alice Johnson" },
+	{ id: "user-2", label: "Bob Smith" },
+	{ id: "user-3", label: "Charlie Brown" },
+	{ id: "user-4", label: "Diana Prince" },
+	{ id: "user-5", label: "Eve Anderson" },
+	{ id: "user-6", label: "Frank Wilson" },
+	{ id: "user-7", label: "Grace Lee" },
+	{ id: "user-8", label: "Henry Davis" },
+];
+
+const MOCK_TAGS: MentionItem[] = [
+	{ id: "tag-1", label: "important" },
+	{ id: "tag-2", label: "urgent" },
+	{ id: "tag-3", label: "question" },
+	{ id: "tag-4", label: "idea" },
+	{ id: "tag-5", label: "follow-up" },
+	{ id: "tag-6", label: "review" },
+	{ id: "tag-7", label: "discussion" },
+	{ id: "tag-8", label: "announcement" },
+];
+
+const MOCK_PAGES: MentionItem[] = [
+	{ id: "page-1", label: "Home" },
+	{ id: "page-2", label: "About" },
+	{ id: "page-3", label: "Contact" },
+	{ id: "page-4", label: "Services" },
+	{ id: "page-5", label: "Products" },
+	{ id: "page-6", label: "Blog" },
+];
+
+type MentionType = "user" | "tag" | "page";
+
+export const createMentionSuggestion = (
+	type: MentionType,
+): Omit<SuggestionOptions<MentionItem>, "editor"> => ({
+	items: ({ query }: { query: string }) => {
+		const items =
+			type === "user" ? MOCK_USERS : type === "tag" ? MOCK_TAGS : MOCK_PAGES;
+		return items
+			.filter((item) =>
+				item.label.toLowerCase().startsWith(query.toLowerCase()),
+			)
+			.slice(0, 5);
+	},
+	render: () => {
+		let reactRenderer: ReactRenderer<MentionListRef> | undefined;
+
+		return {
+			onStart: (props) => {
+				if (!props.clientRect) {
+					return;
+				}
+
+				reactRenderer = new ReactRenderer(MentionList, {
+					props,
+					editor: props.editor,
+				});
+
+				reactRenderer.element.style.position = "absolute";
+				reactRenderer.element.style.zIndex = "1000";
+
+				document.body.appendChild(reactRenderer.element);
+
+				updatePosition(props.editor, reactRenderer.element);
+			},
+
+			onUpdate(props: SuggestionProps<MentionItem>) {
+				if (reactRenderer) {
+					reactRenderer.updateProps(props);
+
+					if (!props.clientRect) {
+						return;
+					}
+					updatePosition(props.editor, reactRenderer.element);
+				}
+			},
+
+			onKeyDown(props: SuggestionKeyDownProps) {
+				if (props.event.key === "Escape") {
+					if (reactRenderer?.ref) {
+						reactRenderer.destroy();
+						reactRenderer.element.remove();
+					}
+
+					return true;
+				}
+
+				return reactRenderer?.ref?.onKeyDown(props) ?? false;
+			},
+
+			onExit(props) {
+				// console.log("onExit: ", reactRenderer?.ref, props);
+				// console.log("selectedItem: ", reactRenderer?.ref?.selectedItem);
+				if (reactRenderer?.ref?.selectedItem) {
+					reactRenderer.destroy();
+					reactRenderer.element.remove();
+				}
+				if (
+					reactRenderer?.ref &&
+					!reactRenderer.ref.selectedItem &&
+					!props.decorationNode
+				) {
+					reactRenderer.destroy();
+					reactRenderer.element.remove();
+				}
+			},
+		};
+	},
+});
+
 
 export function getTextContentFromHtmlClient(html: string): string {
 	if (getTextContentFromHtmlServer) {
@@ -958,125 +1225,125 @@ export const RichTextEditor = forwardRef<
 			// Conditionally include Youtube extension
 			...(!disableYoutube
 				? [
-						Youtube.configure({
-							controls: false,
-							nocookie: true,
-						}),
-					]
+					Youtube.configure({
+						controls: false,
+						nocookie: true,
+					}),
+				]
 				: []),
 			// Conditionally include Image, Dropcursor, and FileHandler extensions
 			...(!disableImageUpload
 				? [
-						Image.extend({
-							addAttributes() {
-								return {
-									...this.parent?.(),
-									width: {
-										default: null,
-										renderHTML: (attributes) => {
-											if (!attributes.width) {
-												return {};
-											}
-											return { width: attributes.width };
-										},
+					Image.extend({
+						addAttributes() {
+							return {
+								...this.parent?.(),
+								width: {
+									default: null,
+									renderHTML: (attributes) => {
+										if (!attributes.width) {
+											return {};
+										}
+										return { width: attributes.width };
 									},
-									height: {
-										default: null,
-										renderHTML: (attributes) => {
-											if (!attributes.height) {
-												return {};
-											}
-											return { height: attributes.height };
-										},
+								},
+								height: {
+									default: null,
+									renderHTML: (attributes) => {
+										if (!attributes.height) {
+											return {};
+										}
+										return { height: attributes.height };
 									},
+								},
+							};
+						},
+					}).configure({
+						inline: false,
+						allowBase64: true,
+					}),
+					Dropcursor,
+					FileHandler.configure({
+						allowedMimeTypes: [
+							"image/jpeg",
+							"image/png",
+							"image/gif",
+							"image/webp",
+						],
+						onDrop: (editor, files) => {
+							files.forEach(async (file) => {
+								const reader = new FileReader();
+								reader.onload = () => {
+									const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+									const preview = reader.result as string;
+									const imageFile = { id, file, preview };
+
+									handleImageAdd(imageFile);
+
+									editor.chain().focus().setImage({ src: preview }).run();
 								};
-							},
-						}).configure({
-							inline: false,
-							allowBase64: true,
-						}),
-						Dropcursor,
-						FileHandler.configure({
-							allowedMimeTypes: [
-								"image/jpeg",
-								"image/png",
-								"image/gif",
-								"image/webp",
-							],
-							onDrop: (editor, files) => {
-								files.forEach(async (file) => {
-									const reader = new FileReader();
-									reader.onload = () => {
-										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-										const preview = reader.result as string;
-										const imageFile = { id, file, preview };
+								reader.readAsDataURL(file);
+							});
+						},
+						onPaste: (editor, files) => {
+							files.forEach(async (file) => {
+								const reader = new FileReader();
+								reader.onload = () => {
+									const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+									const preview = reader.result as string;
+									const imageFile = { id, file, preview };
 
-										handleImageAdd(imageFile);
+									handleImageAdd(imageFile);
 
-										editor.chain().focus().setImage({ src: preview }).run();
-									};
-									reader.readAsDataURL(file);
-								});
-							},
-							onPaste: (editor, files) => {
-								files.forEach(async (file) => {
-									const reader = new FileReader();
-									reader.onload = () => {
-										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-										const preview = reader.result as string;
-										const imageFile = { id, file, preview };
-
-										handleImageAdd(imageFile);
-
-										editor.chain().focus().setImage({ src: preview }).run();
-									};
-									reader.readAsDataURL(file);
-								});
-							},
-						}),
-					]
+									editor.chain().focus().setImage({ src: preview }).run();
+								};
+								reader.readAsDataURL(file);
+							});
+						},
+					}),
+				]
 				: []),
 			// Conditionally include Mention extensions
 			...(!disableMentions
 				? [
-						Mention.extend({
-							name: "userMention",
-						}).configure({
-							HTMLAttributes: {
-								class: "mention mention-user",
-							},
-							suggestion: createMentionSuggestion("user"),
-							renderHTML({ node }) {
-								return `@${node.attrs.label}`;
-							},
-						}),
-						Mention.configure({
-							HTMLAttributes: {
-								class: "mention mention-page",
-							},
-							suggestion: {
-								...createMentionSuggestion("page"),
-								char: "[[",
-							},
-							renderHTML({ node }) {
-								return `[[${node.attrs.label}]]`;
-							},
-						}),
-						Mention.extend({
-							name: "tagMention",
-						}).configure({
-							HTMLAttributes: {
-								class: "mention mention-tag",
-							},
-							suggestion: {
-								...createMentionSuggestion("tag"),
-								char: "#",
-							},
-							renderHTML({ node }) {
-								return `#${node.attrs.label}`;
-							},
-						}),
-					]
+					Mention.extend({
+						name: "userMention",
+					}).configure({
+						HTMLAttributes: {
+							class: "mention mention-user",
+						},
+						suggestion: createMentionSuggestion("user"),
+						renderHTML({ node }) {
+							return `@${node.attrs.label}`;
+						},
+					}),
+					Mention.configure({
+						HTMLAttributes: {
+							class: "mention mention-page",
+						},
+						suggestion: {
+							...createMentionSuggestion("page"),
+							char: "[[",
+						},
+						renderHTML({ node }) {
+							return `[[${node.attrs.label}]]`;
+						},
+					}),
+					Mention.extend({
+						name: "tagMention",
+					}).configure({
+						HTMLAttributes: {
+							class: "mention mention-tag",
+						},
+						suggestion: {
+							...createMentionSuggestion("tag"),
+							char: "#",
+						},
+						renderHTML({ node }) {
+							return `#${node.attrs.label}`;
+						},
+					}),
+				]
 				: []),
 		],
 		content,

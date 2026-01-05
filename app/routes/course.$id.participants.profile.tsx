@@ -22,7 +22,7 @@ import {
 	getEnrollmentStatusLabel,
 	getEnrolmentRoleBadgeColor,
 	getRoleLabel,
-} from "~/components/course-view-utils";
+} from "app/utils/course-view-utils";
 import { useImpersonate } from "~/routes/user/profile";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants.profile";

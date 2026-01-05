@@ -12,7 +12,7 @@ import {
 	tryUpdateNote,
 } from "server/internal/note-management";
 import { NoteForm } from "~/components/note-form";
-import type { ImageFile } from "~/components/rich-text-editor";
+import type { ImageFile } from "app/components/rich-text/rich-text-editor";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 import { z } from "zod";
@@ -115,7 +115,7 @@ const updateNoteAction = createUpdateNoteActionRpc.createAction(
 	},
 );
 
-const useUpdateNoteRpc = createUpdateNoteActionRpc.createHook<typeof updateNoteAction>();
+const useUpdateNote = createUpdateNoteActionRpc.createHook<typeof updateNoteAction>();
 
 const [action] = createActionMap({
 	[Action.UpdateNote]: updateNoteAction,
@@ -137,33 +137,7 @@ export const clientAction = async ({
 	return actionData;
 };
 
-const useUpdateNote = (noteId: number) => {
-	const { submit, isLoading, fetcher } = useUpdateNoteRpc();
 
-	const updateNote = (
-		content: string,
-		isPublic: boolean,
-		_imageFiles: ImageFile[],
-	) => {
-		// Note: imageFiles are not currently handled in the schema
-		// They would need to be added to the formDataSchema if needed
-		submit({
-			params: { noteId },
-			values: {
-				content,
-				isPublic,
-			},
-		});
-	};
-
-	return {
-		updateNote,
-		isSubmitting: isLoading,
-		state: fetcher.state,
-		data: fetcher.data,
-		fetcher: fetcher as typeof fetcher & { data?: { error?: string } },
-	};
-};
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -174,18 +148,19 @@ export default function NoteEditPage({
 	actionData,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { updateNote, fetcher } = useUpdateNote(loaderData.note.id);
+	const { submit: updateNote, isLoading, fetcher } = useUpdateNote();
 	const [content, setContent] = useState(loaderData.note.content);
 	const [isPublic, setIsPublic] = useState(Boolean(loaderData.note.isPublic));
-	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
-
-	const handleImageAdd = (imageFile: ImageFile) => {
-		setImageFiles((prev) => [...prev, imageFile]);
-	};
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		updateNote(content, isPublic, imageFiles);
+		updateNote({
+			values: {
+				content,
+				isPublic,
+			},
+			params: { noteId: loaderData.note.id },
+		});
 	};
 
 	return (
@@ -203,7 +178,6 @@ export default function NoteEditPage({
 					setContent={setContent}
 					isPublic={Boolean(isPublic)}
 					setIsPublic={setIsPublic}
-					handleImageAdd={handleImageAdd}
 					onSubmit={handleSubmit}
 					onCancel={() => navigate("/user/notes")}
 					fetcher={fetcher}

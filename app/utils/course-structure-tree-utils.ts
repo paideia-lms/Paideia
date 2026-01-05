@@ -1,3 +1,114 @@
+import type {
+	ActivityModuleSummary,
+	CourseStructure,
+	CourseStructureSection,
+} from "server/internal/course-section-management";
+
+// Tree node interface for headless-tree
+export interface TreeNode {
+	/**
+	 * the module link id prefixed with "m"
+	 * the section id prefixed with "s"
+	 */
+	id: string;
+	name: string;
+	type: "section" | "module";
+	contentOrder?: number;
+	module?: ActivityModuleSummary;
+	children?: string[];
+}
+
+// Convert course structure to flat data for headless-tree
+export function convertCourseStructureToFlatData(
+	courseStructure: CourseStructure,
+): Record<string, TreeNode> {
+	const flatData: Record<string, TreeNode> = {};
+
+	function processSection(
+		section: CourseStructureSection,
+		parentId?: string,
+	): string {
+		const sectionId = `s${section.id}`;
+
+		// Check if this section already exists (avoid duplicates)
+		if (flatData[sectionId]) {
+			// If it exists, just add it to the parent's children if needed
+			if (parentId && parentId !== "root") {
+				const parentNode = flatData[parentId];
+				if (parentNode?.children && !parentNode.children.includes(sectionId)) {
+					parentNode.children.push(sectionId);
+				}
+			}
+			return sectionId;
+		}
+
+		const sectionNode: TreeNode = {
+			id: sectionId,
+			name: section.title,
+			type: "section",
+			contentOrder: section.contentOrder,
+			children: [],
+		};
+		flatData[sectionId] = sectionNode;
+
+		// Add this section as a child to its parent
+		if (parentId) {
+			const parentNode = flatData[parentId];
+			if (parentNode?.children && !parentNode.children.includes(sectionId)) {
+				parentNode.children.push(sectionId);
+			}
+		}
+
+		// Process content items
+		section.content.forEach((item) => {
+			if (item.type === "section") {
+				processSection(item, sectionId);
+			} else if (item.type === "activity-module") {
+				const moduleId = `m${item.id}`;
+				const moduleNode: TreeNode = {
+					id: moduleId,
+					name: item.module.title,
+					type: "module",
+					contentOrder: item.contentOrder,
+					module: item.module,
+				};
+				flatData[moduleId] = moduleNode;
+
+				// Add module as child to this section
+				sectionNode.children!.push(moduleId);
+			}
+		});
+
+		return sectionId;
+	}
+
+	// Create root container
+	const rootNode: TreeNode = {
+		id: "root",
+		name: "Root",
+		type: "section",
+		children: [],
+	};
+	flatData.root = rootNode;
+
+	// Process root sections
+	courseStructure.sections.forEach((section) => {
+		processSection(section, "root");
+	});
+
+	return flatData;
+}
+
+// Get children IDs for a given item
+export function getChildrenIds(
+	itemId: string,
+	flatData: Record<string, TreeNode>,
+): string[] {
+	const item = flatData[itemId];
+	return item?.children || [];
+}
+
+
 // Calculate move operation from drag and drop parameters
 
 export function calculateMoveOperation(

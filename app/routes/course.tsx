@@ -31,7 +31,7 @@ import type { Route } from "./+types/course";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
-} from "app/components/course-view-utils";
+} from "app/utils/course-view-utils";
 
 export type { Route };
 

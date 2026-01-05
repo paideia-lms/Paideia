@@ -29,7 +29,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryDeleteNote } from "server/internal/note-management";
 import type { Note } from "server/payload-types";
-import { RichTextRenderer } from "~/components/rich-text-renderer";
+import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
 import { formatDateInTimeZone, parseDateString } from "~/utils/date-utils";
 import {
 	badRequest,

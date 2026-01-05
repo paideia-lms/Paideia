@@ -9,7 +9,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryCreateNote } from "server/internal/note-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { NoteForm } from "~/components/note-form";
-import type { ImageFile } from "~/components/rich-text-editor";
+import type { ImageFile } from "app/components/rich-text/rich-text-editor";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -105,7 +105,7 @@ const createNoteAction = createCreateNoteActionRpc.createAction(
 	},
 );
 
-const useCreateNoteRpc = createCreateNoteActionRpc.createHook<typeof createNoteAction>();
+const useCreateNote = createCreateNoteActionRpc.createHook<typeof createNoteAction>();
 
 const [action] = createActionMap({
 	[Action.CreateNote]: createNoteAction,
@@ -127,47 +127,20 @@ export const clientAction = async ({
 	return actionData;
 };
 
-const useCreateNote = () => {
-	const { submit, isLoading, fetcher } = useCreateNoteRpc();
+export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
+	const navigate = useNavigate();
+	const { submit: createNote, isLoading, fetcher } = useCreateNote();
+	const [content, setContent] = useState("");
+	const [isPublic, setIsPublic] = useState(false);
 
-	const createNote = (
-		content: string,
-		isPublic: boolean,
-		_imageFiles: ImageFile[],
-	) => {
-		// Note: imageFiles are not currently handled in the schema
-		// They would need to be added to the formDataSchema if needed
-		submit({
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		createNote({
 			values: {
 				content,
 				isPublic,
 			},
 		});
-	};
-
-	return {
-		createNote,
-		isSubmitting: isLoading,
-		state: fetcher.state,
-		data: fetcher.data,
-		fetcher: fetcher as typeof fetcher & { data?: { error?: string } },
-	};
-};
-
-export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
-	const navigate = useNavigate();
-	const { createNote, fetcher } = useCreateNote();
-	const [content, setContent] = useState("");
-	const [isPublic, setIsPublic] = useState(false);
-	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
-
-	const handleImageAdd = (imageFile: ImageFile) => {
-		setImageFiles((prev) => [...prev, imageFile]);
-	};
-
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		createNote(content, isPublic, imageFiles);
 	};
 
 	return (
@@ -185,7 +158,6 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 					setContent={setContent}
 					isPublic={isPublic}
 					setIsPublic={setIsPublic}
-					handleImageAdd={handleImageAdd}
 					onSubmit={handleSubmit}
 					onCancel={() => navigate("/user/notes")}
 					fetcher={fetcher}

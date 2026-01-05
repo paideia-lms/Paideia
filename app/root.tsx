@@ -72,9 +72,9 @@ import { tryGetUserCount } from "server/internal/user-management";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
-import { DevTool } from "./components/dev-tool";
-import { RootErrorBoundary } from "./components/root-mode-error-boundary";
-import { SandboxCountdown } from "./components/sandbox-countdown";
+import { DevTool } from "./root.components/dev-tool";
+import { RootErrorBoundary } from "./root.components/root-mode-error-boundary";
+import { SandboxCountdown } from "./root.components/sandbox-countdown";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {

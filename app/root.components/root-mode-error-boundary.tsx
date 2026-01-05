@@ -1,7 +1,7 @@
 import { Alert, Box, Container, Stack, Text, Title } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { href, isRouteErrorResponse, Link } from "react-router";
-import { DefaultErrorBoundary } from "./default-error-boundary";
+import { DefaultErrorBoundary } from "../components/default-error-boundary";
 
 interface RootErrorBoundaryProps {
 	error: unknown;

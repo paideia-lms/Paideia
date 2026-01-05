@@ -64,7 +64,7 @@ import type {
 } from "server/json/raw-quiz-config/types.v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>

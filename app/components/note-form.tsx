@@ -1,13 +1,12 @@
 import { Button, Checkbox, Group, Paper, Stack, Text } from "@mantine/core";
 import type { FetcherWithComponents } from "react-router";
-import { type ImageFile, RichTextEditor } from "~/components/rich-text-editor";
+import { RichTextEditor } from "app/components/rich-text/rich-text-editor";
 
 interface NoteFormProps {
 	content: string;
 	setContent: (content: string) => void;
 	isPublic: boolean;
 	setIsPublic: (isPublic: boolean) => void;
-	handleImageAdd: (imageFile: ImageFile) => void;
 	onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 	onCancel: () => void;
 	fetcher: FetcherWithComponents<{
@@ -22,7 +21,6 @@ export function NoteForm({
 	setContent,
 	isPublic,
 	setIsPublic,
-	handleImageAdd,
 	onSubmit,
 	onCancel,
 	fetcher,
@@ -41,7 +39,6 @@ export function NoteForm({
 							placeholder="Write your note here..."
 							content={content}
 							onChange={setContent}
-							onImageAdd={handleImageAdd}
 						/>
 					</div>
 

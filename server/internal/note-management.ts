@@ -2,7 +2,11 @@ import dayjs from "dayjs";
 import { Notes } from "server/collections";
 import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "~/utils/error";
+import {
+	InvalidArgumentError,
+	transformError,
+	UnknownError,
+} from "~/utils/error";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
@@ -131,19 +135,35 @@ export function tryUpdateNote(args: UpdateNoteArgs) {
 			// Handle transaction
 			const transactionInfo = await handleTransactionId(payload, req);
 
+			const currentUser = req?.user;
+			if (!currentUser) {
+				throw new InvalidArgumentError("User ID is required");
+			}
+
 			return await transactionInfo.tx(async (txInfo) => {
 				const updatedNote = await payload
 					.update({
 						collection: "notes",
 						id: noteId,
 						data: {
-							...data,
-							content: data.content?.trim(),
-							contentMedia: await tryExtractMediaIdsFromRichText({
-								payload,
-								htmlContent: [data.content].filter(Boolean),
-								req: txInfo.reqWithTransaction,
-							}).getOrThrow(),
+							isPublic: data.isPublic,
+							...(data.content
+								? await processRichTextMediaV2({
+										payload,
+										userId: currentUser.id,
+										req: txInfo.reqWithTransaction,
+										overrideAccess,
+										data: {
+											content: data.content.trim(),
+										},
+										fields: [
+											{
+												key: "content",
+												alt: "Note content image",
+											},
+										],
+									})
+								: {}),
 						},
 						req: txInfo.reqWithTransaction,
 						overrideAccess,

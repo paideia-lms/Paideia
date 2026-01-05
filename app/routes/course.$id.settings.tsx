@@ -28,8 +28,8 @@ import {
 import { tryUpdateCourse } from "server/internal/course-management";
 
 import type { Course } from "server/payload-types";
-import type { RichTextEditorRef } from "~/components/rich-text-editor";
-import { RichTextEditor } from "~/components/rich-text-editor";
+import type { RichTextEditorRef } from "app/components/rich-text/rich-text-editor";
+import { RichTextEditor } from "app/components/rich-text/rich-text-editor";
 import {
 	badRequest,
 	ForbiddenResponse,

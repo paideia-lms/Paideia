@@ -47,7 +47,7 @@ import type { Course } from "server/payload-types";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
-} from "~/components/course-view-utils";
+} from "app/utils/course-view-utils";
 import { ForbiddenResponse } from "~/utils/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
