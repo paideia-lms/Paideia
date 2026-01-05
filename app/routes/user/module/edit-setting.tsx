@@ -24,13 +24,11 @@ import {
 	tryUpdateWhiteboardModule,
 } from "server/internal/activity-module-management";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
-import {
-	DiscussionForm,
-	FileForm,
-	PageForm,
-	QuizForm,
-	WhiteboardForm,
-} from "~/components/activity-module-forms";
+import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
+import { FileForm } from "~/components/activity-module-forms/file-form";
+import { PageForm } from "~/components/activity-module-forms/page-form";
+import { QuizForm } from "~/components/activity-module-forms/quiz-form";
+import { WhiteboardForm } from "~/components/activity-module-forms/whiteboard-form";
 import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
 import { useDeleteActivityModule } from "~/routes/api/activity-module-delete";
 import {
@@ -374,12 +372,12 @@ function DeleteActivityModule({
 	const { submit: deleteModule, isLoading: isDeleting } =
 		useDeleteActivityModule();
 
-	const handleDelete = () => {
+	const handleDelete = async () => {
 		const confirmed = window.confirm(
 			"Are you sure you want to delete this activity module? This action cannot be undone. The module must not be linked to any courses to be deleted.",
 		);
 		if (confirmed) {
-			deleteModule({
+			await deleteModule({
 				values: {
 					moduleId,
 				},
@@ -566,8 +564,10 @@ function getFileFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		fileMedia: module.media?.map((m) => m.id) ?? [],
-		fileFiles: [] as File[],
+		files: {
+			files: [] as File[],
+			mediaIds: module.media?.map((m) => m.id) ?? [],
+		},
 	};
 }
 
@@ -594,7 +594,7 @@ function FileFormWrapper({
 					values: {
 						title: values.title,
 						description: values.description,
-						fileMedia: [...values.fileMedia, ...values.fileFiles],
+						fileMedia: [...values.files.mediaIds, ...values.files.files],
 					},
 				})
 			}

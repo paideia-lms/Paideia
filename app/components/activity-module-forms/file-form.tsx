@@ -7,6 +7,7 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { FileFormInitialValues as NewFileFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 /**
  * Generic hook to sync form fields with initialValues when they change.
@@ -89,8 +90,7 @@ export function FileForm({
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			fileMedia: initialValues?.fileMedia ?? [],
-			fileFiles: initialValues?.fileFiles ?? [],
+			files: initialValues?.files ?? { files: [], mediaIds: [] },
 		},
 		validate: {
 			title: (value) =>
@@ -99,23 +99,16 @@ export function FileForm({
 	});
 
 	// Watch form values to sync with FileUploader
-	const files = useFormWatchForceUpdate(
+	const filesValue = useFormWatchForceUpdate(
 		form,
-		"fileFiles",
-		({ value, previousValue }) => {
-			return JSON.stringify(value) !== JSON.stringify(previousValue);
-		},
-	);
-	const mediaIds = useFormWatchForceUpdate(
-		form,
-		"fileMedia",
+		"files",
 		({ value, previousValue }) => {
 			return JSON.stringify(value) !== JSON.stringify(previousValue);
 		},
 	);
 
 	// Sync form with initialValues when they change (e.g., after loader revalidation)
-	useSyncFormWithInitialValues(form, initialValues, ["fileMedia", "fileFiles"]);
+	useSyncFormWithInitialValues(form, initialValues, ["files"]);
 
 	const handleFileUploaderChange = ({
 		files: newFiles,
@@ -124,8 +117,7 @@ export function FileForm({
 		files: File[];
 		mediaIds: number[];
 	}) => {
-		form.setFieldValue("fileFiles", newFiles);
-		form.setFieldValue("fileMedia", newMediaIds);
+		form.setFieldValue("files", { files: newFiles, mediaIds: newMediaIds });
 	};
 
 	return (
@@ -153,14 +145,17 @@ export function FileForm({
 						Files
 					</Title>
 					<FileUploader
-						existingMedia={existingMedia}
+						existingMedia={existingMedia.map((media) => ({
+							...media,
+							previewUrl: getRouteUrl("/api/media/file/:mediaId", {
+								params: { mediaId: media.id.toString(), },
+								searchParams: {}
+							}),
+						}))}
 						uploadLimit={uploadLimit}
 						allowDeleteUploaded={true}
 						onChange={handleFileUploaderChange}
-						value={{
-							files,
-							mediaIds,
-						}}
+						value={filesValue}
 					/>
 				</div>
 

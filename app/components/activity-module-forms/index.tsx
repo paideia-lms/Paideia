@@ -58,8 +58,3 @@ export {
 export { useNestedQuizState } from "../activity-modules-preview/use-nested-quiz-state";
 export { WhiteboardPreview } from "../activity-modules-preview/whiteboard-preview";
 
-export { DiscussionForm } from "./discussion-form";
-export { FileForm } from "./file-form";
-export { PageForm } from "./page-form";
-export { QuizForm } from "./quiz-form";
-export { WhiteboardForm } from "./whiteboard-form";

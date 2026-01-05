@@ -12,13 +12,11 @@ import {
 	tryCreateQuizModule,
 	tryCreateWhiteboardModule,
 } from "server/internal/activity-module-management";
-import {
-	DiscussionForm,
-	FileForm,
-	PageForm,
-	QuizForm,
-	WhiteboardForm,
-} from "~/components/activity-module-forms";
+import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
+import { FileForm } from "~/components/activity-module-forms/file-form";
+import { PageForm } from "~/components/activity-module-forms/page-form";
+import { QuizForm } from "~/components/activity-module-forms/quiz-form";
+import { WhiteboardForm } from "~/components/activity-module-forms/whiteboard-form";
 import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import {
@@ -452,7 +450,10 @@ function getFileFormInitialValues() {
 	return {
 		title: "",
 		description: "",
-		fileFiles: [] as File[],
+		files: {
+			files: [] as File[],
+			mediaIds: [] as number[],
+		},
 	};
 }
 
@@ -470,8 +471,8 @@ function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
 					values: {
 						title: values.title,
 						description: values.description,
-						// we don't care about fileMedia here, beacuse the create Form is all new files
-						fileMedia: values.fileFiles,
+						// we don't care about mediaIds here, because the create Form is all new files
+						fileMedia: values.files.files,
 					},
 				});
 			}}
