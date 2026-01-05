@@ -182,7 +182,7 @@ export default function NoteEditPage({
 						<Stack gap="lg">
 							<FormableRichTextEditor
 								form={form}
-								formKey={form.key("content")}
+								formKey={"content"}
 								key={form.key("content")}
 								label="Content"
 								placeholder="Write your note here..."

@@ -588,8 +588,9 @@ function FileFormWrapper({
 	return (
 		<FileForm
 			initialValues={initialValues}
-			onSubmit={(values) =>
-				updateFile({
+			onSubmit={async (values) => {
+				console.log(values);
+				await updateFile({
 					params: { moduleId: module.id },
 					values: {
 						title: values.title,
@@ -597,6 +598,7 @@ function FileFormWrapper({
 						fileMedia: [...values.files.mediaIds, ...values.files.files],
 					},
 				})
+			}
 			}
 			uploadLimit={uploadLimit}
 			existingMedia={module.media ?? []}

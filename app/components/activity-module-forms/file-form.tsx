@@ -1,13 +1,11 @@
-import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import { Button, Stack, Textarea, TextInput } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useRef } from "react";
-import { FileUploader } from "~/components/file-uploader";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { FormableFileUploader } from "~/components/form-components/formable-file-uploader";
 import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { FileFormInitialValues as NewFileFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
-import { getRouteUrl } from "app/utils/search-params-utils";
 
 /**
  * Generic hook to sync form fields with initialValues when they change.
@@ -98,27 +96,8 @@ export function FileForm({
 		},
 	});
 
-	// Watch form values to sync with FileUploader
-	const filesValue = useFormWatchForceUpdate(
-		form,
-		"files",
-		({ value, previousValue }) => {
-			return JSON.stringify(value) !== JSON.stringify(previousValue);
-		},
-	);
-
 	// Sync form with initialValues when they change (e.g., after loader revalidation)
 	useSyncFormWithInitialValues(form, initialValues, ["files"]);
-
-	const handleFileUploaderChange = ({
-		files: newFiles,
-		mediaIds: newMediaIds,
-	}: {
-		files: File[];
-		mediaIds: number[];
-	}) => {
-		form.setFieldValue("files", { files: newFiles, mediaIds: newMediaIds });
-	};
 
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
@@ -140,24 +119,15 @@ export function FileForm({
 					minRows={3}
 				/>
 
-				<div>
-					<Title order={5} mb="xs">
-						Files
-					</Title>
-					<FileUploader
-						existingMedia={existingMedia.map((media) => ({
-							...media,
-							previewUrl: getRouteUrl("/api/media/file/:mediaId", {
-								params: { mediaId: media.id.toString(), },
-								searchParams: {}
-							}),
-						}))}
-						uploadLimit={uploadLimit}
-						allowDeleteUploaded={true}
-						onChange={handleFileUploaderChange}
-						value={filesValue}
-					/>
-				</div>
+				<FormableFileUploader
+					form={form}
+					formKey={"files"}
+					key={form.key("files")}
+					label="Files"
+					existingMedia={existingMedia}
+					uploadLimit={uploadLimit}
+					allowDeleteUploaded={true}
+				/>
 
 				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 					Save

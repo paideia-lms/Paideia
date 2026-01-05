@@ -96,10 +96,10 @@ export function AssignmentForm({
 					Assignment Settings
 				</Title>
 
-				<FormableSimpleRichTextEditor 
+				<FormableSimpleRichTextEditor
 					form={form}
 					key={form.key("assignmentInstructions")}
-					formKey={ form.key("assignmentInstructions")}
+					formKey={"assignmentInstructions"}
 					label="Instructions"
 					placeholder="Enter assignment instructions..."
 				/>

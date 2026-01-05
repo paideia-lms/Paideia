@@ -3,10 +3,11 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { RichTextEditor } from "../rich-text/rich-text-editor";
 import type { FormPathValue } from "~/packages/@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
+import type { Path } from "~/packages/@mantine/form/lib/paths.types";
 
 interface FormableRichTextEditorProps<T> {
     form: UseFormReturnType<T>;
-    formKey: string;
+    formKey: Path<T>;
     label: string;
     placeholder?: string;
 }

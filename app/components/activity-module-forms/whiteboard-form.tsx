@@ -58,7 +58,7 @@ export function WhiteboardForm({
 
 				<FormableWhiteboard
 					form={form}
-					formKey={form.key("whiteboardContent")}
+					formKey={"whiteboardContent"}
 					key={form.key("whiteboardContent")}
 					label="Whiteboard Canvas"
 				/>

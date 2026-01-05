@@ -1591,9 +1591,10 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 		setSelectedCardIds(records.map((r) => r.id));
 	};
 
+	const title = `Media | ${fullName} | Paideia LMS`;
 	return (
 		<Container size="lg" py="xl">
-			<title>{`Media | ${fullName} | Paideia LMS`}</title>
+			<title>{title}</title>
 			<meta
 				name="description"
 				content={`View ${isOwnProfile ? "your" : fullName + "'s"} media files`}

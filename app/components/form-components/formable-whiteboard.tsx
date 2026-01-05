@@ -24,6 +24,7 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import type { FormPathValue } from "~/packages/@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
+import type { Path } from "~/packages/@mantine/form/lib/paths.types";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -34,7 +35,7 @@ const Excalidraw = lazy(() =>
 
 interface FormableWhiteboardProps<T> {
     form: UseFormReturnType<T>;
-    formKey: string;
+    formKey: Path<T>;
     label: string;
 }
 
