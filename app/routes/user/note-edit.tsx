@@ -1,9 +1,9 @@
-import { Container, Stack, Title } from "@mantine/core";
+import { Button, Checkbox, Container, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { useState } from "react";
 import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -11,8 +11,8 @@ import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { NoteForm } from "~/components/note-form";
-import type { ImageFile } from "app/components/rich-text/rich-text-editor";
+import { permissions } from "server/utils/permissions";
+import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 import { z } from "zod";
@@ -43,8 +43,9 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	const createdById = note.createdBy.id;
 
 	// Check if user can edit this note
-	if (currentUser.id !== createdById && currentUser.role !== "admin") {
-		throw new NotFoundResponse("You don't have permission to edit this note");
+	const editPermission = permissions.note.canEdit(currentUser, createdById);
+	if (!editPermission.allowed) {
+		throw new NotFoundResponse(editPermission.reason);
 	}
 
 	return {
@@ -88,10 +89,7 @@ const updateNoteAction = createUpdateNoteActionRpc.createAction(
 			return badRequest({ error: "Unauthorized" });
 		}
 
-		const noteId = Number(params.noteId);
-		if (Number.isNaN(noteId)) {
-			return badRequest({ error: "Invalid note ID" });
-		}
+		const noteId = params.noteId;
 
 		// Update note with updated content
 		const result = await tryUpdateNote({
@@ -149,15 +147,21 @@ export default function NoteEditPage({
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const { submit: updateNote, isLoading, fetcher } = useUpdateNote();
-	const [content, setContent] = useState(loaderData.note.content);
-	const [isPublic, setIsPublic] = useState(Boolean(loaderData.note.isPublic));
+
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			content: loaderData.note.content,
+			isPublic: Boolean(loaderData.note.isPublic),
+		},
+	});
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		updateNote({
 			values: {
-				content,
-				isPublic,
+				content: form.values.content,
+				isPublic: form.values.isPublic,
 			},
 			params: { noteId: loaderData.note.id },
 		});
@@ -173,17 +177,45 @@ export default function NoteEditPage({
 			<Stack gap="xl">
 				<Title order={1}>Edit Note</Title>
 
-				<NoteForm
-					content={content}
-					setContent={setContent}
-					isPublic={Boolean(isPublic)}
-					setIsPublic={setIsPublic}
-					onSubmit={handleSubmit}
-					onCancel={() => navigate("/user/notes")}
-					fetcher={fetcher}
-					submitLabel="Update Note"
-					error={actionData?.error}
-				/>
+				<fetcher.Form method="post" onSubmit={handleSubmit}>
+					<Paper withBorder shadow="md" p="xl" radius="md">
+						<Stack gap="lg">
+							<FormableRichTextEditor
+								form={form}
+								formKey={form.key("content")}
+								key={form.key("content")}
+								label="Content"
+								placeholder="Write your note here..."
+							/>
+
+							<Checkbox
+								{...form.getInputProps("isPublic", { type: "checkbox" })}
+								key={form.key("isPublic")}
+								label="Make this note public"
+								description="Public notes can be viewed by other users"
+							/>
+
+							{(actionData?.error || fetcher.data?.error) && (
+								<Text c="red" size="sm">
+									{actionData?.error || fetcher.data?.error}
+								</Text>
+							)}
+
+							<Group justify="flex-end" gap="md">
+								<Button variant="subtle" onClick={() => navigate("/user/notes")} type="button">
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									disabled={!form.values.content.trim() || fetcher.state !== "idle"}
+									loading={fetcher.state !== "idle"}
+								>
+									Update Note
+								</Button>
+							</Group>
+						</Stack>
+					</Paper>
+				</fetcher.Form>
 			</Stack>
 		</Container>
 	);

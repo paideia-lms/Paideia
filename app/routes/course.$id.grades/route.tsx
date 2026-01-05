@@ -24,10 +24,10 @@ import {
 import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
 import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { z } from "zod";
-import { GraderReportView } from "~/components/gradebook/report-view";
-import { GradebookSetupView } from "~/components/gradebook/setup-view";
+import { GraderReportView } from "app/routes/course.$id.grades/report-view";
+import { GradebookSetupView } from "app/routes/course.$id.grades/setup-view";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
-import type { Route } from "./+types/course.$id.grades";
+import type { Route } from "./+types/route";
 
 export type { Route };
 

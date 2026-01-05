@@ -1,4 +1,3 @@
-import { formatModuleSettingsForDisplay } from "app/routes/course/module.$id/utils";
 import { createContext } from "react-router";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import type {
@@ -156,29 +155,23 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 			};
 
 			// Fetch the module link
-			const moduleLinkResult = await tryFindCourseActivityModuleLinkById({
+			const moduleLink = await tryFindCourseActivityModuleLinkById({
 				payload,
 				linkId: moduleLinkId,
 				req,
 				overrideAccess,
-			});
-
-			if (!moduleLinkResult.ok) {
-				throw new NonExistingActivityModuleError("Module link not found");
-			}
-
-			const moduleLink = moduleLinkResult.value;
+			}).getOrThrow();
 
 			// Get module link settings
-			const moduleLinkSettings =
-				moduleLink.settings as unknown as LatestCourseModuleSettings | null;
+			// const moduleLinkSettings =
+			// 	moduleLink.settings as unknown as LatestCourseModuleSettings | null;
 
-			// console.log(moduleLinkSettings, moduleLink);
+			// // console.log(moduleLinkSettings, moduleLink);
 
-			// Format module settings for display (using function from utils.ts)
-			const formattedModuleSettings = formatModuleSettingsForDisplay(
-				moduleLinkSettings,
-			) as FormattedModuleSettings;
+			// // Format module settings for display (using function from utils.ts)
+			// const formattedModuleSettings = formatModuleSettingsForDisplay(
+			// 	moduleLinkSettings,
+			// ) as FormattedModuleSettings;
 
 			// Get previous and next modules for navigation
 			const previousNextResult = await tryGetPreviousNextModule({
@@ -322,7 +315,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					assignmentSubmission,
 					allSubmissionsForDisplay,
 					canSubmit,
-					formattedModuleSettings,
+					// formattedModuleSettings,
 					previousModule,
 					nextModule,
 					permissions: basePermissions,
@@ -441,7 +434,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					allQuizSubmissionsForDisplay,
 					hasActiveQuizAttempt,
 					quizRemainingTime,
-					formattedModuleSettings,
+					// formattedModuleSettings,
 					previousModule,
 					nextModule,
 					permissions: {
@@ -584,7 +577,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					replies,
 					previousModule,
 					nextModule,
-					formattedModuleSettings,
+					// formattedModuleSettings,
 					permissions: basePermissions,
 				};
 			} else {
@@ -592,7 +585,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					...moduleLink,
 					previousModule,
 					nextModule,
-					formattedModuleSettings,
+					// formattedModuleSettings,
 					permissions: basePermissions,
 				};
 			}

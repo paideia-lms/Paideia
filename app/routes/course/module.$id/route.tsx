@@ -1,4 +1,10 @@
-import { Button, Container, Group, Stack, Text } from "@mantine/core";
+import {
+	Button,
+	Container,
+	Group,
+	Stack,
+	Text,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
@@ -35,14 +41,14 @@ import {
 	WhiteboardPreview,
 	AssignmentPreview,
 } from "app/components/activity-module-forms";
-import { ModuleDatesInfo } from "./components/module-dates-info";
 import { FilePreview } from "app/components/activity-modules-preview/file-preview";
 import { DiscussionThreadView } from "./components/discussion-thread-view";
+import { ModuleDatesInfo } from "./components/module-dates-info";
 import { SubmissionHistory } from "app/components/submission-history";
 import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
 import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
 import { transformQuizAnswersToSubmissionFormat } from "./utils";
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsBoolean } from "nuqs";
 import {
 	createParser,
 	parseAsInteger,
@@ -52,6 +58,9 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { getRouteUrl } from "app/utils/search-params-utils";
+
+export type { Route }
 
 /**
  * Type-safe constants for module actions
@@ -79,21 +88,16 @@ export const QuizActions = {
 	// GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
-type AssignmentAction =
-	(typeof AssignmentActions)[keyof typeof AssignmentActions];
-type DiscussionAction =
-	(typeof DiscussionActions)[keyof typeof DiscussionActions];
-type QuizAction = (typeof QuizActions)[keyof typeof QuizActions];
-type ModuleAction = AssignmentAction | DiscussionAction | QuizAction;
 
 
-export const actionSearchParams = {
+export const loaderSearchParams = {
 	action: parseAsStringEnum([
 		...Object.values(AssignmentActions),
 		...Object.values(DiscussionActions),
 		...Object.values(QuizActions),
 	]),
 	threadId: parseAsInteger,
+	showQuiz: parseAsBoolean.withDefault(false)
 };
 
 /**
@@ -125,7 +129,7 @@ const parseAsReplyTo = createParser({
 const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createLoaderRpc({
-	searchParams: actionSearchParams,
+	searchParams: loaderSearchParams,
 })(async ({ context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -602,9 +606,10 @@ const markQuizAttemptAsCompleteAction = markQuizAttemptAsCompleteRpc.createActio
 
 		// Redirect to remove showQuiz parameter and show instructions view
 		return redirect(
-			href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}),
+			getRouteUrl("/course/module/:moduleLinkId", {
+				params: { moduleLinkId: String(moduleLinkId) },
+				searchParams: { showQuiz: false, action: null, threadId: null, }
+			})
 		);
 	},
 );
@@ -659,9 +664,10 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 		// If there's an in_progress submission, reuse it by redirecting with showQuiz parameter
 		if (checkResult.value.hasInProgress) {
 			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}) + "?showQuiz=true",
+				getRouteUrl("/course/module/:moduleLinkId", {
+					params: { moduleLinkId: String(moduleLinkId) },
+					searchParams: { showQuiz: true, action: null, threadId: null, }
+				})
 			);
 		}
 
@@ -695,9 +701,10 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 
 		// Redirect with showQuiz parameter to show the quiz preview
 		return redirect(
-			href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + "?showQuiz=true",
+			getRouteUrl("/course/module/:moduleLinkId", {
+				params: { moduleLinkId: String(moduleLinkId) },
+				searchParams: { showQuiz: true, action: null, threadId: null, }
+			})
 		);
 	},
 );
@@ -903,9 +910,10 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 	const { submit: submitAssignment, isLoading: isSubmitting } =
 		useSubmitAssignment();
 
+
 	return (
 		<>
-			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<ModuleDatesInfo settings={loaderData.settings} />
 			<AssignmentPreview
 				assignment={loaderData.assignment || null}
 				submission={loaderData.assignmentSubmission}
@@ -935,16 +943,16 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 
 type QuizModuleViewProps = {
 	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
+	showQuiz: boolean;
 };
 
-function QuizModuleView({ loaderData }: QuizModuleViewProps) {
+function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 	const { submit: startQuizAttempt, isLoading: isStartingQuiz } =
 		useStartQuizAttempt();
 	const {
 		submit: markQuizAttemptAsComplete,
 		isLoading: isMarkingQuizAttemptAsComplete,
 	} = useMarkQuizAttemptAsComplete();
-	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
 
 	const quizConfig = loaderData.quiz.rawQuizConfig;
 	if (!quizConfig) {
@@ -967,7 +975,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		loaderData.allQuizSubmissionsForDisplay ?? [];
 
 	// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
-	if (showQuiz === "true" && loaderData.hasActiveQuizAttempt) {
+	if (showQuiz && loaderData.hasActiveQuizAttempt) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
@@ -976,7 +984,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 				? loaderData.userSubmission
 				: null;
 
-		const handleQuizSubmit = (answers: QuizAnswers) => {
+		const handleQuizSubmit = async (answers: QuizAnswers) => {
 			if (!activeSubmission) return;
 
 			const _transformedAnswers = transformQuizAnswersToSubmissionFormat(
@@ -996,7 +1004,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 				_timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
 			}
 
-			markQuizAttemptAsComplete({
+			await markQuizAttemptAsComplete({
 				params: { moduleLinkId: loaderData.id },
 				values: {
 					submissionId: activeSubmission.id,
@@ -1006,7 +1014,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 
 		return (
 			<>
-				<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+				<ModuleDatesInfo settings={loaderData.settings} />
 				<QuizPreview
 					quizConfig={quizConfig}
 					submissionId={activeSubmission?.id}
@@ -1021,7 +1029,7 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 	// The start button will either reuse existing in_progress attempt or create new one
 	return (
 		<>
-			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<ModuleDatesInfo settings={loaderData.settings} />
 			<QuizInstructionsView
 				quiz={loaderData.quiz}
 				allSubmissions={allQuizSubmissionsForDisplay}
@@ -1068,7 +1076,7 @@ type DiscussionModuleViewProps = {
 function DiscussionModuleView({ loaderData }: DiscussionModuleViewProps) {
 	return (
 		<>
-			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<ModuleDatesInfo settings={loaderData.settings} />
 			<DiscussionThreadView
 				discussion={loaderData.discussion || null}
 				threads={loaderData.threads}
@@ -1088,7 +1096,7 @@ type FileModuleViewProps = {
 function FileModuleView({ loaderData }: FileModuleViewProps) {
 	return (
 		<>
-			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<ModuleDatesInfo settings={loaderData.settings} />
 			<FilePreview files={loaderData.activityModule.media || []} />
 		</>
 	);
@@ -1102,7 +1110,7 @@ function PageModuleView({ loaderData }: PageModuleViewProps) {
 	const content = loaderData.activityModule.content;
 	return (
 		<>
-			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<ModuleDatesInfo settings={loaderData.settings} />
 			<PagePreview content={content || "<p>No content available</p>"} />
 		</>
 	);
@@ -1115,10 +1123,11 @@ type WhiteboardModuleViewProps = {
 	>;
 };
 
+
 function WhiteboardModuleView({ loaderData }: WhiteboardModuleViewProps) {
 	return (
 		<>
-			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<ModuleDatesInfo settings={loaderData.settings} />
 			<WhiteboardPreview content={loaderData.activityModule.content ?? ""} />
 		</>
 	);
@@ -1152,7 +1161,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				{loaderData.type === "assignment" ? (
 					<AssignmentModuleView loaderData={loaderData} />
 				) : loaderData.type === "quiz" ? (
-					<QuizModuleView loaderData={loaderData} />
+					<QuizModuleView loaderData={loaderData} showQuiz={loaderData.searchParams.showQuiz} />
 				) : loaderData.type === "discussion" ? (
 					<DiscussionModuleView loaderData={loaderData} />
 				) : loaderData.type === "file" ? (

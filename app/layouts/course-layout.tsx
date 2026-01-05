@@ -69,7 +69,7 @@ export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 		if (pageInfo.is["routes/course.$id.participants/route"])
 			return CourseTab.Participants;
 		if (
-			pageInfo.is["routes/course.$id.grades"] ||
+			pageInfo.is["routes/course.$id.grades/route"] ||
 			pageInfo.is["routes/course.$id.grades.singleview"]
 		)
 			return CourseTab.Grades;

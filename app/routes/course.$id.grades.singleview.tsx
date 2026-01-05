@@ -16,7 +16,6 @@ import {
 } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import type { GradebookSetupItem } from "app/components/gradebook/setup-view";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
@@ -33,6 +32,8 @@ import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
+
+type GradebookSetupItem = Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

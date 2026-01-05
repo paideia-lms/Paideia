@@ -11,7 +11,7 @@ import {
 import { href, Link } from "react-router";
 import type { UserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { getModuleIcon } from "../../utils/module-helper";
-import type { Route } from "app/routes/course.$id.grades";
+import type { Route } from "app/routes/course.$id.grades/route";
 
 // ============================================================================
 // Gradebook Report Types

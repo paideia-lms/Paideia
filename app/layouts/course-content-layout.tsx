@@ -37,13 +37,11 @@ import {
 	IconLibraryPlus,
 } from "@tabler/icons-react";
 import { useEffect } from "react";
-import { href, Link } from "react-router";
-import type {
-	CourseStructure,
-} from "server/internal/course-section-management";
+import { Link } from "react-router";
 import { useUpdateCourseStructure } from "~/routes/api/course-structure-tree";
 import { getModuleIcon } from "~/utils/module-helper";
 import { calculateMoveOperation, convertCourseStructureToFlatData, getChildrenIds, type TreeNode } from "app/utils/course-structure-tree-utils";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 
 
@@ -66,6 +64,12 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
+	const currentItemId = pageInfo.is["routes/course/section.$id"]
+		? `s${pageInfo.is["routes/course/section.$id"].params.sectionId}`
+		: pageInfo.is["layouts/course-module-layout"]
+			? `m${pageInfo.is["layouts/course-module-layout"].params.moduleLinkId}`
+			: undefined;
+
 	return {
 		course: courseContext.course,
 		courseStructure: courseContext.courseStructure,
@@ -76,18 +80,19 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 		enrolment: courseContext.enrolment,
 		canEdit: courseContext.permissions.canUpdateStructure.allowed,
 		params,
+		currentItemId,
 	};
 })!;
 
 interface CourseStructureTreeProps {
 	readOnly?: boolean;
 	courseId: number;
-	courseStructure: CourseStructure;
+	courseStructure: Route.ComponentProps["loaderData"]["courseStructure"];
 	currentItemId?: string;
 	canSeeStatus?: boolean;
 }
 
-export function CourseStructureTree({
+function CourseStructureTree({
 	readOnly = false,
 	courseId,
 	courseStructure,
@@ -250,7 +255,7 @@ export function CourseStructureTree({
 					<Button
 						size="compact-xs"
 						component={Link}
-						to={href("/course/:courseId", { courseId: courseId.toString() })}
+						to={getRouteUrl("/course/:courseId", { params: { courseId: courseId.toString() } })}
 						variant="light"
 					>
 						Root
@@ -419,15 +424,13 @@ export function CourseStructureTree({
 
 export default function CourseContentLayout({
 	loaderData,
-	params,
 }: Route.ComponentProps) {
 	const {
 		course,
 		courseStructure,
 		canEdit,
-		pageInfo
+		currentItemId,
 	} = loaderData;
-	const { courseId, sectionId, moduleLinkId } = params;
 
 	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
 
@@ -449,13 +452,7 @@ export default function CourseContentLayout({
 								</Tooltip>
 								{navbarOpened && (
 									<CourseStructureTree
-										currentItemId={
-											pageInfo.is["routes/course/section.$id"]
-												? `s${sectionId}`
-												: pageInfo.is["layouts/course-module-layout"]
-													? `m${moduleLinkId}`
-													: undefined
-										}
+										currentItemId={currentItemId}
 										readOnly={!canEdit}
 										courseId={course.id}
 										courseStructure={courseStructure}

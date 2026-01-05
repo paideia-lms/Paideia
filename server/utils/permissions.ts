@@ -1086,6 +1086,65 @@ function canDeleteMedia(
 }
 
 // ============================================================================
+// Note Permissions
+// ============================================================================
+
+/**
+ * Checks if the current user can edit a note.
+ *
+ * Permission Rules:
+ * - Users can edit their own notes
+ * - Admins can edit any note
+ *
+ * @param currentUser - The user attempting to edit (current logged-in user)
+ * @param noteCreatedBy - The user ID who created the note
+ * @returns Permission result with allowed boolean and reason string
+ */
+function canEditNote(
+	currentUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	noteCreatedBy?: number,
+): PermissionResult {
+	if (!currentUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (noteCreatedBy === undefined || noteCreatedBy === null) {
+		return {
+			allowed: false,
+			reason: "Note creator information is missing",
+		};
+	}
+
+	const isOwnNote = currentUser.id === noteCreatedBy;
+	const isAdmin = currentUser.role === "admin";
+
+	if (isOwnNote) {
+		return {
+			allowed: true,
+			reason: "You can edit your own notes",
+		};
+	}
+
+	if (isAdmin) {
+		return {
+			allowed: true,
+			reason: "Admins can edit any note",
+		};
+	}
+
+	return {
+		allowed: false,
+		reason: "You can only edit your own notes",
+	};
+}
+
+// ============================================================================
 // Quiz/Assignment Permissions
 // ============================================================================
 
@@ -1336,6 +1395,9 @@ export const permissions = {
 	},
 	media: {
 		canDelete: canDeleteMedia,
+	},
+	note: {
+		canEdit: canEditNote,
 	},
 	admin: {
 		canImpersonateUser: canImpersonateUser,

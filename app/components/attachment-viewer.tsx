@@ -13,8 +13,8 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconAlertCircle } from "@tabler/icons-react";
+import { getRouteUrl } from "app/utils/search-params-utils";
 import { useEffect, useState } from "react";
-import { href } from "react-router";
 import {
 	type FileTypeCategory,
 	formatFileSize,
@@ -202,8 +202,9 @@ export function AttachmentViewer({
 	compact = false,
 }: AttachmentViewerProps) {
 	const { id, filename, mimeType, filesize } = file;
-	const fileUrl = href("/api/media/file/:mediaId", {
-		mediaId: id.toString(),
+	const fileUrl = getRouteUrl("/api/media/file/:mediaId", {
+		params: { mediaId: id.toString() },
+		searchParams: {}
 	});
 	const displayName = filename || `File ${id}`;
 	const fileType = getFileType(filename, mimeType);

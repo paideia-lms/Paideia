@@ -27,7 +27,7 @@ import {
 import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
-import { useDeleteCategory, useDeleteItem } from "~/routes/course.$id.grades";
+import { useDeleteCategory, useDeleteItem } from "app/routes/course.$id.grades/route";
 import {
 	CreateCategoryModal,
 	type CreateCategoryModalHandle,
@@ -38,54 +38,13 @@ import {
 } from "./modals";
 import { getTypeColor } from "./report-view";
 import { OverallWeightDisplay, WeightDisplay } from "./weight-display";
-import type { Route } from "~/routes/course.$id.grades";
-
-// ============================================================================
-// Gradebook Setup Types
-// ============================================================================
-
-type FlattenedCategory = {
-	id: number;
-	path: string;
-};
-
-type GradebookSetupForUI = {
-	gradebook_setup: {
-		items: GradebookSetupItem[];
-	};
-};
-
-export type GradebookSetupData = {
-	course: {
-		id: number;
-	};
-	gradebookSetupForUI: GradebookSetupForUI | null;
-	flattenedCategories: FlattenedCategory[];
-	gradebookYaml: string | null;
-	gradebookMarkdown: string | null;
-};
+import type { Route } from "app/routes/course.$id.grades/route";
 
 // ============================================================================
 // Recursive Gradebook Item Renderer
 // ============================================================================
 
-export type GradebookSetupItem = {
-	id: number;
-	type: string;
-	name: string;
-	weight: number | null;
-	adjusted_weight: number | null;
-	overall_weight: number | null;
-	weight_explanation: string | null;
-	max_grade: number | null;
-	min_grade: number | null;
-	description: string | null;
-	category_id: number | null;
-	extra_credit?: boolean;
-	auto_weighted_zero?: boolean;
-	grade_items?: GradebookSetupItem[];
-	activityModuleLinkId?: number | null;
-};
+type GradebookSetupItem = Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
 
 // Helper function to recursively sum overall weights of all leaf items in a category
 const sumCategoryOverallWeights = (items: GradebookSetupItem[]): number => {

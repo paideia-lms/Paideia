@@ -1,15 +1,13 @@
-import { Container, Stack, Title } from "@mantine/core";
+import { Button, Checkbox, Container, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { useState } from "react";
 import { href, redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateNote } from "server/internal/note-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { NoteForm } from "~/components/note-form";
-import type { ImageFile } from "app/components/rich-text/rich-text-editor";
+import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -79,31 +77,27 @@ const createNoteAction = createCreateNoteActionRpc.createAction(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
-		return await transactionInfo.tx(async (txInfo) => {
-			// Create note with updated content
-			const result = await tryCreateNote({
-				payload,
-				data: {
-					content: formData.content,
-					isPublic: formData.isPublic,
-					createdBy: currentUser.id,
-				},
-				req: txInfo.reqWithTransaction,
-				overrideAccess: false,
-			});
+		// Create note with updated content
+		const result = await tryCreateNote({
+			payload,
+			data: {
+				content: formData.content,
+				isPublic: formData.isPublic,
+				createdBy: currentUser.id,
+			},
+			req: payloadRequest,
 
-			if (!result.ok) {
-				return badRequest({
-					error: result.error.message,
-				});
-			}
-
-			// redirect on the server side
-			return redirect(href("/user/notes/:id?", { id: "" }));
 		});
-	},
-);
+
+		if (!result.ok) {
+			return badRequest({
+				error: result.error.message,
+			});
+		}
+
+		// redirect on the server side
+		return redirect(href("/user/notes/:id?", { id: "" }));
+	});
 
 const useCreateNote = createCreateNoteActionRpc.createHook<typeof createNoteAction>();
 
@@ -130,15 +124,21 @@ export const clientAction = async ({
 export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const { submit: createNote, isLoading, fetcher } = useCreateNote();
-	const [content, setContent] = useState("");
-	const [isPublic, setIsPublic] = useState(false);
+
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			content: "",
+			isPublic: false,
+		},
+	});
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		createNote({
 			values: {
-				content,
-				isPublic,
+				content: form.values.content,
+				isPublic: form.values.isPublic,
 			},
 		});
 	};
@@ -153,17 +153,45 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 			<Stack gap="xl">
 				<Title order={1}>Create Note</Title>
 
-				<NoteForm
-					content={content}
-					setContent={setContent}
-					isPublic={isPublic}
-					setIsPublic={setIsPublic}
-					onSubmit={handleSubmit}
-					onCancel={() => navigate("/user/notes")}
-					fetcher={fetcher}
-					submitLabel="Create Note"
-					error={actionData?.error}
-				/>
+				<fetcher.Form method="post" onSubmit={handleSubmit}>
+					<Paper withBorder shadow="md" p="xl" radius="md">
+						<Stack gap="lg">
+							<FormableRichTextEditor
+								form={form}
+								formKey={form.key("content")}
+								key={form.key("content")}
+								label="Content"
+								placeholder="Write your note here..."
+							/>
+
+							<Checkbox
+								{...form.getInputProps("isPublic", { type: "checkbox" })}
+								key={form.key("isPublic")}
+								label="Make this note public"
+								description="Public notes can be viewed by other users"
+							/>
+
+							{(actionData?.error || fetcher.data?.error) && (
+								<Text c="red" size="sm">
+									{actionData?.error || fetcher.data?.error}
+								</Text>
+							)}
+
+							<Group justify="flex-end" gap="md">
+								<Button variant="subtle" onClick={() => navigate("/user/notes")} type="button">
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									disabled={!form.values.content.trim() || fetcher.state !== "idle"}
+									loading={fetcher.state !== "idle"}
+								>
+									Create Note
+								</Button>
+							</Group>
+						</Stack>
+					</Paper>
+				</fetcher.Form>
 			</Stack>
 		</Container>
 	);
