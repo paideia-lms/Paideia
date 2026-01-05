@@ -123,9 +123,17 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+function DumpPostgresButton() {
+	const { submit: dumpPostgres, isLoading } = useDumpPostgres();
+	return (
+		<Button onClick={() => dumpPostgres({ values: {} })} disabled={isLoading} loading={isLoading}>
+			Dump Database
+		</Button>
+	);
+}
+
 export default function MigrationsPage({ loaderData }: Route.ComponentProps) {
 	const { statuses } = loaderData;
-	const { submit: dumpPostgres, isLoading } = useDumpPostgres();
 
 	const rows = statuses.map((status) => (
 		<Table.Tr key={status.Name}>
@@ -173,13 +181,7 @@ export default function MigrationsPage({ loaderData }: Route.ComponentProps) {
 					}}
 				>
 					<Title order={1}>Database Migrations</Title>
-					<Button
-						onClick={() => dumpPostgres({ values: {} })}
-						disabled={isLoading}
-						loading={isLoading}
-					>
-						Dump Database
-					</Button>
+					<DumpPostgresButton />
 				</Box>
 
 				<Alert variant="light" color="blue" title="About Migrations">

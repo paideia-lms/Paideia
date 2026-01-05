@@ -2,7 +2,8 @@ import { Button, Group, Select, Stack, Text, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, useFetcher } from "react-router";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -10,12 +11,12 @@ import {
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
 import { z } from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
 	forbidden,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/theme";
@@ -44,12 +45,13 @@ const validColors = [
 
 const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
 
-const inputSchema = z.object({
-	color: z.enum([...validColors]).optional(),
-	radius: z.enum([...validRadius]).optional(),
-});
+enum Action {
+	Update = "update",
+}
 
-export async function loader({ context }: Route.LoaderArgs) {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -73,79 +75,109 @@ export async function loader({ context }: Route.LoaderArgs) {
 	}
 
 	return { settings: settings.value };
-}
+});
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/appearance/theme",
+});
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
+const updateThemeRpc = createActionRpc({
+	formDataSchema: z.object({
+		color: z.enum([...validColors]).optional(),
+		radius: z.enum([...validRadius]).optional(),
+	}),
+	method: "POST",
+	action: Action.Update,
+});
 
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return badRequest({ error: z.prettifyError(parsed.error) });
-	}
-	const { color, radius } = parsed.data;
+const updateThemeAction = updateThemeRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	const updateResult = await tryUpdateAppearanceSettings({
-		payload,
-		req: payloadRequest,
-		data: {
-			color,
-			radius: radius as "xs" | "sm" | "md" | "lg" | "xl" | undefined,
-		},
-		overrideAccess: false,
-	});
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
 
-	if (!updateResult.ok) {
-		return forbidden({ error: updateResult.error.message });
-	}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	return ok({
-		success: true as const,
-		settings: updateResult.value as unknown as AppearanceGlobal,
-	});
-}
+		if (!currentUser) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+
+		if (currentUser.role !== "admin") {
+			return forbidden({
+				success: false,
+				error: "Only admins can access this area",
+			});
+		}
+
+		const { color, radius } = formData;
+
+		const updateResult = await tryUpdateAppearanceSettings({
+			payload,
+			req: payloadRequest,
+			data: {
+				color,
+				radius: radius as "xs" | "sm" | "md" | "lg" | "xl" | undefined,
+			},
+			overrideAccess: false,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			settings: updateResult.value as unknown as AppearanceGlobal,
+		});
+	},
+);
+
+const useUpdateTheme = updateThemeRpc.createHook<typeof updateThemeAction>();
+
+// Export hook for use in component
+export { useUpdateTheme };
+
+const [action] = createActionMap({
+	[Action.Update]: updateThemeAction,
+});
+
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-	const res = await serverAction();
-	if (res?.status === 200) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Theme settings updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Failed to update",
-			message: typeof res?.error === "string" ? res.error : "Unexpected error",
+			message: actionData?.error || "Failed to update theme settings",
 			color: "red",
 		});
 	}
-	return res;
-}
 
-export function useUpdateTheme() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const update = (data: {
-		color?: string;
-		radius?: "xs" | "sm" | "md" | "lg" | "xl";
-	}) => {
-		fetcher.submit(data, {
-			method: "post",
-			action: href("/admin/appearance/theme"),
-			encType: "application/json",
-		});
-	};
-	return { update, state: fetcher.state } as const;
+	return actionData;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -153,7 +185,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function AdminTheme({ loaderData }: Route.ComponentProps) {
-	const { state, update } = useUpdateTheme();
+	const { submit: updateTheme, isLoading } = useUpdateTheme();
 	const {
 		settings: { color, radius },
 	} = loaderData;
@@ -184,11 +216,12 @@ export default function AdminTheme({ loaderData }: Route.ComponentProps) {
 			<Title order={2}>Theme Settings</Title>
 
 			<form
-				method="post"
-				onSubmit={form.onSubmit((values) => {
-					update({
-						color: values.color,
-						radius: values.radius,
+				onSubmit={form.onSubmit(async (values) => {
+					await updateTheme({
+						values: {
+							color: values.color,
+							radius: values.radius,
+						},
 					});
 				})}
 			>
@@ -249,7 +282,7 @@ export default function AdminTheme({ loaderData }: Route.ComponentProps) {
 					</div>
 
 					<Group justify="flex-start" mt="sm">
-						<Button type="submit" loading={state !== "idle"}>
+						<Button type="submit" loading={isLoading} disabled={isLoading}>
 							Save changes
 						</Button>
 					</Group>
