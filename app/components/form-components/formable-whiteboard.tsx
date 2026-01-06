@@ -21,10 +21,9 @@ import {
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import type { FormPathValue } from "~/packages/@mantine/form/lib/paths.types";
+import type { FormPathValue, Path } from "node_modules/@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
-import type { Path } from "~/packages/@mantine/form/lib/paths.types";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>

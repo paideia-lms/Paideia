@@ -4,7 +4,7 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { FileUploader } from "../file-uploader";
 import { getRouteUrl } from "app/utils/search-params-utils";
 import type { ComponentProps } from "react";
-import type { Path } from "~/packages/@mantine/form/lib/paths.types";
+import type { Path } from "node_modules/@mantine/form/lib/paths.types";
 
 type FileUploaderValue = {
     files: File[];
