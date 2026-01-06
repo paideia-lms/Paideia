@@ -3,7 +3,7 @@ import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../../server/payload.config";
 import { tryCreateUser } from "../../server/internal/user-management";
-import type { TryResultValue } from "../../server/utils/type-narrowing";
+import type { TryResultValue } from "../../server/utils/types";
 import { createLocalReq } from "../../server/internal/utils/internal-function-utils";
 import { replaceBase64MediaWithMediaUrlsV2 } from "./replace-base64-images";
 

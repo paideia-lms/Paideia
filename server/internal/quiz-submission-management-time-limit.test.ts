@@ -22,7 +22,7 @@ import {
 } from "./quiz-submission-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
-import type { TryResultValue } from "server/utils/type-narrowing";
+import type { TryResultValue } from "server/utils/types";
 
 describe("Quiz Submission Management - Time Limit", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

@@ -16,8 +16,6 @@ import {
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/types.v2";
-import { assertZodInternal } from "server/utils/type-narrowing";
-import z from "zod";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 import type { UseQuizFormReturnType } from "./quiz-form";
@@ -144,13 +142,10 @@ interface NestedQuizTabProps {
 function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
 	// type narrowing
 	const _rawQuizConfig = form.getValues().rawQuizConfig;
-	assertZodInternal(
-		"NestedQuizTab: rawQuizConfig should be a nested quiz",
-		_rawQuizConfig,
-		z.object({
-			type: z.literal("container"),
-		}),
-	);
+
+	if (_rawQuizConfig?.type !== "container") {
+		throw new Error("NestedQuizTab: rawQuizConfig should be a nested quiz");
+	}
 
 	return (
 		<Stack gap="md">

@@ -4,9 +4,8 @@ import type {
 	LatestQuizConfig,
 	LatestQuizConfig as QuizConfig,
 } from "server/json/raw-quiz-config/version-resolver";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingActivityModuleError,
@@ -2805,65 +2804,19 @@ export function tryGetUserActivityModules(args: GetUserActivityModulesArgs) {
 					overrideAccess,
 					req,
 				})
+				.then(stripDepth<2, "find">())
 				.then((result) => {
 					const docs = result.docs.map((doc) => {
 						const owner = doc.owner;
-						assertZodInternal(
-							"tryGetUserActivityModules: Owner is required",
-							owner,
-							z.object({
-								id: z.number(),
-							}),
-						);
 						const ownerAvatar = owner.avatar;
-						assertZodInternal(
-							"tryGetUserActivityModules: Owner avatar is required",
-							ownerAvatar,
-							z.object({ id: z.number() }).nullish(),
-						);
 						const createdBy = doc.createdBy;
-						assertZodInternal(
-							"tryGetUserActivityModules: Created by is required",
-							createdBy,
-							z.object(
-								{
-									id: z.number(),
-								},
-								{ error: "Created by is required" },
-							),
-						);
 						const createdByAvatar = createdBy.avatar;
-						assertZodInternal(
-							"tryGetUserActivityModules: Created by avatar is required",
-							createdByAvatar,
-							z
-								.object(
-									{
-										id: z.number(),
-									},
-									{ error: "Created by avatar is required" },
-								)
-								.nullish(),
-						);
+
 						const grants = doc.grants;
-						assertZodInternal(
-							"tryGetUserActivityModules: Grants is required",
-							grants,
-							z.undefined(),
-						);
 						const courses =
 							doc.linkedCourses?.docs?.map((link) => {
-								assertZodInternal(
-									"tryGetUserActivityModules: Linked courses is required",
-									link,
-									z.object({ id: z.number() }),
-								);
 								const course = link.course;
-								assertZodInternal(
-									"tryGetUserActivityModules: Course is required",
-									course,
-									z.number(),
-								);
+
 								return course;
 							}) ?? [];
 
@@ -2890,13 +2843,11 @@ export function tryGetUserActivityModules(args: GetUserActivityModulesArgs) {
 				userId,
 				req,
 				overrideAccess,
-			});
-
-			if (!autoGrantedModules.ok) throw autoGrantedModules.error;
+			}).getOrThrow();
 
 			return {
 				modulesOwnedOrGranted,
-				autoGrantedModules: autoGrantedModules.value,
+				autoGrantedModules,
 			};
 		},
 		(error) =>

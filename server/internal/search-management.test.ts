@@ -10,7 +10,7 @@ import {
 import { parseQuery, tryGlobalSearch } from "./search-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
-import type { TryResultValue } from "server/utils/type-narrowing";
+import type { TryResultValue } from "server/utils/types";
 
 describe("parseQuery", () => {
 	test("should parse query", () => {

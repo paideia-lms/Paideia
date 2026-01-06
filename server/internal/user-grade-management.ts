@@ -2,7 +2,7 @@ import { AssignmentSubmissions } from "server/collections/assignment-submissions
 import { GradebookCategories } from "server/collections/gradebook-categories";
 import { UserGrades } from "server/collections/user-grades";
 import { Users } from "server/collections/users";
-import { MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
 	DuplicateUserGradeError,

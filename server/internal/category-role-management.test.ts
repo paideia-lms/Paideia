@@ -18,7 +18,7 @@ import { tryCreateCategory } from "./course-category-management";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
-import type { TryResultValue } from "server/utils/type-narrowing";
+import type { TryResultValue } from "server/utils/types";
 
 describe("Category Role Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

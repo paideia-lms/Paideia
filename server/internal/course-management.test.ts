@@ -16,7 +16,7 @@ import {
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateMedia } from "./media-management";
 import { tryCreateUser } from "./user-management";
-import type { TryResultValue } from "server/utils/type-narrowing";
+import type { TryResultValue } from "server/utils/types";
 import { createLocalReq } from "./utils/internal-function-utils";
 
 describe("Course Management Functions", () => {

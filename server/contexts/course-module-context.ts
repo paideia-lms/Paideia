@@ -196,9 +196,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					limit: 1000,
 					req,
 					overrideAccess,
-				});
-				if (!submissionsResult.ok) throw submissionsResult.error;
-				const allSubmissions = submissionsResult.value.docs;
+				}).getOrThrow();
+				const allSubmissions = submissionsResult.docs;
 
 				// Filter user-specific submissions
 				const userSubmissions = user
@@ -249,13 +248,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 								content: (userSubmission.content as string) || null,
 								attachments: userSubmission.attachments
 									? userSubmission.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: Number(att.file),
-											description: att.description as string | undefined,
+											file: att.file,
+											description: att.description ?? undefined,
 										}))
 									: null,
 								submittedAt: ("submittedAt" in userSubmission
@@ -293,15 +287,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 							attachments:
 								"attachments" in sub && sub.attachments
 									? sub.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: typeof att.file === "number"
-														? att.file
-														: Number(att.file),
-											description: att.description as string | undefined,
+											file: att.file,
+											description: att.description ?? undefined,
 										}))
 									: null,
 						}));

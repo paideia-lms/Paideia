@@ -1,6 +1,5 @@
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import { transformError, UnknownError } from "~/utils/error";
@@ -22,9 +21,12 @@ export function parseQuery(query: string) {
 		return { text: result, in: [] as string[] };
 	}
 
-	assertZodInternal("parseQuery: Result is required", result, querySchema);
+	const parsed = querySchema.safeParse(result);
+	if (!parsed.success) {
+		throw parsed.error;
+	}
 
-	const _result = result as z.infer<typeof querySchema>;
+	const _result = parsed.data;
 
 	return {
 		text: result.text,

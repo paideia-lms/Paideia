@@ -1,6 +1,6 @@
 import { GradebookCategories } from "../collections/gradebook-categories";
 import { Gradebooks } from "../collections/gradebooks";
-import { MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
 	DuplicateGradebookError,
