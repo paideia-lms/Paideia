@@ -53,6 +53,7 @@ import {
 import { href } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { constate } from "app/utils/constate";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
@@ -744,19 +745,53 @@ function MediaHeader({
 	);
 }
 
+// Media Selection Context
+interface MediaSelectionProviderProps {
+	media: Route.ComponentProps["loaderData"]["media"];
+}
+
+function useMediaSelectionValue({ media }: MediaSelectionProviderProps) {
+	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+
+	// Derive selectedRecords from selectedCardIds and media
+	const selectedRecords = useMemo(
+		() => media.filter((record) => selectedCardIds.includes(record.id)),
+		[media, selectedCardIds],
+	);
+
+	const handleTableSelectionChange = (
+		records: (Media & {
+			deletePermission?: { allowed: boolean; reason: string };
+		})[],
+	) => {
+		setSelectedCardIds(records.map((r) => r.id));
+	};
+
+	const clearSelection = () => {
+		setSelectedCardIds([]);
+	};
+
+	return {
+		selectedCardIds,
+		setSelectedCardIds,
+		selectedRecords,
+		handleTableSelectionChange,
+		clearSelection,
+	};
+}
+
+const [MediaSelectionProvider, useMediaSelection] = constate(
+	useMediaSelectionValue,
+);
+
 // Batch Actions Component
-function BatchActions({
-	selectedCount,
-	selectedCardIds,
-	userId,
-	onSelectionClear,
-}: {
-	selectedCount: number;
-	selectedCardIds: number[];
-	userId: number;
-	onSelectionClear: () => void;
-}) {
+function BatchActions({ userId }: { userId: number }) {
 	const { submit: deleteMedia } = useDelete();
+	const { selectedCardIds, clearSelection, selectedRecords } =
+		useMediaSelection();
+
+	const selectedCount =
+		selectedRecords.length > 0 ? selectedRecords.length : selectedCardIds.length;
 
 	if (selectedCount === 0) return null;
 
@@ -780,7 +815,7 @@ function BatchActions({
 			params: { id: userId },
 		});
 
-		onSelectionClear();
+		clearSelection();
 	};
 
 	return (
@@ -1327,15 +1362,22 @@ function MediaActionMenu({
 // Media Card Component
 function MediaCard({
 	file,
-	isSelected,
-	onSelectionChange,
 	userId,
 }: {
 	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
-	isSelected: boolean;
-	onSelectionChange: (selected: boolean) => void;
 	userId: number;
 }) {
+	const { selectedCardIds, setSelectedCardIds } = useMediaSelection();
+	const isSelected = selectedCardIds.includes(file.id);
+
+	const handleCheckboxChange = (checked: boolean) => {
+		if (checked) {
+			setSelectedCardIds([...selectedCardIds, file.id]);
+		} else {
+			setSelectedCardIds(selectedCardIds.filter((id) => id !== file.id));
+		}
+	};
+
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
 			mediaId: file.id.toString(),
@@ -1360,7 +1402,7 @@ function MediaCard({
 						<Checkbox
 							checked={isSelected}
 							onChange={(event) =>
-								onSelectionChange(event.currentTarget.checked)
+								handleCheckboxChange(event.currentTarget.checked)
 							}
 							style={{ flexShrink: 0 }}
 						/>
@@ -1448,37 +1490,17 @@ function MediaCard({
 // Media Card View Component
 function MediaCardView({
 	media,
-	selectedCardIds,
-	onSelectionChange,
 	userId,
 }: {
 	media: (Media & {
 		deletePermission?: { allowed: boolean; reason: string };
 	})[];
-	selectedCardIds: number[];
-	onSelectionChange: (ids: number[]) => void;
 	userId: number;
 }) {
-	const handleCheckboxChange = (fileId: number, checked: boolean) => {
-		if (checked) {
-			onSelectionChange([...selectedCardIds, fileId]);
-		} else {
-			onSelectionChange(selectedCardIds.filter((id) => id !== fileId));
-		}
-	};
-
 	return (
 		<Grid>
 			{media.map((file) => (
-				<MediaCard
-					key={file.id}
-					file={file}
-					isSelected={selectedCardIds.includes(file.id)}
-					onSelectionChange={(checked) =>
-						handleCheckboxChange(file.id, checked)
-					}
-					userId={userId}
-				/>
+				<MediaCard key={file.id} file={file} userId={userId} />
 			))}
 		</Grid>
 	);
@@ -1487,23 +1509,14 @@ function MediaCardView({
 // Media Table View Component
 function MediaTableView({
 	media,
-	selectedRecords,
-	onSelectionChange,
 	userId,
 }: {
 	media: (Media & {
 		deletePermission?: { allowed: boolean; reason: string };
 	})[];
-	selectedRecords: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
-	onSelectionChange: (
-		records: (Media & {
-			deletePermission?: { allowed: boolean; reason: string };
-		})[],
-	) => void;
 	userId: number;
 }) {
+	const { selectedRecords, handleTableSelectionChange } = useMediaSelection();
 	const columns = [
 		{
 			accessor: "filename",
@@ -1558,7 +1571,7 @@ function MediaTableView({
 			records={media}
 			columns={columns}
 			selectedRecords={selectedRecords}
-			onSelectedRecordsChange={onSelectionChange}
+			onSelectedRecordsChange={handleTableSelectionChange}
 			striped
 			highlightOnHover
 			withTableBorder
@@ -1605,17 +1618,6 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 		searchParams: { viewMode },
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
-
-	// Derive selectedRecords from selectedCardIds and media
-	const selectedRecords = useMemo(
-		() => media.filter((record) => selectedCardIds.includes(record.id)),
-		[media, selectedCardIds],
-	);
-
-	const handleTableSelectionChange = (records: Media[]) => {
-		setSelectedCardIds(records.map((r) => r.id));
-	};
 
 	const title = `Media | ${fullName} | Paideia LMS`;
 	return (
@@ -1734,44 +1736,28 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 					<Text c="dimmed" ta="center" py="xl">
 						No media files yet.
 					</Text>
-				) : viewMode === "card" ? (
-					<>
-						<BatchActions
-							selectedCount={selectedCardIds.length}
-							selectedCardIds={selectedCardIds}
-							userId={user.id}
-							onSelectionClear={() => setSelectedCardIds([])}
-						/>
-						<MediaCardView
-							media={media}
-							selectedCardIds={selectedCardIds}
-							onSelectionChange={setSelectedCardIds}
-							userId={user.id}
-						/>
-						<MediaPagination
-							totalPages={pagination.totalPages}
-							currentPage={pagination.page}
-						/>
-					</>
 				) : (
-					<>
-						<BatchActions
-							selectedCount={selectedRecords.length}
-							selectedCardIds={selectedCardIds}
-							userId={user.id}
-							onSelectionClear={() => setSelectedCardIds([])}
-						/>
-						<MediaTableView
-							media={media}
-							selectedRecords={selectedRecords}
-							onSelectionChange={handleTableSelectionChange}
-							userId={user.id}
-						/>
-						<MediaPagination
-							totalPages={pagination.totalPages}
-							currentPage={pagination.page}
-						/>
-					</>
+					<MediaSelectionProvider media={media}>
+						{viewMode === "card" ? (
+							<>
+								<BatchActions userId={user.id} />
+								<MediaCardView media={media} userId={user.id} />
+								<MediaPagination
+									totalPages={pagination.totalPages}
+									currentPage={pagination.page}
+								/>
+							</>
+						) : (
+							<>
+								<BatchActions userId={user.id} />
+								<MediaTableView media={media} userId={user.id} />
+								<MediaPagination
+									totalPages={pagination.totalPages}
+									currentPage={pagination.page}
+								/>
+							</>
+						)}
+					</MediaSelectionProvider>
 				)}
 			</Stack>
 		</Container>

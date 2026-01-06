@@ -43,9 +43,17 @@ import {
 	parseAsStringEnum,
 } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	forwardRef,
+	useEffect,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { href, Link } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
+import { constate } from "app/utils/constate";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -651,15 +659,75 @@ function MediaHeader({
 	);
 }
 
+// Media Selection Context
+interface MediaSelectionProviderProps {
+	media: Route.ComponentProps["loaderData"]["media"];
+}
+
+function useMediaSelectionValue({ media }: MediaSelectionProviderProps) {
+	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+
+	// Derive selectedRecords from selectedCardIds and media
+	const selectedRecords = useMemo(
+		() => media.filter((record) => selectedCardIds.includes(record.id)),
+		[media, selectedCardIds],
+	);
+
+	const handleTableSelectionChange = (
+		records: Route.ComponentProps["loaderData"]["media"],
+	) => {
+		setSelectedCardIds(records.map((r) => r.id));
+	};
+
+	const clearSelection = () => {
+		setSelectedCardIds([]);
+	};
+
+	return {
+		selectedCardIds,
+		setSelectedCardIds,
+		selectedRecords,
+		handleTableSelectionChange,
+		clearSelection,
+	};
+}
+
+const [MediaSelectionProvider, useMediaSelection] = constate(
+	useMediaSelectionValue,
+);
+
 // Batch Actions Component
-function BatchActions({
-	selectedCount,
-	onDelete,
-}: {
-	selectedCount: number;
-	onDelete: () => void;
-}) {
+function BatchActions() {
+	const { selectedCardIds, selectedRecords, clearSelection } = useMediaSelection();
+	const { submit: deleteMedia } = useDeleteMedia();
+
+	const selectedCount =
+		selectedRecords.length > 0 ? selectedRecords.length : selectedCardIds.length;
+
 	if (selectedCount === 0) return null;
+
+	const handleDelete = async () => {
+		if (selectedCardIds.length === 0) {
+			return;
+		}
+
+		if (
+			!window.confirm(
+				`Are you sure you want to delete ${selectedCardIds.length} media file${selectedCardIds.length !== 1 ? "s" : ""}? This action cannot be undone.`,
+			)
+		) {
+			return;
+		}
+
+		await deleteMedia({
+			values: {
+				mediaIds: selectedCardIds.join(","),
+			},
+		});
+
+		// Clear selection after submission
+		clearSelection();
+	};
 
 	return (
 		<Group justify="space-between" align="center">
@@ -677,7 +745,7 @@ function BatchActions({
 						<Menu.Item
 							leftSection={<IconTrash size={16} />}
 							color="red"
-							onClick={onDelete}
+							onClick={handleDelete}
 						>
 							Delete {selectedCount} file{selectedCount !== 1 ? "s" : ""}
 						</Menu.Item>
@@ -693,12 +761,10 @@ function AudioPreview({
 	fileUrl,
 	filename,
 	inline = false,
-	onOpenModal,
 }: {
 	fileUrl: string;
 	filename: string;
 	inline?: boolean;
-	onOpenModal?: () => void;
 }) {
 	if (inline) {
 		return (
@@ -707,9 +773,7 @@ function AudioPreview({
 				style={{
 					width: "100%",
 					minHeight: 150,
-					cursor: onOpenModal ? "pointer" : "default",
 				}}
-				onClick={onOpenModal}
 			>
 				<audio
 					controls
@@ -829,15 +893,19 @@ function VideoPreview({
 }
 
 // Media Rename Modal Component
-function MediaRenameModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
+export interface MediaRenameModalHandle {
+	open: () => void;
+}
+
+interface MediaRenameModalProps {
+	file: Media;
+}
+
+export const MediaRenameModal = forwardRef<
+	MediaRenameModalHandle,
+	MediaRenameModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
 	const { submit: updateMedia } = useUpdateMedia();
 	const form = useForm({
 		mode: "uncontrolled",
@@ -850,32 +918,31 @@ function MediaRenameModal({
 		},
 	});
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: file changes should reset form
-	useEffect(() => {
-		if (file) {
+	useImperativeHandle(ref, () => ({
+		open: () => {
 			form.setInitialValues({ filename: file.filename ?? "" });
 			form.reset();
-		}
-	}, [file]);
+			setOpened(true);
+		},
+	}));
 
 	const handleSubmit = form.onSubmit(async (values) => {
-		if (!file) {
-			return;
-		}
 		await updateMedia({
 			values: {
 				mediaId: file.id,
 				newFilename: values.filename.trim(),
 			},
 		});
-		onClose();
+		form.reset();
+		setOpened(false);
 	});
 
 	return (
 		<Modal
 			key={file?.id} // Reset state when file changes
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
+			onExitTransitionEnd={() => form.reset()}
 			title="Rename File"
 			centered
 		>
@@ -887,7 +954,11 @@ function MediaRenameModal({
 						{...form.getInputProps("filename")}
 					/>
 					<Group justify="flex-end">
-						<Button variant="subtle" onClick={onClose} type="button">
+						<Button
+							variant="subtle"
+							onClick={() => setOpened(false)}
+							type="button"
+						>
 							Cancel
 						</Button>
 						<Button type="submit">Rename</Button>
@@ -896,19 +967,30 @@ function MediaRenameModal({
 			</form>
 		</Modal>
 	);
-}
+});
+
+MediaRenameModal.displayName = "MediaRenameModal";
 
 // Media Preview Modal Component
-function MediaPreviewModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
-	if (!file) return null;
+export interface MediaPreviewModalHandle {
+	open: () => void;
+}
+
+interface MediaPreviewModalProps {
+	file: Media;
+}
+
+export const MediaPreviewModal = forwardRef<
+	MediaPreviewModalHandle,
+	MediaPreviewModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
+
+	useImperativeHandle(ref, () => ({
+		open: () => {
+			setOpened(true);
+		},
+	}));
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
@@ -974,7 +1056,7 @@ function MediaPreviewModal({
 	return (
 		<Modal
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
 			title={file.filename ?? "Media Preview"}
 			size="xl"
 			centered
@@ -982,18 +1064,24 @@ function MediaPreviewModal({
 			{renderPreview()}
 		</Modal>
 	);
-}
+});
+
+MediaPreviewModal.displayName = "MediaPreviewModal";
 
 // Media Usage Modal Component
-function MediaUsageModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
+export interface MediaUsageModalHandle {
+	open: () => void;
+}
+
+interface MediaUsageModalProps {
+	file: Media;
+}
+
+export const MediaUsageModal = forwardRef<
+	MediaUsageModalHandle,
+	MediaUsageModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
 	const {
 		load: fetchMediaUsage,
 		data: mediaUsageData,
@@ -1002,6 +1090,12 @@ function MediaUsageModal({
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
+
+	useImperativeHandle(ref, () => ({
+		open: () => {
+			setOpened(true);
+		},
+	}));
 
 	// Fetch usage when modal opens or file changes
 	useEffect(() => {
@@ -1017,7 +1111,7 @@ function MediaUsageModal({
 	return (
 		<Modal
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
 			title={file ? `Usage for ${file.filename ?? "Media"}` : "Media Usage"}
 			centered
 		>
@@ -1067,20 +1161,22 @@ function MediaUsageModal({
 			</Stack>
 		</Modal>
 	);
-}
+});
+
+MediaUsageModal.displayName = "MediaUsageModal";
 
 // Media Action Menu Component
 function MediaActionMenu({
 	file,
 }: {
-	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
+	file: Route.ComponentProps["loaderData"]["media"][number];
 }) {
 	const { downloadMedia } = useDownloadMedia();
-	const { submit: deleteMedia, } = useDeleteMedia();
+	const { submit: deleteMedia } = useDeleteMedia();
 
-	const [previewModalOpened, setPreviewModalOpened] = useState(false);
-	const [renameModalOpened, setRenameModalOpened] = useState(false);
-	const [usageModalOpened, setUsageModalOpened] = useState(false);
+	const previewModalRef = useRef<MediaPreviewModalHandle>(null);
+	const renameModalRef = useRef<MediaRenameModalHandle>(null);
+	const usageModalRef = useRef<MediaUsageModalHandle>(null);
 
 	const canDelete = file.deletePermission?.allowed ?? true; // Admin can always delete
 	const canPreviewFile = canPreview(file.mimeType ?? null);
@@ -1089,7 +1185,6 @@ function MediaActionMenu({
 			mediaId: file.id.toString(),
 		})
 		: undefined;
-
 
 	const handleDelete = async () => {
 		if (
@@ -1119,7 +1214,7 @@ function MediaActionMenu({
 					{canPreviewFile && (
 						<Menu.Item
 							leftSection={<IconEye size={16} />}
-							onClick={() => setPreviewModalOpened(true)}
+							onClick={() => previewModalRef.current?.open()}
 						>
 							Preview
 						</Menu.Item>
@@ -1139,13 +1234,13 @@ function MediaActionMenu({
 					)}
 					<Menu.Item
 						leftSection={<IconInfoCircle size={16} />}
-						onClick={() => setUsageModalOpened(true)}
+						onClick={() => usageModalRef.current?.open()}
 					>
 						Show Usage
 					</Menu.Item>
 					<Menu.Item
 						leftSection={<IconPencil size={16} />}
-						onClick={() => setRenameModalOpened(true)}
+						onClick={() => renameModalRef.current?.open()}
 					>
 						Rename
 					</Menu.Item>
@@ -1161,23 +1256,11 @@ function MediaActionMenu({
 				</Menu.Dropdown>
 			</Menu>
 
-			<MediaPreviewModal
-				file={file}
-				opened={previewModalOpened}
-				onClose={() => setPreviewModalOpened(false)}
-			/>
+			<MediaPreviewModal ref={previewModalRef} file={file} />
 
-			<MediaRenameModal
-				file={file}
-				opened={renameModalOpened}
-				onClose={() => setRenameModalOpened(false)}
-			/>
+			<MediaRenameModal ref={renameModalRef} file={file} />
 
-			<MediaUsageModal
-				file={file}
-				opened={usageModalOpened}
-				onClose={() => setUsageModalOpened(false)}
-			/>
+			<MediaUsageModal ref={usageModalRef} file={file} />
 		</>
 	);
 }
@@ -1185,13 +1268,20 @@ function MediaActionMenu({
 // Media Card Component
 function MediaCard({
 	file,
-	isSelected,
-	onSelectionChange,
 }: {
-	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
-	isSelected: boolean;
-	onSelectionChange: (selected: boolean) => void;
+	file: Route.ComponentProps["loaderData"]["media"][number];
 }) {
+	const { selectedCardIds, setSelectedCardIds } = useMediaSelection();
+	const isSelected = selectedCardIds.includes(file.id);
+
+	const handleCheckboxChange = (checked: boolean) => {
+		if (checked) {
+			setSelectedCardIds([...selectedCardIds, file.id]);
+		} else {
+			setSelectedCardIds(selectedCardIds.filter((id) => id !== file.id));
+		}
+	};
+
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
 			mediaId: file.id.toString(),
@@ -1244,7 +1334,7 @@ function MediaCard({
 						<Checkbox
 							checked={isSelected}
 							onChange={(event) =>
-								onSelectionChange(event.currentTarget.checked)
+								handleCheckboxChange(event.currentTarget.checked)
 							}
 							style={{ flexShrink: 0 }}
 						/>
@@ -1369,34 +1459,13 @@ function MediaCard({
 // Media Card View Component
 function MediaCardView({
 	media,
-	selectedCardIds,
-	onSelectionChange,
 }: {
-	media: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
-	selectedCardIds: number[];
-	onSelectionChange: (ids: number[]) => void;
+	media: Route.ComponentProps["loaderData"]["media"];
 }) {
-	const handleCheckboxChange = (fileId: number, checked: boolean) => {
-		if (checked) {
-			onSelectionChange([...selectedCardIds, fileId]);
-		} else {
-			onSelectionChange(selectedCardIds.filter((id) => id !== fileId));
-		}
-	};
-
 	return (
 		<Grid>
 			{media.map((file) => (
-				<MediaCard
-					key={file.id}
-					file={file}
-					isSelected={selectedCardIds.includes(file.id)}
-					onSelectionChange={(checked) =>
-						handleCheckboxChange(file.id, checked)
-					}
-				/>
+				<MediaCard key={file.id} file={file} />
 			))}
 		</Grid>
 	);
@@ -1405,15 +1474,10 @@ function MediaCardView({
 // Media Table View Component
 function MediaTableView({
 	media,
-	selectedRecords,
-	onSelectionChange,
 }: {
 	media: Route.ComponentProps["loaderData"]["media"];
-	selectedRecords: Route.ComponentProps["loaderData"]["media"];
-	onSelectionChange: (
-		records: Route.ComponentProps["loaderData"]["media"],
-	) => void;
 }) {
+	const { selectedRecords, handleTableSelectionChange } = useMediaSelection();
 	const columns = [
 		{
 			accessor: "filename",
@@ -1530,7 +1594,7 @@ function MediaTableView({
 			records={media}
 			columns={columns}
 			selectedRecords={selectedRecords}
-			onSelectedRecordsChange={onSelectionChange}
+			onSelectedRecordsChange={handleTableSelectionChange}
 			striped
 			highlightOnHover
 			withTableBorder
@@ -1544,12 +1608,19 @@ function MediaTableView({
 function MediaPagination({
 	totalPages,
 	currentPage,
-	onPageChange,
 }: {
 	totalPages: number;
 	currentPage: number;
-	onPageChange: (page: number) => void;
 }) {
+
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
+	const handlePageChange = (page: number) => {
+		setQueryParams({
+			page: page,
+		});
+	};
+
 	if (totalPages <= 1) return null;
 
 	return (
@@ -1557,9 +1628,36 @@ function MediaPagination({
 			<Pagination
 				total={totalPages}
 				value={currentPage}
-				onChange={(page) => {
-					onPageChange(page);
-				}}
+				onChange={handlePageChange}
+			/>
+		</Group>
+	);
+}
+
+// Orphaned Media Pagination Component
+function OrphanedMediaPagination({
+	totalPages,
+	currentPage,
+}: {
+	totalPages: number;
+	currentPage: number;
+}) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
+	const handlePageChange = (page: number) => {
+		setQueryParams({
+			orphanedPage: page,
+		});
+	};
+
+	if (totalPages <= 1) return null;
+
+	return (
+		<Group justify="center">
+			<Pagination
+				total={totalPages}
+				value={currentPage}
+				onChange={handlePageChange}
 			/>
 		</Group>
 	);
@@ -1568,27 +1666,89 @@ function MediaPagination({
 // Orphaned Media File Type
 type OrphanedMediaFile = NonNullable<Route.ComponentProps["loaderData"]["orphanedMedia"]>['files'][number];
 
+// Orphaned Media Selection Context
+interface OrphanedMediaSelectionProviderProps {
+	orphanedPage: number;
+}
+
+function useOrphanedMediaSelectionValue({
+	orphanedPage,
+}: OrphanedMediaSelectionProviderProps) {
+	const [selectedOrphanedIds, setSelectedOrphanedIds] = useState<string[]>([]);
+
+	// Clear selection when page changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: orphanedPage is needed to clear selection when page changes
+	useEffect(() => {
+		setSelectedOrphanedIds([]);
+	}, [orphanedPage]);
+
+	const handleTableSelectionChange = (records: OrphanedMediaFile[]) => {
+		setSelectedOrphanedIds(records.map((r) => r.filename));
+	};
+
+	const clearSelection = () => {
+		setSelectedOrphanedIds([]);
+	};
+
+	return {
+		selectedOrphanedIds,
+		setSelectedOrphanedIds,
+		handleTableSelectionChange,
+		clearSelection,
+	};
+}
+
+const [
+	OrphanedMediaSelectionProvider,
+	useOrphanedMediaSelection,
+] = constate(useOrphanedMediaSelectionValue);
+
 // Orphaned Media Table Component
 function OrphanedMediaTable({
 	files,
-	selectedFilenames,
-	onSelectionChange,
-	onDelete,
 	pagination,
-	onPageChange,
 }: {
 	files: OrphanedMediaFile[];
-	selectedFilenames: string[];
-	onSelectionChange: (filenames: string[]) => void;
-	onDelete: (filenames: string[]) => void;
 	pagination: {
 		totalPages: number;
 		page: number;
 		hasPrevPage: boolean;
 		hasNextPage: boolean;
 	};
-	onPageChange: (page: number) => void;
 }) {
+	const {
+		selectedOrphanedIds,
+		handleTableSelectionChange,
+		clearSelection,
+	} = useOrphanedMediaSelection();
+	const { submit: deleteOrphanedMedia, isLoading } = useDeleteOrphanedMedia();
+
+	const selectedFiles = files.filter((file) =>
+		selectedOrphanedIds.includes(file.filename),
+	);
+
+	const handleDelete = () => {
+		if (selectedOrphanedIds.length === 0) {
+			return;
+		}
+
+		if (
+			!window.confirm(
+				`Are you sure you want to delete ${selectedOrphanedIds.length} orphaned file${selectedOrphanedIds.length !== 1 ? "s" : ""}? This action cannot be undone.`,
+			)
+		) {
+			return;
+		}
+
+		deleteOrphanedMedia({
+			values: {
+				filenames: selectedOrphanedIds.join(","),
+			},
+		});
+
+		clearSelection();
+	};
+
 	const columns = [
 		{
 			accessor: "filename",
@@ -1610,30 +1770,19 @@ function OrphanedMediaTable({
 		},
 	];
 
-	const selectedFiles = files.filter((file) =>
-		selectedFilenames.includes(file.filename),
-	);
-
 	return (
 		<Stack gap="md">
-			{selectedFilenames.length > 0 && (
+			{selectedOrphanedIds.length > 0 && (
 				<Group justify="space-between" align="center">
 					<Text size="sm" c="dimmed">
-						{selectedFilenames.length} file
-						{selectedFilenames.length !== 1 ? "s" : ""} selected
+						{selectedOrphanedIds.length} file
+						{selectedOrphanedIds.length !== 1 ? "s" : ""} selected
 					</Text>
 					<Button
 						color="red"
 						leftSection={<IconTrash size={16} />}
-						onClick={() => {
-							if (
-								window.confirm(
-									`Are you sure you want to delete ${selectedFilenames.length} orphaned file${selectedFilenames.length !== 1 ? "s" : ""}? This action cannot be undone.`,
-								)
-							) {
-								onDelete(selectedFilenames);
-							}
-						}}
+						onClick={handleDelete}
+						loading={isLoading}
 					>
 						Delete Selected
 					</Button>
@@ -1643,19 +1792,16 @@ function OrphanedMediaTable({
 				records={files}
 				columns={columns}
 				selectedRecords={selectedFiles}
-				onSelectedRecordsChange={(records) => {
-					onSelectionChange(records.map((r) => r.filename));
-				}}
+				onSelectedRecordsChange={handleTableSelectionChange}
 				striped
 				highlightOnHover
 				withTableBorder
 				withColumnBorders
 				idAccessor="filename"
 			/>
-			<MediaPagination
+			<OrphanedMediaPagination
 				totalPages={pagination.totalPages}
 				currentPage={pagination.page}
-				onPageChange={onPageChange}
 			/>
 		</Stack>
 	);
@@ -1692,45 +1838,6 @@ function OrphanedMediaSection({
 }: {
 	orphanedMedia: NonNullable<Route.ComponentProps["loaderData"]["orphanedMedia"]>;
 }) {
-	const [selectedOrphanedFilenames, setSelectedOrphanedFilenames] = useState<
-		string[]
-	>([]);
-	const { submit: deleteOrphanedMedia, fetcher: orphanedFetcher } =
-		useDeleteOrphanedMedia();
-	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
-
-	const handleOrphanedPageChange = (newPage: number) => {
-		setQueryParams({
-			orphanedPage: newPage,
-		});
-		// Clear selection when page changes
-		setSelectedOrphanedFilenames([]);
-	};
-
-	const handleOrphanedSelectionChange = (filenames: string[]) => {
-		setSelectedOrphanedFilenames(filenames);
-	};
-
-	const handleDeleteOrphaned = (filenames: string[]) => {
-		// Delete only selected files from current page
-		deleteOrphanedMedia({
-			values: {
-				filenames: filenames.join(","),
-			},
-		});
-		// Clear selection after deletion
-		setSelectedOrphanedFilenames([]);
-	};
-
-	// Clear orphaned selection when fetcher completes successfully
-	useEffect(() => {
-		if (orphanedFetcher.state === "idle") {
-			if (selectedOrphanedFilenames.length > 0) {
-				setSelectedOrphanedFilenames([]);
-			}
-		}
-	}, [orphanedFetcher.state, selectedOrphanedFilenames.length]);
-
 	return (
 		<Card withBorder padding="lg" radius="md">
 			<Stack gap="lg">
@@ -1750,19 +1857,19 @@ function OrphanedMediaSection({
 						No orphaned media files found.
 					</Text>
 				) : (
-					<OrphanedMediaTable
-						files={orphanedMedia.files}
-						selectedFilenames={selectedOrphanedFilenames}
-						onSelectionChange={handleOrphanedSelectionChange}
-						onDelete={handleDeleteOrphaned}
-						pagination={{
-							totalPages: orphanedMedia.totalPages,
-							page: orphanedMedia.page,
-							hasPrevPage: orphanedMedia.hasPrevPage,
-							hasNextPage: orphanedMedia.hasNextPage,
-						}}
-						onPageChange={handleOrphanedPageChange}
-					/>
+					<OrphanedMediaSelectionProvider
+						orphanedPage={orphanedMedia.page}
+					>
+						<OrphanedMediaTable
+							files={orphanedMedia.files}
+							pagination={{
+								totalPages: orphanedMedia.totalPages,
+								page: orphanedMedia.page,
+								hasPrevPage: orphanedMedia.hasPrevPage,
+								hasNextPage: orphanedMedia.hasNextPage,
+							}}
+						/>
+					</OrphanedMediaSelectionProvider>
 				)}
 			</Stack>
 		</Card>
@@ -1775,7 +1882,7 @@ function StatsSection({
 	currentUserId,
 }: {
 	stats: NonNullable<Route.ComponentProps["loaderData"]["stats"]>;
-	systemStats: NonNullable<Route.ComponentProps["loaderData"]["systemStats"]> | null;
+	systemStats: NonNullable<Route.ComponentProps["loaderData"]["systemStats"]>;
 	currentUserId: number | null;
 }) {
 	return (
@@ -1900,6 +2007,37 @@ function StatsSection({
 	);
 }
 
+// Media Views Component (uses context)
+function MediaViews({
+	viewMode,
+	media,
+	pagination,
+}: {
+	viewMode: "card" | "table";
+	media: Route.ComponentProps["loaderData"]["media"];
+	pagination: Route.ComponentProps["loaderData"]["pagination"];
+}) {
+	return viewMode === "card" ? (
+		<>
+			<BatchActions />
+			<MediaCardView media={media} />
+			<MediaPagination
+				totalPages={pagination.totalPages}
+				currentPage={pagination.page}
+			/>
+		</>
+	) : (
+		<>
+			<BatchActions />
+			<MediaTableView media={media} />
+			<MediaPagination
+				totalPages={pagination.totalPages}
+				currentPage={pagination.page}
+			/>
+		</>
+	);
+}
+
 export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 	const {
 		media,
@@ -1914,52 +2052,8 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 			viewMode,
 		},
 	} = loaderData;
-	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
-
-	// Derive selectedRecords from selectedCardIds and media
-	const selectedRecords = useMemo(
-		() => media.filter((record) => selectedCardIds.includes(record.id)),
-		[media, selectedCardIds],
-	);
-	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
-
-	const { submit: deleteMedia } = useDeleteMedia();
-
 	// Sync userId from loader data
 	const currentUserId = userId ?? initialUserId;
-
-	const handlePageChange = (newPage: number) => {
-		setQueryParams({
-			page: newPage
-		})
-	};
-
-	const handleBatchDelete = () => {
-		if (selectedCardIds.length === 0) {
-			return;
-		}
-
-		if (
-			!window.confirm(
-				`Are you sure you want to delete ${selectedCardIds.length} media file${selectedCardIds.length !== 1 ? "s" : ""}? This action cannot be undone.`,
-			)
-		) {
-			return;
-		}
-
-		deleteMedia({
-			values: {
-				mediaIds: selectedCardIds.join(","),
-			},
-		});
-
-		// Clear selection after submission
-		setSelectedCardIds([]);
-	};
-
-	const handleTableSelectionChange = (records: Route.ComponentProps["loaderData"]["media"]) => {
-		setSelectedCardIds(records.map((r) => r.id));
-	};
 
 
 	return (
@@ -1996,40 +2090,14 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 					<Text c="dimmed" ta="center" py="xl">
 						No media files in the system.
 					</Text>
-				) : viewMode === "card" ? (
-					<>
-						<BatchActions
-							selectedCount={selectedCardIds.length}
-							onDelete={handleBatchDelete}
-						/>
-						<MediaCardView
-							media={media}
-							selectedCardIds={selectedCardIds}
-							onSelectionChange={setSelectedCardIds}
-						/>
-						<MediaPagination
-							totalPages={pagination.totalPages}
-							currentPage={pagination.page}
-							onPageChange={handlePageChange}
-						/>
-					</>
 				) : (
-					<>
-						<BatchActions
-							selectedCount={selectedRecords.length}
-							onDelete={handleBatchDelete}
-						/>
-						<MediaTableView
+					<MediaSelectionProvider media={media}>
+						<MediaViews
+							viewMode={viewMode}
 							media={media}
-							selectedRecords={selectedRecords}
-							onSelectionChange={handleTableSelectionChange}
+							pagination={pagination}
 						/>
-						<MediaPagination
-							totalPages={pagination.totalPages}
-							currentPage={pagination.page}
-							onPageChange={handlePageChange}
-						/>
-					</>
+					</MediaSelectionProvider>
 				)}
 
 				{/* Orphaned Media Section */}
