@@ -277,7 +277,8 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 									onClick={() =>
 										navigate(
 											getRouteUrl("/course/:courseId", {
-												params: { courseId: course.id.toString(), }
+												params: { courseId: course.id.toString(), },
+												searchParams: {},
 											}),
 										)
 									}

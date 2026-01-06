@@ -8,6 +8,7 @@ import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
 import { typeCreateLoader } from "app/utils/loader-utils";
+import { parseAsBoolean } from "nuqs";
 
 enum CourseTab {
 	Course = "course",
@@ -21,7 +22,11 @@ enum CourseTab {
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
-const createRouteLoader = createLoader({});
+export const loaderSearchParams = {
+	reload: parseAsBoolean.withDefault(false),
+};
+
+const createRouteLoader = createLoader({ searchParams: loaderSearchParams });
 
 export const loader = createRouteLoader(async ({ context, params, searchParams }) => {
 	const { pageInfo } = context.get(globalContextKey);

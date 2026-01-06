@@ -47,6 +47,7 @@ import {
 import type { Route } from "./+types/course.$id.modules";
 import { tryFindUserEnrollmentInCourse } from "server/internal/enrollment-management";
 import { getRouteUrl } from "app/utils/search-params-utils";
+import { parseAsBoolean } from "nuqs";
 
 enum Action {
 	Create = "create",
@@ -77,7 +78,13 @@ const deleteModuleLinkRpc = createActionRpc({
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context }) => {
+export const loaderSearchParams = {
+	reload: parseAsBoolean.withDefault(false),
+};
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -114,6 +121,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		enrolment: enrolmentContext?.enrolment,
 		canEdit,
 		availableModules,
+		searchParams,
 	};
 });
 

@@ -12,6 +12,7 @@ import {
 	Tooltip,
 	UnstyledButton,
 	useMantineColorScheme,
+	Button,
 } from "@mantine/core";
 import {
 	IconAlertTriangle,
@@ -28,7 +29,7 @@ import {
 	IconUserCheck,
 } from "@tabler/icons-react";
 import cx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { href, Link, Outlet, useNavigate } from "react-router";
 import {
 	globalContextKey,
@@ -37,11 +38,10 @@ import {
 import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import type { Media } from "server/payload-types";
-import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
-import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
 import { typeCreateLoader } from "app/utils/loader-utils";
+import { useStopImpersonating } from "app/routes/api/stop-impersonation";
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -70,6 +70,62 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 		params,
 	};
 })!;
+
+
+
+// Button component for profile page
+export function StopImpersonatingButton({
+	size = "xs",
+	variant = "light",
+	color = "orange",
+	...props
+}: {
+	size?: "xs" | "sm" | "md" | "lg" | "xl";
+	variant?: "filled" | "light" | "outline" | "subtle" | "default";
+	color?: string;
+} & React.ComponentProps<typeof Button>) {
+	const { submit: stopImpersonating, isLoading } = useStopImpersonating();
+
+	return (
+		<Button
+			size={size}
+			color={color}
+			variant={variant}
+			onClick={() => stopImpersonating({ values: {} })}
+			loading={isLoading}
+			{...props}
+		>
+			Stop Impersonating
+		</Button>
+	);
+}
+
+// Menu item component for root layout
+const StopImpersonatingMenuItem = forwardRef<
+	HTMLButtonElement,
+	{
+		leftSection?: React.ReactNode;
+		color?: string;
+	} & React.ComponentProps<typeof Menu.Item>
+>(({ leftSection, color = "orange", ...props }, ref) => {
+	const { submit: stopImpersonating, isLoading } = useStopImpersonating();
+
+	return (
+		<Menu.Item
+			ref={ref}
+			leftSection={leftSection}
+			color={color}
+			onClick={() => stopImpersonating({ values: {} })}
+			disabled={isLoading}
+			{...props}
+		>
+			Stop Impersonating
+		</Menu.Item>
+	);
+});
+
+StopImpersonatingMenuItem.displayName = "StopImpersonatingMenuItem";
+
 
 export default function UserLayout({
 	loaderData,
@@ -144,26 +200,6 @@ export function HeaderTabs({
 		? authenticatedUser?.role === "admin"
 		: currentUser?.role === "admin";
 
-	// Determine redirect URL based on current location
-	// If in a course, redirect back to that course after stopping impersonation
-	const getStopImpersonationRedirect = () => {
-		if (pageInfo.is["layouts/course-layout"]) {
-			const { courseId, moduleLinkId, sectionId } =
-				pageInfo.params as RouteParams<"layouts/course-layout">;
-			if (courseId)
-				return href("/course/:courseId", { courseId }) + "?reload=true";
-			else if (moduleLinkId)
-				return (
-					href("/course/module/:moduleLinkId", { moduleLinkId }) +
-					"?reload=true"
-				);
-			else if (sectionId)
-				return (
-					href("/course/section/:sectionId", { sectionId }) + "?reload=true"
-				);
-		}
-		return href("/"); // Default to dashboard
-	};
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -405,7 +441,6 @@ export function HeaderTabs({
 											<StopImpersonatingMenuItem
 												leftSection={<IconUserCheck size={16} stroke={1.5} />}
 												color="orange"
-												redirectTo={getStopImpersonationRedirect()}
 											/>
 										)}
 										<Menu.Item

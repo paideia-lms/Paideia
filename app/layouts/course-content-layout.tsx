@@ -43,8 +43,6 @@ import { getModuleIcon } from "~/utils/module-helper";
 import { calculateMoveOperation, convertCourseStructureToFlatData, getChildrenIds, type TreeNode } from "app/utils/course-structure-tree-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
 
-
-
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
 const createRouteLoader = createLoader({});
@@ -255,7 +253,7 @@ function CourseStructureTree({
 					<Button
 						size="compact-xs"
 						component={Link}
-						to={getRouteUrl("/course/:courseId", { params: { courseId: courseId.toString() } })}
+						to={getRouteUrl("/course/:courseId", { params: { courseId: courseId.toString() }, searchParams: {} })}
 						variant="light"
 					>
 						Root

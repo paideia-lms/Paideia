@@ -26,10 +26,17 @@ import {
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 import { getRouteUrl } from "app/utils/search-params-utils";
+import { parseAsBoolean } from "nuqs";
+
+export const loaderSearchParams = {
+	reload: parseAsBoolean.withDefault(false),
+}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context }) => {
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -47,6 +54,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		canEdit: courseContext.permissions.canEdit.allowed,
+		searchParams,
 	};
 });
 

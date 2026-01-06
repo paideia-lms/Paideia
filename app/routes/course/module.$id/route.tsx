@@ -546,13 +546,17 @@ const markQuizAttemptAsCompleteAction = markQuizAttemptAsCompleteRpc.createActio
 			return unauthorized({ error: "Unauthorized" });
 		}
 
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
 		// Only students can submit assignments or start quizzes
 		if (
-			!permissions.course.module.canSubmitAssignment(
-				enrolmentContext.enrolment,
-			).allowed
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
 		) {
-			return forbidden({ error: "Only students can submit assignments" });
+			return forbidden({ error: courseModuleContext.permissions.quiz.canStartAttempt.reason });
 		}
 
 		// Parse answers if provided
@@ -639,13 +643,17 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
 		// Only students can submit assignments or start quizzes
 		if (
-			!permissions.course.module.canSubmitAssignment(
-				enrolmentContext.enrolment,
-			).allowed
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
 		) {
-			throw new ForbiddenResponse("Only students can submit assignments");
+			return forbidden({ error: courseModuleContext.permissions.quiz.canStartAttempt.reason });
 		}
 
 		// Check if there's already an in_progress submission
@@ -741,11 +749,10 @@ const submitAssignmentAction = submitAssignmentRpc.createAction(
 
 		// Only students can submit assignments or start quizzes
 		if (
-			!permissions.course.module.canSubmitAssignment(
-				enrolmentContext.enrolment,
-			).allowed
+			courseModuleContext.type === "assignment" &&
+			!courseModuleContext.permissions.assignment.canSubmitAssignment.allowed
 		) {
-			throw new ForbiddenResponse("Only students can submit assignments");
+			return forbidden({ error: courseModuleContext.permissions.assignment.canSubmitAssignment.reason });
 		}
 
 		// Handle assignment submission (existing logic)
@@ -825,20 +832,20 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 	if (
 		actionData?.status === StatusCode.BadRequest ||
-		actionData?.status === StatusCode.Unauthorized
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
 	) {
 		notifications.show({
 			title: "Error",
 			message:
-				typeof actionData.error === "string"
-					? actionData.error
-					: "Failed to complete operation",
+				actionData.error
+			,
 			color: "red",
 		});
 	} else if (actionData && "success" in actionData && actionData.success) {
 		notifications.show({
 			title: "Success",
-			message: actionData.message || "Operation completed successfully",
+			message: actionData.message,
 			color: "green",
 		});
 		if (
@@ -928,7 +935,7 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 					});
 				}}
 				isSubmitting={isSubmitting}
-				canSubmit={loaderData.canSubmit}
+				canSubmit={loaderData.canSubmit.allowed}
 				isStudent={loaderData.isStudent ?? false}
 			/>
 			{loaderData.allSubmissionsForDisplay.length > 0 && (

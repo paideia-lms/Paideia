@@ -26,7 +26,7 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, ok } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/section.$id";
-
+import { parseAsBoolean } from "nuqs";
 // Helper function to recursively find a section in the course structure
 function findSectionInStructure(
 	sections: CourseStructureSection[],
@@ -50,7 +50,13 @@ function findSectionInStructure(
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context }) => {
+export const loaderSearchParams = {
+	reload: parseAsBoolean.withDefault(false),
+};
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseSectionContext = context.get(courseSectionContextKey);
@@ -106,6 +112,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		subsections,
 		modules,
 		availableModules,
+		searchParams,
 	});
 });
 

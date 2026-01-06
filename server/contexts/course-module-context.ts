@@ -211,9 +211,9 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					userSubmissions[0] ||
 					null;
 
-				const canSubmit = enrolment
-					? permissions.course.module.canSubmitAssignment(enrolment).allowed
-					: false;
+				const canSubmit = permissions.course.module.canSubmitAssignment(
+					enrolment ?? undefined,
+				);
 
 				// Construct AssignmentData from activityModule and settings
 				const assignmentSettings =
@@ -318,7 +318,15 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					// formattedModuleSettings,
 					previousModule,
 					nextModule,
-					permissions: basePermissions,
+					permissions: {
+						...basePermissions,
+						assignment: {
+							canSubmitAssignment:
+								permissions.course.module.canSubmitAssignment(
+									enrolment ?? undefined,
+								),
+						},
+					},
 				};
 			} else if (moduleLink.type === "quiz") {
 				// Fetch quiz submissions
