@@ -41,7 +41,15 @@ import {
 } from "nuqs/server";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+	forwardRef,
+	useEffect,
+	useId,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { href } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
@@ -939,17 +947,20 @@ function VideoPreview({
 }
 
 // Media Rename Modal Component
-function MediaRenameModal({
-	file,
-	opened,
-	onClose,
-	userId,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
+export interface MediaRenameModalHandle {
+	open: () => void;
+}
+
+interface MediaRenameModalProps {
+	file: Media;
 	userId: number;
-}) {
+}
+
+export const MediaRenameModal = forwardRef<
+	MediaRenameModalHandle,
+	MediaRenameModalProps
+>(({ file, userId }, ref) => {
+	const [opened, setOpened] = useState(false);
 	const { renameMedia } = useRenameMedia(userId);
 	const form = useForm({
 		mode: "uncontrolled",
@@ -962,27 +973,26 @@ function MediaRenameModal({
 		},
 	});
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: form methods are stable and should not be in dependencies
-	useEffect(() => {
-		if (file) {
+	useImperativeHandle(ref, () => ({
+		open: () => {
 			form.setInitialValues({ filename: file.filename ?? "" });
 			form.reset();
-		}
-	}, [file]);
+			setOpened(true);
+		},
+	}));
 
 	const handleSubmit = form.onSubmit(async (values) => {
-		if (!file) {
-			return;
-		}
 		await renameMedia(file.id, values.filename.trim());
-		onClose();
+		form.reset();
+		setOpened(false);
 	});
 
 	return (
 		<Modal
 			key={file?.id} // Reset state when file changes
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
+			onExitTransitionEnd={() => form.reset()}
 			title="Rename File"
 			centered
 		>
@@ -994,7 +1004,11 @@ function MediaRenameModal({
 						{...form.getInputProps("filename")}
 					/>
 					<Group justify="flex-end">
-						<Button variant="subtle" onClick={onClose} type="button">
+						<Button
+							variant="subtle"
+							onClick={() => setOpened(false)}
+							type="button"
+						>
 							Cancel
 						</Button>
 						<Button type="submit">Rename</Button>
@@ -1003,18 +1017,24 @@ function MediaRenameModal({
 			</form>
 		</Modal>
 	);
-}
+});
+
+MediaRenameModal.displayName = "MediaRenameModal";
 
 // Media Usage Modal Component
-function MediaUsageModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
+export interface MediaUsageModalHandle {
+	open: () => void;
+}
+
+interface MediaUsageModalProps {
+	file: Media;
+}
+
+export const MediaUsageModal = forwardRef<
+	MediaUsageModalHandle,
+	MediaUsageModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
 	const {
 		load: fetchMediaUsage,
 		data: mediaUsageData,
@@ -1023,6 +1043,12 @@ function MediaUsageModal({
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
+
+	useImperativeHandle(ref, () => ({
+		open: () => {
+			setOpened(true);
+		},
+	}));
 
 	// Fetch usage when modal opens or file changes
 	useEffect(() => {
@@ -1038,7 +1064,7 @@ function MediaUsageModal({
 	return (
 		<Modal
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
 			title={file ? `Usage for ${file.filename ?? "Media"}` : "Media Usage"}
 			centered
 		>
@@ -1088,19 +1114,30 @@ function MediaUsageModal({
 			</Stack>
 		</Modal>
 	);
-}
+});
+
+MediaUsageModal.displayName = "MediaUsageModal";
 
 // Media Preview Modal Component
-function MediaPreviewModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
-	if (!file) return null;
+export interface MediaPreviewModalHandle {
+	open: () => void;
+}
+
+interface MediaPreviewModalProps {
+	file: Media;
+}
+
+export const MediaPreviewModal = forwardRef<
+	MediaPreviewModalHandle,
+	MediaPreviewModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
+
+	useImperativeHandle(ref, () => ({
+		open: () => {
+			setOpened(true);
+		},
+	}));
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
@@ -1166,7 +1203,7 @@ function MediaPreviewModal({
 	return (
 		<Modal
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
 			title={file.filename ?? "Media Preview"}
 			size="xl"
 			centered
@@ -1174,7 +1211,9 @@ function MediaPreviewModal({
 			{renderPreview()}
 		</Modal>
 	);
-}
+});
+
+MediaPreviewModal.displayName = "MediaPreviewModal";
 
 // Media Action Menu Component
 function MediaActionMenu({
@@ -1187,9 +1226,9 @@ function MediaActionMenu({
 	const { downloadMedia } = useDownloadMedia();
 	const { submit: deleteMedia } = useDelete();
 
-	const [previewModalOpened, setPreviewModalOpened] = useState(false);
-	const [renameModalOpened, setRenameModalOpened] = useState(false);
-	const [usageModalOpened, setUsageModalOpened] = useState(false);
+	const previewModalRef = useRef<MediaPreviewModalHandle>(null);
+	const renameModalRef = useRef<MediaRenameModalHandle>(null);
+	const usageModalRef = useRef<MediaUsageModalHandle>(null);
 
 	const canDelete = file.deletePermission?.allowed ?? false;
 	const canPreviewFile = canPreview(file.mimeType ?? null);
@@ -1239,7 +1278,7 @@ function MediaActionMenu({
 					{canPreviewFile && (
 						<Menu.Item
 							leftSection={<IconEye size={16} />}
-							onClick={() => setPreviewModalOpened(true)}
+							onClick={() => previewModalRef.current?.open()}
 						>
 							Preview
 						</Menu.Item>
@@ -1254,13 +1293,13 @@ function MediaActionMenu({
 					)}
 					<Menu.Item
 						leftSection={<IconInfoCircle size={16} />}
-						onClick={() => setUsageModalOpened(true)}
+						onClick={() => usageModalRef.current?.open()}
 					>
 						Show Usage
 					</Menu.Item>
 					<Menu.Item
 						leftSection={<IconPencil size={16} />}
-						onClick={() => setRenameModalOpened(true)}
+						onClick={() => renameModalRef.current?.open()}
 					>
 						Rename
 					</Menu.Item>
@@ -1276,24 +1315,11 @@ function MediaActionMenu({
 				</Menu.Dropdown>
 			</Menu>
 
-			<MediaPreviewModal
-				file={file}
-				opened={previewModalOpened}
-				onClose={() => setPreviewModalOpened(false)}
-			/>
+			<MediaPreviewModal ref={previewModalRef} file={file} />
 
-			<MediaRenameModal
-				file={file}
-				opened={renameModalOpened}
-				onClose={() => setRenameModalOpened(false)}
-				userId={userId}
-			/>
+			<MediaRenameModal ref={renameModalRef} file={file} userId={userId} />
 
-			<MediaUsageModal
-				file={file}
-				opened={usageModalOpened}
-				onClose={() => setUsageModalOpened(false)}
-			/>
+			<MediaUsageModal ref={usageModalRef} file={file} />
 		</>
 	);
 }
