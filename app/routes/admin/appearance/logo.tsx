@@ -24,7 +24,6 @@ import {
 	tryClearLogo,
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
-import type { Media } from "server/payload-types";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -55,14 +54,10 @@ export const logoSearchParams = {
 	field: parseAsStringEnum(Object.values(Field)),
 };
 
-type LogoData = {
-	logoLight?: Media | null;
-	logoDark?: Media | null;
-	compactLogoLight?: Media | null;
-	compactLogoDark?: Media | null;
-	faviconLight?: Media | null;
-	faviconDark?: Media | null;
-};
+type LogoData = Route.ComponentProps["loaderData"]["logos"]
+
+type Media = NonNullable<LogoData[keyof LogoData]>
+
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -82,7 +77,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	}
 
 	// Get logo data directly from system globals
-	const logoData: LogoData = {
+	const logoData = {
 		logoLight: systemGlobals.appearanceSettings.logoLight ?? null,
 		logoDark: systemGlobals.appearanceSettings.logoDark ?? null,
 		compactLogoLight: systemGlobals.appearanceSettings.compactLogoLight ?? null,

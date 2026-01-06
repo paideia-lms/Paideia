@@ -28,7 +28,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryDeleteNote } from "server/internal/note-management";
-import type { Note } from "server/payload-types";
 import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
 import { formatDateInTimeZone, parseDateString } from "~/utils/date-utils";
 import {
@@ -42,6 +41,8 @@ import type { Route } from "./+types/notes";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
+
+type Note = Route.ComponentProps["loaderData"]["notes"][number];
 
 // Define search params for date selection
 export const loaderSearchParams = {
@@ -100,7 +101,7 @@ export const loader = createRouteLoader(async ({
 		const selectedDateStr = dateParam; // Already in YYYY-MM-DD format
 
 		// Filter notes by matching the date in client's timezone
-		filteredNotes = userProfileContext.notes.filter((note: Note) => {
+		filteredNotes = userProfileContext.notes.filter((note) => {
 			const noteDate = formatDateInTimeZone(note.createdAt, timeZone);
 			return noteDate === selectedDateStr;
 		});
@@ -433,7 +434,7 @@ function NotesSection({
 				</Text>
 			) : (
 				<Stack gap="md">
-					{filteredNotes.map((note: Note) => {
+					{filteredNotes.map((note) => {
 						const $ = cheerio.load(note.content);
 						$("input").attr("disabled", "true");
 						const html = $.html();

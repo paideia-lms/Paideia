@@ -18,7 +18,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCourse } from "server/internal/course-management";
 import { tryFindAllCategories } from "server/internal/course-category-management";
-import type { Course } from "server/payload-types";
 import { z } from "zod";
 import {
 	badRequest,
@@ -29,6 +28,8 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course-new";
+// biome-ignore lint/style/noRestrictedImports: it is ok because only using for course status
+import type { Course } from "server/payload-types";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/admin/course/new",
@@ -162,6 +163,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 	return actionData;
 }
+
 
 export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 	const { submit: createCourse, isLoading } = useCreateCourse();

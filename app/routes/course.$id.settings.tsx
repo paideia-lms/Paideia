@@ -14,7 +14,7 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useEffect } from "react";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
@@ -27,7 +27,6 @@ import {
 } from "server/internal/course-category-management";
 import { tryUpdateCourse } from "server/internal/course-management";
 
-import type { Course } from "server/payload-types";
 import type { RichTextEditorRef } from "app/components/rich-text/rich-text-editor";
 import { RichTextEditor } from "app/components/rich-text/rich-text-editor";
 import {
@@ -40,49 +39,52 @@ import {
 import type { Route } from "./+types/course.$id.settings";
 import { omitBy } from "es-toolkit";
 import { z } from "zod";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
-export const actionInputSchema = z.object({
-	title: z.string().min(1, "Title is required").optional(),
-	slug: z
-		.string()
-		.min(1, "Slug is required")
-		.regex(
-			/^[a-z0-9-]+$/,
-			"Slug must contain only lowercase letters, numbers, and hyphens",
-		)
-		.optional(),
-	thumbnail: z.file().nullish(),
-	description: z.string().min(1, "Description is required").optional(),
-	status: z.enum(["draft", "published", "archived"]).optional(),
-	category: z.coerce.number().nullish(),
-	redirectTo: z
-		.union([z.string(), z.null()])
-		.optional()
-		.refine(
-			(val) => {
-				// Allow null/undefined
-				if (!val) return true;
-				// Must be a relative path (starts with /) and not an absolute URL
-				return (
-					val.startsWith("/") &&
-					!val.startsWith("http://") &&
-					!val.startsWith("https://") &&
-					!val.startsWith("//")
-				);
-			},
-			{
-				message:
-					"Redirect path must be a relative path starting with '/' and cannot be an absolute URL",
-			},
-		),
-});
+type Course = Route.ComponentProps["loaderData"]["course"];
+
+
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/course/:courseId/settings",
 });
 
 const updateCourseRpc = createActionRpc({
-	formDataSchema: actionInputSchema,
+	formDataSchema: z.object({
+		title: z.string().min(1, "Title is required").optional(),
+		slug: z
+			.string()
+			.min(1, "Slug is required")
+			.regex(
+				/^[a-z0-9-]+$/,
+				"Slug must contain only lowercase letters, numbers, and hyphens",
+			)
+			.optional(),
+		thumbnail: z.file().nullish(),
+		description: z.string().min(1, "Description is required").optional(),
+		status: z.enum(["draft", "published", "archived"]).optional(),
+		category: z.coerce.number().nullish(),
+		redirectTo: z
+			.union([z.string(), z.null()])
+			.optional()
+			.refine(
+				(val) => {
+					// Allow null/undefined
+					if (!val) return true;
+					// Must be a relative path (starts with /) and not an absolute URL
+					return (
+						val.startsWith("/") &&
+						!val.startsWith("http://") &&
+						!val.startsWith("https://") &&
+						!val.startsWith("//")
+					);
+				},
+				{
+					message:
+						"Redirect path must be a relative path starting with '/' and cannot be an absolute URL",
+				},
+			),
+	}),
 	method: "POST",
 });
 
@@ -185,26 +187,9 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 	visit(categories, "");
 
-	// Handle thumbnail - could be Media object, just ID, or null
-	const thumbnailId = course.thumbnail ? String(course.thumbnail.id) : null;
-
-	const thumbnailUrl = thumbnailId
-		? href("/api/media/file/:mediaId", {
-			mediaId: thumbnailId,
-		})
-		: null;
-
 	return {
 		success: true,
-		course: {
-			id: course.id,
-			title: course.title,
-			slug: course.slug,
-			description: course.description,
-			status: course.status,
-			category: course.category,
-			thumbnailUrl,
-		},
+		course: course,
 		categories: flatCategories,
 	};
 });
@@ -452,7 +437,9 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 
 						<ThumbnailDropzone
 							form={form}
-							initialPreviewUrl={course.thumbnailUrl}
+							initialPreviewUrl={
+								course.thumbnail ?
+									getRouteUrl("/api/media/file/:mediaId", { params: { mediaId: course.thumbnail.id.toString() }, searchParams: {} }) : null}
 						/>
 
 						<Input.Wrapper label="Description" required>

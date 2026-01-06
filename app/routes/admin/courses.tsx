@@ -43,7 +43,6 @@ import {
 	tryGetCategoryTree,
 } from "server/internal/course-category-management";
 import { tryFindAllCourses } from "server/internal/course-management";
-import type { Course } from "server/payload-types";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
@@ -53,6 +52,8 @@ import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
+
+type Course = Route.ComponentProps["loaderData"]["courses"][number];
 
 // Define search params
 export const loaderSearchParams = {

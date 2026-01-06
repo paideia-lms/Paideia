@@ -14,13 +14,16 @@ import {
 	Table,
 	Text,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useClipboard } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
 	IconChevronDown,
 	IconChevronRight,
 	IconDots,
 	IconPencil,
 	IconSend,
+	IconMail,
+	IconTrash,
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
 import {
@@ -37,7 +40,7 @@ import {
 } from "app/routes/course/module.$id.submissions/route";
 import { getRouteUrl } from "~/utils/search-params-utils";
 import { useState } from "react";
-import { AssignmentBatchActions } from "./assignment-batch-actions";
+
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
 >[number];
@@ -55,9 +58,88 @@ type SubmissionType = SubmissionData & {
 	};
 };
 
+
+
 // ============================================================================
 // Components
 // ============================================================================
+
+
+
+export function AssignmentBatchActions({
+	selectedCount,
+	selectedEnrollments,
+	onClearSelection,
+}: {
+	selectedCount: number;
+	selectedEnrollments: Array<Enrollment>;
+	onClearSelection: () => void;
+}) {
+	const clipboard = useClipboard({ timeout: 2000 });
+
+	const handleBatchEmailCopy = () => {
+		const emailAddresses = selectedEnrollments
+			.map((e) => e.user.email)
+			.filter((email): email is string => email !== null && email !== undefined)
+			.join(", ");
+
+		if (emailAddresses) {
+			clipboard.copy(emailAddresses);
+			notifications.show({
+				title: "Copied",
+				message: `Copied ${selectedEnrollments.length} email address${selectedEnrollments.length !== 1 ? "es" : ""} to clipboard`,
+				color: "green",
+			});
+		}
+	};
+
+	if (selectedCount === 0) {
+		return null;
+	}
+
+	return (
+		<Paper withBorder p="md">
+			<Group justify="space-between">
+				<Group gap="md">
+					<Badge size="lg" variant="filled">
+						{selectedCount} selected
+					</Badge>
+					<Text size="sm" c="dimmed">
+						Batch actions available
+					</Text>
+				</Group>
+				<Group gap="xs">
+					<Button
+						variant="light"
+						color={clipboard.copied ? "teal" : "blue"}
+						leftSection={<IconMail size={16} />}
+						onClick={handleBatchEmailCopy}
+						size="sm"
+					>
+						{clipboard.copied ? "Copied!" : "Copy Emails"}
+					</Button>
+					<Menu position="bottom-end">
+						<Menu.Target>
+							<ActionIcon variant="light" size="lg">
+								<IconDots size={18} />
+							</ActionIcon>
+						</Menu.Target>
+						<Menu.Dropdown>
+							<Menu.Item
+								color="red"
+								leftSection={<IconTrash size={16} />}
+								onClick={onClearSelection}
+							>
+								Clear Selection
+							</Menu.Item>
+						</Menu.Dropdown>
+					</Menu>
+				</Group>
+			</Group>
+		</Paper>
+	);
+}
+
 
 function StudentSubmissionRow({
 	courseId,
