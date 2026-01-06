@@ -153,6 +153,14 @@ export const convertUserAccessContextToUserProfileContext = (
 			currentUser.role ?? "student",
 			isImpersonating,
 		),
+		canCreateModules: permissions.user.canCreateModules(
+			currentUser,
+			currentUser.id,
+		),
+		canManageModules: permissions.user.canManageModules(
+			currentUser,
+			currentUser.id,
+		),
 		firstName: permissions.user.profile.fields.canEditFirstName(
 			currentUser,
 			profileUser,
@@ -327,6 +335,14 @@ export const getUserProfileContext = async (
 			profileUserId,
 			profileUser.role,
 			isImpersonating ?? false,
+		),
+		canCreateModules: permissions.user.canCreateModules(
+			currentUser,
+			profileUserId,
+		),
+		canManageModules: permissions.user.canManageModules(
+			currentUser,
+			profileUserId,
 		),
 		firstName: permissions.user.profile.fields.canEditFirstName(
 			currentUser,

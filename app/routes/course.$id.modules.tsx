@@ -1,13 +1,23 @@
-import { Container } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
-import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+	ActionIcon,
+	Badge,
+	Box,
+	Button,
+	Container,
+	Group,
+	Paper,
+	Select,
+	Stack,
+	Table,
+	Text,
+	Title,
+} from "@mantine/core";
+import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { useState } from "react";
+import { notifications } from "@mantine/notifications";
+import { Link, redirect } from "react-router";
+import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -25,42 +35,30 @@ import {
 } from "server/internal/utils/handle-transaction-id";
 import { permissions } from "server/utils/permissions";
 import { z } from "zod";
-import { ActivityModulesSection } from "~/components/activity-modules-section";
+import { getTypeLabel } from "~/utils/course-view-utils";
 import {
 	badRequest,
 	BadRequestResponse,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.modules";
 import { tryFindUserEnrollmentInCourse } from "server/internal/enrollment-management";
+import { getRouteUrl } from "app/utils/search-params-utils";
+import { parseAsBoolean } from "nuqs";
 
 enum Action {
 	Create = "create",
 	Delete = "delete",
 }
 
-// Define search params for module link actions
-export const moduleLinkSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/modules",
+});
 
-export const loadSearchParams = createLoader(moduleLinkSearchParams);
-
-export function getRouteUrl(action: Action, courseId: number) {
-	return (
-		href("/course/:courseId/modules", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
-
-const createCreateModuleLinkActionRpc = createActionRpc({
+const createModuleLinkRpc = createActionRpc({
 	formDataSchema: z.object({
 		activityModuleId: z.coerce.number(),
 		sectionId: z.coerce.number().optional(),
@@ -69,7 +67,7 @@ const createCreateModuleLinkActionRpc = createActionRpc({
 	action: Action.Create,
 });
 
-const createDeleteModuleLinkActionRpc = createActionRpc({
+const deleteModuleLinkRpc = createActionRpc({
 	formDataSchema: z.object({
 		linkId: z.coerce.number(),
 		redirectTo: z.string().nullish(),
@@ -78,7 +76,15 @@ const createDeleteModuleLinkActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loaderSearchParams = {
+	reload: parseAsBoolean.withDefault(false),
+};
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -93,21 +99,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const canEdit = permissions.course.canSeeModules(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrolmentContext?.enrolment
-			? {
-				id: enrolmentContext.enrolment.id,
-				role: enrolmentContext.enrolment.role,
-			}
-			: undefined,
-	);
+	const canEdit = courseContext.permissions.canEdit;
 
 	if (!canEdit) {
 		throw new ForbiddenResponse(
@@ -129,8 +121,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		enrolment: enrolmentContext?.enrolment,
 		canEdit,
 		availableModules,
+		searchParams,
 	};
-};
+});
 
 // Shared authorization check
 const checkAuthorization = async (
@@ -183,8 +176,8 @@ const checkAuthorization = async (
 	return null;
 };
 
-const [createAction, useCreateModuleLink] = createCreateModuleLinkActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createAction = createModuleLinkRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const { courseId } = params;
 		const courseIdNum = Number(courseId);
@@ -236,15 +229,13 @@ const [createAction, useCreateModuleLink] = createCreateModuleLinkActionRpc(
 			success: true,
 			message: "Activity module linked successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
 
-const [deleteAction, useDeleteModuleLink] = createDeleteModuleLinkActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useCreateModuleLink = createModuleLinkRpc.createHook<typeof createAction>();
+
+const deleteAction = deleteModuleLinkRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const { courseId } = params;
 		const courseIdNum = Number(courseId);
@@ -268,44 +259,206 @@ const [deleteAction, useDeleteModuleLink] = createDeleteModuleLinkActionRpc(
 		}
 
 		return ok({ success: true, message: "Link deleted successfully" });
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
+
+const useDeleteModuleLink = deleteModuleLinkRpc.createHook<typeof deleteAction>();
 
 // Export hooks for use in components
 export { useCreateModuleLink, useDeleteModuleLink };
 
-const actionMap = {
+
+interface ActivityModulesSectionProps {
+	existingLinks: Route.ComponentProps["loaderData"]["course"]["moduleLinks"]
+	availableModules: Route.ComponentProps["loaderData"]["availableModules"];
+	canEdit: boolean;
+	courseId: number;
+}
+
+interface AddModuleButtonProps {
+	availableModules: Route.ComponentProps["loaderData"]["availableModules"];
+	courseId: number;
+}
+
+function AddModuleButton({
+	availableModules,
+	courseId,
+}: AddModuleButtonProps) {
+	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+	const { submit: createModuleLink, isLoading: isCreating } =
+		useCreateModuleLink();
+
+	const handleAddModule = async () => {
+		if (selectedModuleId) {
+			await createModuleLink({
+				values: {
+					activityModuleId: Number.parseInt(selectedModuleId, 10),
+				},
+				params: { courseId },
+			});
+			setSelectedModuleId(null);
+		}
+	};
+
+	return (
+		<>
+			<Select
+				placeholder="Select activity module"
+				data={availableModules.map((module) => ({
+					value: module.id.toString(),
+					label: `${module.title} (${getTypeLabel(module.type)})`,
+				}))}
+				value={selectedModuleId}
+				onChange={setSelectedModuleId}
+				disabled={isCreating}
+				style={{ minWidth: 300 }}
+			/>
+			<Button
+				leftSection={<IconPlus size={16} />}
+				onClick={handleAddModule}
+				disabled={isCreating || !selectedModuleId}
+			>
+				Add Module
+			</Button>
+		</>
+	);
+}
+
+interface DeleteModuleButtonProps {
+	linkId: number;
+	courseId: number;
+}
+
+function DeleteModuleButton({ linkId, courseId }: DeleteModuleButtonProps) {
+	const { submit: deleteModuleLink, isLoading: isDeleting } =
+		useDeleteModuleLink();
+
+	const handleDelete = async () => {
+		await deleteModuleLink({
+			values: {
+				linkId,
+			},
+			params: { courseId },
+		});
+	};
+
+	return (
+		<ActionIcon
+			variant="light"
+			color="red"
+			size="md"
+			aria-label="Delete link"
+			onClick={handleDelete}
+			disabled={isDeleting}
+		>
+			<IconTrash size={16} />
+		</ActionIcon>
+	);
+}
+
+function ActivityModulesSection({
+	existingLinks,
+	availableModules,
+	canEdit,
+	courseId,
+}: ActivityModulesSectionProps) {
+	return (
+		<Paper withBorder shadow="sm" p="xl" radius="md">
+			<Stack gap="lg">
+				<Group justify="space-between">
+					<Title order={2}>Linked Activity Modules</Title>
+					{canEdit && (
+						<Group gap="sm">
+							{availableModules.length > 0 ? (
+								<AddModuleButton
+									availableModules={availableModules}
+									courseId={courseId}
+								/>
+							) : (
+								<Text size="sm" c="dimmed">
+									No available modules to link
+								</Text>
+							)}
+						</Group>
+					)}
+				</Group>
+
+				{existingLinks.length === 0 ? (
+					<Text c="dimmed" ta="center" py="xl">
+						No activity modules linked to this course yet.
+					</Text>
+				) : (
+					<Box style={{ overflowX: "auto" }}>
+						<Table striped highlightOnHover>
+							<Table.Thead>
+								<Table.Tr>
+									<Table.Th>Module Title</Table.Th>
+									<Table.Th>Type</Table.Th>
+									<Table.Th>Created Date</Table.Th>
+									{canEdit && <Table.Th>Actions</Table.Th>}
+								</Table.Tr>
+							</Table.Thead>
+							<Table.Tbody>
+								{existingLinks.map((link) => (
+									<Table.Tr key={link.id}>
+										<Table.Td>
+											<Text
+												fw={500}
+												component={Link}
+												to={getRouteUrl("/user/modules/:id?", {
+													params: { id: link.activityModule.id.toString() },
+												})}
+											>
+												{typeof link.activityModule === "object"
+													? link.activityModule.title
+													: "Unknown Module"}
+											</Text>
+										</Table.Td>
+										<Table.Td>
+											<Badge variant="light">
+												{typeof link.activityModule === "object"
+													? getTypeLabel(link.activityModule.type)
+													: "Unknown"}
+											</Badge>
+										</Table.Td>
+										<Table.Td>
+											<Text size="sm" c="dimmed">
+												{new Date(link.createdAt).toLocaleDateString()}
+											</Text>
+										</Table.Td>
+										{canEdit && (
+											<Table.Td>
+												<DeleteModuleButton linkId={link.id} courseId={courseId} />
+											</Table.Td>
+										)}
+									</Table.Tr>
+								))}
+							</Table.Tbody>
+						</Table>
+					</Box>
+				)}
+			</Stack>
+		</Paper>
+	);
+}
+
+const [action] = createActionMap({
 	[Action.Create]: createAction,
 	[Action.Delete]: deleteAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData && "success" in actionData && actionData.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData && "error" in actionData) {
+	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,
@@ -333,16 +486,7 @@ export default function CourseModulesPage({
 			/>
 
 			<ActivityModulesSection
-				existingLinks={course.moduleLinks.map((link) => ({
-					id: link.id,
-					activityModule: {
-						id: String(link.activityModule.id),
-						title: link.activityModule.title || "",
-						type: link.activityModule.type,
-						description: link.activityModule.description,
-					},
-					createdAt: link.createdAt,
-				}))}
+				existingLinks={course.moduleLinks}
 				availableModules={availableModules}
 				canEdit={canEdit.allowed}
 				courseId={course.id}

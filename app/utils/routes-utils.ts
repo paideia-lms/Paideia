@@ -1,10 +1,20 @@
 import { routes } from "virtual:react-router/server-build";
-import { matchRoutes, type Register } from "react-router";
+import {
+	matchRoutes,
+	type Register,
+	type ActionFunctionArgs,
+	type ClientLoaderFunctionArgs,
+	type ClientActionFunctionArgs,
+	type LoaderFunctionArgs,
+} from "react-router";
 import type { AllUnionFields, Simplify } from "type-fest";
+import type { GetAnnotations } from "react-router/internal";
 
 export type RouteId = keyof Register["routeModules"];
-type RoutePage<T extends RouteId> = Simplify<
-	Extract<Register["routeFiles"][keyof Register["routeFiles"]], { id: T }>
+type RouteModule = Register["routeModules"][RouteId];
+export type RouteFile = keyof Register["routeFiles"];
+export type RoutePage<T extends RouteId> = Simplify<
+	Extract<Register["routeFiles"][RouteFile], { id: T }>
 >["page"];
 export type RouteParams<T extends RouteId> = AllUnionFields<
 	Simplify<Register["pages"][RoutePage<T>]["params"]>
@@ -13,7 +23,7 @@ export type RouteParams<T extends RouteId> = AllUnionFields<
 /**
  * the matched info
  */
-export interface RouteInfo {
+export interface MyRouteInfo {
 	id: RouteId;
 	parentId?: string;
 	path?: string;
@@ -23,10 +33,10 @@ export interface RouteInfo {
 
 // Function to recursively get all parent routes
 function getRouteHierarchy(
-	matchedRoute: RouteInfo,
-	allRoutes: RouteInfo[],
-): RouteInfo[] {
-	const hierarchy: RouteInfo[] = [matchedRoute];
+	matchedRoute: MyRouteInfo,
+	allRoutes: MyRouteInfo[],
+): MyRouteInfo[] {
+	const hierarchy: MyRouteInfo[] = [matchedRoute];
 
 	if (matchedRoute.parentId) {
 		const parentRoute = allRoutes.find(
@@ -42,10 +52,10 @@ function getRouteHierarchy(
 
 // Function to get complete route hierarchy for matched routes
 function getCompleteRouteHierarchy(
-	matchedRoutes: RouteInfo[],
-	allRoutes: RouteInfo[],
-): RouteInfo[] {
-	const completeHierarchy: RouteInfo[] = [];
+	matchedRoutes: MyRouteInfo[],
+	allRoutes: MyRouteInfo[],
+): MyRouteInfo[] {
+	const completeHierarchy: MyRouteInfo[] = [];
 
 	for (const matchedRoute of matchedRoutes) {
 		const hierarchy = getRouteHierarchy(matchedRoute, allRoutes);
@@ -73,9 +83,66 @@ export function tryGetRouteHierarchy(pathname: string) {
 	}
 
 	const completeHierarchy = getCompleteRouteHierarchy(
-		matchedRoutes.map((r) => r.route as unknown as RouteInfo),
-		allRoutes as unknown as RouteInfo[],
+		matchedRoutes.map((r) => r.route as unknown as MyRouteInfo),
+		allRoutes as unknown as MyRouteInfo[],
 	);
 	// console.log('Complete Route Hierarchy:', completeHierarchy);
 	return completeHierarchy;
 }
+
+type Props = {
+	params: unknown;
+	loaderData: unknown;
+	actionData: unknown;
+};
+type RouteInfo = Props & {
+	module: RouteModule;
+	matches: Array<MatchInfo>;
+};
+type MatchInfo = {
+	id: string;
+	module: RouteModule;
+};
+
+type CreateServerActionArgs<T extends RouteInfo> = GetAnnotations<
+	T,
+	false
+>["ActionArgs"];
+type CreateServerLoaderArgs<T extends RouteInfo> = GetAnnotations<
+	T,
+	false
+>["LoaderArgs"];
+type CreateClientLoaderArgs<T extends RouteInfo> = GetAnnotations<
+	T,
+	false
+>["ClientLoaderArgs"];
+type CreateClientActionArgs<T extends RouteInfo> = GetAnnotations<
+	T,
+	false
+>["ClientActionArgs"];
+
+export type InferInfo<
+	T extends
+		| ActionFunctionArgs
+		| ClientLoaderFunctionArgs
+		| ClientActionFunctionArgs
+		| LoaderFunctionArgs,
+> = T extends
+	| CreateServerLoaderArgs<infer S>
+	| CreateServerActionArgs<infer S>
+	| CreateClientLoaderArgs<infer S>
+	| CreateClientActionArgs<infer S>
+	? S
+	: never;
+
+export type RouteIdFromRouteFunctionArgs<
+	T extends
+		| ActionFunctionArgs
+		| ClientLoaderFunctionArgs
+		| ClientActionFunctionArgs
+		| LoaderFunctionArgs,
+> = InferInfo<T>["matches"] extends [...infer Rest, infer Last]
+	? Last extends { id: infer RouteId }
+		? RouteId
+		: never
+	: never;

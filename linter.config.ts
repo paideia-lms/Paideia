@@ -1452,7 +1452,7 @@ export const rules: LintRule[] = [
 	},
 	{
 		name: "Warn useEffect usage in TSX files",
-		description: "useEffect should be avoided in TSX files. Consider using React Router's built-in data loading mechanisms (loaders, actions) or other React patterns instead.",
+		description: "useEffect usage will affect performance and readability. Consider using React Router's built-in data loading mechanisms (loaders, actions) or other React patterns instead.",
 		includes: ["app/**/*.tsx", "!app/root.tsx"],
 		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
 		level: "warning", // Warning level instead of error

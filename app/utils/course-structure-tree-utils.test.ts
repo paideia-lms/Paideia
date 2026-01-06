@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { TreeNode } from "./course-structure-tree";
-import { calculateMoveOperation } from "./calculate-move-operation";
+import type { TreeNode } from "./course-structure-tree-utils";
+import { calculateMoveOperation } from "./course-structure-tree-utils";
 
 describe("calculateMoveOperation", () => {
 	// Create mock flat data for testing

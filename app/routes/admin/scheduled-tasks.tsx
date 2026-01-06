@@ -19,14 +19,12 @@ import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
 } from "~/utils/responses";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/scheduled-tasks";
-import { href } from "react-router";
 
-export function getRouteUrl() {
-	return href("/admin/scheduled-tasks");
-}
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -50,7 +48,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	return scheduledTasksResult.value;
-};
+});
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return <DefaultErrorBoundary error={error} />;

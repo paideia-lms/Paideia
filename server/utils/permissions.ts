@@ -472,6 +472,83 @@ function canEditUserModule(
 	};
 }
 
+function canCreateUserModules(
+	currentUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	targetUserId?: number,
+): PermissionResult {
+	if (!currentUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (targetUserId === undefined || targetUserId === null) {
+		return {
+			allowed: false,
+			reason: "Target user ID is missing",
+		};
+	}
+
+	// Can only create modules for own profile
+	const isOwnProfile = currentUser.id === targetUserId;
+	if (!isOwnProfile) {
+		return {
+			allowed: false,
+			reason: "You can only create modules for your own profile",
+		};
+	}
+
+	// Only admin, instructor, or content-manager can create modules
+	const allowed =
+		currentUser.role === "admin" ||
+		currentUser.role === "instructor" ||
+		currentUser.role === "content-manager";
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can create modules"
+			: "Only admins, instructors, and content managers can create modules",
+	};
+}
+
+function canManageUserModules(
+	currentUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	targetUserId?: number,
+): PermissionResult {
+	if (!currentUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (targetUserId === undefined || targetUserId === null) {
+		return {
+			allowed: false,
+			reason: "Target user ID is missing",
+		};
+	}
+
+	// Can manage modules for own profile or if admin
+	const allowed =
+		currentUser.id === targetUserId || currentUser.role === "admin";
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can manage modules"
+			: "You can only manage modules for your own profile",
+	};
+}
+
 /**
  * Checks if the current user is editing another admin user's profile.
  * This is a helper function used by field-specific permission checks.
@@ -1009,6 +1086,65 @@ function canDeleteMedia(
 }
 
 // ============================================================================
+// Note Permissions
+// ============================================================================
+
+/**
+ * Checks if the current user can edit a note.
+ *
+ * Permission Rules:
+ * - Users can edit their own notes
+ * - Admins can edit any note
+ *
+ * @param currentUser - The user attempting to edit (current logged-in user)
+ * @param noteCreatedBy - The user ID who created the note
+ * @returns Permission result with allowed boolean and reason string
+ */
+function canEditNote(
+	currentUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	noteCreatedBy?: number,
+): PermissionResult {
+	if (!currentUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (noteCreatedBy === undefined || noteCreatedBy === null) {
+		return {
+			allowed: false,
+			reason: "Note creator information is missing",
+		};
+	}
+
+	const isOwnNote = currentUser.id === noteCreatedBy;
+	const isAdmin = currentUser.role === "admin";
+
+	if (isOwnNote) {
+		return {
+			allowed: true,
+			reason: "You can edit your own notes",
+		};
+	}
+
+	if (isAdmin) {
+		return {
+			allowed: true,
+			reason: "Admins can edit any note",
+		};
+	}
+
+	return {
+		allowed: false,
+		reason: "You can only edit your own notes",
+	};
+}
+
+// ============================================================================
 // Quiz/Assignment Permissions
 // ============================================================================
 
@@ -1238,6 +1374,8 @@ export const permissions = {
 	},
 	user: {
 		canSeeModules: canSeeUserModules,
+		canCreateModules: canCreateUserModules,
+		canManageModules: canManageUserModules,
 		canEditModule: canEditUserModule,
 		canImpersonate: canImpersonate,
 		profile: {
@@ -1257,6 +1395,9 @@ export const permissions = {
 	},
 	media: {
 		canDelete: canDeleteMedia,
+	},
+	note: {
+		canEdit: canEditNote,
 	},
 	admin: {
 		canImpersonateUser: canImpersonateUser,

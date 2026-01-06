@@ -16,7 +16,6 @@ import {
 	IconTrash,
 } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -33,7 +32,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/appearance";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 
 type AppearanceGlobal = {
 	id: number;
@@ -66,9 +64,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 	return { settings: settings.value };
 }
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/appearance",
+});
 
-const createUpdateAppearanceSettingsActionRpc = createActionRpc({
+const updateAppearanceSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		additionalCssStylesheets: z
 			.array(
@@ -81,48 +81,43 @@ const createUpdateAppearanceSettingsActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/admin/appearance");
-}
+const updateAppearanceSettingsAction =
+	updateAppearanceSettingsRpc.createAction(async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const [updateAppearanceSettingsAction, useUpdateAppearanceSettings] =
-	createUpdateAppearanceSettingsActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+		if (currentUser.role !== "admin") {
+			return forbidden({ error: "Only admins can access this area" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
-			const currentUser =
-				userSession.effectiveUser ?? userSession.authenticatedUser;
-			if (currentUser.role !== "admin") {
-				return forbidden({ error: "Only admins can access this area" });
-			}
+		const updateResult = await tryUpdateAppearanceSettings({
+			payload,
+			data: {
+				additionalCssStylesheets: formData.additionalCssStylesheets?.map(
+					(sheet) => sheet.url.toString(),
+				),
+			},
+			req: payloadRequest,
+		});
 
-			const updateResult = await tryUpdateAppearanceSettings({
-				payload,
-				data: {
-					additionalCssStylesheets: formData.additionalCssStylesheets?.map(
-						(sheet) => sheet.url.toString(),
-					),
-				},
-				req: payloadRequest,
-			});
+		if (!updateResult.ok) {
+			return forbidden({ error: updateResult.error.message });
+		}
 
-			if (!updateResult.ok) {
-				return forbidden({ error: updateResult.error.message });
-			}
-
-			return ok({
-				success: true as const,
-				settings: updateResult.value as unknown as AppearanceGlobal,
-			});
-		})!,
-		{
-			action: () => getRouteUrl(),
-		},
+		return ok({
+			success: true as const,
+			settings: updateResult.value as unknown as AppearanceGlobal,
+		});
+	},
 	);
+
+const useUpdateAppearanceSettings =
+	updateAppearanceSettingsRpc.createHook<typeof updateAppearanceSettingsAction>();
 
 // Export hook for use in components
 export { useUpdateAppearanceSettings };
@@ -235,7 +230,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 							key={`${url}-${
 								// biome-ignore lint/suspicious/noArrayIndexKey: url may not be unique, index is needed
 								index
-							}`}
+								}`}
 							align="flex-start"
 							wrap="nowrap"
 						>
@@ -246,9 +241,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-									!form
-										.getValues()
-										.stylesheets[index]?.url.match(/^https?:\/\/.+/)
+										!form
+											.getValues()
+											.stylesheets[index]?.url.match(/^https?:\/\/.+/)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}

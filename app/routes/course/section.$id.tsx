@@ -24,14 +24,9 @@ import type {
 import { useCreateModuleLink } from "~/routes/course.$id.modules";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, ok } from "~/utils/responses";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/section.$id";
-
-export function getRouteUrl(sectionId: number) {
-	return href("/course/section/:sectionId", {
-		sectionId: sectionId.toString(),
-	});
-}
-
+import { parseAsBoolean } from "nuqs";
 // Helper function to recursively find a section in the course structure
 function findSectionInStructure(
 	sections: CourseStructureSection[],
@@ -53,7 +48,15 @@ function findSectionInStructure(
 	return null;
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loaderSearchParams = {
+	reload: parseAsBoolean.withDefault(false),
+};
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseSectionContext = context.get(courseSectionContextKey);
@@ -84,14 +87,14 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureSection => item.type === "section",
-			)
+			(item): item is CourseStructureSection => item.type === "section",
+		)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureItem => item.type === "activity-module",
-			)
+			(item): item is CourseStructureItem => item.type === "activity-module",
+		)
 		: [];
 
 	// Get available modules from user access context
@@ -109,8 +112,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		subsections,
 		modules,
 		availableModules,
+		searchParams,
 	});
-};
+});
 
 export default function SectionPage({ loaderData }: Route.ComponentProps) {
 	const { submit: createModuleLink, isLoading } = useCreateModuleLink();

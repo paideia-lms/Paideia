@@ -30,7 +30,7 @@ import {
 } from "./activity-module-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
-import type { TryResultValue } from "server/utils/type-narrowing";
+import type { TryResultValue } from "server/utils/types";
 
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

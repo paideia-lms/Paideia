@@ -11,11 +11,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
+import { parseAsStringEnum } from "nuqs/server";
 import { IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link, useLoaderData } from "react-router";
@@ -38,32 +34,23 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-access";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum Action {
 	GrantAccess = "grantAccess",
 	RevokeAccess = "revokeAccess",
 }
 
-// Define search params for access actions
+// Define search params for access actions (used in actions)
 export const accessSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
-export const loadSearchParams = createLoader(accessSearchParams);
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
 
-export function getRouteUrl(action: Action, moduleId: string) {
-	return (
-		href("/user/module/edit/:moduleId/access", {
-			moduleId,
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
-
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userModuleContext = context.get(userModuleContextKey);
 
 	if (!userModuleContext) {
@@ -83,12 +70,15 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		linkedCourses: userModuleContext.linkedCourses,
 		grants: userModuleContext.grants,
 		instructors: userModuleContext.instructors,
+		params,
 	};
-};
+})!;
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/module/edit/:moduleId/access",
+});
 
-const createGrantAccessActionRpc = createActionRpc({
+const grantAccessRpc = createActionRpc({
 	formDataSchema: z.object({
 		userId: z.coerce.number(),
 		notifyPeople: z.coerce.boolean(),
@@ -97,7 +87,7 @@ const createGrantAccessActionRpc = createActionRpc({
 	action: Action.GrantAccess,
 });
 
-const createRevokeAccessActionRpc = createActionRpc({
+const revokeAccessRpc = createActionRpc({
 	formDataSchema: z.object({
 		userId: z.coerce.number(),
 	}),
@@ -105,8 +95,8 @@ const createRevokeAccessActionRpc = createActionRpc({
 	action: Action.RevokeAccess,
 });
 
-const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
-	serverOnly$(async ({ context, params, formData }) => {
+const grantAccessAction = grantAccessRpc.createAction(
+	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -136,15 +126,13 @@ const [grantAccessAction, useGrantAccess] = createGrantAccessActionRpc(
 		}
 
 		return ok({ success: true, message: "Access granted successfully" });
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(searchParams.action, String(params.moduleId)),
 	},
 );
 
-const [revokeAccessAction, useRevokeAccess] = createRevokeAccessActionRpc(
-	serverOnly$(async ({ context, params, formData }) => {
+const useGrantAccess = grantAccessRpc.createHook<typeof grantAccessAction>();
+
+const revokeAccessAction = revokeAccessRpc.createAction(
+	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const revokeResult = await tryRevokeAccessFromActivityModule({
@@ -162,31 +150,19 @@ const [revokeAccessAction, useRevokeAccess] = createRevokeAccessActionRpc(
 		}
 
 		return ok({ success: true, message: "Access revoked successfully" });
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(searchParams.action, String(params.moduleId)),
 	},
 );
 
-const actionMap = {
+const useRevokeAccess = revokeAccessRpc.createHook<typeof revokeAccessAction>();
+
+
+
+const [action] = createActionMap({
 	[Action.GrantAccess]: grantAccessAction,
 	[Action.RevokeAccess]: revokeAccessAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

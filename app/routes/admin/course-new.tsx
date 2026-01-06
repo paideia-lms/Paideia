@@ -11,14 +11,13 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, redirect } from "react-router";
+import { redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCourse } from "server/internal/course-management";
 import { tryFindAllCategories } from "server/internal/course-category-management";
-import type { Course } from "server/payload-types";
 import { z } from "zod";
 import {
 	badRequest,
@@ -29,10 +28,14 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course-new";
+// biome-ignore lint/style/noRestrictedImports: it is ok because only using for course status
+import type { Course } from "server/payload-types";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/course/new",
+});
 
-const createCreateCourseActionRpc = createActionRpc({
+const createCourseRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1, "Title is required"),
 		slug: z
@@ -49,11 +52,9 @@ const createCreateCourseActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/admin/course/new");
-}
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -75,23 +76,21 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		payload,
 		req: payloadRequest,
 		sort: "name",
+	}).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get categories");
 	});
-
-	if (!categoriesResult.ok) {
-		throw new InternalServerErrorResponse(categoriesResult.error.message);
-	}
 
 	return {
 		success: true,
-		categories: categoriesResult.value.map((cat) => ({
+		categories: categoriesResult.map((cat) => ({
 			value: cat.id.toString(),
 			label: cat.name,
 		})),
 	};
-};
+});
 
-const [createCourseAction, useCreateCourse] = createCreateCourseActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const createCourseAction = createCourseRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -129,11 +128,10 @@ const [createCourseAction, useCreateCourse] = createCreateCourseActionRpc(
 			message: "Course created successfully",
 			id: createResult.value.id,
 		});
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useCreateCourse = createCourseRpc.createHook<typeof createCourseAction>();
 
 // Export hook for use in components
 export { useCreateCourse };
@@ -165,6 +163,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	}
 	return actionData;
 }
+
 
 export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 	const { submit: createCourse, isLoading } = useCreateCourse();

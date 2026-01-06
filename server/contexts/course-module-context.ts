@@ -1,4 +1,3 @@
-import { formatModuleSettingsForDisplay } from "app/routes/course/module.$id/utils";
 import { createContext } from "react-router";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import type {
@@ -143,30 +142,36 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 
 			const user = req?.user;
 
+			// Calculate base permissions for all module types
+			const basePermissions = {
+				canSeeSettings: permissions.course.module.canSeeSettings(
+					user ?? undefined,
+					enrolment ?? undefined,
+				),
+				canSeeSubmissions: permissions.course.module.canSeeSubmissions(
+					user ?? undefined,
+					enrolment ?? undefined,
+				),
+			};
+
 			// Fetch the module link
-			const moduleLinkResult = await tryFindCourseActivityModuleLinkById({
+			const moduleLink = await tryFindCourseActivityModuleLinkById({
 				payload,
 				linkId: moduleLinkId,
 				req,
 				overrideAccess,
-			});
-
-			if (!moduleLinkResult.ok) {
-				throw new NonExistingActivityModuleError("Module link not found");
-			}
-
-			const moduleLink = moduleLinkResult.value;
+			}).getOrThrow();
 
 			// Get module link settings
-			const moduleLinkSettings =
-				moduleLink.settings as unknown as LatestCourseModuleSettings | null;
+			// const moduleLinkSettings =
+			// 	moduleLink.settings as unknown as LatestCourseModuleSettings | null;
 
-			// console.log(moduleLinkSettings, moduleLink);
+			// // console.log(moduleLinkSettings, moduleLink);
 
-			// Format module settings for display (using function from utils.ts)
-			const formattedModuleSettings = formatModuleSettingsForDisplay(
-				moduleLinkSettings,
-			) as FormattedModuleSettings;
+			// // Format module settings for display (using function from utils.ts)
+			// const formattedModuleSettings = formatModuleSettingsForDisplay(
+			// 	moduleLinkSettings,
+			// ) as FormattedModuleSettings;
 
 			// Get previous and next modules for navigation
 			const previousNextResult = await tryGetPreviousNextModule({
@@ -191,9 +196,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					limit: 1000,
 					req,
 					overrideAccess,
-				});
-				if (!submissionsResult.ok) throw submissionsResult.error;
-				const allSubmissions = submissionsResult.value.docs;
+				}).getOrThrow();
+				const allSubmissions = submissionsResult.docs;
 
 				// Filter user-specific submissions
 				const userSubmissions = user
@@ -206,9 +210,9 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					userSubmissions[0] ||
 					null;
 
-				const canSubmit = enrolment
-					? permissions.course.module.canSubmitAssignment(enrolment).allowed
-					: false;
+				const canSubmit = permissions.course.module.canSubmitAssignment(
+					enrolment ?? undefined,
+				);
 
 				// Construct AssignmentData from activityModule and settings
 				const assignmentSettings =
@@ -244,13 +248,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 								content: (userSubmission.content as string) || null,
 								attachments: userSubmission.attachments
 									? userSubmission.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: Number(att.file),
-											description: att.description as string | undefined,
+											file: att.file,
+											description: att.description ?? undefined,
 										}))
 									: null,
 								submittedAt: ("submittedAt" in userSubmission
@@ -288,15 +287,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 							attachments:
 								"attachments" in sub && sub.attachments
 									? sub.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: typeof att.file === "number"
-														? att.file
-														: Number(att.file),
-											description: att.description as string | undefined,
+											file: att.file,
+											description: att.description ?? undefined,
 										}))
 									: null,
 						}));
@@ -310,9 +302,18 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					assignmentSubmission,
 					allSubmissionsForDisplay,
 					canSubmit,
-					formattedModuleSettings,
+					// formattedModuleSettings,
 					previousModule,
 					nextModule,
+					permissions: {
+						...basePermissions,
+						assignment: {
+							canSubmitAssignment:
+								permissions.course.module.canSubmitAssignment(
+									enrolment ?? undefined,
+								),
+						},
+					},
 				};
 			} else if (moduleLink.type === "quiz") {
 				// Fetch quiz submissions
@@ -428,24 +429,27 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					allQuizSubmissionsForDisplay,
 					hasActiveQuizAttempt,
 					quizRemainingTime,
-					formattedModuleSettings,
+					// formattedModuleSettings,
 					previousModule,
 					nextModule,
 					permissions: {
-						canPreview: permissions.course.module.quiz.canPreview(
-							user ?? undefined,
-							enrolment ?? undefined,
-						),
-						canStartAttempt: permissions.course.module.quiz.canStartAttempt(
-							quiz?.maxAttempts ?? null,
-							allQuizSubmissionsForDisplay.length,
-							hasActiveQuizAttempt,
-						),
-						canDeleteSubmissions:
-							permissions.course.module.quiz.canDeleteSubmissions(
+						...basePermissions,
+						quiz: {
+							canPreview: permissions.course.module.quiz.canPreview(
 								user ?? undefined,
 								enrolment ?? undefined,
 							),
+							canStartAttempt: permissions.course.module.quiz.canStartAttempt(
+								quiz?.maxAttempts ?? null,
+								allQuizSubmissionsForDisplay.length,
+								hasActiveQuizAttempt,
+							),
+							canDeleteSubmissions:
+								permissions.course.module.quiz.canDeleteSubmissions(
+									user ?? undefined,
+									enrolment ?? undefined,
+								),
+						},
 					},
 				};
 			} else if (moduleLink.type === "discussion") {
@@ -568,14 +572,16 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					replies,
 					previousModule,
 					nextModule,
-					formattedModuleSettings,
+					// formattedModuleSettings,
+					permissions: basePermissions,
 				};
 			} else {
 				return {
 					...moduleLink,
 					previousModule,
 					nextModule,
-					formattedModuleSettings,
+					// formattedModuleSettings,
+					permissions: basePermissions,
 				};
 			}
 		},

@@ -19,24 +19,23 @@ import {
 	IconUsers,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { createLoader, parseAsString } from "nuqs/server";
+import { parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { href, redirect } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/catalog";
-
-export function getRouteUrl() {
-	return href("/catalog");
-}
 
 // Define search params
 export const catalogSearchParams = {
 	code: parseAsString.withDefault(""),
 };
 
-export const loadSearchParams = createLoader(catalogSearchParams);
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+export const loader = createRouteLoader({
+	searchParams: catalogSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -44,7 +43,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	}
 
 	// Get course code from query params
-	const { code } = loadSearchParams(request);
+	const { code } = searchParams;
 
 	// If no code, redirect to dashboard
 	if (!code) {
@@ -69,8 +68,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	return {
 		courseInfo: mockCourseInfo,
 		courseInstances: mockCourseInstances,
+		searchParams,
 	};
-};
+});
 
 // Helper functions to generate mock data
 function getCourseTitle(code: string): string {

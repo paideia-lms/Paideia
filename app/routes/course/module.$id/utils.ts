@@ -1,4 +1,3 @@
-import type { LatestCourseModuleSettings } from "server/json";
 import {
 	isRegularQuiz,
 	type Question,
@@ -7,95 +6,8 @@ import {
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 
 // ============================================================================
-// Module Settings Utilities
+// Quiz Utilities
 // ============================================================================
-
-// Helper to format dates consistently on the server
-const formatDateForDisplay = (dateString: string) => {
-	const date = new Date(dateString);
-	return date.toLocaleString("en-US", {
-		weekday: "short",
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-};
-
-// Helper to format module settings with date strings
-export const formatModuleSettingsForDisplay = (
-	moduleSettings: LatestCourseModuleSettings | null,
-) => {
-	if (!moduleSettings?.settings) return null;
-
-	const settings = moduleSettings.settings;
-	const now = new Date();
-
-	if (settings.type === "assignment") {
-		return {
-			type: "assignment" as const,
-			name: settings.name,
-			dates: [
-				settings.allowSubmissionsFrom && {
-					label: "Available from",
-					value: formatDateForDisplay(settings.allowSubmissionsFrom),
-					isOverdue: false,
-				},
-				settings.dueDate && {
-					label: "Due",
-					value: formatDateForDisplay(settings.dueDate),
-					isOverdue: new Date(settings.dueDate) < now,
-				},
-				settings.cutoffDate && {
-					label: "Final deadline",
-					value: formatDateForDisplay(settings.cutoffDate),
-					isOverdue: new Date(settings.cutoffDate) < now,
-				},
-			].filter(Boolean),
-		};
-	}
-
-	if (settings.type === "quiz") {
-		return {
-			type: "quiz" as const,
-			name: settings.name,
-			dates: [
-				settings.openingTime && {
-					label: "Opens",
-					value: formatDateForDisplay(settings.openingTime),
-					isOverdue: false,
-				},
-				settings.closingTime && {
-					label: "Closes",
-					value: formatDateForDisplay(settings.closingTime),
-					isOverdue: new Date(settings.closingTime) < now,
-				},
-			].filter(Boolean),
-		};
-	}
-
-	if (settings.type === "discussion") {
-		return {
-			type: "discussion" as const,
-			name: settings.name,
-			dates: [
-				settings.dueDate && {
-					label: "Due",
-					value: formatDateForDisplay(settings.dueDate),
-					isOverdue: new Date(settings.dueDate) < now,
-				},
-				settings.cutoffDate && {
-					label: "Final deadline",
-					value: formatDateForDisplay(settings.cutoffDate),
-					isOverdue: new Date(settings.cutoffDate) < now,
-				},
-			].filter(Boolean),
-		};
-	}
-
-	return null;
-};
 
 /**
  * Transform QuizAnswers from quiz preview format to submission format

@@ -1,15 +1,13 @@
 import { Alert, Badge, Box, Paper, Stack, Table, Title } from "@mantine/core";
-import { href } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
 import { ForbiddenResponse } from "~/utils/responses";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/dependencies";
 
-export function getRouteUrl() {
-	return href("/admin/dependencies");
-}
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -36,7 +34,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			},
 		],
 	};
-};
+});
 
 export default function DependenciesPage({ loaderData }: Route.ComponentProps) {
 	const { dependencies } = loaderData;

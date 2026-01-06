@@ -12,18 +12,14 @@ import {
 	Title,
 } from "@mantine/core";
 import { useInterval } from "@mantine/hooks";
-import { href } from "react-router";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetLatestVersion } from "server/internal/version-management";
 import { detectSystemResources } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/system";
-
-export function getRouteUrl() {
-	return href("/admin/system");
-}
 
 function getServerTimezone() {
 	return (
@@ -33,7 +29,9 @@ function getServerTimezone() {
 	);
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -72,7 +70,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		serverTimezone,
 		versionInfo,
 	};
-};
+});
 
 // Type definitions for client-side use
 type PlatformDetectionResult = {
@@ -516,6 +514,19 @@ function SystemResourcesSection({
 	);
 }
 
+const useAutoRefresh = (interval: number = 1000) => {
+	const revalidator = useRevalidator();
+	useInterval(
+		() => {
+			revalidator.revalidate();
+		},
+		interval,
+		{ autoInvoke: true },
+	);
+
+	return { state: revalidator.state };
+}
+
 export default function SystemPage({ loaderData }: Route.ComponentProps) {
 	const {
 		platformInfo,
@@ -526,17 +537,7 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 		serverTimezone,
 		versionInfo,
 	} = loaderData;
-	const revalidator = useRevalidator();
-
-	useInterval(
-		() => {
-			revalidator.revalidate();
-		},
-		1000,
-		{ autoInvoke: true },
-	);
-
-	// const isRevalidating = revalidator.state === "loading";
+	const { state: _isRevalidating } = useAutoRefresh(1000);
 
 	return (
 		<Container size="xl" py="xl">

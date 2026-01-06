@@ -13,8 +13,9 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { parseAsStringEnum } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import prettyBytes from "pretty-bytes";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -23,8 +24,6 @@ import {
 	tryClearLogo,
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
-import type { Media } from "server/payload-types";
-import { serverOnly$ } from "vite-env-only/macros";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -35,11 +34,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/logo";
 import { z } from "zod";
-import { stringify } from "qs";
-
-export function getRouteUrl() {
-	return href("/admin/appearance/logo");
-}
 
 enum Action {
 	Clear = "clear",
@@ -60,18 +54,14 @@ export const logoSearchParams = {
 	field: parseAsStringEnum(Object.values(Field)),
 };
 
-export const loadSearchParams = createLoader(logoSearchParams);
+type LogoData = Route.ComponentProps["loaderData"]["logos"]
 
-type LogoData = {
-	logoLight?: Media | null;
-	logoDark?: Media | null;
-	compactLogoLight?: Media | null;
-	compactLogoDark?: Media | null;
-	faviconLight?: Media | null;
-	faviconDark?: Media | null;
-};
+type Media = NonNullable<LogoData[keyof LogoData]>
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -87,7 +77,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	// Get logo data directly from system globals
-	const logoData: LogoData = {
+	const logoData = {
 		logoLight: systemGlobals.appearanceSettings.logoLight ?? null,
 		logoDark: systemGlobals.appearanceSettings.logoDark ?? null,
 		compactLogoLight: systemGlobals.appearanceSettings.compactLogoLight ?? null,
@@ -100,7 +90,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		logos: logoData,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit,
 	};
-};
+});
 
 const urlSchema = z
 	.url()
@@ -137,23 +127,25 @@ const inputSchema = z.object({
 	faviconDark: z.file().nullish(),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/appearance/logo",
+});
 
-const createClearActionRpc = createActionRpc({
+const clearRpc = createActionRpc({
 	searchParams: logoSearchParams,
 	method: "POST",
 	action: Action.Clear,
 });
 
-const createUploadActionRpc = createActionRpc({
+const uploadRpc = createActionRpc({
 	formDataSchema: inputSchema,
 	searchParams: logoSearchParams,
 	method: "POST",
 	action: Action.Upload,
 });
 
-const [clearAction, useClearLogoRpc] = createClearActionRpc(
-	serverOnly$(async ({ context, searchParams }) => {
+const clearAction = clearRpc.createAction(
+	async ({ context, searchParams }) => {
 		const { field } = searchParams;
 		if (!field) {
 			return badRequest({ error: "Field is required" });
@@ -187,23 +179,13 @@ const [clearAction, useClearLogoRpc] = createClearActionRpc(
 			message: "Logo cleared successfully",
 			logoField: field,
 		});
-	})!,
-	{
-		action: ({ searchParams }) => {
-			if (!searchParams.field) {
-				throw new Error("Field is required");
-			}
-			return (
-				href("/admin/appearance/logo") +
-				"?" +
-				stringify({ action: searchParams.action, field: searchParams.field })
-			);
-		},
 	},
 );
 
-const [uploadAction, useUploadLogoRpc] = createUploadActionRpc(
-	serverOnly$(async ({ context, formData, searchParams: _searchParams }) => {
+const useClearLogoRpc = clearRpc.createHook<typeof clearAction>();
+
+const uploadAction = uploadRpc.createAction(
+	async ({ context, formData, searchParams: _searchParams }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -232,33 +214,17 @@ const [uploadAction, useUploadLogoRpc] = createUploadActionRpc(
 		return ok({
 			message: "Logo uploaded successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams }) => {
-			return (
-				href("/admin/appearance/logo") +
-				"?" +
-				stringify({ action: searchParams.action })
-			);
-		},
 	},
 );
 
-const actionMap = {
+const useUploadLogoRpc = uploadRpc.createHook<typeof uploadAction>();
+
+const [action] = createActionMap({
 	[Action.Clear]: clearAction,
 	[Action.Upload]: uploadAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -338,8 +304,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: logo.id.toString(),
-			})
+			mediaId: logo.id.toString(),
+		})
 		: null;
 
 	return (

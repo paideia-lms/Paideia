@@ -21,7 +21,7 @@ export default defineConfig({
 		denyImports({
 			client: {
 			  specifiers: ["payload"],
-			  files: ["server/contexts/user-context.ts"],
+			  files: ["server/*", "server/internal/*", "server/contexts/*", "server/utils/*", "server/collections/*"],
 			},
 			server: {
 

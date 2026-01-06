@@ -1,29 +1,26 @@
-import { Container, Stack, Title } from "@mantine/core";
+import { Button, Checkbox, Container, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { useState } from "react";
-import { href, redirect, useNavigate } from "react-router";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { serverOnly$ } from "vite-env-only/macros";
-import { NoteForm } from "~/components/note-form";
-import type { ImageFile } from "~/components/rich-text-editor";
+import { permissions } from "server/utils/permissions";
+import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 import { z } from "zod";
 
-export function getRouteUrl(noteId: number) {
-	return href("/user/note/edit/:noteId", {
-		noteId: noteId.toString(),
-	});
-}
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -46,14 +43,16 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const createdById = note.createdBy.id;
 
 	// Check if user can edit this note
-	if (currentUser.id !== createdById && currentUser.role !== "admin") {
-		throw new NotFoundResponse("You don't have permission to edit this note");
+	const editPermission = permissions.note.canEdit(currentUser, createdById);
+	if (!editPermission.allowed) {
+		throw new NotFoundResponse(editPermission.reason);
 	}
 
 	return {
 		note,
+		params,
 	};
-};
+})!;
 
 enum Action {
 	UpdateNote = "updateNote",
@@ -64,7 +63,9 @@ const inputSchema = z.object({
 	isPublic: z.boolean().optional(),
 });
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/note/edit/:noteId",
+});
 
 const createUpdateNoteActionRpc = createActionRpc({
 	formDataSchema: inputSchema,
@@ -72,8 +73,8 @@ const createUpdateNoteActionRpc = createActionRpc({
 	action: Action.UpdateNote,
 });
 
-const [updateNoteAction, useUpdateNoteRpc] = createUpdateNoteActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const updateNoteAction = createUpdateNoteActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -88,10 +89,7 @@ const [updateNoteAction, useUpdateNoteRpc] = createUpdateNoteActionRpc(
 			return badRequest({ error: "Unauthorized" });
 		}
 
-		const noteId = Number(params.noteId);
-		if (Number.isNaN(noteId)) {
-			return badRequest({ error: "Invalid note ID" });
-		}
+		const noteId = params.noteId;
 
 		// Update note with updated content
 		const result = await tryUpdateNote({
@@ -112,28 +110,16 @@ const [updateNoteAction, useUpdateNoteRpc] = createUpdateNoteActionRpc(
 		}
 
 		return redirect("/user/notes");
-	})!,
-	{
-		action: ({ params }) =>
-			href("/user/note/edit/:noteId", { noteId: String(params.noteId) }),
 	},
 );
 
-const actionMap = {
+const useUpdateNote = createUpdateNoteActionRpc.createHook<typeof updateNoteAction>();
+
+const [action] = createActionMap({
 	[Action.UpdateNote]: updateNoteAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const url = new URL(request.url);
-	const actionFromUrl = url.searchParams.get("action") as Action | null;
-
-	if (!actionFromUrl || !(actionFromUrl in actionMap)) {
-		return badRequest({ error: "Invalid action" });
-	}
-
-	return actionMap[actionFromUrl](args);
-};
+export { action };
 
 export const clientAction = async ({
 	serverAction,
@@ -149,33 +135,7 @@ export const clientAction = async ({
 	return actionData;
 };
 
-const useUpdateNote = (noteId: number) => {
-	const { submit, isLoading, fetcher } = useUpdateNoteRpc();
 
-	const updateNote = (
-		content: string,
-		isPublic: boolean,
-		_imageFiles: ImageFile[],
-	) => {
-		// Note: imageFiles are not currently handled in the schema
-		// They would need to be added to the formDataSchema if needed
-		submit({
-			params: { noteId },
-			values: {
-				content,
-				isPublic,
-			},
-		});
-	};
-
-	return {
-		updateNote,
-		isSubmitting: isLoading,
-		state: fetcher.state,
-		data: fetcher.data,
-		fetcher: fetcher as typeof fetcher & { data?: { error?: string } },
-	};
-};
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -186,18 +146,25 @@ export default function NoteEditPage({
 	actionData,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { updateNote, fetcher } = useUpdateNote(loaderData.note.id);
-	const [content, setContent] = useState(loaderData.note.content);
-	const [isPublic, setIsPublic] = useState(Boolean(loaderData.note.isPublic));
-	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+	const { submit: updateNote, isLoading, fetcher } = useUpdateNote();
 
-	const handleImageAdd = (imageFile: ImageFile) => {
-		setImageFiles((prev) => [...prev, imageFile]);
-	};
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			content: loaderData.note.content,
+			isPublic: Boolean(loaderData.note.isPublic),
+		},
+	});
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		updateNote(content, isPublic, imageFiles);
+		updateNote({
+			values: {
+				content: form.values.content,
+				isPublic: form.values.isPublic,
+			},
+			params: { noteId: loaderData.note.id },
+		});
 	};
 
 	return (
@@ -210,18 +177,45 @@ export default function NoteEditPage({
 			<Stack gap="xl">
 				<Title order={1}>Edit Note</Title>
 
-				<NoteForm
-					content={content}
-					setContent={setContent}
-					isPublic={Boolean(isPublic)}
-					setIsPublic={setIsPublic}
-					handleImageAdd={handleImageAdd}
-					onSubmit={handleSubmit}
-					onCancel={() => navigate("/user/notes")}
-					fetcher={fetcher}
-					submitLabel="Update Note"
-					error={actionData?.error}
-				/>
+				<fetcher.Form method="post" onSubmit={handleSubmit}>
+					<Paper withBorder shadow="md" p="xl" radius="md">
+						<Stack gap="lg">
+							<FormableRichTextEditor
+								form={form}
+								formKey={"content"}
+								key={form.key("content")}
+								label="Content"
+								placeholder="Write your note here..."
+							/>
+
+							<Checkbox
+								{...form.getInputProps("isPublic", { type: "checkbox" })}
+								key={form.key("isPublic")}
+								label="Make this note public"
+								description="Public notes can be viewed by other users"
+							/>
+
+							{(actionData?.error || fetcher.data?.error) && (
+								<Text c="red" size="sm">
+									{actionData?.error || fetcher.data?.error}
+								</Text>
+							)}
+
+							<Group justify="flex-end" gap="md">
+								<Button variant="subtle" onClick={() => navigate("/user/notes")} type="button">
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									disabled={!form.values.content.trim() || fetcher.state !== "idle"}
+									loading={fetcher.state !== "idle"}
+								>
+									Update Note
+								</Button>
+							</Group>
+						</Stack>
+					</Paper>
+				</fetcher.Form>
 			</Stack>
 		</Container>
 	);

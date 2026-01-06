@@ -18,18 +18,13 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
 import { href, Link } from "react-router";
 import { z } from "zod";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -43,6 +38,7 @@ import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.groups";
@@ -56,16 +52,11 @@ enum Action {
 	DeleteGroup = "deleteGroup",
 }
 
-// Define search params for group actions
-export const groupSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/groups",
+});
 
-export const loadSearchParams = createLoader(groupSearchParams);
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
-
-const createCreateGroupActionRpc = createActionRpc({
+const createGroupRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().min(1, "Group name is required"),
 		description: z.string().optional(),
@@ -77,23 +68,13 @@ const createCreateGroupActionRpc = createActionRpc({
 	action: Action.CreateGroup,
 });
 
-const createDeleteGroupActionRpc = createActionRpc({
+const deleteGroupRpc = createActionRpc({
 	formDataSchema: z.object({
 		groupId: z.coerce.number(),
 	}),
 	method: "POST",
 	action: Action.DeleteGroup,
 });
-
-export function getRouteUrl(action: Action, courseId: number) {
-	return (
-		href("/course/:courseId/groups", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
 
 function GroupMemberList({ members }: { members: Enrollment[] }) {
 	if (members.length === 0) {
@@ -141,7 +122,9 @@ function GroupMemberList({ members }: { members: Enrollment[] }) {
 	);
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -171,10 +154,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser: currentUser,
 		canManage,
 	};
-};
+});
 
-const [createGroupAction, useCreateGroup] = createCreateGroupActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createGroupAction = createGroupRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { courseId } = params;
@@ -200,15 +183,13 @@ const [createGroupAction, useCreateGroup] = createCreateGroupActionRpc(
 		}
 
 		return ok({ success: true, message: "Group created successfully" });
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, params.courseId),
 	},
 );
 
-const [deleteGroupAction, useDeleteGroup] = createDeleteGroupActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useCreateGroup = createGroupRpc.createHook<typeof createGroupAction>();
+
+const deleteGroupAction = deleteGroupRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -227,44 +208,32 @@ const [deleteGroupAction, useDeleteGroup] = createDeleteGroupActionRpc(
 		}
 
 		return ok({ success: true, message: "Group deleted successfully" });
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
+
+const useDeleteGroup = deleteGroupRpc.createHook<typeof deleteGroupAction>();
 
 // Export hooks for use in components
 export { useCreateGroup, useDeleteGroup };
 
-const actionMap = {
+
+const [action] = createActionMap({
 	[Action.CreateGroup]: createGroupAction,
 	[Action.DeleteGroup]: deleteGroupAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData && "success" in actionData && actionData.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData && "error" in actionData) {
+	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,

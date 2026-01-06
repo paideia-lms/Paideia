@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import { createLocalReq } from "./utils/internal-function-utils";
-import type { TryResultValue } from "server/utils/type-narrowing";
+import type { TryResultValue } from "server/utils/types";
 import sanitizedConfig from "../payload.config";
 import {
 	tryCreateAssignmentModule,

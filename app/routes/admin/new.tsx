@@ -17,15 +17,13 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum,
 } from "nuqs/server";
-import { stringify } from "qs";
 import { useState } from "react";
-import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
-import { Users } from "server/collections/users";
+import { redirect } from "react-router";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import type { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateUser } from "server/internal/user-management";
@@ -42,7 +40,18 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/new";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+enum Action {
+	Create = "create",
+}
+
+// Define search params for user creation
+export const userSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
+};
+
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -61,24 +70,16 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	return {
-		success: true,
+		searchParams,
+		params,
 	};
-};
+});
 
-enum Action {
-	Create = "create",
-}
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/user/new",
+});
 
-// Define search params for user creation
-export const userSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
-
-export const loadSearchParams = createLoader(userSearchParams);
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
-
-const createCreateUserActionRpc = createActionRpc({
+const createUserRpc = createActionRpc({
 	formDataSchema: z.object({
 		email: z.email(),
 		password: z.string().min(8),
@@ -92,12 +93,8 @@ const createCreateUserActionRpc = createActionRpc({
 	action: Action.Create,
 });
 
-export function getRouteUrl(action: Action) {
-	return href("/admin/user/new") + "?" + stringify({ action });
-}
-
-const [createAction, useCreateUser] = createCreateUserActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createAction = createUserRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -153,32 +150,19 @@ const [createAction, useCreateUser] = createCreateUserActionRpc(
 			message: "User created successfully",
 			id: createResult.value.id,
 		});
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
+
+const useCreateUser = createUserRpc.createHook<typeof createAction>();
 
 // Export hook for use in component
 export { useCreateUser };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Create]: createAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -399,10 +383,13 @@ export default function NewUserPage() {
 							label="Role"
 							placeholder="Select role"
 							required
-							data={Users.fields[3].options?.map((option) => ({
-								value: option.value,
-								label: option.label,
-							}))}
+							data={[
+								{ value: "admin", label: "Admin" },
+								{ value: "content-manager", label: "Content Manager" },
+								{ value: "analytics-viewer", label: "Analytics Viewer" },
+								{ value: "instructor", label: "Instructor" },
+								{ value: "student", label: "Student" },
+							] satisfies typeof Users["fields"][3]['options']}
 						/>
 
 						<Textarea

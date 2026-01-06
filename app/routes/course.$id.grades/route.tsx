@@ -1,15 +1,11 @@
 import { notifications } from "@mantine/notifications";
-import { useQueryState } from "nuqs";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
-import { href } from "react-router";
+	parseAsStringEnum,
+} from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
 	tryCreateGradebookCategory,
@@ -28,10 +24,10 @@ import {
 import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
 import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { z } from "zod";
-import { GraderReportView } from "~/components/gradebook/report-view";
-import { GradebookSetupView } from "~/components/gradebook/setup-view";
+import { GraderReportView } from "app/routes/course.$id.grades/report-view";
+import { GradebookSetupView } from "app/routes/course.$id.grades/setup-view";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
-import type { Route } from "./+types/course.$id.grades";
+import type { Route } from "./+types/route";
 
 export type { Route };
 
@@ -46,15 +42,15 @@ enum Action {
 	GetCategory = "get-category",
 }
 
-export const gradesSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+export const loaderSearchParams = {
+	tab: parseAsStringEnum(["report", "setup"]).withDefault("report"),
 };
 
-export const loadSearchParams = createLoader(gradesSearchParams);
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/grades"
+});
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
-
-const createCreateItemActionRpc = createActionRpc({
+const createItemRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().min(1, "Name is required"),
 		description: z.string().optional(),
@@ -68,7 +64,7 @@ const createCreateItemActionRpc = createActionRpc({
 	action: Action.CreateItem,
 });
 
-const createCreateCategoryActionRpc = createActionRpc({
+const createCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().min(1, "Name is required"),
 		description: z.string().optional(),
@@ -79,7 +75,7 @@ const createCreateCategoryActionRpc = createActionRpc({
 	action: Action.CreateCategory,
 });
 
-const createUpdateItemActionRpc = createActionRpc({
+const updateItemRpc = createActionRpc({
 	formDataSchema: z.object({
 		itemId: z.coerce.number(),
 		name: z.string().min(1, "Name is required").optional(),
@@ -94,7 +90,7 @@ const createUpdateItemActionRpc = createActionRpc({
 	action: Action.UpdateItem,
 });
 
-const createUpdateCategoryActionRpc = createActionRpc({
+const updateCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 		name: z.string().min(1, "Name is required").optional(),
@@ -106,7 +102,7 @@ const createUpdateCategoryActionRpc = createActionRpc({
 	action: Action.UpdateCategory,
 });
 
-const createGetItemActionRpc = createActionRpc({
+const getItemRpc = createActionRpc({
 	formDataSchema: z.object({
 		itemId: z.coerce.number(),
 	}),
@@ -114,7 +110,7 @@ const createGetItemActionRpc = createActionRpc({
 	action: Action.GetItem,
 });
 
-const createGetCategoryActionRpc = createActionRpc({
+const getCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 	}),
@@ -122,7 +118,7 @@ const createGetCategoryActionRpc = createActionRpc({
 	action: Action.GetCategory,
 });
 
-const createDeleteItemActionRpc = createActionRpc({
+const deleteItemRpc = createActionRpc({
 	formDataSchema: z.object({
 		itemId: z.coerce.number(),
 	}),
@@ -130,7 +126,7 @@ const createDeleteItemActionRpc = createActionRpc({
 	action: Action.DeleteItem,
 });
 
-const createDeleteCategoryActionRpc = createActionRpc({
+const deleteCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 	}),
@@ -138,21 +134,15 @@ const createDeleteCategoryActionRpc = createActionRpc({
 	action: Action.DeleteCategory,
 });
 
-export function getRouteUrl(action: Action, courseId: number) {
-	return (
-		href("/course/:courseId/grades", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
-
 // ============================================================================
 // Loader
 // ============================================================================
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams, params }) => {
 	const courseContext = context.get(courseContextKey);
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
@@ -184,19 +174,21 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0 ||
-				gradebookSetupForUI.extraCreditCategories.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
 		extraCreditCategories: gradebookSetupForUI?.extraCreditCategories ?? [],
 		totalMaxGrade: gradebookSetupForUI?.totals.totalMaxGrade ?? 0,
 		userGrades,
+		searchParams,
+		params,
 	};
-};
+});
 
-const [createItemAction, useCreateItem] = createCreateItemActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const createItemAction = createItemRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!courseContext)
@@ -247,14 +239,12 @@ const [createItemAction, useCreateItem] = createCreateItemActionRpc(
 			message: "Gradebook item created successfully",
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useCreateItem = createItemRpc.createHook<typeof createItemAction>();
+
+const createCategoryAction = createCategoryRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!courseContext)
@@ -300,14 +290,12 @@ const [createCategoryAction, useCreateCategory] = createCreateCategoryActionRpc(
 			message: "Gradebook category created successfully",
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [updateItemAction, useUpdateItem] = createUpdateItemActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useCreateCategory = createCategoryRpc.createHook<typeof createCategoryAction>();
+
+const updateItemAction = updateItemRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const updateResult = await tryUpdateGradebookItem({
@@ -332,14 +320,12 @@ const [updateItemAction, useUpdateItem] = createUpdateItemActionRpc(
 			message: "Gradebook item updated successfully",
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [updateCategoryAction, useUpdateCategory] = createUpdateCategoryActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useUpdateItem = updateItemRpc.createHook<typeof updateItemAction>();
+
+const updateCategoryAction = updateCategoryRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const updateResult = await tryUpdateGradebookCategory({
@@ -361,14 +347,12 @@ const [updateCategoryAction, useUpdateCategory] = createUpdateCategoryActionRpc(
 			message: "Gradebook category updated successfully",
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [getItemAction, useGetItem] = createGetItemActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useUpdateCategory = updateCategoryRpc.createHook<typeof updateCategoryAction>();
+
+const getItemAction = getItemRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const itemResult = await tryFindGradebookItemById({
@@ -385,9 +369,8 @@ const [getItemAction, useGetItem] = createGetItemActionRpc(
 
 		// Handle category as number or object
 		const categoryId =
-			typeof item.category === "number"
-				? item.category
-				: (item.category?.id ?? null);
+			item.category
+			?? null;
 
 		return ok({
 			success: true,
@@ -403,14 +386,12 @@ const [getItemAction, useGetItem] = createGetItemActionRpc(
 			},
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [getCategoryAction, useGetCategory] = createGetCategoryActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useGetItem = getItemRpc.createHook<typeof getItemAction>();
+
+const getCategoryAction = getCategoryRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const categoryResult = await tryFindGradebookCategoryById({
@@ -440,14 +421,12 @@ const [getCategoryAction, useGetCategory] = createGetCategoryActionRpc(
 			},
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [deleteItemAction, useDeleteItem] = createDeleteItemActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useGetCategory = getCategoryRpc.createHook<typeof getCategoryAction>();
+
+const deleteItemAction = deleteItemRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const deleteResult = await tryDeleteGradebookItem({
@@ -465,14 +444,12 @@ const [deleteItemAction, useDeleteItem] = createDeleteItemActionRpc(
 			message: "Gradebook item deleted successfully",
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
 
-const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useDeleteItem = deleteItemRpc.createHook<typeof deleteItemAction>();
+
+const deleteCategoryAction = deleteCategoryRpc.createAction(
+	serverOnly$(async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const deleteResult = await tryDeleteGradebookCategory({
@@ -490,11 +467,9 @@ const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
 			message: "Gradebook category deleted successfully",
 		});
 	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
-	},
 );
+
+const useDeleteCategory = deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
 
 // Export hooks for use in components
 export {
@@ -508,7 +483,9 @@ export {
 	useDeleteCategory,
 };
 
-const actionMap = {
+
+
+const [action] = createActionMap({
 	[Action.CreateItem]: createItemAction,
 	[Action.CreateCategory]: createCategoryAction,
 	[Action.UpdateItem]: updateItemAction,
@@ -517,34 +494,16 @@ const actionMap = {
 	[Action.DeleteCategory]: deleteCategoryAction,
 	[Action.GetItem]: getItemAction,
 	[Action.GetCategory]: getCategoryAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request, context } = args;
-	const userSession = context.get(userContextKey);
-	const courseContext = context.get(courseContextKey);
 
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found or access denied");
-	}
-
-	if (!userSession?.isAuthenticated) {
-		return badRequest({ error: "Unauthorized" });
-	}
-
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-	const actionData = await serverAction();
+	const actionData = (await serverAction()) as
+		| { success: true; message?: string }
+		| { error: string }
+		| undefined;
 
 	if (actionData && "success" in actionData && actionData.success) {
 		if ("message" in actionData) {
@@ -565,13 +524,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const [activeTab] = useQueryState("tab", {
-		defaultValue: "report",
-	});
+	const { searchParams } = loaderData;
 
 	return (
 		<>
-			{activeTab === "setup" ? (
+			{searchParams.tab === "setup" ? (
 				<GradebookSetupView data={loaderData} />
 			) : (
 				<GraderReportView data={loaderData} />

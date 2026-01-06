@@ -19,25 +19,20 @@ import {
 	IconTrash,
 	IconUpload,
 } from "@tabler/icons-react";
-import { href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.backup";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/backup", {
-		courseId: courseId.toString(),
-	});
-}
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = createRouteLoader()(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-	const { courseId } = params;
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
@@ -54,12 +49,12 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const canSeeBackup = permissions.course.canSeeBackup(
 		{
 			id: currentUser.id,
-			role: currentUser.role ?? "student",
+			role: currentUser.role,
 		},
 		enrolmentContext?.enrolment
 			? {
-					role: enrolmentContext.enrolment.role,
-				}
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -71,9 +66,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	return {
 		course: courseContext.course,
-		courseId,
+		params,
 	};
-};
+});
 
 export default function CourseBackupPage({ loaderData }: Route.ComponentProps) {
 	const { course } = loaderData;

@@ -8,14 +8,15 @@ import {
 	Title,
 } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, Outlet, useNavigate } from "react-router";
+import { Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { getRouteUrl } from "~/utils/search-params-utils";
 
 enum UserTab {
 	Profile = "profile",
@@ -26,8 +27,12 @@ enum UserTab {
 	Media = "media",
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
+	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -53,15 +58,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Fetch the target user
 	const targetUser = userProfileContext.profileUser;
 
-	const canSeeModules = permissions.user.canSeeModules(currentUser).allowed;
-
 	return {
 		user: targetUser,
 		pageInfo: pageInfo,
 		isOwnData: userId === currentUser.id,
-		canSeeModules,
+		canSeeModules: userSession.permissions.canSeeUserModules,
+		params,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -104,43 +108,44 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 		switch (value) {
 			case UserTab.Profile:
 				navigate(
-					href("/user/overview/:id?", {
-						id: userIdParam ? userIdParam : undefined,
+					getRouteUrl("/user/overview/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
 					}),
 				);
 				break;
 			case UserTab.Preference:
 				navigate(
-					href("/user/preference/:id?", {
-						id: userIdParam ? userIdParam : undefined,
+					getRouteUrl("/user/preference/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
 					}),
 				);
 				break;
 			case UserTab.Modules:
 				navigate(
-					href("/user/modules/:id?", {
-						id: userIdParam ? userIdParam : undefined,
+					getRouteUrl("/user/modules/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
 					}),
 				);
 				break;
 			case UserTab.Grades:
 				navigate(
-					href("/user/grades/:id?", {
-						id: userIdParam ? userIdParam : undefined,
+					getRouteUrl("/user/grades/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
 					}),
 				);
 				break;
 			case UserTab.Notes:
 				navigate(
-					href("/user/notes/:id?", {
-						id: userIdParam ? userIdParam : undefined,
+					getRouteUrl("/user/notes/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
+						searchParams: { date: null },
 					}),
 				);
 				break;
 			case UserTab.Media:
 				navigate(
-					href("/user/media/:id?", {
-						id: userIdParam ? userIdParam : undefined,
+					getRouteUrl("/user/media/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
 					}),
 				);
 				break;

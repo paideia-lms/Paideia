@@ -25,10 +25,10 @@ import { href, Link } from "react-router";
 import { groupSubmissionsByStudent } from "./helpers";
 import {
 	type Route,
-	getRouteUrl,
 	View,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
+import { getRouteUrl } from "~/utils/search-params-utils";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
@@ -325,11 +325,15 @@ function QuizStudentSubmissionRow({
 									<Menu.Item
 										component={Link}
 										to={getRouteUrl(
+											"/course/module/:moduleLinkId/submissions",
 											{
-												view: View.GRADING,
-												submissionId: latestSubmission.id,
+												params: { moduleLinkId: moduleLinkId.toString() },
+												searchParams: {
+													action: null,
+													view: View.GRADING,
+													submissionId: latestSubmission.id,
+												},
 											},
-											moduleLinkId,
 										)}
 										leftSection={<IconPencil size={14} />}
 									>

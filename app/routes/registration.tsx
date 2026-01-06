@@ -15,7 +15,6 @@ import { notifications } from "@mantine/notifications";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { href, Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
@@ -83,9 +82,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 	};
 }
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/registration",
+});
 
-const createRegisterActionRpc = createActionRpc({
+const registerRpc = createActionRpc({
 	formDataSchema: z.object({
 		email: z.email(),
 		password: z.string().min(8),
@@ -95,12 +96,8 @@ const createRegisterActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/registration");
-}
-
-const [registerAction, useRegister] = createRegisterActionRpc(
-	serverOnly$(async ({ context, formData, request }) => {
+const registerAction = registerRpc.createAction(
+	async ({ context, formData, request }) => {
 		const { payload, requestInfo, envVars } = context.get(globalContextKey);
 
 		// Determine if first user
@@ -196,11 +193,10 @@ const [registerAction, useRegister] = createRegisterActionRpc(
 				),
 			},
 		});
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useRegister = registerRpc.createHook<typeof registerAction>();
 
 // Export hook for use in component
 export { useRegister };

@@ -10,6 +10,7 @@ import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "server/internal/utils/internal-function-utils";
+import { permissions } from "server/utils/permissions";
 
 export type UserSession = NonNullable<
 	Awaited<ReturnType<typeof tryGetUserContext>>
@@ -65,6 +66,8 @@ export const tryGetUserContext = async (
 					isImpersonating: false,
 				};
 
+	const currentUser = effectiveUser || authenticatedUser;
+
 	return {
 		authenticatedUser: {
 			...authenticatedUser,
@@ -76,5 +79,8 @@ export const tryGetUserContext = async (
 		// effectiveUserPermissions: effectiveUserPermissions,
 		isImpersonating: isImpersonating,
 		isAuthenticated: true,
+		permissions: {
+			canSeeUserModules: permissions.user.canSeeModules(currentUser).allowed,
+		},
 	};
 };

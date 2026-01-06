@@ -3,7 +3,7 @@ import type { BasePayload, PayloadRequest } from "payload";
 import { createContext } from "react-router";
 import type { Media } from "server/payload-types";
 import type { Storage } from "unstorage";
-import type { RouteId, RouteInfo } from "~/utils/routes-utils";
+import type { RouteId, MyRouteInfo } from "~/utils/routes-utils";
 import type { TypeSafeRouteParams } from "app/utils/route-params-schema";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
@@ -83,7 +83,7 @@ export type GlobalContext = {
 	s3Client: S3Client;
 	unstorage: Storage;
 	envVars: typeof envVars;
-	routeHierarchy: RouteInfo[];
+	routeHierarchy: MyRouteInfo[];
 	pageInfo: PageInfo;
 	platformInfo: PlatformDetectionResult;
 	bunVersion: string;

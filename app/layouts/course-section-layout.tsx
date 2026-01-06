@@ -6,17 +6,21 @@ import { courseSectionContextKey } from "server/contexts/course-section-context"
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-section-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum SectionTab {
 	Section = "section",
 	Setting = "setting",
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -38,14 +42,18 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Section not found or access denied");
 	}
 
+
+
 	return {
 		section: courseSectionContext,
 		course: courseContext.course,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,
+		canSeeSettings: courseContext.permissions.canSeeSettings,
+		params,
 	};
-};
+});
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -55,7 +63,7 @@ export default function CourseSectionLayout({
 	loaderData,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { section, course, pageInfo, currentUser, enrolment } = loaderData;
+	const { section, pageInfo, canSeeSettings } = loaderData;
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -87,10 +95,6 @@ export default function CourseSectionLayout({
 		}
 	};
 
-	const canSeeSetting = permissions.course.section.canSeeSettings(
-		currentUser,
-		enrolment,
-	).allowed;
 
 	return (
 		<div>
@@ -117,7 +121,7 @@ export default function CourseSectionLayout({
 						>
 							<Tabs.List>
 								<Tabs.Tab value={SectionTab.Section}>Section</Tabs.Tab>
-								{canSeeSetting && (
+								{canSeeSettings.allowed && (
 									<Tabs.Tab value={SectionTab.Setting}>Setting</Tabs.Tab>
 								)}
 							</Tabs.List>

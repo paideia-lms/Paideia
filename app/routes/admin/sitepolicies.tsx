@@ -12,7 +12,6 @@ import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -59,7 +58,9 @@ export async function loader({ context }: Route.LoaderArgs) {
 	return { settings: settings.value };
 }
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/sitepolicies",
+});
 
 const formDataSchema = z.object({
 	userMediaStorageTotal: z.preprocess((val) => {
@@ -84,51 +85,46 @@ const formDataSchema = z.object({
 	}, z.number().min(0).nullable().optional()),
 });
 
-const createUpdateSitePoliciesActionRpc = createActionRpc({
+const updateSitePoliciesRpc = createActionRpc({
 	formDataSchema,
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/admin/sitepolicies");
-}
+const updateSitePoliciesAction = updateSitePoliciesRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+		if (currentUser.role !== "admin") {
+			return forbidden({ error: "Only admins can access this area" });
+		}
 
-const [updateSitePoliciesAction, useUpdateSitePolicies] =
-	createUpdateSitePoliciesActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
-			const currentUser =
-				userSession.effectiveUser ?? userSession.authenticatedUser;
-			if (currentUser.role !== "admin") {
-				return forbidden({ error: "Only admins can access this area" });
-			}
+		const updateResult = await tryUpdateSitePolicies({
+			payload,
+			req: payloadRequest,
+			data: {
+				userMediaStorageTotal: formData.userMediaStorageTotal,
+				siteUploadLimit: formData.siteUploadLimit,
+			},
+		});
 
-			const updateResult = await tryUpdateSitePolicies({
-				payload,
-				req: payloadRequest,
-				data: {
-					userMediaStorageTotal: formData.userMediaStorageTotal,
-					siteUploadLimit: formData.siteUploadLimit,
-				},
-			});
+		if (!updateResult.ok) {
+			return forbidden({ error: updateResult.error.message });
+		}
 
-			if (!updateResult.ok) {
-				return forbidden({ error: updateResult.error.message });
-			}
+		return ok({
+			success: true as const,
+			settings: updateResult.value as unknown as SitePoliciesGlobal,
+		});
+	},
+);
 
-			return ok({
-				success: true as const,
-				settings: updateResult.value as unknown as SitePoliciesGlobal,
-			});
-		})!,
-		{
-			action: getRouteUrl,
-		},
-	);
+const useUpdateSitePolicies =
+	updateSitePoliciesRpc.createHook<typeof updateSitePoliciesAction>();
 
 // Export hook for use in components
 export { useUpdateSitePolicies };
@@ -250,12 +246,12 @@ export default function AdminSitePolicies({
 						values: {
 							userMediaStorageTotal:
 								values.userMediaStorageTotal !== undefined &&
-								values.userMediaStorageTotal !== null
+									values.userMediaStorageTotal !== null
 									? values.userMediaStorageTotal
 									: null,
 							siteUploadLimit:
 								values.siteUploadLimit !== undefined &&
-								values.siteUploadLimit !== null
+									values.siteUploadLimit !== null
 									? values.siteUploadLimit
 									: null,
 						},

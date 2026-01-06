@@ -28,3 +28,6 @@ tcg.config.ts
 test.ts
 *.d2
 *.mmd
+*.tsbuildinfo
+trace_output    
+trace.txt

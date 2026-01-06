@@ -71,10 +71,10 @@ export function DiscussionForm({
 					Discussion Settings
 				</Title>
 
-				<FormableSimpleRichTextEditor 
+				<FormableSimpleRichTextEditor
 					form={form}
 					key={form.key("discussionInstructions")}
-					formKey={ form.key("discussionInstructions")}
+					formKey={"discussionInstructions"}
 					label="Instructions"
 					placeholder="Enter discussion instructions..."
 				/>

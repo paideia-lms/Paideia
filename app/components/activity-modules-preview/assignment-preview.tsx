@@ -24,8 +24,8 @@ import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { getMimeTypesArray } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { isHtmlEmpty } from "../rich-text-editor";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { isHtmlEmpty } from "../rich-text/rich-text-editor";
+import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { SubmissionData } from "../submission-history";
 import { AssignmentActions } from "app/routes/course/module.$id/route";
 
@@ -443,9 +443,8 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${
-									maxAttempts !== 1 ? "s" : ""
-								} used`
+							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
+							} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
@@ -522,7 +521,7 @@ export function AssignmentPreview({
 			allSubmissions={allSubmissions}
 			submission={submission}
 			// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
-			onAddSubmission={() => {}}
+			onAddSubmission={() => { }}
 			canSubmit={canSubmit}
 			isStudent={isStudent}
 		/>

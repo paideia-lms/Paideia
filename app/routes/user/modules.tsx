@@ -1,11 +1,4 @@
 import { Container, Paper, Stack, Text, Title } from "@mantine/core";
-import { href } from "react-router";
-
-export function getRouteUrl(userId?: number) {
-	return href("/user/modules/:id?", {
-		id: userId ? userId.toString() : undefined,
-	});
-}
 
 export default function ModulesPage() {
 	return (

@@ -1,31 +1,18 @@
 import { Container, Paper, Text, Title } from "@mantine/core";
-import { href } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.bin";
 
-export function getRouteUrl(courseId: number) {
-	return href("/course/:courseId/bin", {
-		courseId: courseId.toString(),
-	});
-}
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
-
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -33,36 +20,21 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	// Check if user can see course bin
-	const canSeeBin = permissions.course.canSeeBin(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrolmentContext?.enrolment
-			? {
-					role: enrolmentContext.enrolment.role,
-				}
-			: undefined,
-	);
-
-	if (!canSeeBin) {
+	// Check if user can see course bin (permission is already calculated in course context)
+	if (!courseContext.permissions.canSeeBin.allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to view course recycle bin",
 		);
 	}
 
+
 	// TODO: Fetch deleted items data
 	return {
-		courseId,
 		deletedItems: [], // Placeholder data
 	};
-};
+});
 
-export default function CourseBinPage() {
+export default function CourseBinPage({ loaderData }: Route.ComponentProps) {
 	return (
 		<Container size="lg" py="xl">
 			<title>Recycle Bin | Course | Paideia LMS</title>

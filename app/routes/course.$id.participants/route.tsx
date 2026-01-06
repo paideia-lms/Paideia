@@ -1,8 +1,7 @@
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -22,9 +21,8 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
-import { parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
-import { createLoader } from "nuqs/server";
-import { stringify } from "qs";
+import { parseAsStringEnum } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 export type { Route };
 
@@ -34,16 +32,13 @@ enum Action {
 	DeleteEnrollment = "deleteEnrollment",
 }
 
-// Define search params for participant actions
-export const participantActionSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
 
-export const loadSearchParams = createLoader(participantActionSearchParams);
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/:courseId/participants",
+});
 
-const createEnrollActionRpc = createActionRpc({
+const enrollRpc = createActionRpc({
 	formDataSchema: z.object({
 		userId: z.coerce.number(),
 		role: z.enum(["student", "teacher", "ta", "manager"]),
@@ -54,7 +49,7 @@ const createEnrollActionRpc = createActionRpc({
 	action: Action.Enroll,
 });
 
-const createEditEnrollmentActionRpc = createActionRpc({
+const editEnrollmentRpc = createActionRpc({
 	formDataSchema: z.object({
 		enrollmentId: z.coerce.number(),
 		role: z.enum(["student", "teacher", "ta", "manager"]),
@@ -65,7 +60,7 @@ const createEditEnrollmentActionRpc = createActionRpc({
 	action: Action.EditEnrollment,
 });
 
-const createDeleteEnrollmentActionRpc = createActionRpc({
+const deleteEnrollmentRpc = createActionRpc({
 	formDataSchema: z.object({
 		enrollmentId: z.coerce.number(),
 	}),
@@ -73,17 +68,11 @@ const createDeleteEnrollmentActionRpc = createActionRpc({
 	action: Action.DeleteEnrollment,
 });
 
-export function getRouteUrl(action: Action, courseId: number) {
-	return (
-		href("/course/:courseId/participants", {
-			courseId: courseId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
+const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = createLoaderRpc({
+	// searchParams: participantActionSearchParams,
+})(async ({ context, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -104,8 +93,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		currentUser: currentUser,
+		searchParams,
 	};
-};
+});
 
 // Shared authorization check
 // TODO: this should be moved to payload collection level 
@@ -151,8 +141,8 @@ const checkAuthorization = async (
 	return null;
 };
 
-const [enrollUserAction, useEnrollUser] = createEnrollActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const enrollUserAction = enrollRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const courseId = params.courseId;
 
@@ -174,15 +164,13 @@ const [enrollUserAction, useEnrollUser] = createEnrollActionRpc(
 		}
 
 		return ok({ success: true, message: "User enrolled successfully" });
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
 
-const [editEnrollmentAction, useEditEnrollment] = createEditEnrollmentActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useEnrollUser = enrollRpc.createHook<typeof enrollUserAction>();
+
+const editEnrollmentAction = editEnrollmentRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const courseIdNum = Number(params.courseId);
 
@@ -203,64 +191,49 @@ const [editEnrollmentAction, useEditEnrollment] = createEditEnrollmentActionRpc(
 		}
 
 		return ok({ success: true, message: "Enrollment updated successfully" });
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(searchParams.action, Number(params.courseId)),
 	},
 );
 
-const [deleteEnrollmentAction, useDeleteEnrollment] =
-	createDeleteEnrollmentActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const courseIdNum = Number(params.courseId);
+const useEditEnrollment = editEnrollmentRpc.createHook<typeof editEnrollmentAction>();
 
-			const authError = await checkAuthorization(context, courseIdNum);
-			if (authError) return authError;
+const deleteEnrollmentAction = deleteEnrollmentRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const courseIdNum = Number(params.courseId);
 
-			const deleteResult = await tryDeleteEnrollment({
-				payload,
-				enrollmentId: formData.enrollmentId,
-				req: payloadRequest,
-			});
+		const authError = await checkAuthorization(context, courseIdNum);
+		if (authError) return authError;
 
-			if (!deleteResult.ok) {
-				return badRequest({ error: deleteResult.error.message });
-			}
+		const deleteResult = await tryDeleteEnrollment({
+			payload,
+			enrollmentId: formData.enrollmentId,
+			req: payloadRequest,
+		});
 
-			return ok({
-				success: true,
-				message: "Enrollment deleted successfully",
-			});
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.courseId)),
-		},
-	);
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return ok({
+			success: true,
+			message: "Enrollment deleted successfully",
+		});
+	},
+);
+
+const useDeleteEnrollment =
+	deleteEnrollmentRpc.createHook<typeof deleteEnrollmentAction>();
 
 // Export hooks for use in components
 export { useEnrollUser, useEditEnrollment, useDeleteEnrollment };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Enroll]: enrollUserAction,
 	[Action.EditEnrollment]: editEnrollmentAction,
 	[Action.DeleteEnrollment]: deleteEnrollmentAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -268,7 +241,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData && "success" in actionData && actionData.success) {
 		notifications.show({
 			title: "Success",
-			message: actionData.message,
+			message: "message" in actionData ? actionData.message : "Operation completed successfully",
 			color: "green",
 		});
 	} else if (actionData && "error" in actionData) {

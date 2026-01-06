@@ -3,10 +3,8 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { parseAsStringEnum } from "nuqs";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-grades-layout";
 import classes from "./header-tabs.module.css";
@@ -30,10 +28,9 @@ const createRouteLoader = createLoader({
 	},
 });
 
-export const loader = createRouteLoader(async ({ context, searchParams }) => {
+export const loader = createRouteLoader(async ({ context, searchParams, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -45,24 +42,8 @@ export const loader = createRouteLoader(async ({ context, searchParams }) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
 	// Check if user can see course grades
-	const canSeeGrades = permissions.course.canSeeGrades(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrolmentContext?.enrolment
-			? {
-					id: enrolmentContext.enrolment.id,
-					role: enrolmentContext.enrolment.role,
-				}
-			: undefined,
-	);
-
-	if (!canSeeGrades) {
+	if (!courseContext.permissions.canSeeGrades.allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to view course grades",
 		);
@@ -70,9 +51,9 @@ export const loader = createRouteLoader(async ({ context, searchParams }) => {
 
 	return {
 		...courseContext,
-		enrolment: enrolmentContext?.enrolment,
 		pageInfo,
-		tab: searchParams.tab,
+		searchParams,
+		params,
 	};
 })!;
 
@@ -83,14 +64,14 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function CourseGradesLayout({
 	loaderData,
 }: Route.ComponentProps) {
-	const { course, pageInfo, tab } = loaderData;
+	const { course, pageInfo, searchParams, params } = loaderData;
 	const navigate = useNavigate();
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/course.$id.grades.singleview"])
 			return GradesTab.SingleView;
-		if (tab === GradesTab.Setup) return GradesTab.Setup;
+		if (searchParams.tab === GradesTab.Setup) return GradesTab.Setup;
 		// Default to Report tab
 		return GradesTab.Report;
 	};

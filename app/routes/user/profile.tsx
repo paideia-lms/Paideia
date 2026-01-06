@@ -12,17 +12,10 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck } from "@tabler/icons-react";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
 import { href, Link, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
-import { permissions } from "server/utils/permissions";
 import { setImpersonationCookie } from "~/utils/cookie";
 import { z } from "zod";
 import {
@@ -30,31 +23,19 @@ import {
 	notFound,
 	NotFoundResponse,
 	StatusCode,
-	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/profile";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum Action {
 	Impersonate = "impersonate",
 }
 
-// Define search params for profile actions
-export const profileSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
-};
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
 
-export const loadSearchParams = createLoader(profileSearchParams);
-
-export function getRouteUrl(action: Action, userId?: number) {
-	const baseUrl = userId
-		? href("/user/profile/:id?", { id: userId.toString() })
-		: href("/user/profile/:id?");
-	return baseUrl + "?" + stringify({ action });
-}
-
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userProfileContext) {
@@ -79,10 +60,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		isOwnProfile: userId === currentUser.id,
 		canEdit: editPermission.allowed,
 		canImpersonate: impersonatePermission.allowed,
+		params,
 	};
-};
+})!;
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/profile/:id?",
+});
 
 const createImpersonateActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -92,8 +76,8 @@ const createImpersonateActionRpc = createActionRpc({
 	action: Action.Impersonate,
 });
 
-export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
-	serverOnly$(async ({ context, formData, request, params }) => {
+const impersonateAction = createImpersonateActionRpc.createAction(
+	async ({ context, formData, request, params }) => {
 		const { payload, requestInfo, payloadRequest } =
 			context.get(globalContextKey);
 		const userProfileContext = context.get(userProfileContextKey);
@@ -143,32 +127,16 @@ export const [impersonateAction, useImpersonate] = createImpersonateActionRpc(
 				),
 			},
 		});
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-const actionMap = {
+export const useImpersonate = createImpersonateActionRpc.createHook<typeof impersonateAction>();
+
+const [action] = createActionMap({
 	[Action.Impersonate]: impersonateAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

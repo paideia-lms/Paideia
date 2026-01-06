@@ -1,7 +1,6 @@
 import { notifications } from "@mantine/notifications";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateSection } from "server/internal/course-section-management";
@@ -14,9 +13,11 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/section-update";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/api/section-update",
+});
 
-const createUpdateSectionActionRpc = createActionRpc({
+const updateSectionRpc = createActionRpc({
 	formDataSchema: z.object({
 		sectionId: z.coerce.number(),
 		title: z.string().min(1),
@@ -25,41 +26,36 @@ const createUpdateSectionActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/api/section-update");
-}
+const updateSectionAction = updateSectionRpc.createAction(
+	async ({ context, formData }) => {
+		const userSession = context.get(userContextKey);
+		const { payload, payloadRequest } = context.get(globalContextKey);
 
-const [updateSectionAction, useUpdateCourseSection] =
-	createUpdateSectionActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const userSession = context.get(userContextKey);
-			const { payload, payloadRequest } = context.get(globalContextKey);
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-			if (!userSession?.isAuthenticated) {
-				throw new ForbiddenResponse("Unauthorized");
-			}
+		// Update the section
+		const result = await tryUpdateSection({
+			payload,
+			sectionId: formData.sectionId,
+			data: {
+				title: formData.title,
+				description: formData.description || undefined,
+			},
+			req: payloadRequest,
+		});
 
-			// Update the section
-			const result = await tryUpdateSection({
-				payload,
-				sectionId: formData.sectionId,
-				data: {
-					title: formData.title,
-					description: formData.description || undefined,
-				},
-				req: payloadRequest,
-			});
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		return ok({ success: true });
+	},
+);
 
-			return ok({ success: true });
-		})!,
-		{
-			action: getRouteUrl,
-		},
-	);
+const useUpdateCourseSection =
+	updateSectionRpc.createHook<typeof updateSectionAction>();
 
 // Export hook for use in components
 export { useUpdateCourseSection };

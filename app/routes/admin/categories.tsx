@@ -31,17 +31,15 @@ import {
 	IconLibraryMinus,
 	IconLibraryPlus,
 } from "@tabler/icons-react";
-import { useQueryState } from "nuqs";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import {
 	parseAsInteger,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum,
 } from "nuqs/server";
-import { createLoader } from "nuqs/server";
 import { useEffect } from "react";
-import { stringify } from "qs";
 import { href, Link } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -65,6 +63,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/categories";
+import { createActionMap } from "app/utils/action-utils";
 
 export type { Route };
 
@@ -73,16 +72,22 @@ enum Action {
 	Delete = "delete",
 }
 
-// Define search params for category actions
+// Define search params for category actions (used in actions)
 export const categoryActionSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
-export const loadSearchParams = createLoader(categoryActionSearchParams);
+// Define search params for loader
+export const loaderSearchParams = {
+	categoryId: parseAsInteger,
+	edit: parseAsInteger,
+};
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/categories",
+});
 
-const createEditCategoryActionRpc = createActionRpc({
+const editCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 		name: z.string().optional(),
@@ -92,7 +97,7 @@ const createEditCategoryActionRpc = createActionRpc({
 	action: Action.Edit,
 });
 
-const createDeleteCategoryActionRpc = createActionRpc({
+const deleteCategoryRpc = createActionRpc({
 	formDataSchema: z.object({
 		categoryId: z.coerce.number(),
 	}),
@@ -100,11 +105,11 @@ const createDeleteCategoryActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-export function getRouteUrl(action: Action) {
-	return href("/admin/categories") + "?" + stringify({ action });
-}
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -135,8 +140,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	});
 	const uncategorizedCount = uncategorizedCountRes.totalDocs;
 	// selected category details
-	const url = new URL(request.url);
-	const categoryIdParam = url.searchParams.get("categoryId");
+	const categoryIdParam = searchParams.categoryId;
 	let selectedCategory: {
 		id: number;
 		name: string;
@@ -196,8 +200,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		}
 	}
 
-	return { flat, selectedCategory, uncategorizedCount };
-};
+	return { flat, selectedCategory, uncategorizedCount, searchParams };
+});
 
 // Shared authorization check
 const checkAuthorization = (context: Route.ActionArgs["context"]) => {
@@ -216,8 +220,8 @@ const checkAuthorization = (context: Route.ActionArgs["context"]) => {
 	return null;
 };
 
-const [editCategoryAction, useEditCategory] = createEditCategoryActionRpc(
-	serverOnly$(async ({ context, formData, request }) => {
+const editCategoryAction = editCategoryRpc.createAction(
+	async ({ context, formData, request }) => {
 		const { payload } = context.get(globalContextKey);
 
 		const authError = checkAuthorization(context);
@@ -243,14 +247,13 @@ const [editCategoryAction, useEditCategory] = createEditCategoryActionRpc(
 		}
 
 		return ok({ success: true });
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
 
-const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const useEditCategory = editCategoryRpc.createHook<typeof editCategoryAction>();
+
+const deleteCategoryAction = deleteCategoryRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const authError = checkAuthorization(context);
@@ -273,32 +276,20 @@ const [deleteCategoryAction, useDeleteCategory] = createDeleteCategoryActionRpc(
 		}
 
 		return ok({ success: true });
-	})!,
-	{
-		action: ({ searchParams }) => getRouteUrl(searchParams.action),
 	},
 );
+
+const useDeleteCategory = deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
 
 // Export hooks for use in components
 export { useEditCategory, useDeleteCategory };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Edit]: editCategoryAction,
 	[Action.Delete]: deleteCategoryAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -325,15 +316,12 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export default function AdminCategoriesPage({
 	loaderData,
 }: Route.ComponentProps) {
-	const { flat, selectedCategory, uncategorizedCount } = loaderData as {
-		flat: Record<string, FlatNode>;
-		selectedCategory: any;
-		uncategorizedCount: number;
+	const { flat, selectedCategory, uncategorizedCount, searchParams } = loaderData
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+	const categoryId = searchParams.categoryId;
+	const setCategoryId = (id: number | null) => {
+		setQueryParams({ categoryId: id });
 	};
-	const [categoryId, setCategoryId] = useQueryState(
-		"categoryId",
-		parseAsInteger.withOptions({ shallow: false }),
-	);
 
 	const { submit: reorderCategories, isLoading } = useReorderCategories();
 
@@ -493,11 +481,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent("category:none")
+							"?query=" +
+							encodeURIComponent("category:none")
 							: href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent(`category:"${d.name}"`);
+							"?query=" +
+							encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">
@@ -602,6 +590,7 @@ export default function AdminCategoriesPage({
 					flat={flat}
 					selectedCategory={selectedCategory}
 					onCleared={() => setCategoryId(null)}
+					searchParams={searchParams}
 				/>
 			</Stack>
 		</Paper>
@@ -670,208 +659,192 @@ function EditDeleteControls({
 	flat,
 	selectedCategory,
 	onCleared,
+	searchParams,
 }: {
 	flat: Record<string, FlatNode>;
 	selectedCategory: any;
 	onCleared: () => void;
+	searchParams: { edit: number | null };
 }) {
 	const nameToken = selectedCategory.name.trim().toLowerCase();
 	const coursesByNameTo =
 		href("/admin/courses") +
 		"?query=" +
 		encodeURIComponent(`category:"${nameToken}"`);
-	const { submit: editCategory, isLoading: isEditing } = useEditCategory();
-	const { submit: deleteCategory, isLoading: isDeleting } = useDeleteCategory();
-	const [editOpened, setEditOpened] = useQueryState(
-		"edit",
-		parseAsInteger.withOptions({ shallow: false }),
-	);
-	const [deleteOpened, setDeleteOpened] = useQueryState(
-		"delete",
-		parseAsInteger.withOptions({ shallow: false }),
-	);
-
-	const parentOptions = Object.values(flat)
-		.filter((n) => n.id !== `c${selectedCategory.id}`)
-		.filter((n) => n.id !== "root")
-		.map((n) => ({ value: n.id.substring(1), label: n.name }));
 
 	return (
-		<>
-			<Group justify="space-between" mt="sm">
-				<Button size="xs" variant="default" onClick={onCleared}>
-					Clear
+		<Group justify="space-between" mt="sm">
+			<Button size="xs" variant="default" onClick={onCleared}>
+				Clear
+			</Button>
+			<Group gap="xs">
+				<Button
+					component={Link}
+					to={coursesByNameTo}
+					variant="subtle"
+					size="xs"
+				>
+					View courses
 				</Button>
-				<Group gap="xs">
-					<Button
-						component={Link}
-						to={coursesByNameTo}
-						variant="subtle"
-						size="xs"
-					>
-						View courses
-					</Button>
-					<Button
-						size="xs"
-						variant="light"
-						onClick={() => setEditOpened(selectedCategory.id)}
-					>
-						Edit
-					</Button>
-					<Button
-						size="xs"
-						variant="light"
-						color="red"
-						onClick={() => setDeleteOpened(selectedCategory.id)}
-					>
-						Delete
-					</Button>
-				</Group>
+				<EditCategoryButton
+					flat={flat}
+					categoryId={selectedCategory.id}
+					categoryName={selectedCategory.name}
+					categoryParentId={selectedCategory.parentId}
+					editOpened={searchParams.edit === selectedCategory.id}
+				/>
+				<DeleteCategoryButton categoryId={selectedCategory.id} />
 			</Group>
-
-			<EditCategoryModal
-				opened={!!editOpened}
-				onClose={() => setEditOpened(null)}
-				parentOptions={parentOptions}
-				defaultName={selectedCategory.name}
-				categoryId={selectedCategory.id}
-				defaultParentId={selectedCategory.parentId ?? null}
-				onSubmit={async (values) => {
-					const parentValue = values.parent;
-					const parent =
-						parentValue == null || parentValue === ""
-							? null
-							: Number(parentValue);
-					await editCategory({
-						values: {
-							categoryId: selectedCategory.id,
-							name: values.name || undefined,
-							parent,
-						},
-					});
-					setEditOpened(null);
-				}}
-				isSubmitting={isEditing}
-			/>
-
-			<DeleteCategoryModal
-				opened={!!deleteOpened}
-				onClose={() => setDeleteOpened(null)}
-				onConfirm={async () => {
-					await deleteCategory({
-						values: {
-							categoryId: selectedCategory.id,
-						},
-					});
-					setDeleteOpened(null);
-				}}
-				isSubmitting={isDeleting}
-			/>
-		</>
+		</Group>
 	);
 }
 
-function EditCategoryModal({
-	opened,
-	onClose,
-	parentOptions,
-	defaultName,
-	categoryId: _categoryId,
-	defaultParentId,
-	onSubmit,
-	isSubmitting,
+function EditCategoryButton({
+	flat,
+	categoryId,
+	categoryName,
+	categoryParentId,
+	editOpened,
 }: {
-	opened: boolean;
-	onClose: () => void;
-	parentOptions: { value: string; label: string }[];
-	defaultName: string;
+	flat: Record<string, FlatNode>;
 	categoryId: number;
-	defaultParentId: number | null;
-	onSubmit: (values: { name: string; parent?: string | null }) => void;
-	isSubmitting: boolean;
+	categoryName: string;
+	categoryParentId: number | null;
+	editOpened: boolean;
 }) {
+	const { submit: editCategory, isLoading: isEditing } = useEditCategory();
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
+	const parentOptions = Object.values(flat)
+		.filter((n) => n.id !== `c${categoryId}`)
+		.filter((n) => n.id !== "root")
+		.map((n) => ({ value: n.id.substring(1), label: n.name }));
+
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: { name: "", parent: "" },
 	});
 
+	const handleOpen = () => {
+		setQueryParams({ edit: categoryId });
+	};
+
+	const handleClose = () => {
+		setQueryParams({ edit: null });
+	};
+
+	const handleSubmit = async (values: { name: string; parent?: string | null }) => {
+		const parentValue = values.parent;
+		const parent =
+			parentValue == null || parentValue === ""
+				? null
+				: Number(parentValue);
+		await editCategory({
+			values: {
+				categoryId,
+				name: values.name || undefined,
+				parent,
+			},
+		});
+		handleClose();
+	};
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
-		if (!opened) return;
+		if (!editOpened) return;
 		const initialParent =
-			defaultParentId != null ? String(defaultParentId) : "";
-		form.setInitialValues({ name: defaultName, parent: initialParent });
+			categoryParentId != null ? String(categoryParentId) : "";
+		form.setInitialValues({
+			name: categoryName,
+			parent: initialParent,
+		});
 		form.reset();
-	}, [opened, defaultName, defaultParentId]);
+	}, [editOpened, categoryName, categoryParentId]);
 
 	return (
-		<Modal opened={opened} onClose={onClose} title="Edit Category" centered>
-			<form onSubmit={form.onSubmit((values) => onSubmit(values))}>
-				<Stack>
-					<TextInput
-						{...form.getInputProps("name")}
-						key={form.key("name")}
-						label="Name"
-						required
-					/>
-					<Select
-						{...form.getInputProps("parent")}
-						key={form.key("parent")}
-						label="Parent"
-						placeholder="Select parent (optional)"
-						data={parentOptions}
-						clearable
-					/>
-					<Group justify="flex-end">
-						<Button variant="default" onClick={onClose} type="button">
-							Cancel
-						</Button>
-						<Button
-							type="submit"
-							loading={isSubmitting}
-							disabled={isSubmitting}
-						>
-							Save
-						</Button>
-					</Group>
-				</Stack>
-			</form>
-		</Modal>
+		<>
+			<Button
+				size="xs"
+				variant="light"
+				onClick={handleOpen}
+			>
+				Edit
+			</Button>
+
+			<Modal
+				opened={editOpened}
+				onClose={handleClose}
+				title="Edit Category"
+				centered
+			>
+				<form onSubmit={form.onSubmit(handleSubmit)}>
+					<Stack>
+						<TextInput
+							{...form.getInputProps("name")}
+							key={form.key("name")}
+							label="Name"
+							required
+						/>
+						<Select
+							{...form.getInputProps("parent")}
+							key={form.key("parent")}
+							label="Parent"
+							placeholder="Select parent (optional)"
+							data={parentOptions}
+							clearable
+						/>
+						<Group justify="flex-end">
+							<Button variant="default" onClick={handleClose} type="button">
+								Cancel
+							</Button>
+							<Button
+								type="submit"
+								loading={isEditing}
+								disabled={isEditing}
+							>
+								Save
+							</Button>
+						</Group>
+					</Stack>
+				</form>
+			</Modal>
+		</>
 	);
 }
 
-function DeleteCategoryModal({
-	opened,
-	onClose,
-	onConfirm,
-	isSubmitting,
+function DeleteCategoryButton({
+	categoryId,
 }: {
-	opened: boolean;
-	onClose: () => void;
-	onConfirm: () => void;
-	isSubmitting: boolean;
+	categoryId: number;
 }) {
+	const { submit: deleteCategory, isLoading: isDeleting } = useDeleteCategory();
+
+	const handleDelete = async () => {
+		const confirmed = window.confirm(
+			"Deleting this category will uncategorize its courses. This action cannot be undone. Are you sure you want to delete this category?",
+		);
+
+		if (!confirmed) {
+			return;
+		}
+
+		await deleteCategory({
+			values: {
+				categoryId,
+			},
+		});
+	};
+
 	return (
-		<Modal opened={opened} onClose={onClose} title="Delete Category" centered>
-			<Stack>
-				<Text size="sm">
-					Deleting this category will uncategorize its courses. This action
-					cannot be undone.
-				</Text>
-				<Group justify="flex-end">
-					<Button variant="default" onClick={onClose}>
-						Cancel
-					</Button>
-					<Button
-						color="red"
-						onClick={onConfirm}
-						loading={isSubmitting}
-						disabled={isSubmitting}
-					>
-						Delete
-					</Button>
-				</Group>
-			</Stack>
-		</Modal>
+		<Button
+			size="xs"
+			variant="light"
+			color="red"
+			onClick={handleDelete}
+			loading={isDeleting}
+			disabled={isDeleting}
+		>
+			Delete
+		</Button>
 	);
 }

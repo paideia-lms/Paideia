@@ -1,6 +1,6 @@
 import { Button, Group, Paper, Stack, Text } from "@mantine/core";
 import { useState } from "react";
-import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
+import { SimpleRichTextEditor } from "app/components/rich-text/simple-rich-text-editor";
 import { useCreateReply } from "../route";
 
 interface ReplyFormWrapperProps {
@@ -28,7 +28,7 @@ export function ReplyFormWrapper({
 				createReply({
 					params: { moduleLinkId },
 					searchParams: {
-						replyTo: _replyTo || "thread",
+						replyTo: _replyTo ? Number(_replyTo) : "thread",
 					},
 					values: {
 						content: replyContent.trim(),

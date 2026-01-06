@@ -7,7 +7,7 @@ import {
 	GetObjectCommand,
 	ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
-import { MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
 	DevelopmentError,
@@ -46,7 +46,7 @@ export interface CreateMediaArgs extends BaseInternalFunctionArgs {
 }
 
 export interface GetMediaByIdArgs extends BaseInternalFunctionArgs {
-	id: number | string;
+	id: number;
 }
 
 export interface GetMediaByFilenamesArgs extends BaseInternalFunctionArgs {
@@ -68,7 +68,7 @@ export interface GetAllMediaArgs extends BaseInternalFunctionArgs {
 
 export interface GetMediaBufferFromIdArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
-	id: number | string;
+	id: number;
 }
 
 export interface GetMediaStreamFromFilenameArgs
@@ -80,7 +80,7 @@ export interface GetMediaStreamFromFilenameArgs
 
 export interface GetMediaStreamFromIdArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
-	id: number | string;
+	id: number;
 	range?: { start: number; end?: number };
 }
 
@@ -191,11 +191,6 @@ export function tryGetMediaById(args: GetMediaByIdArgs) {
 	return Result.try(
 		async () => {
 			const { payload, id, req, overrideAccess = false } = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Media ID is required");
-			}
 
 			// Fetch the media record
 			const media = await payload
@@ -397,26 +392,17 @@ export function tryGetMediaBufferFromFilename(
 export function tryGetMediaBufferFromId(args: GetMediaBufferFromIdArgs) {
 	return Result.try(
 		async () => {
-			const { payload, s3Client, id, overrideAccess = false } = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Media ID is required");
-			}
+			const { payload, s3Client, id, overrideAccess = false, req } = args;
 
 			// First, get the media record from the database
 			const mediaResult = await tryGetMediaById({
 				payload,
 				id,
-
 				overrideAccess,
-			});
+				req,
+			}).getOrThrow();
 
-			if (!mediaResult.ok) {
-				throw mediaResult.error;
-			}
-
-			const media = mediaResult.value;
+			const media = mediaResult;
 
 			// Fetch the file from S3 using the filename from the media record
 			if (!media.filename) {
@@ -581,15 +567,9 @@ export function tryGetMediaStreamFromId(args: GetMediaStreamFromIdArgs) {
 				s3Client,
 				id,
 				range,
-
 				req,
 				overrideAccess = false,
 			} = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Media ID is required");
-			}
 
 			// First, get the media record from the database
 			const mediaResult = await tryGetMediaById({
@@ -775,11 +755,6 @@ export function tryDeleteMedia(args: DeleteMediaArgs) {
 	return Result.try(
 		async () => {
 			const { payload, s3Client, id, req, overrideAccess = false } = args;
-
-			// Validate required fields
-			if (!id) {
-				throw new InvalidArgumentError("Media ID is required");
-			}
 
 			if (Array.isArray(id) && id.length === 0) {
 				throw new InvalidArgumentError("At least one media ID is required");
@@ -1051,7 +1026,7 @@ export function tryFindMediaByUser(args: FindMediaByUserArgs) {
 
 export interface RenameMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
-	id: number | string;
+	id: number;
 	newFilename: string;
 	userId: number;
 }
@@ -1082,11 +1057,6 @@ export function tryRenameMedia(args: RenameMediaArgs) {
 				req,
 				overrideAccess = false,
 			} = args;
-
-			// Validate required fields
-			if (!id) {
-				throw new InvalidArgumentError("Media ID is required");
-			}
 
 			if (!newFilename || newFilename.trim() === "") {
 				throw new InvalidArgumentError("New filename is required");
@@ -1945,11 +1915,6 @@ export function tryFindMediaUsages(args: FindMediaUsagesArgs) {
 	return Result.try(
 		async () => {
 			const { payload, mediaId, req, overrideAccess = false } = args;
-
-			// Validate media ID
-			if (!mediaId) {
-				throw new InvalidArgumentError("Media ID is required");
-			}
 
 			// Verify media exists
 			const _media = await tryGetMediaById({

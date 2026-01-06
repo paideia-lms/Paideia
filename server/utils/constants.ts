@@ -20,3 +20,4 @@ export const asciiLogo = `
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 `;
+export const MOCK_INFINITY = 999999999999999;

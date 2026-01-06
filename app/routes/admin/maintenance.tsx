@@ -2,7 +2,8 @@ import { Button, Group, Stack, Switch, Text, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href, useFetcher } from "react-router";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -10,112 +11,135 @@ import {
 	tryUpdateMaintenanceSettings,
 } from "server/internal/maintenance-settings";
 import { z } from "zod";
-import { ContentType } from "~/utils/get-content-type";
 import {
-	forbidden,
+	badRequest,
 	ForbiddenResponse,
+	forbidden,
 	ok,
 	StatusCode,
+	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/maintenance";
-import { convertMyFormDataToObject, MyFormData } from "app/utils/action-utils";
 
-export function getRouteUrl() {
-	return href("/admin/maintenance");
+enum Action {
+	Update = "update",
 }
 
-export async function loader({ context, request }: Route.LoaderArgs) {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	const settings = await tryGetMaintenanceSettings({
 		payload,
 		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to get maintenance settings");
 	});
 
-	if (!settings.ok) {
-		throw new ForbiddenResponse("Failed to get maintenance settings");
-	}
-
-	return { settings: settings.value };
-}
-
-const inputSchema = z.object({
-	maintenanceMode: z.preprocess((val) => {
-		if (typeof val === "string") {
-			return val === "true";
-		}
-		return Boolean(val);
-	}, z.boolean().optional()),
+	return { settings };
 });
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return forbidden({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/maintenance",
+});
 
-	const parsed = await request
-		.formData()
-		.then(convertMyFormDataToObject)
-		.then(inputSchema.safeParse);
+const updateMaintenanceRpc = createActionRpc({
+	formDataSchema: z.object({
+		maintenanceMode: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.Update,
+});
 
-	if (!parsed.success) {
-		return forbidden({ error: "Invalid payload" });
-	}
-	const { maintenanceMode } = parsed.data;
+const updateMaintenanceAction = updateMaintenanceRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	const updateResult = await tryUpdateMaintenanceSettings({
-		payload,
-		req: payloadRequest,
-		data: {
-			maintenanceMode,
-		},
-	});
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
 
-	if (!updateResult.ok) {
-		return forbidden({ error: updateResult.error.message });
-	}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	return ok({
-		success: true as const,
-		settings: updateResult.value,
-	});
-}
+		if (!currentUser) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+
+		if (currentUser.role !== "admin") {
+			return forbidden({
+				success: false,
+				error: "Only admins can access this area",
+			});
+		}
+
+		const { maintenanceMode } = formData;
+
+		const updateResult = await tryUpdateMaintenanceSettings({
+			payload,
+			req: payloadRequest,
+			data: {
+				maintenanceMode,
+			},
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			settings: updateResult.value,
+		});
+	},
+);
+
+const useUpdateMaintenance = updateMaintenanceRpc.createHook<
+	typeof updateMaintenanceAction
+>();
+
+// Export hook for use in component
+export { useUpdateMaintenance };
+
+const [action] = createActionMap({
+	[Action.Update]: updateMaintenanceAction,
+});
+
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-	const res = await serverAction();
-	if (res?.status === StatusCode.Ok) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Maintenance settings updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else if (res?.status === StatusCode.Forbidden) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Failed to update",
-			message: res?.error || "Failed to update maintenance settings",
+			message: actionData?.error || "Failed to update maintenance settings",
 			color: "red",
 		});
 	}
-	return res;
-}
 
-export function useUpdateMaintenanceConfig() {
-	const fetcher = useFetcher<typeof clientAction>();
-	const update = (data: { maintenanceMode: boolean }) => {
-		fetcher.submit(new MyFormData<z.infer<typeof inputSchema>>(data), {
-			method: "post",
-			action: href("/admin/maintenance"),
-			encType: ContentType.MULTIPART,
-		});
-	};
-	return { update, state: fetcher.state } as const;
+	return actionData;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -123,7 +147,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function AdminMaintenance({ loaderData }: Route.ComponentProps) {
-	const { state, update } = useUpdateMaintenanceConfig();
+	const { submit: updateMaintenance, isLoading } = useUpdateMaintenance();
 	const {
 		settings: { maintenanceMode },
 	} = loaderData;
@@ -134,6 +158,7 @@ export default function AdminMaintenance({ loaderData }: Route.ComponentProps) {
 			maintenanceMode,
 		},
 	});
+
 	return (
 		<Stack gap="md" my="lg">
 			<title>Maintenance Mode | Admin | Paideia LMS</title>
@@ -152,10 +177,11 @@ export default function AdminMaintenance({ loaderData }: Route.ComponentProps) {
 				system. All other users will be blocked from logging in.
 			</Text>
 			<form
-				method="post"
-				onSubmit={form.onSubmit((values) => {
-					update({
-						maintenanceMode: values.maintenanceMode ?? false,
+				onSubmit={form.onSubmit(async (values) => {
+					await updateMaintenance({
+						values: {
+							maintenanceMode: values.maintenanceMode ?? false,
+						},
 					});
 				})}
 			>
@@ -166,7 +192,7 @@ export default function AdminMaintenance({ loaderData }: Route.ComponentProps) {
 						label="Enable Maintenance Mode"
 					/>
 					<Group justify="flex-start" mt="sm">
-						<Button type="submit" loading={state !== "idle"}>
+						<Button type="submit" loading={isLoading} disabled={isLoading}>
 							Save changes
 						</Button>
 					</Group>

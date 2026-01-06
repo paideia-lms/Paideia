@@ -12,6 +12,7 @@ import {
 	Tooltip,
 	UnstyledButton,
 	useMantineColorScheme,
+	Button,
 } from "@mantine/core";
 import {
 	IconAlertTriangle,
@@ -28,22 +29,25 @@ import {
 	IconUserCheck,
 } from "@tabler/icons-react";
 import cx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { href, Link, Outlet, useNavigate } from "react-router";
 import {
 	globalContextKey,
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
-import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import type { Media } from "server/payload-types";
-import { permissions } from "server/utils/permissions";
-import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
-import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useStopImpersonating } from "app/routes/api/stop-impersonation";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { envVars, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const currentUser =
@@ -61,10 +65,67 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession,
 		theme,
 		isSandboxMode,
-		canSeeUserModules: permissions.user.canSeeModules(currentUser).allowed,
+		canSeeUserModules: userSession?.permissions.canSeeUserModules ?? false,
 		logoMedia,
+		params,
 	};
-};
+})!;
+
+
+
+// Button component for profile page
+export function StopImpersonatingButton({
+	size = "xs",
+	variant = "light",
+	color = "orange",
+	...props
+}: {
+	size?: "xs" | "sm" | "md" | "lg" | "xl";
+	variant?: "filled" | "light" | "outline" | "subtle" | "default";
+	color?: string;
+} & React.ComponentProps<typeof Button>) {
+	const { submit: stopImpersonating, isLoading } = useStopImpersonating();
+
+	return (
+		<Button
+			size={size}
+			color={color}
+			variant={variant}
+			onClick={() => stopImpersonating({ values: {} })}
+			loading={isLoading}
+			{...props}
+		>
+			Stop Impersonating
+		</Button>
+	);
+}
+
+// Menu item component for root layout
+const StopImpersonatingMenuItem = forwardRef<
+	HTMLButtonElement,
+	{
+		leftSection?: React.ReactNode;
+		color?: string;
+	} & React.ComponentProps<typeof Menu.Item>
+>(({ leftSection, color = "orange", ...props }, ref) => {
+	const { submit: stopImpersonating, isLoading } = useStopImpersonating();
+
+	return (
+		<Menu.Item
+			ref={ref}
+			leftSection={leftSection}
+			color={color}
+			onClick={() => stopImpersonating({ values: {} })}
+			disabled={isLoading}
+			{...props}
+		>
+			Stop Impersonating
+		</Menu.Item>
+	);
+});
+
+StopImpersonatingMenuItem.displayName = "StopImpersonatingMenuItem";
+
 
 export default function UserLayout({
 	loaderData,
@@ -139,26 +200,6 @@ export function HeaderTabs({
 		? authenticatedUser?.role === "admin"
 		: currentUser?.role === "admin";
 
-	// Determine redirect URL based on current location
-	// If in a course, redirect back to that course after stopping impersonation
-	const getStopImpersonationRedirect = () => {
-		if (pageInfo.is["layouts/course-layout"]) {
-			const { courseId, moduleLinkId, sectionId } =
-				pageInfo.params as RouteParams<"layouts/course-layout">;
-			if (courseId)
-				return href("/course/:courseId", { courseId }) + "?reload=true";
-			else if (moduleLinkId)
-				return (
-					href("/course/module/:moduleLinkId", { moduleLinkId }) +
-					"?reload=true"
-				);
-			else if (sectionId)
-				return (
-					href("/course/section/:sectionId", { sectionId }) + "?reload=true"
-				);
-		}
-		return href("/"); // Default to dashboard
-	};
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -269,7 +310,7 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={getAvatarUrl(authenticatedUser)}
+																src={getRouteUrl("/api/user/:id/avatar", { params: { id: authenticatedUser.id.toString() } })}
 																alt={
 																	`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
 																	"Admin"
@@ -286,7 +327,7 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={getAvatarUrl(currentUser)}
+																src={getRouteUrl("/api/user/:id/avatar", { params: { id: currentUser.id.toString() } })}
 																alt={
 																	`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 																	"Anonymous"
@@ -299,7 +340,7 @@ export function HeaderTabs({
 												</Tooltip.Group>
 											) : (
 												<Avatar
-													src={getAvatarUrl(currentUser)}
+													src={getRouteUrl("/api/user/:id/avatar", { params: { id: currentUser.id.toString() } })}
 													alt={
 														`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 														"Anonymous"
@@ -316,7 +357,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-													"Anonymous"
+												"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -362,8 +403,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-											// component={Link}
-											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>
@@ -400,7 +441,6 @@ export function HeaderTabs({
 											<StopImpersonatingMenuItem
 												leftSection={<IconUserCheck size={16} stroke={1.5} />}
 												color="orange"
-												redirectTo={getStopImpersonationRedirect()}
 											/>
 										)}
 										<Menu.Item

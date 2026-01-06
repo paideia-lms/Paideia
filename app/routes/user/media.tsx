@@ -38,18 +38,25 @@ import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
 import {
 	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { stringify } from "qs";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+	forwardRef,
+	useEffect,
+	useId,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import type React from "react";
 import { href } from "react-router";
 import { z } from "zod";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { createContext } from "app/utils/create-context";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -62,7 +69,6 @@ import {
 	tryRenameMedia,
 } from "server/internal/media-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import type { Media } from "server/payload-types";
 import { permissions } from "server/utils/permissions";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
@@ -92,9 +98,9 @@ const loaderSearchParams = {
 	page: parseAsInteger.withDefault(1),
 };
 
-const createRRLoader = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRRLoader({
+export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, params, searchParams }) => {
 	const { payload, systemGlobals, payloadRequest } =
@@ -190,12 +196,14 @@ enum Action {
 
 // Define search params for media actions
 export const mediaSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
 export const loadSearchParams = createLoader(mediaSearchParams);
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/media/:id?",
+});
 
 const createUploadActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -226,15 +234,8 @@ const createDeleteActionRpc = createActionRpc({
 	action: Action.Delete,
 });
 
-export function getRouteUrl(action: Action, userId?: number) {
-	const baseUrl = href("/user/media/:id?", {
-		id: userId ? userId.toString() : undefined,
-	});
-	return baseUrl + "?" + stringify({ action });
-}
-
-const [uploadAction, useUpload] = createUploadActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const uploadAction = createUploadActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, systemGlobals, payloadRequest } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
@@ -299,18 +300,13 @@ const [uploadAction, useUpload] = createUploadActionRpc(
 		return ok({
 			message: "Media uploaded successfully",
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-const [updateAction, useUpdate] = createUpdateActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useUpload = createUploadActionRpc.createHook<typeof uploadAction>();
+
+const updateAction = createUpdateActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -405,18 +401,13 @@ const [updateAction, useUpdate] = createUpdateActionRpc(
 				message: "Media updated successfully",
 			});
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-const [deleteAction, useDelete] = createDeleteActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+const useUpdate = createUpdateActionRpc.createHook<typeof updateAction>();
+
+const deleteAction = createDeleteActionRpc.createAction(
+	async ({ context, formData, params }) => {
 		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -502,32 +493,18 @@ const [deleteAction, useDelete] = createDeleteActionRpc(
 					? "Media deleted successfully"
 					: `${formData.mediaIds.length} media files deleted successfully`,
 		});
-	})!,
-	{
-		action: ({ searchParams, params }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-const actionMap = {
+const useDelete = createDeleteActionRpc.createHook<typeof deleteAction>();
+
+const [action] = createActionMap({
 	[Action.Upload]: uploadAction,
 	[Action.Update]: updateAction,
 	[Action.Delete]: deleteAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -768,19 +745,58 @@ function MediaHeader({
 	);
 }
 
+// Media Selection Context
+interface UseMediaSelectionValueProps {
+	media: Route.ComponentProps["loaderData"]["media"];
+}
+
+function useMediaSelectionValue({ media }: UseMediaSelectionValueProps) {
+	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+
+	// Derive selectedRecords from selectedCardIds and media
+	const selectedRecords = useMemo(
+		() => media.filter((record) => selectedCardIds.includes(record.id)),
+		[media, selectedCardIds],
+	);
+
+	const handleTableSelectionChange = (
+		records: Route.ComponentProps['loaderData']['media']
+	) => {
+		setSelectedCardIds(records.map((r) => r.id));
+	};
+
+	const clearSelection = () => {
+		setSelectedCardIds([]);
+	};
+
+	return {
+		selectedCardIds,
+		setSelectedCardIds,
+		selectedRecords,
+		handleTableSelectionChange,
+		clearSelection,
+	};
+}
+
+const [MediaSelectionContext, useMediaSelection] = createContext(
+	useMediaSelectionValue,
+);
+
 // Batch Actions Component
 function BatchActions({
-	selectedCount,
-	selectedCardIds,
 	userId,
-	onSelectionClear,
+	selectedCardIds,
+	selectedRecords,
 }: {
-	selectedCount: number;
-	selectedCardIds: number[];
 	userId: number;
-	onSelectionClear: () => void;
+	selectedCardIds: number[];
+	selectedRecords: Route.ComponentProps['loaderData']['media']
 }) {
 	const { submit: deleteMedia } = useDelete();
+	const { clearSelection } = useMediaSelection();
+
+	const selectedCount =
+		selectedRecords.length > 0 ? selectedRecords.length : selectedCardIds.length;
 
 	if (selectedCount === 0) return null;
 
@@ -804,7 +820,7 @@ function BatchActions({
 			params: { id: userId },
 		});
 
-		onSelectionClear();
+		clearSelection();
 	};
 
 	return (
@@ -971,17 +987,20 @@ function VideoPreview({
 }
 
 // Media Rename Modal Component
-function MediaRenameModal({
-	file,
-	opened,
-	onClose,
-	userId,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
+export interface MediaRenameModalHandle {
+	open: () => void;
+}
+
+interface MediaRenameModalProps {
+	file: Media;
 	userId: number;
-}) {
+}
+
+export const MediaRenameModal = forwardRef<
+	MediaRenameModalHandle,
+	MediaRenameModalProps
+>(({ file, userId }, ref) => {
+	const [opened, setOpened] = useState(false);
 	const { renameMedia } = useRenameMedia(userId);
 	const form = useForm({
 		mode: "uncontrolled",
@@ -994,27 +1013,26 @@ function MediaRenameModal({
 		},
 	});
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: form methods are stable and should not be in dependencies
-	useEffect(() => {
-		if (file) {
+	useImperativeHandle(ref, () => ({
+		open: () => {
 			form.setInitialValues({ filename: file.filename ?? "" });
 			form.reset();
-		}
-	}, [file]);
+			setOpened(true);
+		},
+	}));
 
 	const handleSubmit = form.onSubmit(async (values) => {
-		if (!file) {
-			return;
-		}
 		await renameMedia(file.id, values.filename.trim());
-		onClose();
+		form.reset();
+		setOpened(false);
 	});
 
 	return (
 		<Modal
 			key={file?.id} // Reset state when file changes
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
+			onExitTransitionEnd={() => form.reset()}
 			title="Rename File"
 			centered
 		>
@@ -1026,7 +1044,11 @@ function MediaRenameModal({
 						{...form.getInputProps("filename")}
 					/>
 					<Group justify="flex-end">
-						<Button variant="subtle" onClick={onClose} type="button">
+						<Button
+							variant="subtle"
+							onClick={() => setOpened(false)}
+							type="button"
+						>
 							Cancel
 						</Button>
 						<Button type="submit">Rename</Button>
@@ -1035,18 +1057,24 @@ function MediaRenameModal({
 			</form>
 		</Modal>
 	);
-}
+});
+
+MediaRenameModal.displayName = "MediaRenameModal";
 
 // Media Usage Modal Component
-function MediaUsageModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
+export interface MediaUsageModalHandle {
+	open: () => void;
+}
+
+interface MediaUsageModalProps {
+	file: Media;
+}
+
+export const MediaUsageModal = forwardRef<
+	MediaUsageModalHandle,
+	MediaUsageModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
 	const {
 		load: fetchMediaUsage,
 		data: mediaUsageData,
@@ -1055,6 +1083,12 @@ function MediaUsageModal({
 	const previousFileId = usePrevious(file?.id);
 	const previousOpened = usePrevious(opened);
 	const dataFileIdRef = useRef<number | null>(null);
+
+	useImperativeHandle(ref, () => ({
+		open: () => {
+			setOpened(true);
+		},
+	}));
 
 	// Fetch usage when modal opens or file changes
 	useEffect(() => {
@@ -1070,7 +1104,7 @@ function MediaUsageModal({
 	return (
 		<Modal
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
 			title={file ? `Usage for ${file.filename ?? "Media"}` : "Media Usage"}
 			centered
 		>
@@ -1120,19 +1154,32 @@ function MediaUsageModal({
 			</Stack>
 		</Modal>
 	);
-}
+});
+
+MediaUsageModal.displayName = "MediaUsageModal";
 
 // Media Preview Modal Component
-function MediaPreviewModal({
-	file,
-	opened,
-	onClose,
-}: {
-	file: Media | null;
-	opened: boolean;
-	onClose: () => void;
-}) {
-	if (!file) return null;
+export interface MediaPreviewModalHandle {
+	open: () => void;
+}
+
+type Media = Route.ComponentProps['loaderData']['media'][number]
+
+interface MediaPreviewModalProps {
+	file: Media;
+}
+
+export const MediaPreviewModal = forwardRef<
+	MediaPreviewModalHandle,
+	MediaPreviewModalProps
+>(({ file }, ref) => {
+	const [opened, setOpened] = useState(false);
+
+	useImperativeHandle(ref, () => ({
+		open: () => {
+			setOpened(true);
+		},
+	}));
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
@@ -1198,7 +1245,7 @@ function MediaPreviewModal({
 	return (
 		<Modal
 			opened={opened}
-			onClose={onClose}
+			onClose={() => setOpened(false)}
 			title={file.filename ?? "Media Preview"}
 			size="xl"
 			centered
@@ -1206,22 +1253,24 @@ function MediaPreviewModal({
 			{renderPreview()}
 		</Modal>
 	);
-}
+});
+
+MediaPreviewModal.displayName = "MediaPreviewModal";
 
 // Media Action Menu Component
 function MediaActionMenu({
 	file,
 	userId,
 }: {
-	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
+	file: Route.ComponentProps['loaderData']['media'][number]
 	userId: number;
 }) {
 	const { downloadMedia } = useDownloadMedia();
 	const { submit: deleteMedia } = useDelete();
 
-	const [previewModalOpened, setPreviewModalOpened] = useState(false);
-	const [renameModalOpened, setRenameModalOpened] = useState(false);
-	const [usageModalOpened, setUsageModalOpened] = useState(false);
+	const previewModalRef = useRef<MediaPreviewModalHandle>(null);
+	const renameModalRef = useRef<MediaRenameModalHandle>(null);
+	const usageModalRef = useRef<MediaUsageModalHandle>(null);
 
 	const canDelete = file.deletePermission?.allowed ?? false;
 	const canPreviewFile = canPreview(file.mimeType ?? null);
@@ -1271,7 +1320,7 @@ function MediaActionMenu({
 					{canPreviewFile && (
 						<Menu.Item
 							leftSection={<IconEye size={16} />}
-							onClick={() => setPreviewModalOpened(true)}
+							onClick={() => previewModalRef.current?.open()}
 						>
 							Preview
 						</Menu.Item>
@@ -1286,13 +1335,13 @@ function MediaActionMenu({
 					)}
 					<Menu.Item
 						leftSection={<IconInfoCircle size={16} />}
-						onClick={() => setUsageModalOpened(true)}
+						onClick={() => usageModalRef.current?.open()}
 					>
 						Show Usage
 					</Menu.Item>
 					<Menu.Item
 						leftSection={<IconPencil size={16} />}
-						onClick={() => setRenameModalOpened(true)}
+						onClick={() => renameModalRef.current?.open()}
 					>
 						Rename
 					</Menu.Item>
@@ -1308,24 +1357,11 @@ function MediaActionMenu({
 				</Menu.Dropdown>
 			</Menu>
 
-			<MediaPreviewModal
-				file={file}
-				opened={previewModalOpened}
-				onClose={() => setPreviewModalOpened(false)}
-			/>
+			<MediaPreviewModal ref={previewModalRef} file={file} />
 
-			<MediaRenameModal
-				file={file}
-				opened={renameModalOpened}
-				onClose={() => setRenameModalOpened(false)}
-				userId={userId}
-			/>
+			<MediaRenameModal ref={renameModalRef} file={file} userId={userId} />
 
-			<MediaUsageModal
-				file={file}
-				opened={usageModalOpened}
-				onClose={() => setUsageModalOpened(false)}
-			/>
+			<MediaUsageModal ref={usageModalRef} file={file} />
 		</>
 	);
 }
@@ -1333,15 +1369,24 @@ function MediaActionMenu({
 // Media Card Component
 function MediaCard({
 	file,
-	isSelected,
-	onSelectionChange,
 	userId,
+	selectedCardIds,
 }: {
-	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
-	isSelected: boolean;
-	onSelectionChange: (selected: boolean) => void;
+	file: Route.ComponentProps['loaderData']['media'][number]
 	userId: number;
+	selectedCardIds: number[];
 }) {
+	const { setSelectedCardIds } = useMediaSelection();
+	const isSelected = selectedCardIds.includes(file.id);
+
+	const handleCheckboxChange = (checked: boolean) => {
+		if (checked) {
+			setSelectedCardIds([...selectedCardIds, file.id]);
+		} else {
+			setSelectedCardIds(selectedCardIds.filter((id) => id !== file.id));
+		}
+	};
+
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
 			mediaId: file.id.toString(),
@@ -1366,7 +1411,7 @@ function MediaCard({
 						<Checkbox
 							checked={isSelected}
 							onChange={(event) =>
-								onSelectionChange(event.currentTarget.checked)
+								handleCheckboxChange(event.currentTarget.checked)
 							}
 							style={{ flexShrink: 0 }}
 						/>
@@ -1454,36 +1499,21 @@ function MediaCard({
 // Media Card View Component
 function MediaCardView({
 	media,
-	selectedCardIds,
-	onSelectionChange,
 	userId,
+	selectedCardIds,
 }: {
-	media: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
-	selectedCardIds: number[];
-	onSelectionChange: (ids: number[]) => void;
+	media: Route.ComponentProps['loaderData']['media']
 	userId: number;
+	selectedCardIds: number[];
 }) {
-	const handleCheckboxChange = (fileId: number, checked: boolean) => {
-		if (checked) {
-			onSelectionChange([...selectedCardIds, fileId]);
-		} else {
-			onSelectionChange(selectedCardIds.filter((id) => id !== fileId));
-		}
-	};
-
 	return (
 		<Grid>
 			{media.map((file) => (
 				<MediaCard
 					key={file.id}
 					file={file}
-					isSelected={selectedCardIds.includes(file.id)}
-					onSelectionChange={(checked) =>
-						handleCheckboxChange(file.id, checked)
-					}
 					userId={userId}
+					selectedCardIds={selectedCardIds}
 				/>
 			))}
 		</Grid>
@@ -1493,28 +1523,19 @@ function MediaCardView({
 // Media Table View Component
 function MediaTableView({
 	media,
-	selectedRecords,
-	onSelectionChange,
 	userId,
+	selectedRecords,
 }: {
-	media: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
-	selectedRecords: (Media & {
-		deletePermission?: { allowed: boolean; reason: string };
-	})[];
-	onSelectionChange: (
-		records: (Media & {
-			deletePermission?: { allowed: boolean; reason: string };
-		})[],
-	) => void;
+	media: Route.ComponentProps['loaderData']['media']
 	userId: number;
+	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
+	const { handleTableSelectionChange } = useMediaSelection();
 	const columns = [
 		{
 			accessor: "filename",
 			title: "Name",
-			render: (file: Media) => (
+			render: (file: Route.ComponentProps['loaderData']['media'][number]) => (
 				<Group gap="xs">
 					{file.mimeType?.startsWith("image/") ? (
 						<IconPhoto size={20} />
@@ -1530,7 +1551,7 @@ function MediaTableView({
 		{
 			accessor: "filesize",
 			title: "Size",
-			render: (file: Media) => (
+			render: (file: Route.ComponentProps['loaderData']['media'][number]) => (
 				<Text size="sm" c="dimmed">
 					{prettyBytes(file.filesize || 0)}
 				</Text>
@@ -1539,7 +1560,7 @@ function MediaTableView({
 		{
 			accessor: "createdAt",
 			title: "Created",
-			render: (file: Media) => (
+			render: (file: Route.ComponentProps['loaderData']['media'][number]) => (
 				<Text size="sm" c="dimmed">
 					{dayjs(file.createdAt).format("MMM DD, YYYY")}
 				</Text>
@@ -1550,9 +1571,7 @@ function MediaTableView({
 			title: "",
 			textAlign: "right" as const,
 			render: (
-				file: Media & {
-					deletePermission?: { allowed: boolean; reason: string };
-				},
+				file: Route.ComponentProps['loaderData']['media'][number]
 			) => (
 				<MediaActionMenu file={file} userId={userId} />
 			),
@@ -1564,7 +1583,7 @@ function MediaTableView({
 			records={media}
 			columns={columns}
 			selectedRecords={selectedRecords}
-			onSelectedRecordsChange={onSelectionChange}
+			onSelectedRecordsChange={handleTableSelectionChange}
 			striped
 			highlightOnHover
 			withTableBorder
@@ -1611,21 +1630,19 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 		searchParams: { viewMode },
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
 
-	// Derive selectedRecords from selectedCardIds and media
-	const selectedRecords = useMemo(
-		() => media.filter((record) => selectedCardIds.includes(record.id)),
-		[media, selectedCardIds],
-	);
+	const {
+		selectedCardIds,
+		selectedRecords,
+		setSelectedCardIds,
+		handleTableSelectionChange,
+		clearSelection,
+	} = useMediaSelectionValue({ media });
 
-	const handleTableSelectionChange = (records: Media[]) => {
-		setSelectedCardIds(records.map((r) => r.id));
-	};
-
+	const title = `Media | ${fullName} | Paideia LMS`;
 	return (
 		<Container size="lg" py="xl">
-			<title>{`Media | ${fullName} | Paideia LMS`}</title>
+			<title>{title}</title>
 			<meta
 				name="description"
 				content={`View ${isOwnProfile ? "your" : fullName + "'s"} media files`}
@@ -1739,44 +1756,50 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 					<Text c="dimmed" ta="center" py="xl">
 						No media files yet.
 					</Text>
-				) : viewMode === "card" ? (
-					<>
-						<BatchActions
-							selectedCount={selectedCardIds.length}
-							selectedCardIds={selectedCardIds}
-							userId={user.id}
-							onSelectionClear={() => setSelectedCardIds([])}
-						/>
-						<MediaCardView
-							media={media}
-							selectedCardIds={selectedCardIds}
-							onSelectionChange={setSelectedCardIds}
-							userId={user.id}
-						/>
-						<MediaPagination
-							totalPages={pagination.totalPages}
-							currentPage={pagination.page}
-						/>
-					</>
 				) : (
-					<>
-						<BatchActions
-							selectedCount={selectedRecords.length}
-							selectedCardIds={selectedCardIds}
-							userId={user.id}
-							onSelectionClear={() => setSelectedCardIds([])}
-						/>
-						<MediaTableView
-							media={media}
-							selectedRecords={selectedRecords}
-							onSelectionChange={handleTableSelectionChange}
-							userId={user.id}
-						/>
-						<MediaPagination
-							totalPages={pagination.totalPages}
-							currentPage={pagination.page}
-						/>
-					</>
+					<MediaSelectionContext.Provider
+						value={{
+							setSelectedCardIds,
+							handleTableSelectionChange,
+							clearSelection,
+						}}
+					>
+						{viewMode === "card" ? (
+							<>
+								<BatchActions
+									userId={user.id}
+									selectedCardIds={selectedCardIds}
+									selectedRecords={selectedRecords}
+								/>
+								<MediaCardView
+									media={media}
+									userId={user.id}
+									selectedCardIds={selectedCardIds}
+								/>
+								<MediaPagination
+									totalPages={pagination.totalPages}
+									currentPage={pagination.page}
+								/>
+							</>
+						) : (
+							<>
+								<BatchActions
+									userId={user.id}
+									selectedCardIds={selectedCardIds}
+									selectedRecords={selectedRecords}
+								/>
+								<MediaTableView
+									media={media}
+									userId={user.id}
+									selectedRecords={selectedRecords}
+								/>
+								<MediaPagination
+									totalPages={pagination.totalPages}
+									currentPage={pagination.page}
+								/>
+							</>
+						)}
+					</MediaSelectionContext.Provider>
 				)}
 			</Stack>
 		</Container>

@@ -95,7 +95,7 @@ export const routes = [
 				route("course/:courseId/groups", "routes/course.$id.groups.tsx"),
 			]),
 			layout("layouts/course-grades-layout.tsx", [
-				route("course/:courseId/grades", "routes/course.$id.grades.tsx"),
+				route("course/:courseId/grades", "routes/course.$id.grades/route.tsx"),
 				route(
 					"course/:courseId/grades/singleview",
 					"routes/course.$id.grades.singleview.tsx",

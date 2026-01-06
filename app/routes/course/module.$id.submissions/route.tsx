@@ -2,11 +2,10 @@ import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
-	createLoader,
 	parseAsInteger,
 	parseAsStringEnum,
-	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -30,7 +29,7 @@ import {
 } from "server/internal/user-grade-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { permissions } from "server/utils/permissions";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion-grading-view";
 import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
 import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
@@ -48,10 +47,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
-import { serverOnly$ } from "vite-env-only/macros";
 import { isNotNil } from "es-toolkit";
-import { href } from "react-router";
-import { stringify } from "qs";
 import { z } from "zod";
 
 export type { Route };
@@ -66,35 +62,21 @@ export enum Action {
 	ReleaseGrade = "releaseGrade",
 }
 
-export function getRouteUrl(
-	searchParams: {
-		action?: Action;
-		view?: View;
-		submissionId?: number;
-	},
-	moduleLinkId: number,
-) {
-	return (
-		href("/course/module/:moduleLinkId/submissions", {
-			moduleLinkId: moduleLinkId.toString(),
-		}) +
-		"?" +
-		stringify(searchParams)
-	);
-}
 
 // Define search params
-export const submissionsSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+export const loaderSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
 	submissionId: parseAsInteger,
 	view: parseAsStringEnum(Object.values(View)),
 };
 
-export const loadSearchParams = createLoader(submissionsSearchParams);
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/module/:moduleLinkId/submissions",
+});
 
-const createDeleteSubmissionActionRpc = createActionRpc({
+const deleteSubmissionRpc = createActionRpc({
 	formDataSchema: z.object({
 		submissionId: z.coerce.number(),
 	}),
@@ -102,7 +84,7 @@ const createDeleteSubmissionActionRpc = createActionRpc({
 	action: Action.DeleteSubmission,
 });
 
-const createGradeSubmissionActionRpc = createActionRpc({
+const gradeSubmissionRpc = createActionRpc({
 	formDataSchema: z.object({
 		submissionId: z.coerce.number(),
 		score: z.coerce.number(),
@@ -112,7 +94,7 @@ const createGradeSubmissionActionRpc = createActionRpc({
 	action: Action.GradeSubmission,
 });
 
-const createReleaseGradeActionRpc = createActionRpc({
+const releaseGradeRpc = createActionRpc({
 	formDataSchema: z.object({
 		courseModuleLinkId: z.coerce.number(),
 		enrollmentId: z.coerce.number(),
@@ -121,7 +103,9 @@ const createReleaseGradeActionRpc = createActionRpc({
 	action: Action.ReleaseGrade,
 });
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+export const loader = createRouteLoader({
+	searchParams: loaderSearchParams,
+})(async ({ context, searchParams }) => {
 	const { payloadRequest, payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -167,7 +151,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	);
 
 	// Parse search params to check if we're in grading mode
-	const { submissionId, view } = loadSearchParams(request);
+	const { submissionId, view } = searchParams;
 
 	const showGradingView = view === View.GRADING && submissionId !== null;
 
@@ -221,6 +205,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingGrade,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -279,6 +264,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingGrade,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -467,6 +453,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingGrade,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -520,6 +507,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -543,6 +531,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
@@ -566,237 +555,228 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			canDelete,
 			view,
 			maxGrade,
+			searchParams,
 		};
 	}
 
 	throw new BadRequestResponse("Unsupported module type");
-};
+});
 
-const [deleteSubmissionAction, useDeleteSubmission] =
-	createDeleteSubmissionActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			// params is used in the action option for URL generation
-			void params;
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const enrolmentContext = context.get(enrolmentContextKey);
-			const courseModuleContext = context.get(courseModuleContextKey);
+const deleteSubmissionAction = deleteSubmissionRpc.createAction(
+	async ({ context, formData, params }) => {
+		// params is used in the action option for URL generation
+		void params;
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			if (!courseModuleContext) {
-				return badRequest({ error: "Module not found" });
-			}
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
 
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-			// Check if user can delete submissions
-			const canDelete = permissions.course.module.canSeeSubmissions(
-				currentUser,
-				enrolmentContext?.enrolment,
-			).allowed;
+		// Check if user can delete submissions
+		const canDelete = permissions.course.module.canSeeSubmissions(
+			currentUser,
+			enrolmentContext?.enrolment,
+		).allowed;
 
-			if (!canDelete) {
-				return unauthorized({
-					error: "You don't have permission to delete submissions",
-				});
-			}
-
-			// Handle transaction ID
-			const transactionInfo = await handleTransactionId(
-				payload,
-				payloadRequest,
-			);
-
-			return transactionInfo.tx(async ({ reqWithTransaction }) => {
-				const id = formData.submissionId;
-				// Delete the submission
-				const deleteResult = await tryDeleteAssignmentSubmission({
-					payload,
-					id,
-					req: reqWithTransaction,
-				});
-
-				if (!deleteResult.ok) {
-					return badRequest({ error: deleteResult.error.message });
-				}
-
-				return ok({
-					success: true,
-					message: "Submission deleted successfully",
-				});
+		if (!canDelete) {
+			return unauthorized({
+				error: "You don't have permission to delete submissions",
 			});
-		})!,
-		{
-			action: ({ params, searchParams }) =>
-				getRouteUrl(
-					{ action: searchParams.action },
-					Number(params.moduleLinkId),
-				),
-		},
-	);
+		}
 
-const [gradeSubmissionAction, useGradeSubmission] =
-	createGradeSubmissionActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			// params is used in the action option for URL generation
-			void params;
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const enrolmentContext = context.get(enrolmentContextKey);
-			const courseModuleContext = context.get(courseModuleContextKey);
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(
+			payload,
+			payloadRequest,
+		);
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
-
-			if (!courseModuleContext) {
-				return badRequest({ error: "Module not found" });
-			}
-
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-
-			// Check if user can grade submissions (same as viewing submissions)
-			const canGrade = permissions.course.module.canSeeSubmissions(
-				currentUser,
-				enrolmentContext?.enrolment,
-			).allowed;
-
-			if (!canGrade) {
-				return unauthorized({
-					error: "You don't have permission to grade submissions",
-				});
-			}
-
-			const moduleType = courseModuleContext.type;
-
-			// Handle transaction ID
-			const transactionInfo = await handleTransactionId(
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const id = formData.submissionId;
+			// Delete the submission
+			const deleteResult = await tryDeleteAssignmentSubmission({
 				payload,
-				payloadRequest,
-			);
+				id,
+				req: reqWithTransaction,
+			});
 
-			return transactionInfo.tx(
-				async ({ reqWithTransaction }) => {
-					const id = formData.submissionId;
+			if (!deleteResult.ok) {
+				return badRequest({ error: deleteResult.error.message });
+			}
 
-					// Grade the submission based on module type
-					if (moduleType === "assignment") {
-						const gradeResult = await tryGradeAssignmentSubmission({
-							payload,
-							req: reqWithTransaction,
-							id,
-							grade: formData.score,
-							feedback: formData.feedback,
-							gradedBy: currentUser.id,
-						});
+			return ok({
+				success: true,
+				message: "Submission deleted successfully",
+			});
+		});
+	},
+);
 
-						if (!gradeResult.ok) {
-							const errorMessage = String(gradeResult.error);
-							return badRequest({ error: errorMessage });
-						}
+const useDeleteSubmission =
+	deleteSubmissionRpc.createHook<typeof deleteSubmissionAction>();
 
-						return ok({
-							success: true,
-							submission: gradeResult.value,
-							message: "Submission graded successfully",
-						});
-					} else if (moduleType === "quiz") {
-						// For quiz, we need to get the submission first to get enrollment and gradebook item
-						const submissionResult = await tryGetQuizSubmissionById({
-							payload,
-							id,
-							req: reqWithTransaction,
-						});
+const gradeSubmissionAction = gradeSubmissionRpc.createAction(
+	async ({ context, formData, params }) => {
+		// params is used in the action option for URL generation
+		void params;
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
 
-						if (!submissionResult.ok) {
-							return badRequest({ error: submissionResult.error.message });
-						}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-						const submission = submissionResult.value;
-						const enrollmentId =
-							typeof submission.enrollment === "object"
-								? submission.enrollment.id
-								: submission.enrollment;
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
 
-						// Get gradebook item
-						const gradebookItemResult =
-							await tryFindGradebookItemByCourseModuleLink({
-								payload,
-								req: reqWithTransaction,
-								courseModuleLinkId: courseModuleContext.id,
-							});
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-						if (!gradebookItemResult.ok) {
-							return badRequest({ error: "Gradebook item not found" });
-						}
+		// Check if user can grade submissions (same as viewing submissions)
+		const canGrade = permissions.course.module.canSeeSubmissions(
+			currentUser,
+			enrolmentContext?.enrolment,
+		).allowed;
 
-						const gradebookItemId = gradebookItemResult.value.id;
+		if (!canGrade) {
+			return unauthorized({
+				error: "You don't have permission to grade submissions",
+			});
+		}
 
-						// Grade the quiz submission
-						const gradeResult = await tryGradeQuizSubmission({
-							payload,
-							req: reqWithTransaction,
-							id,
-							enrollmentId,
-							gradebookItemId,
-							gradedBy: currentUser.id,
-						});
+		const moduleType = courseModuleContext.type;
 
-						if (!gradeResult.ok) {
-							const errorMessage = String(gradeResult.error);
-							return badRequest({ error: errorMessage });
-						}
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(
+			payload,
+			payloadRequest,
+		);
 
-						return ok({
-							success: true,
-							submission: gradeResult.value,
-							message: "Quiz submission graded successfully",
-						});
-					} else if (moduleType === "discussion") {
-						// Grade the discussion submission
-						const gradeResult = await tryGradeDiscussionSubmission({
-							payload,
-							req: reqWithTransaction,
-							id,
-							grade: formData.score,
-							feedback: formData.feedback,
-							gradedBy: currentUser.id,
-							overrideAccess: false,
-						});
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const id = formData.submissionId;
 
-						if (!gradeResult.ok) {
-							const errorMessage = String(gradeResult.error);
-							return badRequest({ error: errorMessage });
-						}
+				// Grade the submission based on module type
+				if (moduleType === "assignment") {
+					const gradeResult = await tryGradeAssignmentSubmission({
+						payload,
+						req: reqWithTransaction,
+						id,
+						grade: formData.score,
+						feedback: formData.feedback,
+						gradedBy: currentUser.id,
+					});
 
-						return ok({
-							success: true,
-							submission: gradeResult.value,
-							message: "Discussion submission graded successfully",
-						});
-					} else {
-						return badRequest({ error: "Unsupported module type for grading" });
+					if (!gradeResult.ok) {
+						const errorMessage = String(gradeResult.error);
+						return badRequest({ error: errorMessage });
 					}
-				},
-				(errorResponse) => errorResponse.data.status === StatusCode.BadRequest,
-			);
-		})!,
-		{
-			action: ({ params }) =>
-				getRouteUrl(
-					{ action: Action.GradeSubmission },
-					Number(params.moduleLinkId),
-				),
-		},
-	);
 
-const [releaseGradeAction, useReleaseGrade] = createReleaseGradeActionRpc(
-	serverOnly$(async ({ context, formData, params }) => {
+					return ok({
+						success: true,
+						submission: gradeResult.value,
+						message: "Submission graded successfully",
+					});
+				} else if (moduleType === "quiz") {
+					// For quiz, we need to get the submission first to get enrollment and gradebook item
+					const submissionResult = await tryGetQuizSubmissionById({
+						payload,
+						id,
+						req: reqWithTransaction,
+					});
+
+					if (!submissionResult.ok) {
+						return badRequest({ error: submissionResult.error.message });
+					}
+
+					const submission = submissionResult.value;
+					const enrollmentId =
+						typeof submission.enrollment === "object"
+							? submission.enrollment.id
+							: submission.enrollment;
+
+					// Get gradebook item
+					const gradebookItemResult =
+						await tryFindGradebookItemByCourseModuleLink({
+							payload,
+							req: reqWithTransaction,
+							courseModuleLinkId: courseModuleContext.id,
+						});
+
+					if (!gradebookItemResult.ok) {
+						return badRequest({ error: "Gradebook item not found" });
+					}
+
+					const gradebookItemId = gradebookItemResult.value.id;
+
+					// Grade the quiz submission
+					const gradeResult = await tryGradeQuizSubmission({
+						payload,
+						req: reqWithTransaction,
+						id,
+						enrollmentId,
+						gradebookItemId,
+						gradedBy: currentUser.id,
+					});
+
+					if (!gradeResult.ok) {
+						const errorMessage = String(gradeResult.error);
+						return badRequest({ error: errorMessage });
+					}
+
+					return ok({
+						success: true,
+						submission: gradeResult.value,
+						message: "Quiz submission graded successfully",
+					});
+				} else if (moduleType === "discussion") {
+					// Grade the discussion submission
+					const gradeResult = await tryGradeDiscussionSubmission({
+						payload,
+						req: reqWithTransaction,
+						id,
+						grade: formData.score,
+						feedback: formData.feedback,
+						gradedBy: currentUser.id,
+						overrideAccess: false,
+					});
+
+					if (!gradeResult.ok) {
+						const errorMessage = String(gradeResult.error);
+						return badRequest({ error: errorMessage });
+					}
+
+					return ok({
+						success: true,
+						submission: gradeResult.value,
+						message: "Discussion submission graded successfully",
+					});
+				} else {
+					return badRequest({ error: "Unsupported module type for grading" });
+				}
+			},
+			(errorResponse) => errorResponse.data.status === StatusCode.BadRequest,
+		);
+	},
+);
+
+const useGradeSubmission =
+	gradeSubmissionRpc.createHook<typeof gradeSubmissionAction>();
+
+const releaseGradeAction = releaseGradeRpc.createAction(
+	async ({ context, formData, params }) => {
 		// params is used in the action option for URL generation
 		void params;
 		const { payload, payloadRequest } = context.get(globalContextKey);
@@ -879,34 +859,25 @@ const [releaseGradeAction, useReleaseGrade] = createReleaseGradeActionRpc(
 				message: "Grade released successfully",
 			});
 		});
-	})!,
-	{
-		action: ({ params }) =>
-			getRouteUrl({ action: Action.ReleaseGrade }, Number(params.moduleLinkId)),
 	},
 );
 
+const useReleaseGrade = releaseGradeRpc.createHook<typeof releaseGradeAction>();
+
 export { useDeleteSubmission, useGradeSubmission, useReleaseGrade };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.DeleteSubmission]: deleteSubmissionAction,
 	[Action.GradeSubmission]: gradeSubmissionAction,
 	[Action.ReleaseGrade]: releaseGradeAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({ error: "Action is required" });
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
+
+	if (!actionData) return;
 
 	if (
 		actionData.status === StatusCode.BadRequest ||

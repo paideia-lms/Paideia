@@ -1,7 +1,6 @@
 import { notifications } from "@mantine/notifications";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCategory } from "server/internal/course-category-management";
@@ -9,9 +8,11 @@ import { z } from "zod";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/category-reorder";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/api/category-reorder",
+});
 
-const createReorderCategoriesActionRpc = createActionRpc({
+const reorderCategoriesRpc = createActionRpc({
 	formDataSchema: z.object({
 		sourceId: z.coerce.number(),
 		newParentId: z.preprocess((val) => {
@@ -25,50 +26,45 @@ const createReorderCategoriesActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/api/category-reorder");
-}
+const reorderCategoriesAction = reorderCategoriesRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const [reorderCategoriesAction, useReorderCategories] =
-	createReorderCategoriesActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "User not found" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "User not found" });
-			}
+		const { sourceId, newParentId } = formData;
 
-			const { sourceId, newParentId } = formData;
+		// Only admin can manage categories
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
+		if (currentUser.role !== "admin") {
+			return badRequest({ error: "Only admins can manage categories" });
+		}
 
-			// Only admin can manage categories
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-			if (currentUser.role !== "admin") {
-				return badRequest({ error: "Only admins can manage categories" });
-			}
+		// Allow moving to top-level via null parent
+		if (newParentId !== null && !Number.isFinite(newParentId)) {
+			return badRequest({ error: "Invalid target parent" });
+		}
 
-			// Allow moving to top-level via null parent
-			if (newParentId !== null && !Number.isFinite(newParentId)) {
-				return badRequest({ error: "Invalid target parent" });
-			}
+		const result = await tryUpdateCategory({
+			payload,
+			categoryId: sourceId,
+			parent: newParentId,
+			req: payloadRequest,
+		});
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			const result = await tryUpdateCategory({
-				payload,
-				categoryId: sourceId,
-				parent: newParentId,
-				req: payloadRequest,
-			});
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		return ok({ success: true, message: "Category parent updated" });
+	},
+);
 
-			return ok({ success: true, message: "Category parent updated" });
-		})!,
-		{
-			action: getRouteUrl,
-		},
-	);
+const useReorderCategories =
+	reorderCategoriesRpc.createHook<typeof reorderCategoriesAction>();
 
 // Export hook for use in components
 export { useReorderCategories };

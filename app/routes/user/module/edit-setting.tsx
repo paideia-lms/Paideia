@@ -1,11 +1,17 @@
-import { Container, Paper, Select, Stack, Title } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
-import { href } from "react-router";
+	Button,
+	Container,
+	Divider,
+	Group,
+	Paper,
+	Select,
+	Stack,
+	Text,
+	Title,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { IconTrash } from "@tabler/icons-react";
+import { parseAsStringEnum } from "nuqs/server";
 import { globalContextKey } from "server/contexts/global-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import type { ActivityModuleResult } from "server/internal/activity-module-management";
@@ -18,16 +24,13 @@ import {
 	tryUpdateWhiteboardModule,
 } from "server/internal/activity-module-management";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
-import { serverOnly$ } from "vite-env-only/macros";
-import {
-	DiscussionForm,
-	FileForm,
-	PageForm,
-	QuizForm,
-	WhiteboardForm,
-} from "~/components/activity-module-forms";
+import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
+import { FileForm } from "~/components/activity-module-forms/file-form";
+import { PageForm } from "~/components/activity-module-forms/page-form";
+import { QuizForm } from "~/components/activity-module-forms/quiz-form";
+import { WhiteboardForm } from "~/components/activity-module-forms/whiteboard-form";
 import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
-import { DeleteActivityModule } from "~/components/delete-activity-module";
+import { useDeleteActivityModule } from "~/routes/api/activity-module-delete";
 import {
 	fileTypesToPresetValues,
 	presetValuesToFileTypes,
@@ -41,9 +44,13 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
 import { z } from "zod";
-import { typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { systemGlobals } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
 
@@ -65,8 +72,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		module: userModuleContext.module,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit ?? undefined,
 		hasLinkedCourses,
+		params
 	};
-};
+})!;
 
 enum Action {
 	UpdatePage = "updatePage",
@@ -77,14 +85,14 @@ enum Action {
 	UpdateDiscussion = "updateDiscussion",
 }
 
-// Define search params for module update
+// Define search params for module update (used in actions)
 export const moduleUpdateSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
-export const loadSearchParams = createLoader(moduleUpdateSearchParams);
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/module/edit/:moduleId",
+});
 const createUpdatePageActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
@@ -153,16 +161,8 @@ const createUpdateDiscussionActionRpc = createActionRpc({
 	action: Action.UpdateDiscussion,
 });
 
-export function getRouteUrl(action: Action, moduleId: string) {
-	return (
-		href("/user/module/edit/:moduleId", { moduleId }) +
-		"?" +
-		stringify({ action })
-	);
-}
-
-const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(
-	serverOnly$(async ({ context, params, formData }) => {
+const updatePageAction = createUpdatePageActionRpc.createAction(
+	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const updateResult = await tryUpdatePageModule({
@@ -185,48 +185,43 @@ const [updatePageAction, useUpdatePage] = createUpdatePageActionRpc(
 			success: true,
 			message: "Module updated successfully",
 		});
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(searchParams.action, String(params.moduleId)),
 	},
 );
 
-const [updateWhiteboardAction, useUpdateWhiteboard] =
-	createUpdateWhiteboardActionRpc(
-		serverOnly$(async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+const useUpdatePage = createUpdatePageActionRpc.createHook<typeof updatePageAction>();
 
-			const updateResult = await tryUpdateWhiteboardModule({
-				payload,
-				id: params.moduleId,
-				title: formData.title,
-				description: formData.description,
-				content: formData.whiteboardContent,
-				req: payloadRequest,
-				overrideAccess: false,
+const updateWhiteboardAction = createUpdateWhiteboardActionRpc.createAction(
+	async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const updateResult = await tryUpdateWhiteboardModule({
+			payload,
+			id: params.moduleId,
+			title: formData.title,
+			description: formData.description,
+			content: formData.whiteboardContent,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
 			});
+		}
 
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
-				});
-			}
+		return ok({
+			success: true,
+			message: "Module updated successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		})!,
-		{
-			action: ({ params, searchParams }) =>
-				getRouteUrl(searchParams.action, String(params.moduleId)),
-		},
-	);
+const useUpdateWhiteboard = createUpdateWhiteboardActionRpc.createHook<typeof updateWhiteboardAction>();
 
-const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(
-	serverOnly$(async ({ context, params, formData }) => {
+const updateFileAction = createUpdateFileActionRpc.createAction(
+	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		// For file type, combine existing media IDs with newly uploaded media IDs
@@ -253,58 +248,53 @@ const [updateFileAction, useUpdateFile] = createUpdateFileActionRpc(
 			success: true,
 			message: "Module updated successfully",
 		});
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(searchParams.action, String(params.moduleId)),
 	},
 );
 
-const [updateAssignmentAction, useUpdateAssignment] =
-	createUpdateAssignmentActionRpc(
-		serverOnly$(async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+const useUpdateFile = createUpdateFileActionRpc.createHook<typeof updateFileAction>();
 
-			const allowedFileTypes =
-				formData.assignmentAllowedFileTypes &&
+const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
+	async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const allowedFileTypes =
+			formData.assignmentAllowedFileTypes &&
 				formData.assignmentAllowedFileTypes.length > 0
-					? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
-					: undefined;
+				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
+				: undefined;
 
-			const updateResult = await tryUpdateAssignmentModule({
-				payload,
-				id: params.moduleId,
-				title: formData.title,
-				description: formData.description,
-				instructions: formData.assignmentInstructions,
-				requireTextSubmission: formData.assignmentRequireTextSubmission,
-				requireFileSubmission: formData.assignmentRequireFileSubmission,
-				allowedFileTypes,
-				maxFileSize: formData.assignmentMaxFileSize,
-				maxFiles: formData.assignmentMaxFiles,
-				req: payloadRequest,
+		const updateResult = await tryUpdateAssignmentModule({
+			payload,
+			id: params.moduleId,
+			title: formData.title,
+			description: formData.description,
+			instructions: formData.assignmentInstructions,
+			requireTextSubmission: formData.assignmentRequireTextSubmission,
+			requireFileSubmission: formData.assignmentRequireFileSubmission,
+			allowedFileTypes,
+			maxFileSize: formData.assignmentMaxFileSize,
+			maxFiles: formData.assignmentMaxFiles,
+			req: payloadRequest,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
 			});
+		}
 
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
-				});
-			}
+		return ok({
+			success: true,
+			message: "Module updated successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
-			});
-		})!,
-		{
-			action: ({ params, searchParams }) =>
-				getRouteUrl(searchParams.action, String(params.moduleId)),
-		},
-	);
+const useUpdateAssignment = createUpdateAssignmentActionRpc.createHook<typeof updateAssignmentAction>();
 
-const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(
-	serverOnly$(async ({ context, params, formData }) => {
+const updateQuizAction = createUpdateQuizActionRpc.createAction(
+	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 
 		const updateResult = await tryUpdateQuizModule({
@@ -332,71 +322,133 @@ const [updateQuizAction, useUpdateQuiz] = createUpdateQuizActionRpc(
 			success: true,
 			message: "Module updated successfully",
 		});
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(searchParams.action, String(params.moduleId)),
 	},
 );
 
-const [updateDiscussionAction, useUpdateDiscussion] =
-	createUpdateDiscussionActionRpc(
-		serverOnly$(async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+const useUpdateQuiz = createUpdateQuizActionRpc.createHook<typeof updateQuizAction>();
 
-			const updateResult = await tryUpdateDiscussionModule({
-				payload,
-				id: params.moduleId,
-				title: formData.title,
-				description: formData.description,
-				instructions: formData.discussionInstructions,
-				dueDate: formData.discussionDueDate,
-				requireThread: formData.discussionRequireThread,
-				requireReplies: formData.discussionRequireReplies,
-				minReplies: formData.discussionMinReplies,
-				req: payloadRequest,
+const updateDiscussionAction = createUpdateDiscussionActionRpc.createAction(
+	async ({ context, params, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+
+		const updateResult = await tryUpdateDiscussionModule({
+			payload,
+			id: params.moduleId,
+			title: formData.title,
+			description: formData.description,
+			instructions: formData.discussionInstructions,
+			dueDate: formData.discussionDueDate,
+			requireThread: formData.discussionRequireThread,
+			requireReplies: formData.discussionRequireReplies,
+			minReplies: formData.discussionMinReplies,
+			req: payloadRequest,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
 			});
+		}
 
-			if (!updateResult.ok) {
-				return badRequest({
-					success: false,
-					error: updateResult.error.message,
-				});
-			}
+		return ok({
+			success: true,
+			message: "Module updated successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Module updated successfully",
+const useUpdateDiscussion = createUpdateDiscussionActionRpc.createHook<typeof updateDiscussionAction>();
+
+interface DeleteActivityModuleProps {
+	moduleId: number;
+	hasLinkedCourses: boolean;
+}
+
+function DeleteActivityModule({
+	moduleId,
+	hasLinkedCourses,
+}: DeleteActivityModuleProps) {
+	const { submit: deleteModule, isLoading: isDeleting } =
+		useDeleteActivityModule();
+
+	const handleDelete = async () => {
+		const confirmed = window.confirm(
+			"Are you sure you want to delete this activity module? This action cannot be undone. The module must not be linked to any courses to be deleted.",
+		);
+		if (confirmed) {
+			await deleteModule({
+				values: {
+					moduleId,
+				},
 			});
-		})!,
-		{
-			action: ({ params, searchParams }) =>
-				getRouteUrl(searchParams.action, String(params.moduleId)),
-		},
+		}
+	};
+
+	return (
+		<Paper
+			withBorder
+			shadow="sm"
+			p="xl"
+			style={{ borderColor: "var(--mantine-color-red-6)" }}
+		>
+			<Stack gap="md">
+				<div>
+					<Title order={3} c="red">
+						Danger Zone
+					</Title>
+					<Text size="sm" c="dimmed" mt="xs">
+						Irreversible and destructive actions
+					</Text>
+				</div>
+
+				<Divider color="red" />
+
+				<Group justify="space-between" align="flex-start">
+					<div style={{ flex: 1 }}>
+						<Text fw={500} mb="xs">
+							Delete this activity module
+						</Text>
+						{hasLinkedCourses ? (
+							<Text size="sm" c="dimmed">
+								This activity module cannot be deleted because it is linked to
+								one or more courses. Please remove it from all courses before
+								deleting.
+							</Text>
+						) : (
+							<Text size="sm" c="dimmed">
+								Once you delete an activity module, there is no going back.
+								Please be certain.
+							</Text>
+						)}
+					</div>
+					<Button
+						color="red"
+						variant="light"
+						leftSection={<IconTrash size={16} />}
+						onClick={handleDelete}
+						loading={isDeleting}
+						disabled={hasLinkedCourses}
+						style={{ minWidth: "150px" }}
+					>
+						Delete Module
+					</Button>
+				</Group>
+			</Stack>
+		</Paper>
 	);
+}
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.UpdatePage]: updatePageAction,
 	[Action.UpdateWhiteboard]: updateWhiteboardAction,
 	[Action.UpdateFile]: updateFileAction,
 	[Action.UpdateAssignment]: updateAssignmentAction,
 	[Action.UpdateQuiz]: updateQuizAction,
 	[Action.UpdateDiscussion]: updateDiscussionAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export const clientAction = async ({
 	serverAction,
@@ -512,8 +564,10 @@ function getFileFormInitialValues(
 	return {
 		title: module.title,
 		description: module.description || "",
-		fileMedia: module.media?.map((m) => m.id) ?? [],
-		fileFiles: [] as File[],
+		files: {
+			files: [] as File[],
+			mediaIds: module.media?.map((m) => m.id) ?? [],
+		},
 	};
 }
 
@@ -534,15 +588,17 @@ function FileFormWrapper({
 	return (
 		<FileForm
 			initialValues={initialValues}
-			onSubmit={(values) =>
-				updateFile({
+			onSubmit={async (values) => {
+				console.log(values);
+				await updateFile({
 					params: { moduleId: module.id },
 					values: {
 						title: values.title,
 						description: values.description,
-						fileMedia: [...values.fileMedia, ...values.fileFiles],
+						fileMedia: [...values.files.mediaIds, ...values.files.files],
 					},
 				})
+			}
 			}
 			uploadLimit={uploadLimit}
 			existingMedia={module.media ?? []}

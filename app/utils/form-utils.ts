@@ -1,9 +1,9 @@
 import type { UseFormReturnType } from "@mantine/form";
-import { useForceUpdate } from "@mantine/hooks";
 import type {
 	FormPathValue,
 	LooseKeys,
-} from "~/packages/@mantine/form/lib/paths.types";
+} from "node_modules/@mantine/form/lib/paths.types";
+import { useForceUpdate } from "@mantine/hooks";
 
 /**
  * https://github.com/mantinedev/mantine/blob/master/packages/%40mantine/form/src/paths/get-splitted-path.ts
@@ -58,7 +58,6 @@ export function useFormWatchForceUpdate<Values, T extends LooseKeys<Values>>(
 ) {
 	const forceUpdate = useForceUpdate();
 	form.watch(path, (values) => {
-		// @ts-expect-error
 		if (shouldUpdate(values)) {
 			forceUpdate();
 		}
@@ -71,7 +70,8 @@ export function triggerFormUpdate<Values, T extends LooseKeys<Values>>(
 	path: T,
 ) {
 	// this line does not do anything, but it will trigger a re-render at a particular path
-	const value = getPath(path, form.getValues());
-	// @ts-expect-error
+	// Explicitly type value as any to avoid expensive FormPathValue type inference
+	// This function's purpose is to trigger re-render, not type checking
+	const value = getPath(path, form.getValues()) as any;
 	form.setFieldValue(path, value, { forceUpdate: true });
 }

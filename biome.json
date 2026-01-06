@@ -31,7 +31,22 @@
 			"recommended": true,
 			"style": {
 				"noNonNullAssertion": "off",
-				"useTemplate": "off"
+				"useTemplate": "off",
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"paths": {
+							"react": {
+								"importNames": ["useEffect"],
+								"message": "useEffect usage will affect performance and readability. Consider using React Router's built-in data loading mechanisms (loaders, actions) or other React patterns instead."
+							},
+							"nuqs": {
+								"importNames": ["useQueryState"],
+								"message": "useQueryState from nuqs should not be used directly. Use useNuqsSearchParams from app/utils/search-params-utils.ts instead."
+							}
+						}
+					}
+				}
 			},
 			"suspicious": {
 				"noTsIgnore": "off",

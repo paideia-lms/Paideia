@@ -1,12 +1,18 @@
 import { Container, Group, Tabs, TextInput, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { parseAsString, useQueryState } from "nuqs";
-import { href, Outlet, useNavigate } from "react-router";
+import { parseAsString, parseAsStringEnum } from "nuqs";
+import { Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/server-admin-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { useDebouncedCallback } from "@mantine/hooks";
+import { useState, useEffect } from "react";
+import { getRouteUrl } from "~/utils/search-params-utils";
+
 
 enum AdminTab {
 	General = "general",
@@ -20,7 +26,18 @@ enum AdminTab {
 	Development = "development",
 }
 
-export const loader = async ({ context, request }: Route.LoaderArgs) => {
+export const loaderSearchParams = {
+	tab: parseAsStringEnum(Object.values(AdminTab)).withDefault(AdminTab.General),
+	search: parseAsString.withDefault(""),
+};
+
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({
+	searchParams: loaderSearchParams,
+});
+
+export const loader = createRouteLoader(async ({ context, searchParams, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -35,29 +52,45 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const url = new URL(request.url);
-	const tabParam = url.searchParams.get("tab");
-
 	return {
 		user: currentUser,
-		tabParam: tabParam ?? AdminTab.General,
 		pageInfo,
+		searchParams,
+		params,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: { error: Error }) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-const SearchInput = () => {
-	const [searchQuery, setSearchQuery] = useQueryState("search");
+type SearchInputProps = {
+	search: string;
+};
+
+const SearchInput = ({ search }: SearchInputProps) => {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+	const [input, setInput] = useState(search || "");
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: search is intentionally the only dependency
+	useEffect(() => {
+		setInput(search || "");
+	}, [search]);
+
+	const debouncedSetQuery = useDebouncedCallback((value: string) => {
+		setQueryParams({ search: value || "" });
+	}, 500);
 
 	return (
 		<TextInput
 			placeholder="Search"
 			w={300}
-			value={searchQuery ?? ""}
-			onChange={(event) => setSearchQuery(event.currentTarget.value)}
+			value={input}
+			onChange={(event) => {
+				const v = event.currentTarget.value;
+				setInput(v);
+				debouncedSetQuery(v);
+			}}
 		/>
 	);
 };
@@ -65,19 +98,13 @@ const SearchInput = () => {
 export default function ServerAdminLayout({
 	loaderData,
 }: Route.ComponentProps) {
+	const { pageInfo, searchParams } = loaderData;
 	const navigate = useNavigate();
-	const { pageInfo, tabParam } = loaderData;
-	const [activeTab, _setActiveTab] = useQueryState(
-		"tab",
-		parseAsString
-			.withDefault(tabParam ?? AdminTab.General)
-			.withOptions({ shallow: false }),
-	);
+
 
 	// Determine current tab based on route matches or query param
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/admin/users"]) return AdminTab.Users;
-		if (pageInfo.is["routes/admin/registration"]) return AdminTab.General;
 		if (
 			pageInfo.is["routes/admin/courses"] ||
 			pageInfo.is["routes/admin/course-new"] ||
@@ -95,7 +122,6 @@ export default function ServerAdminLayout({
 			pageInfo.is["routes/admin/media"]
 		)
 			return AdminTab.Server;
-		if (pageInfo.is["routes/admin/sitepolicies"]) return AdminTab.General;
 		if (pageInfo.is["routes/admin/migrations"]) return AdminTab.Development;
 		if (
 			pageInfo.is["routes/admin/appearance"] ||
@@ -103,45 +129,45 @@ export default function ServerAdminLayout({
 			pageInfo.is["routes/admin/appearance/logo"]
 		)
 			return AdminTab.Appearance;
-		if (pageInfo.is["routes/admin/analytics"]) return AdminTab.General;
+		if (pageInfo.is["routes/admin/sitepolicies"] || pageInfo.is["routes/admin/analytics"] || pageInfo.is["routes/admin/registration"]) return AdminTab.General;
 		// Default to query param or 'general'
-		return activeTab ?? AdminTab.General;
+		return searchParams.tab ?? AdminTab.General;
 	};
 
 	const handleTabChange = (value: string | null) => {
 		if (!value) return;
 
-		navigate(href("/admin/*", { "*": "" }) + `?tab=${value}`);
+		// setQueryParams({ tab: value as AdminTab });
 
-		// switch (value) {
-		// 	case AdminTab.General:
-		// 	case AdminTab.Grades:
-		// 	case AdminTab.Plugins:
-		// 	case AdminTab.Appearance:
-		// 	case AdminTab.Reports:
-		// 	case AdminTab.Development:
+		switch (value) {
+			case AdminTab.General:
+			case AdminTab.Grades:
+			case AdminTab.Plugins:
+			case AdminTab.Appearance:
+			case AdminTab.Reports:
+			case AdminTab.Development:
+				// Navigate to index with query param
+				navigate(getRouteUrl("/admin/*", { params: { "*": "" }, searchParams: { tab: value } }));
+				break;
+			case AdminTab.Users:
+				navigate(getRouteUrl("/admin/users", {}));
+				break;
+			case AdminTab.Courses:
+				navigate(getRouteUrl("/admin/courses", { searchParams: {} }));
+				break;
+			case AdminTab.Server:
+				navigate(getRouteUrl("/admin/system", {}));
+				break;
+		};
 
-		// 		// Navigate to index with query param
-		// 		navigate(href("/admin/*", { "*": "" }) + `?tab=${value}`);
-		// 		break;
-		// case AdminTab.Users:
-		// 	navigate(href("/admin/users"));
-		// 	break;
-		// case AdminTab.Courses:
-		// 	navigate(href("/admin/courses"));
-		// 	break;
-		// case AdminTab.Server:
-		// 	navigate(href("/admin/system"));
-		// 	break;
-	};
-
+	}
 	return (
 		<div>
 			<div className={classes.header}>
 				<Container size="xl" className={classes.mainSection}>
 					<Group justify="space-between" mb="md">
 						<Title order={1}>Site administration</Title>
-						<SearchInput />
+						<SearchInput search={searchParams.search} />
 					</Group>
 					<Tabs
 						value={getCurrentTab()}

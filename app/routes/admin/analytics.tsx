@@ -18,7 +18,6 @@ import {
 	IconTrash,
 } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -36,7 +35,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/analytics";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 
 type AnalyticsGlobal = {
 	id: number;
@@ -88,9 +86,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 	return { settings: { additionalJsScripts: scripts } };
 }
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/analytics",
+});
 
-const createUpdateAnalyticsSettingsActionRpc = createActionRpc({
+const updateAnalyticsSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		additionalJsScripts: z
 			.array(
@@ -109,46 +109,41 @@ const createUpdateAnalyticsSettingsActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/admin/analytics");
-}
+const updateAnalyticsSettingsAction = updateAnalyticsSettingsRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const [updateAnalyticsSettingsAction, useUpdateAnalyticsSettings] =
-	createUpdateAnalyticsSettingsActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+		if (currentUser.role !== "admin") {
+			return forbidden({ error: "Only admins can access this area" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
-			const currentUser =
-				userSession.effectiveUser ?? userSession.authenticatedUser;
-			if (currentUser.role !== "admin") {
-				return forbidden({ error: "Only admins can access this area" });
-			}
+		const updateResult = await tryUpdateAnalyticsSettings({
+			payload,
+			data: {
+				additionalJsScripts: formData.additionalJsScripts,
+			},
+			req: payloadRequest,
+		});
 
-			const updateResult = await tryUpdateAnalyticsSettings({
-				payload,
-				data: {
-					additionalJsScripts: formData.additionalJsScripts,
-				},
-				req: payloadRequest,
-			});
+		if (!updateResult.ok) {
+			return forbidden({ error: updateResult.error.message });
+		}
 
-			if (!updateResult.ok) {
-				return forbidden({ error: updateResult.error.message });
-			}
+		return ok({
+			success: true as const,
+			settings: updateResult.value as unknown as AnalyticsGlobal,
+		});
+	},
+);
 
-			return ok({
-				success: true as const,
-				settings: updateResult.value as unknown as AnalyticsGlobal,
-			});
-		})!,
-		{
-			action: () => getRouteUrl(),
-		},
-	);
+const useUpdateAnalyticsSettings =
+	updateAnalyticsSettingsRpc.createHook<typeof updateAnalyticsSettingsAction>();
 
 // Export hook for use in components
 export { useUpdateAnalyticsSettings };
@@ -257,7 +252,7 @@ function AnalyticsScriptCard({
 				required
 				error={
 					form.getValues().scripts[index]?.src &&
-					!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
+						!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
 						? "Must be a valid HTTP or HTTPS URL"
 						: undefined
 				}
@@ -465,7 +460,7 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 										: undefined,
 								dataMeasurementId:
 									script.dataMeasurementId &&
-									script.dataMeasurementId.trim() !== ""
+										script.dataMeasurementId.trim() !== ""
 										? script.dataMeasurementId
 										: undefined,
 							}),

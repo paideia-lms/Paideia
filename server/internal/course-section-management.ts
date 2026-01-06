@@ -1,10 +1,8 @@
 import type { Payload, PayloadRequest } from "payload";
 import { CourseActivityModuleLinks } from "../collections/course-activity-module-links";
 import { CourseSections } from "../collections/course-sections";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	InvalidArgumentError,
 	transformError,
@@ -21,6 +19,7 @@ import {
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import type { LatestCourseModuleSettings } from "server/json";
+import { groupBy } from "node_modules/es-toolkit/dist/array/groupBy.mjs";
 
 // ============================================================================
 // Basic CRUD Operations
@@ -1756,12 +1755,26 @@ export interface GetCourseStructureArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 }
 
+type Section = {
+	id: number;
+	title: string;
+	description: string;
+	contentOrder: number;
+	type: "section";
+	content: any[];
+};
+
+type SectionItem = {
+	id: number;
+	type: "activity-module";
+	contentOrder: number;
+	module: ActivityModuleSummary;
+};
+
 /**
  * recursively assert the content order is correct
  */
-function assertRightContentOrder(
-	sections: (CourseStructureItem | CourseStructureSection)[],
-): void {
+function assertRightContentOrder(sections: (SectionItem | Section)[]): void {
 	for (let i = 0; i < sections.length; i++) {
 		const section = sections[i]!;
 		if (section.type === "section") {
@@ -1780,6 +1793,8 @@ function assertRightContentOrder(
 		}
 	}
 }
+
+type MapValue<T> = T extends Map<any, infer V> ? V : never;
 
 /**
  * Gets the complete course structure as a hierarchical JSON representation with mixed content ordering
@@ -1828,35 +1843,51 @@ export function tryGetCourseStructure(args: GetCourseStructureArgs) {
 				.then(stripDepth<1, "find">());
 
 			// Create maps for efficient lookup
-			const sectionMap = new Map<number, CourseStructureSection>();
-			const sectionModulesMap = new Map<number, CourseActivityModuleLink[]>();
-			const rootSections: CourseStructureSection[] = [];
+			const sectionMap = new Map(
+				sectionsResult.docs.map((section) => [
+					section.id,
+					{
+						id: section.id,
+						title: section.title,
+						description: section.description || "",
+						contentOrder: section.contentOrder || 0,
+						type: "section" as const,
+						content: [] as any[],
+					},
+				]),
+			);
+			const sectionModulesMap = new Map(
+				Object.entries(
+					groupBy(activityModuleLinks.docs, (link) => link.section.id),
+				).map(([sectionId, links]) => [Number(sectionId), links]),
+			);
+			const rootSections: MapValue<typeof sectionMap>[] = [];
 
-			// Group activity modules by section
-			for (const link of activityModuleLinks.docs) {
-				const sectionId = link.section.id;
-				if (!sectionModulesMap.has(sectionId)) {
-					sectionModulesMap.set(sectionId, []);
-				}
-				const existingLinks = sectionModulesMap.get(sectionId);
-				if (existingLinks) {
-					existingLinks.push(link as CourseActivityModuleLink);
-				}
-			}
+			// // Group activity modules by section
+			// for (const link of activityModuleLinks.docs) {
+			// 	const sectionId = link.section.id;
+			// 	if (!sectionModulesMap.has(sectionId)) {
+			// 		sectionModulesMap.set(sectionId, []);
+			// 	}
+			// 	const existingLinks = sectionModulesMap.get(sectionId);
+			// 	if (existingLinks) {
+			// 		existingLinks.push(link as CourseActivityModuleLink);
+			// 	}
+			// }
 
 			// First pass: create all section nodes
-			for (const section of sectionsResult.docs) {
-				const structureSection: CourseStructureSection = {
-					id: section.id,
-					title: section.title,
-					description: section.description || "",
-					contentOrder: section.contentOrder || 0,
-					type: "section",
-					content: [],
-				};
+			// for (const section of sectionsResult.docs) {
+			// 	const structureSection: CourseStructureSection = {
+			// 		id: section.id,
+			// 		title: section.title,
+			// 		description: section.description || "",
+			// 		contentOrder: section.contentOrder || 0,
+			// 		type: "section",
+			// 		content: [],
+			// 	};
 
-				sectionMap.set(section.id, structureSection);
-			}
+			// 	sectionMap.set(section.id, structureSection);
+			// }
 
 			// Second pass: build the hierarchy and populate content
 			for (const section of sectionsResult.docs) {
@@ -1869,18 +1900,11 @@ export function tryGetCourseStructure(args: GetCourseStructureArgs) {
 				const activityModules = sectionModulesMap.get(section.id) || [];
 
 				// Create mixed content array
-				const mixedContent: (CourseStructureItem | CourseStructureSection)[] =
-					[];
+				const mixedContent: (SectionItem | Section)[] = [];
 
 				// Add activity modules to content
 				for (const link of activityModules) {
 					const activityModule = link.activityModule;
-
-					assertZodInternal(
-						"tryGetCourseStructure: Activity module is required",
-						activityModule,
-						z.object({ id: z.number() }),
-					);
 
 					// Use custom name from settings if available, otherwise use module title
 					const linkSettings =
@@ -2052,56 +2076,20 @@ export function tryGeneralMove(args: GeneralMoveArgs) {
 								.findByID({
 									collection: CourseSections.slug,
 									id: source.id,
-
+									depth: 1,
 									req: txInfo.reqWithTransaction,
 									overrideAccess: true,
 								})
-								.then((result) => {
-									const parentSection = result.parentSection;
-									assertZodInternal(
-										"tryGeneralMove: Parent section is required",
-										parentSection,
-										z.object({ id: z.number() }).nullish(),
-									);
-									const course = result.course;
-									assertZodInternal(
-										"tryGeneralMove: Course is required",
-										course,
-										z.object({ id: z.number() }),
-									);
-									return {
-										...result,
-										parentSection,
-										course,
-									};
-								})
+								.then(stripDepth<1, "findByID">())
 						: await payload
 								.findByID({
 									collection: CourseActivityModuleLinks.slug,
 									id: source.id,
-
+									depth: 1,
 									req: txInfo.reqWithTransaction,
 									overrideAccess: true,
 								})
-								.then((result) => {
-									const section = result.section;
-									assertZodInternal(
-										"tryGeneralMove: Section is required",
-										section,
-										z.object({ id: z.number() }),
-									);
-									const course = result.course;
-									assertZodInternal(
-										"tryGeneralMove: Course is required",
-										course,
-										z.object({ id: z.number() }),
-									);
-									return {
-										...result,
-										section,
-										course,
-									};
-								});
+								.then(stripDepth<1, "findByID">());
 
 				// Get target item (skip for root moves)
 				const targetItem =
@@ -2110,56 +2098,20 @@ export function tryGeneralMove(args: GeneralMoveArgs) {
 								.findByID({
 									collection: CourseSections.slug,
 									id: target.id,
-
+									depth: 1,
 									req: txInfo.reqWithTransaction,
 									overrideAccess: true,
 								})
-								.then((result) => {
-									const parentSection = result.parentSection;
-									assertZodInternal(
-										"tryGeneralMove: Parent section is required",
-										parentSection,
-										z.object({ id: z.number() }).nullish(),
-									);
-									const course = result.course;
-									assertZodInternal(
-										"tryGeneralMove: Course is required",
-										course,
-										z.object({ id: z.number() }),
-									);
-									return {
-										...result,
-										parentSection,
-										course,
-									};
-								})
+								.then(stripDepth<1, "findByID">())
 						: await payload
 								.findByID({
 									collection: CourseActivityModuleLinks.slug,
 									id: target.id,
-
+									depth: 1,
 									req: txInfo.reqWithTransaction,
 									overrideAccess: true,
 								})
-								.then((result) => {
-									const section = result.section;
-									assertZodInternal(
-										"tryGeneralMove: Section is required",
-										section,
-										z.object({ id: z.number() }),
-									);
-									const course = result.course;
-									assertZodInternal(
-										"tryGeneralMove: Course is required",
-										course,
-										z.object({ id: z.number() }),
-									);
-									return {
-										...result,
-										section,
-										course,
-									};
-								});
+								.then(stripDepth<1, "findByID">());
 				// Determine course ID
 				const sourceCourseId = sourceItem.course.id;
 
@@ -2173,26 +2125,14 @@ export function tryGeneralMove(args: GeneralMoveArgs) {
 
 				// Determine new parent section
 				let newParentSectionId: number | null;
-				assertZodInternal(
-					"tryGeneralMove: Source item is required",
-					sourceItem,
-					z.object({ id: z.number() }),
-				);
+
 				const oldParentSection =
 					"parentSection" in sourceItem
 						? sourceItem.parentSection
 						: "section" in sourceItem
 							? sourceItem.section
 							: null;
-				const oldParentSectionId =
-					typeof oldParentSection === "number"
-						? oldParentSection
-						: (oldParentSection?.id ?? null);
-				assertZodInternal(
-					"tryGeneralMove: Old parent section ID is required",
-					oldParentSectionId,
-					z.number().nullable(),
-				);
+				const oldParentSectionId = oldParentSection?.id ?? null;
 
 				if (location === "inside") {
 					newParentSectionId = target.id;

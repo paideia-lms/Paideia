@@ -1,7 +1,6 @@
 import { DiscussionSubmissions } from "server/collections";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingActivityModuleError,
@@ -154,21 +153,23 @@ export function tryCreateDiscussionSubmission(
 				throw new InvalidArgumentError("Course module link not found");
 			}
 
-			const submission = await payload.create({
-				collection: "discussion-submissions",
-				data: {
-					courseModuleLink: courseModuleLinkId,
-					student: studentId,
-					enrollment: enrollmentId,
-					postType,
-					title: postType === "thread" ? title : undefined,
-					content,
-					parentThread: postType !== "thread" ? parentThread : undefined,
-					status: "published",
-					lastActivityAt: new Date().toISOString(),
-				},
-			});
-
+			const submission = await payload
+				.create({
+					collection: "discussion-submissions",
+					data: {
+						courseModuleLink: courseModuleLinkId,
+						student: studentId,
+						enrollment: enrollmentId,
+						postType,
+						title: postType === "thread" ? title : undefined,
+						content,
+						parentThread: postType !== "thread" ? parentThread : undefined,
+						status: "published",
+						lastActivityAt: new Date().toISOString(),
+					},
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
 			// If this is a reply or comment, update the parent thread's lastActivityAt
 			if (parentThread && (postType === "reply" || postType === "comment")) {
 				await payload.update({
@@ -185,31 +186,10 @@ export function tryCreateDiscussionSubmission(
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = submission.courseModuleLink;
-			assertZodInternal(
-				"tryCreateDiscussionSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const student = submission.student;
-			assertZodInternal(
-				"tryCreateDiscussionSubmission: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const enrollment = submission.enrollment;
-			assertZodInternal(
-				"tryCreateDiscussionSubmission: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			return {
 				...submission,
@@ -262,42 +242,23 @@ export function tryUpdateDiscussionSubmission(
 				);
 			}
 
-			const updatedSubmission = await payload.update({
-				collection: "discussion-submissions",
-				id,
-				data: updateData,
-			});
+			const updatedSubmission = await payload
+				.update({
+					collection: "discussion-submissions",
+					id,
+					data: updateData,
+					depth: 1,
+				})
+				.then(stripDepth<1, "update">());
 
 			////////////////////////////////////////////////////
 			// type narrowing
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-			assertZodInternal(
-				"tryUpdateDiscussionSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
 			const student = updatedSubmission.student;
-			assertZodInternal(
-				"tryUpdateDiscussionSubmission: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZodInternal(
-				"tryUpdateDiscussionSubmission: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			return {
 				...updatedSubmission,
@@ -330,17 +291,19 @@ export function tryGetDiscussionSubmissionById(
 			}
 
 			// Fetch the discussion submission
-			const submissionResult = await payload.find({
-				collection: "discussion-submissions",
-				where: {
-					and: [
-						{
-							id: { equals: id },
-						},
-					],
-				},
-				depth: 1, // Fetch related data
-			});
+			const submissionResult = await payload
+				.find({
+					collection: "discussion-submissions",
+					where: {
+						and: [
+							{
+								id: { equals: id },
+							},
+						],
+					},
+					depth: 1, // Fetch related data
+				})
+				.then(stripDepth<1, "find">());
 
 			const submission = submissionResult.docs[0];
 
@@ -355,31 +318,9 @@ export function tryGetDiscussionSubmissionById(
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = submission.courseModuleLink;
-			assertZodInternal(
-				"tryGetDiscussionSubmissionById: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
 			const student = submission.student;
-			assertZodInternal(
-				"tryGetDiscussionSubmissionById: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const enrollment = submission.enrollment;
-			assertZodInternal(
-				"tryGetDiscussionSubmissionById: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			return {
 				...submission,
@@ -762,46 +703,27 @@ export function tryRemoveUpvoteDiscussionSubmission(
 				throw new InvalidArgumentError("User has not upvoted this submission");
 			}
 
-			const updatedSubmission = await payload.update({
-				collection: "discussion-submissions",
-				id: submissionId,
-				data: {
-					upvotes: filteredUpvotes,
-				},
-				req,
-				overrideAccess,
-			});
+			const updatedSubmission = await payload
+				.update({
+					collection: "discussion-submissions",
+					id: submissionId,
+					data: {
+						upvotes: filteredUpvotes,
+					},
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
 
 			////////////////////////////////////////////////////
 			// type narrowing
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-			assertZodInternal(
-				"tryRemoveUpvoteDiscussionSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
 			const student = updatedSubmission.student;
-			assertZodInternal(
-				"tryRemoveUpvoteDiscussionSubmission: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZodInternal(
-				"tryRemoveUpvoteDiscussionSubmission: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			return {
 				...updatedSubmission,
@@ -900,60 +822,8 @@ export function tryListDiscussionSubmissions(
 				.then(stripDepth<1, "find">())
 				.then((result) => {
 					return result.docs.map((doc) => {
-						assertZodInternal(
-							"tryListDiscussionSubmissions: Course module link is required",
-							doc.courseModuleLink,
-							z.object({
-								id: z.number(),
-							}),
-						);
-						assertZodInternal(
-							"tryListDiscussionSubmissions: Student is required",
-							doc.student,
-							z.object({
-								id: z.number(),
-							}),
-						);
-						assertZodInternal(
-							"tryListDiscussionSubmissions: Enrollment is required",
-							doc.enrollment,
-							z.object({
-								id: z.number(),
-							}),
-						);
-						assertZodInternal(
-							"tryListDiscussionSubmissions: Parent thread should be object or null",
-							doc.parentThread,
-							z
-								.object({
-									id: z.number(),
-								})
-								.nullish(),
-						);
-
-						const replies =
-							doc.replies?.docs?.map((r) => {
-								assertZodInternal(
-									"tryListDiscussionSubmissions: Reply should be object",
-									r,
-									z.object({
-										id: z.number(),
-									}),
-								);
-								return r;
-							}) ?? [];
-						const attachments =
-							doc.attachments?.map((a) => {
-								assertZodInternal(
-									"tryListDiscussionSubmissions: Attachment should be object",
-									a.file,
-									z.number(),
-								);
-								return {
-									...a,
-									file: a.file,
-								};
-							}) ?? [];
+						const replies = doc.replies?.docs ?? [];
+						const attachments = doc.attachments ?? [];
 
 						return {
 							...doc,
@@ -1070,62 +940,25 @@ export function tryGradeDiscussionSubmission(
 						feedback,
 						gradedBy,
 						gradedAt: now,
-					} as Record<string, unknown>,
+					},
+					depth: 0,
 					req: reqWithTransaction,
 					overrideAccess,
 				});
 
 				// Fetch the updated submission with depth for return value
-				const updatedSubmission = await payload.findByID({
-					collection: DiscussionSubmissions.slug,
-					id,
-					depth: 1,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
-
-				if (!updatedSubmission) {
-					throw new NonExistingDiscussionSubmissionError(
-						`Failed to fetch updated submission with id '${id}'`,
-					);
-				}
-
-				////////////////////////////////////////////////////
-				// type narrowing
-				////////////////////////////////////////////////////
-
-				const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-				assertZodInternal(
-					"tryGradeDiscussionSubmission: Course module link is required",
-					courseModuleLinkRef,
-					z.object({
-						id: z.number(),
-					}),
-				);
-
-				const student = updatedSubmission.student;
-				assertZodInternal(
-					"tryGradeDiscussionSubmission: Student is required",
-					student,
-					z.object({
-						id: z.number(),
-					}),
-				);
-
-				const enrollment = updatedSubmission.enrollment;
-				assertZodInternal(
-					"tryGradeDiscussionSubmission: Enrollment is required",
-					enrollment,
-					z.object({
-						id: z.number(),
-					}),
-				);
+				const updatedSubmission = await payload
+					.findByID({
+						collection: DiscussionSubmissions.slug,
+						id,
+						depth: 1,
+						req: reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">());
 
 				return {
 					...updatedSubmission,
-					courseModuleLink: courseModuleLinkRef,
-					student,
-					enrollment,
 				};
 			});
 		},
@@ -1178,46 +1011,9 @@ export function calculateDiscussionGrade(args: CalculateDiscussionGradeArgs) {
 				.then((result) => {
 					// type narrowing
 					return result.docs.map((doc) => {
-						assertZodInternal(
-							"calculateDiscussionGrade: Course module link is required",
-							doc.courseModuleLink,
-							z.object({
-								id: z.number(),
-							}),
-						);
-
-						assertZodInternal(
-							"calculateDiscussionGrade: Student is required",
-							doc.student,
-							z.object({
-								id: z.number(),
-							}),
-						);
-
-						assertZodInternal(
-							"calculateDiscussionGrade: Enrollment is required",
-							doc.enrollment,
-							z.object({
-								id: z.number(),
-							}),
-						);
-
-						assertZodInternal(
-							"calculateDiscussionGrade: Parent thread is required",
-							doc.parentThread,
-							z
-								.object({
-									id: z.number(),
-								})
-								.nullish(),
-						);
-
 						return {
 							...doc,
 							courseModuleLink: doc.courseModuleLink.id,
-							student: doc.student,
-							enrollment: doc.enrollment,
-							parentThread: doc.parentThread,
 						};
 					});
 				});

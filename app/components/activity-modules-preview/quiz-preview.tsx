@@ -40,7 +40,7 @@ import {
 	isContainerQuiz,
 	isRegularQuiz,
 } from "server/json/raw-quiz-config/types.v2";
-import { RichTextRenderer } from "../rich-text-renderer";
+import { RichTextRenderer } from "../rich-text/rich-text-renderer";
 import { NestedQuizSelector } from "./nested-quiz-selector";
 import { QuestionRenderer } from "./question-renderer";
 import { useNestedQuizState } from "./use-nested-quiz-state";
@@ -748,8 +748,8 @@ export function QuizPreview({
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-									nestedQuizState.currentNestedQuizId
-								]
+							nestedQuizState.currentNestedQuizId
+							]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {
@@ -769,8 +769,3 @@ export function QuizPreview({
 	);
 }
 
-// Re-export from predefined-seed-data for backward compatibility
-export {
-	sampleNestedQuizConfig,
-	sampleQuizConfig,
-} from "server/utils/db/predefined-seed-data";

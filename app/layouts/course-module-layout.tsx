@@ -11,14 +11,13 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "server/utils/permissions";
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-module-layout";
 import classes from "./header-tabs.module.css";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
 enum ModuleTab {
 	Preview = "preview",
@@ -26,12 +25,15 @@ enum ModuleTab {
 	Submissions = "submissions",
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -48,15 +50,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
-	const canSeeSetting = permissions.course.module.canSeeSettings(
-		currentUser,
-		enrolmentContext?.enrolment,
-	).allowed;
-	const canSeeSubmissions = permissions.course.module.canSeeSubmissions(
-		currentUser,
-		enrolmentContext?.enrolment,
-	).allowed;
-
 	return {
 		module: courseModuleContext.activityModule,
 		moduleSettings: courseModuleContext.settings,
@@ -64,11 +57,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		moduleLinkId: courseModuleContext.id,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
-		enrolment: enrolmentContext?.enrolment,
-		canSeeSetting,
-		canSeeSubmissions,
+		enrolment: courseContext.enrolment,
+		permissions: courseModuleContext.permissions,
+		params,
 	};
-};
+})!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -84,8 +77,7 @@ export default function CourseModuleLayout({
 		moduleSettings,
 		// moduleLinkId,
 		pageInfo,
-		canSeeSetting,
-		canSeeSubmissions,
+		permissions,
 	} = loaderData;
 	const { moduleLinkId } = params;
 
@@ -171,10 +163,10 @@ export default function CourseModuleLayout({
 								>
 									{module.type.charAt(0).toUpperCase() + module.type.slice(1)}
 								</Tabs.Tab>
-								{canSeeSetting && (
+								{permissions.canSeeSettings.allowed && (
 									<Tabs.Tab value={ModuleTab.Setting}>Setting</Tabs.Tab>
 								)}
-								{hasSubmissions && canSeeSubmissions && (
+								{hasSubmissions && permissions.canSeeSubmissions.allowed && (
 									<Tabs.Tab value={ModuleTab.Submissions}>
 										{submissionTabLabel}
 									</Tabs.Tab>

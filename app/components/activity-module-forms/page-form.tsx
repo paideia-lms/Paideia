@@ -1,7 +1,7 @@
 import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { type UseFormReturnType, useForm } from "@mantine/form";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { PageFormInitialValues as EditPageFormInitialValues } from "app/routes/user/module/edit-setting";
 import type { PageFormInitialValues as NewPageFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";

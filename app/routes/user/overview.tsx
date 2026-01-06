@@ -27,13 +27,9 @@ import {
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
-import {
-	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
-} from "nuqs/server";
-import { stringify } from "qs";
+import { parseAsStringEnum } from "nuqs/server";
 import { useEffect, useState } from "react";
-import { href, Link, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
@@ -49,10 +45,13 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
-import { typeCreateActionRpc } from "app/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -126,21 +125,22 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		avatarPermission,
 		rolePermission,
 		canEdit,
+		params,
 	};
-};
+})!;
 
 enum Action {
 	Update = "update",
 }
 
-// Define search params for user profile update
+// Define search params for user profile update (used in actions)
 export const userOverviewSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
-export const loadSearchParams = createLoader(userOverviewSearchParams);
-
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/overview/:id?",
+});
 
 const createUpdateActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -163,8 +163,8 @@ const createUpdateActionRpc = createActionRpc({
 	action: Action.Update,
 });
 
-const [updateAction, useUpdateUser] = createUpdateActionRpc(
-	serverOnly$(async ({ context, params, formData }) => {
+const updateAction = createUpdateActionRpc.createAction(
+	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -232,43 +232,16 @@ const [updateAction, useUpdateUser] = createUpdateActionRpc(
 			success: true,
 			message: "Profile updated successfully",
 		});
-	})!,
-	{
-		action: ({ params, searchParams }) =>
-			getRouteUrl(
-				searchParams.action,
-				params.id ? Number(params.id) : undefined,
-			),
 	},
 );
 
-export function getRouteUrl(action: Action, userId?: number) {
-	return (
-		href("/user/overview/:id?", {
-			id: userId ? userId.toString() : undefined,
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
+const useUpdateUser = createUpdateActionRpc.createHook<typeof updateAction>();
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.Update]: updateAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			success: false,
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

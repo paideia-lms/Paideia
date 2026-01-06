@@ -1,8 +1,6 @@
 import { AssignmentSubmissions } from "server/collections";
 import type { LatestCourseModuleSettings } from "server/json";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingAssignmentSubmissionError,
@@ -291,19 +289,21 @@ export function tryGetAssignmentSubmissionById(
 			}
 
 			// Fetch the assignment submission
-			const submissionResult = await payload.find({
-				collection: "assignment-submissions",
-				where: {
-					and: [
-						{
-							id: { equals: id },
-						},
-					],
-				},
-				depth: 1, // Fetch related data
-				req,
-				overrideAccess,
-			});
+			const submissionResult = await payload
+				.find({
+					collection: "assignment-submissions",
+					where: {
+						and: [
+							{
+								id: { equals: id },
+							},
+						],
+					},
+					depth: 1, // Fetch related data
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
 			const submission = submissionResult.docs[0];
 
@@ -318,25 +318,9 @@ export function tryGetAssignmentSubmissionById(
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = submission.courseModuleLink;
-			assertZodInternal(
-				"tryGetAssignmentSubmissionById: Course module link is required",
-				courseModuleLinkRef,
-				z.object({ id: z.number() }),
-			);
-
 			const student = submission.student;
-			assertZodInternal(
-				"tryGetAssignmentSubmissionById: Student is required",
-				student,
-				z.object({ id: z.number() }),
-			);
 
 			const enrollment = submission.enrollment;
-			assertZodInternal(
-				"tryGetAssignmentSubmissionById: Enrollment is required",
-				enrollment,
-				z.object({ id: z.number() }),
-			);
 
 			return {
 				...submission,
@@ -537,40 +521,21 @@ export function tryListAssignmentSubmissions(
 				};
 			}
 
-			const result = await payload.find({
-				collection: "assignment-submissions",
-				where,
-				limit,
-				page,
-				sort: "-createdAt",
-				depth: 1, // Fetch related data
-				req,
-				overrideAccess,
-			});
+			const result = await payload
+				.find({
+					collection: "assignment-submissions",
+					where,
+					limit,
+					page,
+					sort: "-createdAt",
+					depth: 1, // Fetch related data
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
 			// type narrowing
 			const docs = result.docs.map((doc) => {
-				assertZodInternal(
-					"tryListAssignmentSubmissions: Course module link is required",
-					doc.courseModuleLink,
-					z.object({
-						id: z.number(),
-					}),
-				);
-				assertZodInternal(
-					"tryListAssignmentSubmissions: Student is required",
-					doc.student,
-					z.object({
-						id: z.number(),
-					}),
-				);
-				assertZodInternal(
-					"tryListAssignmentSubmissions: Enrollment is required",
-					doc.enrollment,
-					z.object({
-						id: z.number(),
-					}),
-				);
 				return {
 					...doc,
 					courseModuleLink: doc.courseModuleLink.id,

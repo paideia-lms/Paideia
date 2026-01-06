@@ -173,8 +173,8 @@ export function DiscussionThreadListView({
 											to={
 												courseId && thread.authorId
 													? href("/course/:courseId/participants/profile", {
-															courseId: String(courseId),
-														}) + `?userId=${thread.authorId}`
+														courseId: String(courseId),
+													}) + `?userId=${thread.authorId}`
 													: "#"
 											}
 											style={{ textDecoration: "none", color: "inherit" }}

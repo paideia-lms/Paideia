@@ -20,8 +20,7 @@ import { notifications } from "@mantine/notifications";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import * as cheerio from "cheerio";
 import dayjs from "dayjs";
-import { useQueryState } from "nuqs";
-import { createLoader, parseAsString } from "nuqs/server";
+import { parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { Link } from "react-router";
 import { z } from "zod";
@@ -29,8 +28,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryDeleteNote } from "server/internal/note-management";
-import type { Note } from "server/payload-types";
-import { RichTextRenderer } from "~/components/rich-text-renderer";
+import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
 import { formatDateInTimeZone, parseDateString } from "~/utils/date-utils";
 import {
 	badRequest,
@@ -41,22 +39,27 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/notes";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
-import { href } from "react-router";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { useNuqsSearchParams } from "~/utils/search-params-utils";
+
+type Note = Route.ComponentProps["loaderData"]["notes"][number];
 
 // Define search params for date selection
-export const notesSearchParams = {
+export const loaderSearchParams = {
 	date: parseAsString,
 };
 
-export const loadSearchParams = createLoader(notesSearchParams);
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({
+	searchParams: loaderSearchParams,
+});
 
-export const loader = async ({
+export const loader = createRouteLoader(async ({
 	context,
 	params,
-	request,
-}: Route.LoaderArgs) => {
-	const { payload, hints } = context.get(globalContextKey);
+	searchParams,
+}) => {
+	const { hints } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 	const { id } = params;
@@ -80,7 +83,7 @@ export const loader = async ({
 	}
 
 	// Get user ID from route params, or use current user
-	const userId = id ? Number(id) : currentUser.id;
+	const userId = id ?? currentUser.id;
 
 	// Get user profile context
 
@@ -88,7 +91,7 @@ export const loader = async ({
 	const canCreateNotes = userId === currentUser.id;
 
 	// Get selected date from search params
-	const { date: dateParam } = loadSearchParams(request);
+	const dateParam = searchParams.date;
 
 	// Filter notes by date if date parameter is provided
 	let filteredNotes = userProfileContext.notes;
@@ -98,7 +101,7 @@ export const loader = async ({
 		const selectedDateStr = dateParam; // Already in YYYY-MM-DD format
 
 		// Filter notes by matching the date in client's timezone
-		filteredNotes = userProfileContext.notes.filter((note: Note) => {
+		filteredNotes = userProfileContext.notes.filter((note) => {
 			const noteDate = formatDateInTimeZone(note.createdAt, timeZone);
 			return noteDate === selectedDateStr;
 		});
@@ -115,10 +118,14 @@ export const loader = async ({
 		heatmapData: userProfileContext.heatmapData,
 		availableYears: userProfileContext.availableYears,
 		timeZone: timeZone,
+		searchParams,
+		params,
 	};
-};
+})!;
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/user/notes/:id?",
+});
 
 const createDeleteNoteActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -127,14 +134,8 @@ const createDeleteNoteActionRpc = createActionRpc({
 	method: "DELETE",
 });
 
-export function getRouteUrl(id?: number) {
-	return href("/user/notes/:id?", {
-		id: id ? id.toString() : undefined,
-	});
-}
-
-const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const deleteNoteAction = createDeleteNoteActionRpc.createAction(
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -160,11 +161,10 @@ const [deleteNoteAction, useDeleteNote] = createDeleteNoteActionRpc(
 		}
 
 		return ok({ message: "Note deleted successfully" });
-	})!,
-	{
-		action: () => getRouteUrl(),
 	},
 );
+
+const useDeleteNote = createDeleteNoteActionRpc.createHook<typeof deleteNoteAction>();
 
 // Export hook for use in components
 export { useDeleteNote };
@@ -206,12 +206,7 @@ function HeatmapSection({
 	availableYears: number[];
 	yearHeatmapData: Record<string, number>;
 }) {
-	const [_, setSelectedDate] = useQueryState(
-		"date",
-		parseAsString.withOptions({
-			shallow: false,
-		}),
-	);
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 	return (
 		<Paper withBorder shadow="md" p="xl" radius="md">
 			<Title order={3} mb="md">
@@ -239,18 +234,17 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${
-							value === null || value === 0
-								? "No notes"
-								: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
+							? "No notes"
+							: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}
 					rectRadius={3}
 					gap={3}
 					domain={[0, 10]}
-					getRectProps={({ date, value }) => ({
-						onClick: () => setSelectedDate(date),
+					getRectProps={({ date }) => ({
+						onClick: () => setQueryParams({ date: date || null }),
 					})}
 				/>
 			</Box>
@@ -261,25 +255,41 @@ function HeatmapSection({
 // CalendarSection component
 function CalendarSection({
 	selectedDate,
-	setDateParam,
 	filteredNotes,
-	getDayProps,
 	clientHeatmapData,
-	timeZone,
+	dateParam,
 }: {
 	selectedDate: Date | null;
-	setDateParam: (date: string | null) => void;
 	filteredNotes: Note[];
-	getDayProps: (date: string) => {
-		style: {
-			backgroundColor?: string;
-			fontWeight?: number;
-		};
-		onClick: () => void;
-	};
 	clientHeatmapData: Record<string, number>;
-	timeZone?: string;
+	dateParam: string | null;
 }) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+
+	// Highlight dates with notes in calendar
+	const getDayProps = (date: string) => {
+		const { year, month, day } = parseDateString(date);
+		const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+		const hasNotes = (clientHeatmapData[dateStr] || 0) > 0;
+		const isSelected = selectedDate && dateParam === dateStr;
+
+		return {
+			style: {
+				backgroundColor: hasNotes
+					? isSelected
+						? "var(--mantine-color-blue-filled)"
+						: "var(--mantine-color-blue-light)"
+					: undefined,
+				fontWeight: hasNotes ? 700 : undefined,
+			},
+			onClick: () => {
+				// Set the date parameter using the parsed date string
+				setQueryParams({ date: dateStr || null });
+			},
+		};
+	};
+
 	return (
 		<Paper
 			withBorder
@@ -349,7 +359,7 @@ function CalendarSection({
 					ta="center"
 					mt="xs"
 					style={{ cursor: "pointer" }}
-					onClick={() => setDateParam(null)}
+					onClick={() => setQueryParams({ date: null })}
 				>
 					Clear filter
 				</Text>
@@ -361,19 +371,37 @@ function CalendarSection({
 // NotesSection component
 function NotesSection({
 	selectedDate,
-	setDateParam,
 	filteredNotes,
 	currentUserId,
 	currentUserRole,
-	handleDeleteNote,
 }: {
 	selectedDate: Date | null;
-	setDateParam: (date: string | null) => void;
 	filteredNotes: Note[];
 	currentUserId: number;
 	currentUserRole: string;
-	handleDeleteNote: (noteId: number) => void;
 }) {
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
+	const { submit: deleteNote } = useDeleteNote();
+
+	const handleDeleteNote = (noteId: number) => {
+		if (
+			!window.confirm(
+				"Are you sure you want to delete this note? This action cannot be undone.",
+			)
+		) {
+			return;
+		}
+
+		deleteNote({
+			params: {
+				id: undefined,
+			},
+			values: {
+				noteId,
+			},
+		});
+	};
+
 	return (
 		<Paper
 			withBorder
@@ -393,7 +421,7 @@ function NotesSection({
 						size="sm"
 						c="blue"
 						style={{ cursor: "pointer" }}
-						onClick={() => setDateParam(null)}
+						onClick={() => setQueryParams({ date: null })}
 					>
 						Clear filter
 					</Text>
@@ -406,7 +434,7 @@ function NotesSection({
 				</Text>
 			) : (
 				<Stack gap="md">
-					{filteredNotes.map((note: Note) => {
+					{filteredNotes.map((note) => {
 						const $ = cheerio.load(note.content);
 						$("input").attr("disabled", "true");
 						const html = $.html();
@@ -481,56 +509,31 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 		currentUserRole,
 		notes,
 		filteredNotes: initialFilteredNotes,
-		heatmapData,
 		availableYears,
 		timeZone,
+		searchParams,
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const { submit: deleteNote } = useDeleteNote();
 
 	const [selectedYear, setSelectedYear] = useState(
 		availableYears[0] || new Date().getFullYear(),
 	);
 
-	// Use query state for selected date (shallow: false to trigger navigation)
-	const [dateParam, setDateParam] = useQueryState(
-		"date",
-		parseAsString.withOptions({
-			shallow: false,
-		}),
-	);
+	// Get date param from search params
+	const dateParam = searchParams.date;
 
 	// Convert date param to Date object for calendar
 	const selectedDate = dateParam
 		? dayjs(dateParam, "YYYY-MM-DD").toDate()
 		: null;
 
-	const handleDeleteNote = (noteId: number) => {
-		if (
-			!window.confirm(
-				"Are you sure you want to delete this note? This action cannot be undone.",
-			)
-		) {
-			return;
-		}
-
-		deleteNote({
-			params: {
-				id: undefined,
-			},
-			values: {
-				noteId,
-			},
-		});
-	};
-
 	// Regenerate heatmap data mapping using client timezone
 	// Server-generated heatmap data uses server timezone, so we need to remap it
-	const clientHeatmapData: Record<string, number> = {};
-	notes.forEach((note: Note) => {
+	const clientHeatmapData = notes.reduce((acc, note) => {
 		const dateKey = formatDateInTimeZone(note.createdAt, timeZone);
-		clientHeatmapData[dateKey] = (clientHeatmapData[dateKey] || 0) + 1;
-	});
+		acc[dateKey] = (acc[dateKey] || 0) + 1;
+		return acc;
+	}, {} as Record<string, number>);
 
 	// Filter heatmap data for selected year using client timezone
 	const yearHeatmapData = Object.fromEntries(
@@ -541,30 +544,6 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 
 	// Use filtered notes from loader if date is selected, otherwise use all notes
 	const filteredNotes = dateParam ? initialFilteredNotes : notes;
-
-	// Highlight dates with notes in calendar
-	const getDayProps = (date: string) => {
-		const { year, month, day } = parseDateString(date);
-		const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-		const hasNotes = (clientHeatmapData[dateStr] || 0) > 0;
-		const isSelected = selectedDate && dateParam === dateStr;
-
-		return {
-			style: {
-				backgroundColor: hasNotes
-					? isSelected
-						? "var(--mantine-color-blue-filled)"
-						: "var(--mantine-color-blue-light)"
-					: undefined,
-				fontWeight: hasNotes ? 700 : undefined,
-			},
-			onClick: () => {
-				// Set the date parameter using the parsed date string
-				setDateParam(dateStr);
-			},
-		};
-	};
 
 	return (
 		<Container size="lg" py="xl">
@@ -607,20 +586,16 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 				<Group align="flex-start" gap="md" style={{ flexWrap: "wrap" }}>
 					<CalendarSection
 						selectedDate={selectedDate}
-						setDateParam={setDateParam}
 						filteredNotes={filteredNotes}
-						getDayProps={getDayProps}
 						clientHeatmapData={clientHeatmapData}
-						timeZone={timeZone}
+						dateParam={dateParam}
 					/>
 
 					<NotesSection
 						selectedDate={selectedDate}
-						setDateParam={setDateParam}
 						filteredNotes={filteredNotes}
 						currentUserId={currentUserId}
 						currentUserRole={currentUserRole || "student"}
-						handleDeleteNote={handleDeleteNote}
 					/>
 				</Group>
 			</Stack>

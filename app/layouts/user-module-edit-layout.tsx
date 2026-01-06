@@ -8,16 +8,17 @@ import {
 	Title,
 } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
-import { href, Outlet, useNavigate } from "react-router";
+import { Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
-import { permissions } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
 import type { ActivityModule } from "server/payload-types";
+import { typeCreateLoader } from "app/utils/loader-utils";
+import { getRouteUrl } from "~/utils/search-params-utils";
 
 enum ModuleEditTab {
 	// Preview = "preview",
@@ -25,7 +26,11 @@ enum ModuleEditTab {
 	Access = "access",
 }
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoader = typeCreateLoader<Route.LoaderArgs>();
+
+const createRouteLoader = createLoader({});
+
+export const loader = createRouteLoader(async ({ context, params }) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
 	const userSession = context.get(userContextKey);
@@ -34,10 +39,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	if (!permissions.user.canSeeModules(currentUser).allowed) {
+	if (!userSession.permissions.canSeeUserModules) {
 		throw new ForbiddenResponse(
 			"You don't have permission to access this module",
 		);
@@ -51,15 +53,15 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		pageInfo,
 		module: userModuleContext.module,
 		accessType: userModuleContext.accessType,
+		params,
 	};
-};
+})!;
 
 export default function UserModuleEditLayout({
 	loaderData,
-	params,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { pageInfo, module, accessType } = loaderData;
+	const { pageInfo, module, accessType, params } = loaderData;
 
 	// Only show Setting and Access tabs if user can edit
 	const canEdit = accessType === "owned" || accessType === "granted";
@@ -78,15 +80,21 @@ export default function UserModuleEditLayout({
 	const handleTabChange = (value: string | null) => {
 		if (!value) return;
 
-		const moduleId = params.moduleId;
-		if (!moduleId) return;
 
 		switch (value) {
 			case ModuleEditTab.Setting:
-				navigate(href("/user/module/edit/:moduleId", { moduleId }));
+				navigate(
+					getRouteUrl("/user/module/edit/:moduleId", {
+						params: { moduleId: params.moduleId.toString() },
+					}),
+				);
 				break;
 			case ModuleEditTab.Access:
-				navigate(href("/user/module/edit/:moduleId/access", { moduleId }));
+				navigate(
+					getRouteUrl("/user/module/edit/:moduleId/access", {
+						params: { moduleId: params.moduleId.toString() },
+					}),
+				);
 				break;
 		}
 	};

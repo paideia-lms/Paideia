@@ -1,7 +1,8 @@
 import { Button, Group, Stack, Switch, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher } from "react-router";
+import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -9,20 +10,23 @@ import {
 	tryUpdateRegistrationSettings,
 } from "server/internal/registration-settings";
 import { z } from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
-	forbidden,
+	badRequest,
 	ForbiddenResponse,
+	forbidden,
 	ok,
 	StatusCode,
+	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/registration";
 
-export function getRouteUrl() {
-	return href("/admin/registration");
+enum Action {
+	Update = "update",
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
+
+export const loader = createRouteLoader()(async ({ context }) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -43,108 +47,117 @@ export async function loader({ context }: Route.LoaderArgs) {
 	});
 
 	return { settings };
-}
-
-const inputSchema = z.object({
-	disableRegistration: z.preprocess((val) => {
-		if (typeof val === "string") {
-			return val === "true";
-		}
-		return Boolean(val);
-	}, z.boolean().optional()),
-	showRegistrationButton: z.preprocess((val) => {
-		if (typeof val === "string") {
-			return val === "true";
-		}
-		return Boolean(val);
-	}, z.boolean().optional()),
 });
 
-export async function action({ request, context }: Route.ActionArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	if (!userSession?.isAuthenticated) {
-		return forbidden({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-	if (currentUser.role !== "admin") {
-		return forbidden({ error: "Only admins can access this area" });
-	}
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/admin/registration",
+});
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsed = inputSchema.safeParse(data);
-	if (!parsed.success) {
-		return forbidden({ error: "Invalid payload" });
-	}
-	const { disableRegistration, showRegistrationButton } = parsed.data;
+const updateRegistrationRpc = createActionRpc({
+	formDataSchema: z.object({
+		disableRegistration: z.boolean().optional(),
+		showRegistrationButton: z.boolean().optional(),
+	}),
+	method: "POST",
+	action: Action.Update,
+});
 
-	const updateResult = await tryUpdateRegistrationSettings({
-		payload,
-		req: payloadRequest,
-		data: {
-			disableRegistration,
-			showRegistrationButton,
-		},
-		overrideAccess: false,
-	});
+const updateRegistrationAction = updateRegistrationRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!updateResult.ok) {
-		return forbidden({ error: updateResult.error.message });
-	}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
 
-	return ok({
-		success: true as const,
-		settings: updateResult.value,
-	});
-}
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+
+		if (currentUser.role !== "admin") {
+			return forbidden({
+				success: false,
+				error: "Only admins can access this area",
+			});
+		}
+
+		const { disableRegistration, showRegistrationButton } = formData;
+
+		const updateResult = await tryUpdateRegistrationSettings({
+			payload,
+			req: payloadRequest,
+			data: {
+				disableRegistration,
+				showRegistrationButton,
+			},
+			overrideAccess: false,
+		});
+
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			settings: updateResult.value,
+		});
+	},
+);
+
+const useUpdateRegistration = updateRegistrationRpc.createHook<
+	typeof updateRegistrationAction
+>();
+
+// Export hook for use in component
+export { useUpdateRegistration };
+
+const [action] = createActionMap({
+	[Action.Update]: updateRegistrationAction,
+});
+
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-	const res = await serverAction();
-	if (res?.status === StatusCode.Ok) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Registration settings updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else if (res?.status === StatusCode.Forbidden) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Failed to update",
-			message: res?.error || "Failed to update registration settings",
+			message: actionData?.error || "Failed to update registration settings",
 			color: "red",
 		});
 	}
-	return res;
-}
 
-export function useUpdateRegistrationConfig() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const update = (data: {
-		disableRegistration: boolean;
-		showRegistrationButton: boolean;
-	}) => {
-		const formData = new FormData();
-		formData.set(
-			"disableRegistration",
-			data.disableRegistration ? "true" : "false",
-		);
-		formData.set(
-			"showRegistrationButton",
-			data.showRegistrationButton ? "true" : "false",
-		);
-		fetcher.submit(formData, {
-			method: "post",
-			action: href("/admin/registration"),
-		});
-	};
-	return { update, state: fetcher.state } as const;
+	return actionData;
 }
 
 export default function AdminRegistration({
 	loaderData,
 }: Route.ComponentProps) {
-	const { state, update } = useUpdateRegistrationConfig();
+	const { submit: updateRegistration, isLoading } = useUpdateRegistration();
 	const {
 		settings: { disableRegistration, showRegistrationButton },
 	} = loaderData;
@@ -152,10 +165,12 @@ export default function AdminRegistration({
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			disableRegistration,
-			showRegistrationButton,
+			disableRegistration: disableRegistration,
+			showRegistrationButton: showRegistrationButton,
 		},
 	});
+
+
 	return (
 		<Stack gap="md" my="lg">
 			<title>Registration Settings | Admin | Paideia LMS</title>
@@ -172,16 +187,14 @@ export default function AdminRegistration({
                 {JSON.stringify(loaderData, null, 2)}
             </pre> */}
 			<Title order={2}>Registration</Title>
-			<form
-				method="post"
-				onSubmit={form.onSubmit((values) => {
-					console.log("onSubmit", values);
-					update({
-						disableRegistration: values.disableRegistration ?? false,
-						showRegistrationButton: values.showRegistrationButton ?? false,
-					});
-				})}
-			>
+			<form onSubmit={form.onSubmit(async (values) => {
+				await updateRegistration({
+					values: {
+						disableRegistration: values.disableRegistration,
+						showRegistrationButton: values.showRegistrationButton,
+					},
+				});
+			})}>
 				<Stack gap="sm">
 					<Switch
 						{...form.getInputProps("disableRegistration", { type: "checkbox" })}
@@ -198,7 +211,7 @@ export default function AdminRegistration({
 						/>
 					)}
 					<Group justify="flex-start" mt="sm">
-						<Button type="submit" loading={state !== "idle"}>
+						<Button type="submit" loading={isLoading} disabled={isLoading}>
 							Save changes
 						</Button>
 					</Group>

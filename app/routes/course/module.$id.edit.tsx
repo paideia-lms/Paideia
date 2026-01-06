@@ -18,12 +18,11 @@ import { notifications } from "@mantine/notifications";
 import { IconTrash } from "@tabler/icons-react";
 import {
 	createLoader,
-	parseAsStringEnum as parseAsStringEnumServer,
+	parseAsStringEnum,
 } from "nuqs/server";
-import { stringify } from "qs";
 import { href, redirect, useNavigate } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
+import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
+import { typeCreateLoader } from "app/utils/loader-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -56,7 +55,10 @@ import {
 import type { Route } from "./+types/module.$id.edit";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
+const createRouteLoader = createLoaderInstance({});
+
+export const loader = createRouteLoader(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -81,11 +83,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-					{
-						userId: enrolmentContext.enrolment.user.id,
-						role: enrolmentContext.enrolment.role,
-					},
-				]
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
 			: undefined,
 	);
 
@@ -103,7 +105,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		module: courseModuleContext,
 		displayName,
 	};
-};
+})!;
 
 enum Action {
 	UpdatePage = "updatePage",
@@ -116,14 +118,16 @@ enum Action {
 
 // Define search params for module settings update
 export const moduleSettingsSearchParams = {
-	action: parseAsStringEnumServer(Object.values(Action)),
+	action: parseAsStringEnum(Object.values(Action)),
 };
 
 export const loadSearchParams = createLoader(moduleSettingsSearchParams);
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/course/module/:moduleLinkId/edit",
+});
 
-const createUpdatePageSettingsActionRpc = createActionRpc({
+const updatePageSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().nullish(),
 	}),
@@ -131,7 +135,7 @@ const createUpdatePageSettingsActionRpc = createActionRpc({
 	action: Action.UpdatePage,
 });
 
-const createUpdateWhiteboardSettingsActionRpc = createActionRpc({
+const updateWhiteboardSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().nullish(),
 	}),
@@ -139,7 +143,7 @@ const createUpdateWhiteboardSettingsActionRpc = createActionRpc({
 	action: Action.UpdateWhiteboard,
 });
 
-const createUpdateFileSettingsActionRpc = createActionRpc({
+const updateFileSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().nullish(),
 	}),
@@ -147,7 +151,7 @@ const createUpdateFileSettingsActionRpc = createActionRpc({
 	action: Action.UpdateFile,
 });
 
-const createUpdateAssignmentSettingsActionRpc = createActionRpc({
+const updateAssignmentSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().nullish(),
 		allowSubmissionsFrom: z.string().nullish(),
@@ -159,7 +163,7 @@ const createUpdateAssignmentSettingsActionRpc = createActionRpc({
 	action: Action.UpdateAssignment,
 });
 
-const createUpdateQuizSettingsActionRpc = createActionRpc({
+const updateQuizSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().nullish(),
 		openingTime: z.string().nullish(),
@@ -170,7 +174,7 @@ const createUpdateQuizSettingsActionRpc = createActionRpc({
 	action: Action.UpdateQuiz,
 });
 
-const createUpdateDiscussionSettingsActionRpc = createActionRpc({
+const updateDiscussionSettingsRpc = createActionRpc({
 	formDataSchema: z.object({
 		name: z.string().nullish(),
 		dueDate: z.string().nullish(),
@@ -180,228 +184,206 @@ const createUpdateDiscussionSettingsActionRpc = createActionRpc({
 	action: Action.UpdateDiscussion,
 });
 
-export function getRouteUrl(action: Action, moduleLinkId: number) {
-	return (
-		href("/course/module/:moduleLinkId/edit", {
-			moduleLinkId: moduleLinkId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-}
+const updatePageSettingsAction = updatePageSettingsRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { moduleLinkId } = params;
 
-const [updatePageSettingsAction, useUpdatePageSettings] =
-	createUpdatePageSettingsActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const { moduleLinkId } = params;
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+		const result = await tryUpdatePageModuleSettings({
+			payload,
+			linkId: Number(moduleLinkId),
+			name: formData.name || undefined,
+			req: payloadRequest,
+		});
 
-			const result = await tryUpdatePageModuleSettings({
-				payload,
-				linkId: Number(moduleLinkId),
-				name: formData.name || undefined,
-				req: payloadRequest,
-			});
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		return redirect(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
+		);
+	},
+);
 
-			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}),
-			);
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-		},
-	);
+const useUpdatePageSettings =
+	updatePageSettingsRpc.createHook<typeof updatePageSettingsAction>();
 
-const [updateWhiteboardSettingsAction, useUpdateWhiteboardSettings] =
-	createUpdateWhiteboardSettingsActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const { moduleLinkId } = params;
+const updateWhiteboardSettingsAction = updateWhiteboardSettingsRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { moduleLinkId } = params;
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			const result = await tryUpdateWhiteboardModuleSettings({
-				payload,
-				linkId: Number(moduleLinkId),
-				name: formData.name || undefined,
-				req: payloadRequest,
-			});
+		const result = await tryUpdateWhiteboardModuleSettings({
+			payload,
+			linkId: Number(moduleLinkId),
+			name: formData.name || undefined,
+			req: payloadRequest,
+		});
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}),
-			);
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-		},
-	);
+		return redirect(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
+		);
+	},
+);
 
-const [updateFileSettingsAction, useUpdateFileSettings] =
-	createUpdateFileSettingsActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const { moduleLinkId } = params;
+const useUpdateWhiteboardSettings =
+	updateWhiteboardSettingsRpc.createHook<typeof updateWhiteboardSettingsAction>();
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+const updateFileSettingsAction = updateFileSettingsRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { moduleLinkId } = params;
 
-			const result = await tryUpdateFileModuleSettings({
-				payload,
-				linkId: Number(moduleLinkId),
-				name: formData.name || undefined,
-				req: payloadRequest,
-			});
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		const result = await tryUpdateFileModuleSettings({
+			payload,
+			linkId: Number(moduleLinkId),
+			name: formData.name || undefined,
+			req: payloadRequest,
+		});
 
-			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}),
-			);
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-		},
-	);
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-const [updateAssignmentSettingsAction, useUpdateAssignmentSettings] =
-	createUpdateAssignmentSettingsActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const { moduleLinkId } = params;
+		return redirect(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
+		);
+	},
+);
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+const useUpdateFileSettings =
+	updateFileSettingsRpc.createHook<typeof updateFileSettingsAction>();
 
-			const result = await tryUpdateAssignmentModuleSettings({
-				payload,
-				linkId: Number(moduleLinkId),
-				name: formData.name || undefined,
-				allowSubmissionsFrom: formData.allowSubmissionsFrom || undefined,
-				dueDate: formData.dueDate || undefined,
-				cutoffDate: formData.cutoffDate || undefined,
-				maxAttempts: formData.maxAttempts || undefined,
-				req: payloadRequest,
-			});
+const updateAssignmentSettingsAction = updateAssignmentSettingsRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { moduleLinkId } = params;
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}),
-			);
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-		},
-	);
+		const result = await tryUpdateAssignmentModuleSettings({
+			payload,
+			linkId: Number(moduleLinkId),
+			name: formData.name || undefined,
+			allowSubmissionsFrom: formData.allowSubmissionsFrom || undefined,
+			dueDate: formData.dueDate || undefined,
+			cutoffDate: formData.cutoffDate || undefined,
+			maxAttempts: formData.maxAttempts || undefined,
+			req: payloadRequest,
+		});
 
-const [updateQuizSettingsAction, useUpdateQuizSettings] =
-	createUpdateQuizSettingsActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const { moduleLinkId } = params;
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+		return redirect(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
+		);
+	},
+);
 
-			const result = await tryUpdateQuizModuleSettings({
-				payload,
-				linkId: Number(moduleLinkId),
-				name: formData.name || undefined,
-				openingTime: formData.openingTime || undefined,
-				closingTime: formData.closingTime || undefined,
-				maxAttempts: formData.maxAttempts || undefined,
-				req: payloadRequest,
-			});
+const useUpdateAssignmentSettings =
+	updateAssignmentSettingsRpc.createHook<typeof updateAssignmentSettingsAction>();
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+const updateQuizSettingsAction = updateQuizSettingsRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { moduleLinkId } = params;
 
-			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}),
-			);
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-		},
-	);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-const [updateDiscussionSettingsAction, useUpdateDiscussionSettings] =
-	createUpdateDiscussionSettingsActionRpc(
-		serverOnly$(async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
-			const { moduleLinkId } = params;
+		const result = await tryUpdateQuizModuleSettings({
+			payload,
+			linkId: Number(moduleLinkId),
+			name: formData.name || undefined,
+			openingTime: formData.openingTime || undefined,
+			closingTime: formData.closingTime || undefined,
+			maxAttempts: formData.maxAttempts || undefined,
+			req: payloadRequest,
+		});
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "Unauthorized" });
-			}
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			const result = await tryUpdateDiscussionModuleSettings({
-				payload,
-				linkId: Number(moduleLinkId),
-				name: formData.name || undefined,
-				dueDate: formData.dueDate || undefined,
-				cutoffDate: formData.cutoffDate || undefined,
-				req: payloadRequest,
-			});
+		return redirect(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
+		);
+	},
+);
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+const useUpdateQuizSettings =
+	updateQuizSettingsRpc.createHook<typeof updateQuizSettingsAction>();
 
-			return redirect(
-				href("/course/module/:moduleLinkId", {
-					moduleLinkId: String(moduleLinkId),
-				}),
-			);
-		})!,
-		{
-			action: ({ searchParams, params }) =>
-				getRouteUrl(searchParams.action, Number(params.moduleLinkId)),
-		},
-	);
+const updateDiscussionSettingsAction = updateDiscussionSettingsRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const { moduleLinkId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const result = await tryUpdateDiscussionModuleSettings({
+			payload,
+			linkId: Number(moduleLinkId),
+			name: formData.name || undefined,
+			dueDate: formData.dueDate || undefined,
+			cutoffDate: formData.cutoffDate || undefined,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return redirect(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
+		);
+	},
+);
+
+const useUpdateDiscussionSettings =
+	updateDiscussionSettingsRpc.createHook<typeof updateDiscussionSettingsAction>();
 
 // Export hooks for use in components
 export {
@@ -413,27 +395,16 @@ export {
 	useUpdateDiscussionSettings,
 };
 
-const actionMap = {
+const [action] = createActionMap({
 	[Action.UpdatePage]: updatePageSettingsAction,
 	[Action.UpdateWhiteboard]: updateWhiteboardSettingsAction,
 	[Action.UpdateFile]: updateFileSettingsAction,
 	[Action.UpdateAssignment]: updateAssignmentSettingsAction,
 	[Action.UpdateQuiz]: updateQuizSettingsAction,
 	[Action.UpdateDiscussion]: updateDiscussionSettingsAction,
-};
+});
 
-export const action = async (args: Route.ActionArgs) => {
-	const { request } = args;
-	const { action: actionType } = loadSearchParams(request);
-
-	if (!actionType) {
-		return badRequest({
-			error: "Action is required",
-		});
-	}
-
-	return actionMap[actionType](args);
-};
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

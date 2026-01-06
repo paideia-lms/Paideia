@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
 import { z } from "zod";
@@ -9,21 +8,19 @@ import { renderD2ToSvg } from "~/utils/d2-render";
 import { badRequest } from "~/utils/responses";
 import type { Route } from "./+types/d2-render";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/api/d2-render",
+});
 
-const createRenderD2ActionRpc = createActionRpc({
+const renderD2Rpc = createActionRpc({
 	formDataSchema: z.object({
 		code: z.string().min(1, "D2 code cannot be empty"),
 	}),
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/api/d2-render");
-}
-
-const [renderD2Action, useRenderD2] = createRenderD2ActionRpc(
-	serverOnly$(async ({ context, formData }) => {
+const renderD2Action = renderD2Rpc.createAction(
+	async ({ context, formData }) => {
 		// Check if D2 CLI is available
 		const d2Available = await isD2Available();
 		if (!d2Available) {
@@ -47,11 +44,10 @@ const [renderD2Action, useRenderD2] = createRenderD2ActionRpc(
 						: "Unknown error processing D2 code",
 			});
 		}
-	})!,
-	{
-		action: getRouteUrl,
 	},
 );
+
+const useRenderD2 = renderD2Rpc.createHook<typeof renderD2Action>();
 
 // Export hook for use in components
 export { useRenderD2 };

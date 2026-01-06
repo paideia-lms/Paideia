@@ -4,7 +4,6 @@
 import { notifications } from "@mantine/notifications";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGeneralMove } from "server/internal/course-section-management";
@@ -12,9 +11,11 @@ import { z } from "zod";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/course-structure-tree";
 
-const createActionRpc = typeCreateActionRpc<Route.ActionArgs>();
+const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
+	route: "/api/course-structure-tree",
+});
 
-const createUpdateCourseStructureActionRpc = createActionRpc({
+const updateCourseStructureRpc = createActionRpc({
 	formDataSchema: z.object({
 		courseId: z.coerce.number(),
 		sourceId: z.coerce.number(),
@@ -26,49 +27,44 @@ const createUpdateCourseStructureActionRpc = createActionRpc({
 	method: "POST",
 });
 
-export function getRouteUrl() {
-	return href("/api/course-structure-tree");
-}
+const updateCourseStructureAction = updateCourseStructureRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-const [updateCourseStructureAction, useUpdateCourseStructure] =
-	createUpdateCourseStructureActionRpc(
-		serverOnly$(async ({ context, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
-			const userSession = context.get(userContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "User not found" });
+		}
 
-			if (!userSession?.isAuthenticated) {
-				return unauthorized({ error: "User not found" });
-			}
+		const { sourceId, sourceType, targetId, targetType, location } = formData;
 
-			const { sourceId, sourceType, targetId, targetType, location } = formData;
+		console.log(
+			`Moving ${sourceType} ${sourceId} to ${location} ${targetType} ${targetId}`,
+		);
 
-			console.log(
-				`Moving ${sourceType} ${sourceId} to ${location} ${targetType} ${targetId}`,
-			);
+		// Call tryGeneralMove with the parsed parameters
+		const result = await tryGeneralMove({
+			payload,
+			source: { id: sourceId, type: sourceType },
+			target: { id: targetId, type: targetType },
+			location,
+			req: payloadRequest,
+		});
 
-			// Call tryGeneralMove with the parsed parameters
-			const result = await tryGeneralMove({
-				payload,
-				source: { id: sourceId, type: sourceType },
-				target: { id: targetId, type: targetType },
-				location,
-				req: payloadRequest,
-			});
+		// ! we return error response in action because this route has a default page component
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-			// ! we return error response in action because this route has a default page component
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+		return ok({
+			success: true,
+			message: "Course structure updated successfully",
+		});
+	},
+);
 
-			return ok({
-				success: true,
-				message: "Course structure updated successfully",
-			});
-		})!,
-		{
-			action: getRouteUrl,
-		},
-	);
+const useUpdateCourseStructure =
+	updateCourseStructureRpc.createHook<typeof updateCourseStructureAction>();
 
 // Export hook for use in components
 export { useUpdateCourseStructure };
