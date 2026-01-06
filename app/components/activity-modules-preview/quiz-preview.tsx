@@ -769,8 +769,3 @@ export function QuizPreview({
 	);
 }
 
-// Re-export from predefined-seed-data for backward compatibility
-export {
-	sampleNestedQuizConfig,
-	sampleQuizConfig,
-} from "server/utils/db/predefined-seed-data";

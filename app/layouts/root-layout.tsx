@@ -36,12 +36,12 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
-import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import type { Media } from "server/payload-types";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useStopImpersonating } from "app/routes/api/stop-impersonation";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -310,7 +310,7 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={getAvatarUrl(authenticatedUser)}
+																src={getRouteUrl("/api/user/:id/avatar", { params: { id: authenticatedUser.id.toString() } })}
 																alt={
 																	`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
 																	"Admin"
@@ -327,7 +327,7 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={getAvatarUrl(currentUser)}
+																src={getRouteUrl("/api/user/:id/avatar", { params: { id: currentUser.id.toString() } })}
 																alt={
 																	`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 																	"Anonymous"
@@ -340,7 +340,7 @@ export function HeaderTabs({
 												</Tooltip.Group>
 											) : (
 												<Avatar
-													src={getAvatarUrl(currentUser)}
+													src={getRouteUrl("/api/user/:id/avatar", { params: { id: currentUser.id.toString() } })}
 													alt={
 														`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 														"Anonymous"

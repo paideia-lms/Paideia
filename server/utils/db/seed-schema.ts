@@ -116,4 +116,4 @@ export const seedDataSchema = z.object({
 /**
  * Inferred TypeScript type from the Zod schema
  */
-export type SeedData = z.infer<typeof seedDataSchema>;
+export interface SeedData extends z.infer<typeof seedDataSchema> {}

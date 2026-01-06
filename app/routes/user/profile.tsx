@@ -76,7 +76,7 @@ const createImpersonateActionRpc = createActionRpc({
 	action: Action.Impersonate,
 });
 
-export const impersonateAction = createImpersonateActionRpc.createAction(
+const impersonateAction = createImpersonateActionRpc.createAction(
 	async ({ context, formData, request, params }) => {
 		const { payload, requestInfo, payloadRequest } =
 			context.get(globalContextKey);

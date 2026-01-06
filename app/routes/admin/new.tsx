@@ -23,7 +23,7 @@ import { useState } from "react";
 import { redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import { Users } from "server/collections/users";
+import type { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateUser } from "server/internal/user-management";
@@ -383,10 +383,13 @@ export default function NewUserPage() {
 							label="Role"
 							placeholder="Select role"
 							required
-							data={Users.fields[3].options?.map((option) => ({
-								value: option.value,
-								label: option.label,
-							}))}
+							data={[
+								{ value: "admin", label: "Admin" },
+								{ value: "content-manager", label: "Content Manager" },
+								{ value: "analytics-viewer", label: "Analytics Viewer" },
+								{ value: "instructor", label: "Instructor" },
+								{ value: "student", label: "Student" },
+							] satisfies typeof Users["fields"][3]['options']}
 						/>
 
 						<Textarea
