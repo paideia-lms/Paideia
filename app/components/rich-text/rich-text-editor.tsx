@@ -279,7 +279,7 @@ const MOCK_PAGES: MentionItem[] = [
 
 type MentionType = "user" | "tag" | "page";
 
-export const createMentionSuggestion = (
+const createMentionSuggestion = (
 	type: MentionType,
 ): Omit<SuggestionOptions<MentionItem>, "editor"> => ({
 	items: ({ query }: { query: string }) => {
@@ -358,7 +358,7 @@ export const createMentionSuggestion = (
 });
 
 
-export function getTextContentFromHtmlClient(html: string): string {
+function getTextContentFromHtmlClient(html: string): string {
 	if (getTextContentFromHtmlServer) {
 		return getTextContentFromHtmlServer(html);
 	}
@@ -403,22 +403,16 @@ export function isHtmlEmpty(html: string): boolean {
 }
 
 /**
- * Get text statistics for a given text
- */
-export function getTextStats(text: string) {
-	return {
-		characterCount: getCharacterCount(text),
-		wordCount: getWordCount(text),
-		isEmpty: isTextEmpty(text),
-	};
-}
-
-/**
  * Get text statistics from HTML content
+ * @knipignore
  */
 export function getTextStatsFromHtml(html: string) {
 	const textContent = getTextContentFromHtmlClient(html);
-	return getTextStats(textContent);
+	return {
+		characterCount: getCharacterCount(textContent),
+		wordCount: getWordCount(textContent),
+		isEmpty: isTextEmpty(textContent),
+	};
 }
 
 const lowlight = createLowlight();

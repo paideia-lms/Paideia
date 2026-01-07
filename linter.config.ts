@@ -422,6 +422,22 @@ const astPatterns = {
 	},
 
 	/**
+	 * Matches any import from "react-router"
+	 * This pattern matches any import declaration from "react-router" regardless of what's being imported
+	 */
+	reactRouterImport: (node: ts.Node): boolean => {
+		if (ts.isImportDeclaration(node)) {
+			const moduleSpecifier = node.moduleSpecifier;
+			if (ts.isStringLiteral(moduleSpecifier)) {
+				const modulePath = moduleSpecifier.text;
+				// Check if importing from "react-router"
+				return modulePath === "react-router";
+			}
+		}
+		return false;
+	},
+
+	/**
 	 * Matches href() function calls
 	 */
 	hrefCall: (node: ts.Node): boolean => {
@@ -1476,6 +1492,18 @@ export const rules: LintRule[] = [
 			{
 				name: "useQueryState import from nuqs",
 				matcher: astPatterns.useQueryStateImport,
+			},
+		],
+	},
+	{
+		name: "Ban react-router imports in server/internal",
+		description: "react-router should not be imported in server/internal files. Server-side code should not depend on React Router.",
+		includes: ["server/internal/**/*.ts", "!server/internal/**/*.test.ts", "!server/internal/**/*.spec.ts"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "import from react-router",
+				matcher: astPatterns.reactRouterImport,
 			},
 		],
 	},

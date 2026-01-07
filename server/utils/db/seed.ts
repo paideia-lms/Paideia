@@ -10,8 +10,6 @@ import {
 	type TryRunSeedArgs,
 } from "./seed-orchestrator";
 
-export { testData };
-
 /**
  * Seeds the development database with initial data
  * Only runs if the database is fresh (no users exist)

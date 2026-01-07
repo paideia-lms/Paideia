@@ -37,10 +37,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
 import {
-	PagePreview,
-	WhiteboardPreview,
 	AssignmentPreview,
-} from "app/components/activity-module-forms";
+} from "app/components/activity-modules-preview/assignment-preview";
+import { PagePreview } from "app/components/activity-modules-preview/page-preview";
+import { WhiteboardPreview } from "app/components/activity-modules-preview/whiteboard-preview";
 import { FilePreview } from "app/components/activity-modules-preview/file-preview";
 import { DiscussionThreadView } from "./components/discussion-thread-view";
 import { ModuleDatesInfo } from "./components/module-dates-info";

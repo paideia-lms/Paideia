@@ -440,28 +440,12 @@ export async function detectSystemResources(): Promise<SystemResources> {
 	};
 }
 
-/**
- * Format bytes to human readable format
- */
-export function formatBytes(bytes: number): string {
-	if (bytes === 0) return "0 B";
-
-	const k = 1024;
-	const sizes = ["B", "KB", "MB", "GB", "TB"];
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-	return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
-}
-
-/**
- * Format percentage with color coding
- */
-export function getResourceStatus(
-	percentage: number,
-): "good" | "warning" | "error" {
-	if (percentage < 70) return "good";
-	if (percentage < 85) return "warning";
-	return "error";
+export function getServerTimezone() {
+	return (
+		Intl.DateTimeFormat().resolvedOptions().timeZone ||
+		process.env.TZ ||
+		"Unknown"
+	);
 }
 
 // System Resources Types

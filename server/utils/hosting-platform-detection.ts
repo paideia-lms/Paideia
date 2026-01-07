@@ -330,6 +330,7 @@ export function detectPlatform(
 
 /**
  * Gets platform-specific configuration optimizations
+ * @knipignore
  */
 export function getPlatformOptimizations(
 	platform: DeploymentPlatform,
@@ -409,6 +410,7 @@ export function getPlatformOptimizations(
 
 /**
  * Logs platform detection information
+ * @knipignore
  */
 export function logPlatformInfo(result: PlatformDetectionResult): void {
 	console.log(`🚀 Platform Detection:`);

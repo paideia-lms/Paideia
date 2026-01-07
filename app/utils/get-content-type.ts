@@ -7,11 +7,7 @@ export enum ContentType {
 /**
  * Map over all the keys to create a new object
  */
-export const mapValues = <
-	TValue,
-	TKey extends string | number | symbol,
-	TNewValue,
->(
+const mapValues = <TValue, TKey extends string | number | symbol, TNewValue>(
 	obj: Record<TKey, TValue>,
 	mapFunc: (value: TValue, key: TKey) => TNewValue,
 ): Record<TKey, TNewValue> => {

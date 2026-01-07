@@ -3,7 +3,10 @@ import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
 const options = {
 	keywords: ["in"],
@@ -103,17 +106,25 @@ export function tryGlobalSearch(args: SearchArgs) {
 				});
 			}
 
-			const results = await payload.find({
-				collection: "search",
-				where,
-				limit,
-				page,
-				sort: "-createdAt",
-			});
+			const results = await payload
+				.find({
+					collection: "search",
+					where,
+					limit,
+					page,
+					sort: "-createdAt",
+					depth: 1,
+				})
+				.then(stripDepth<1, "find">());
 
 			return {
 				docs: results.docs.map((doc) => ({
 					...doc,
+					doc: {
+						relationTo: doc.doc.relationTo,
+						// ! for some reason this is a number
+						value: doc.doc.value as unknown as number,
+					},
 					meta: doc.meta ? JSON.parse(doc.meta) : null,
 				})),
 				totalDocs: results.totalDocs,

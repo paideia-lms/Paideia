@@ -18,7 +18,6 @@ import { PageForm } from "~/components/activity-module-forms/page-form";
 import { QuizForm } from "~/components/activity-module-forms/quiz-form";
 import { WhiteboardForm } from "~/components/activity-module-forms/whiteboard-form";
 import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import {
 	badRequest,
 	ok,
@@ -33,6 +32,7 @@ import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { redirect } from "react-router";
+import { ActivityModule } from "server/payload-types";
 
 // Define search params for module creation
 export const loaderSearchParams = {
@@ -637,7 +637,7 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 						value={selectedType}
 						onChange={(value) =>
 							setQueryParams({
-								type: (value as ActivityModuleFormValues["type"]) || null,
+								type: (value as ActivityModule["type"]) || null,
 							})
 						}
 						label="Module Type"

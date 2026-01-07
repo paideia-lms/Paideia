@@ -1285,63 +1285,59 @@ export function tryAddActivityModuleToSection(
 				throw new InvalidArgumentError("Section ID is required");
 			}
 
+			// Verify activity module and section exist in parallel
+			const [_, section] = await Promise.all([
+				payload.findByID({
+					collection: "activity-modules",
+					id: activityModuleId,
+					depth: 0,
+					req,
+					overrideAccess: true,
+				}),
+				payload
+					.findByID({
+						collection: CourseSections.slug,
+						id: sectionId,
+						depth: 1,
+						req,
+						overrideAccess: true,
+					})
+					.then(stripDepth<1, "findByID">()),
+			]);
+			const courseId = section.course.id;
+			// Check if link already exists
+			const existingLinks = await payload
+				.find({
+					collection: CourseActivityModuleLinks.slug,
+					where: {
+						and: [
+							{
+								activityModule: {
+									equals: activityModuleId,
+								},
+							},
+							{
+								section: {
+									equals: sectionId,
+								},
+							},
+						],
+					},
+					limit: 1,
+
+					req,
+					overrideAccess: true,
+				})
+				.then(stripDepth<1, "find">());
+
+			if (existingLinks.docs.length > 0) {
+				throw new InvalidArgumentError(
+					"Activity module is already linked to this section",
+				);
+			}
 			const transactionInfo = await handleTransactionId(payload, req);
 
 			return await transactionInfo.tx(async (txInfo) => {
-				// Verify activity module exists
-				await payload.findByID({
-					collection: "activity-modules",
-					id: activityModuleId,
-
-					req: txInfo.reqWithTransaction,
-					overrideAccess: true,
-				});
-
-				// Verify section exists
-				const section = await payload.findByID({
-					collection: CourseSections.slug,
-					id: sectionId,
-
-					req: txInfo.reqWithTransaction,
-					overrideAccess: true,
-				});
-
-				const courseId =
-					typeof section.course === "number"
-						? section.course
-						: section.course.id;
-
-				// Check if link already exists
-				const existingLinks = await payload
-					.find({
-						collection: CourseActivityModuleLinks.slug,
-						where: {
-							and: [
-								{
-									activityModule: {
-										equals: activityModuleId,
-									},
-								},
-								{
-									section: {
-										equals: sectionId,
-									},
-								},
-							],
-						},
-						limit: 1,
-
-						req: txInfo.reqWithTransaction,
-						overrideAccess: true,
-					})
-					.then(stripDepth<1, "find">());
-
-				if (existingLinks.docs.length > 0) {
-					throw new InvalidArgumentError(
-						"Activity module is already linked to this section",
-					);
-				}
-
 				// Get next order number if not provided
 				let linkOrder = order ?? 0;
 				if (linkOrder === 0) {

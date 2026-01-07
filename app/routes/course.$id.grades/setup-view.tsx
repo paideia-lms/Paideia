@@ -78,6 +78,7 @@ function GradebookItemRow({
 	onToggleCategory,
 	categoryOptions,
 	courseId,
+	categoryMap,
 }: {
 	item: GradebookSetupItem;
 	depth?: number;
@@ -85,11 +86,10 @@ function GradebookItemRow({
 	onToggleCategory: (categoryId: number) => void;
 	categoryOptions: Array<{ value: string; label: string }>;
 	courseId: number;
+	categoryMap: Map<number, Route.ComponentProps["loaderData"]["gradebook"]["categories"][number]>;
 }) {
 	const isCategory = item.type === "category";
 	const isLeafItem = !isCategory;
-	const hasNestedItems =
-		isCategory && item.grade_items && item.grade_items.length > 0;
 	const isExpanded = expandedCategoryIds.includes(item.id);
 
 	// Instantiate delete hooks
@@ -115,7 +115,7 @@ function GradebookItemRow({
 			<Table.Tr>
 				<Table.Td>
 					<Group gap="xs" wrap="nowrap" pl={paddingLeft}>
-						{hasNestedItems ? (
+						{isCategory && item.grade_items && item.grade_items.length > 0 ? (
 							<ActionIcon
 								variant="subtle"
 								size="sm"
@@ -218,14 +218,7 @@ function GradebookItemRow({
 					<Group gap="xs" wrap="nowrap">
 						{isCategory ? (
 							<UpdateGradeCategoryButton
-								category={{
-									id: item.id,
-									name: item.name,
-									description: null,
-									weight: item.weight,
-									extraCredit: item.extra_credit ?? false,
-									hasItems: hasNestedItems ?? false,
-								}}
+								category={categoryMap.get(item.id)!}
 								courseId={courseId}
 							/>
 						) : (
@@ -293,9 +286,11 @@ function GradebookItemRow({
 				</Table.Td>
 			</Table.Tr>
 			{/* Recursively render nested items */}
-			{hasNestedItems &&
+			{isCategory &&
+				item.grade_items &&
+				item.grade_items.length > 0 &&
 				isExpanded &&
-				item.grade_items?.map((nestedItem) => (
+				item.grade_items.map((nestedItem) => (
 					<GradebookItemRow
 						key={nestedItem.id}
 						item={nestedItem}
@@ -304,6 +299,7 @@ function GradebookItemRow({
 						onToggleCategory={onToggleCategory}
 						categoryOptions={categoryOptions}
 						courseId={courseId}
+						categoryMap={categoryMap}
 					/>
 				))}
 		</>
@@ -426,6 +422,11 @@ export function GradebookSetupView({
 	const parentOptions: Array<{ value: string; label: string }> =
 		categoryOptions.slice();
 
+	// Create a map of category IDs to actual category objects from gradebook
+	const categoryMap = new Map(
+		data.gradebook.categories.map((cat) => [cat.id, cat]),
+	);
+
 	return (
 		<Stack gap="md">
 			<Group justify="space-between">
@@ -501,6 +502,7 @@ export function GradebookSetupView({
 									onToggleCategory={toggleCategory}
 									categoryOptions={categoryOptions}
 									courseId={data.course.id}
+									categoryMap={categoryMap}
 								/>
 							))
 						)}

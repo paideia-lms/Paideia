@@ -24,6 +24,7 @@ export const routes = [
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),
 		route("catalog", "routes/catalog.tsx"),
+		route("search", "routes/search.tsx"),
 		// every user will see this page the same except some permission difference
 		route("user/profile/:id?", "routes/user/profile.tsx"),
 		// this should belong to user data management

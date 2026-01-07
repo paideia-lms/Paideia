@@ -5,7 +5,6 @@ import type { Simplify, UnionToIntersection } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest } from "~/utils/responses";
 import { paramsSchema, type ParamsType } from "./route-params-schema";
-import { isRequestMethod } from "~/utils/assert-request-method";
 import {
 	createLoader,
 	parseAsStringEnum,
@@ -40,6 +39,13 @@ const BLOB_REF_PREFIX = "\0__BLOB_REF__:";
  */
 function generateBlobId(): string {
 	return `${BLOB_REF_PREFIX}${Math.random().toString(36).slice(2)}_${Date.now()}`;
+}
+
+function isRequestMethod<T extends "POST" | "GET" | "PATCH" | "PUT" | "DELETE">(
+	method: string,
+	target: T,
+): method is Lowercase<T> | T {
+	return method.toUpperCase() === target;
 }
 
 /**
@@ -195,6 +201,10 @@ function extractBlobsAndReplace(
 	return data;
 }
 
+/**
+ * Custom FormData class that handles Blobs and JSON serialization/deserialization.
+ * @knipignore
+ */
 export class MyFormData<T extends Record<string, any>> extends FormData {
 	constructor(data: T) {
 		super();

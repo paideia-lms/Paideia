@@ -16,18 +16,11 @@ import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetLatestVersion } from "server/internal/version-management";
-import { detectSystemResources } from "server/utils/bun-system-resources";
+import { detectSystemResources, getServerTimezone } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/system";
 
-function getServerTimezone() {
-	return (
-		Intl.DateTimeFormat().resolvedOptions().timeZone ||
-		process.env.TZ ||
-		"Unknown"
-	);
-}
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -56,10 +49,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	const serverTimezone = getServerTimezone();
 
 	// Check for latest version from Docker Hub
-	const versionInfo = await tryGetLatestVersion({
-		payload: context.get(globalContextKey).payload,
-		currentVersion: packageVersion,
-	}).getOrNull();
+	const versionInfo = await tryGetLatestVersion({ currentVersion: packageVersion }).getOrNull();
 
 	return {
 		platformInfo,
@@ -73,49 +63,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 });
 
 // Type definitions for client-side use
-type PlatformDetectionResult = {
-	detected: boolean;
-	platform: string;
-	confidence: "high" | "medium" | "low";
-	info: {
-		platform: string;
-		region?: string;
-		instanceId?: string;
-		appName?: string;
-		version?: string;
-		metadata: Record<string, string>;
-	};
-};
-
-type SystemResources = {
-	memory: {
-		total: number;
-		available: number;
-		used: number;
-		percentage: number;
-	};
-	cpu: {
-		cores: number;
-		model?: string;
-		architecture: string;
-		usage?: number;
-	};
-	disk?: {
-		total: number;
-		available: number;
-		used: number;
-		percentage: number;
-	} | null;
-	os: {
-		platform: string;
-		distribution?: string;
-		version?: string;
-		codename?: string;
-	};
-	uptime: number;
-	loadAverage?: number[];
-};
-
+type PlatformDetectionResult = Route.ComponentProps['loaderData']['platformInfo'];
+type SystemResources = Route.ComponentProps['loaderData']['systemResources'];
 // Utility functions for client-side use
 function formatBytes(bytes: number): string {
 	if (bytes === 0) return "0 B";
@@ -133,25 +82,18 @@ function getResourceStatus(percentage: number): "good" | "warning" | "error" {
 	return "error";
 }
 
+const confidenceBadgeColorMap = {
+	high: "green",
+	medium: "yellow",
+	low: "red",
+};
+
 function PlatformInfoSection({
 	platformInfo,
 }: {
 	platformInfo: PlatformDetectionResult;
 }) {
-	const getConfidenceBadgeColor = (
-		confidence: "high" | "medium" | "low",
-	): string => {
-		switch (confidence) {
-			case "high":
-				return "green";
-			case "medium":
-				return "yellow";
-			case "low":
-				return "red";
-			default:
-				return "gray";
-		}
-	};
+
 
 	return (
 		<Paper withBorder shadow="sm" p="md" radius="md">
@@ -162,7 +104,7 @@ function PlatformInfoSection({
 						<Badge color={platformInfo.detected ? "green" : "red"}>
 							{platformInfo.detected ? "Detected" : "Not Detected"}
 						</Badge>
-						<Badge color={getConfidenceBadgeColor(platformInfo.confidence)}>
+						<Badge color={confidenceBadgeColorMap[platformInfo.confidence]}>
 							{platformInfo.confidence} confidence
 						</Badge>
 					</Group>
@@ -238,6 +180,13 @@ function PlatformInfoSection({
 	);
 }
 
+const statusColorMap = {
+	good: "green",
+	warning: "yellow",
+	error: "red",
+};
+
+
 function SystemResourcesSection({
 	systemResources,
 	serverTimezone,
@@ -250,18 +199,7 @@ function SystemResourcesSection({
 		? getResourceStatus(systemResources.disk.percentage)
 		: "good";
 
-	const getStatusColor = (status: "good" | "warning" | "error"): string => {
-		switch (status) {
-			case "good":
-				return "green";
-			case "warning":
-				return "yellow";
-			case "error":
-				return "red";
-			default:
-				return "gray";
-		}
-	};
+
 
 	const formatUptime = (seconds: number): string => {
 		const days = Math.floor(seconds / 86400);
@@ -289,13 +227,13 @@ function SystemResourcesSection({
 						<Text size="sm" fw={500}>
 							Memory
 						</Text>
-						<Badge color={getStatusColor(memoryStatus)}>
+						<Badge color={statusColorMap[memoryStatus]}>
 							{systemResources.memory.percentage.toFixed(1)}% used
 						</Badge>
 					</Group>
 					<Progress
 						value={systemResources.memory.percentage}
-						color={getStatusColor(memoryStatus)}
+						color={statusColorMap[memoryStatus]}
 						size="lg"
 						mb="xs"
 					/>
@@ -369,13 +307,13 @@ function SystemResourcesSection({
 							<Text size="sm" fw={500}>
 								Disk
 							</Text>
-							<Badge color={getStatusColor(diskStatus)}>
+							<Badge color={statusColorMap[diskStatus]}>
 								{systemResources.disk.percentage.toFixed(1)}% used
 							</Badge>
 						</Group>
 						<Progress
 							value={systemResources.disk.percentage}
-							color={getStatusColor(diskStatus)}
+							color={statusColorMap[diskStatus]}
 							size="lg"
 							mb="xs"
 						/>
