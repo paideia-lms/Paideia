@@ -112,6 +112,7 @@ export const Quizzes = {
 					},
 				],
 			},
+			required: true,
 		},
 		{
 			name: "createdBy",

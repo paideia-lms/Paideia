@@ -31,6 +31,7 @@ import {
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
+import { createDefaultQuizConfig } from "server/json/raw-quiz-config/v2";
 
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

@@ -1912,3 +1912,23 @@ export function updateQuestionScoring({
 		nestedQuizId,
 	});
 }
+
+/**
+ * Creates a default blank quiz configuration
+ * Returns a regular quiz with a single empty page
+ */
+export function createDefaultQuizConfig(): RegularQuizConfig {
+	return {
+		version: "v2",
+		type: "regular",
+		id: `quiz-${Date.now()}`,
+		title: "Untitled Quiz",
+		pages: [
+			{
+				id: `page-${Date.now()}`,
+				title: "Page 1",
+				questions: [],
+			},
+		],
+	};
+}

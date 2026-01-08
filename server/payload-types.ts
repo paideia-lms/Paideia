@@ -580,7 +580,7 @@ export interface Quiz {
   title: string;
   description?: string | null;
   instructions?: string | null;
-  rawQuizConfig?:
+  rawQuizConfig:
     | {
         [k: string]: unknown;
       }

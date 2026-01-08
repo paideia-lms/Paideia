@@ -1,9 +1,7 @@
 import { omit } from "es-toolkit";
 import type { Payload, PayloadRequest, TypedUser } from "payload";
-import type {
-	LatestQuizConfig,
-	LatestQuizConfig as QuizConfig,
-} from "server/json/raw-quiz-config/version-resolver";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import { createDefaultQuizConfig } from "server/json/raw-quiz-config/v2";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
@@ -53,7 +51,7 @@ export interface CreateAssignmentModuleArgs
 export interface CreateQuizModuleArgs extends BaseCreateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
-	rawQuizConfig?: QuizConfig;
+	rawQuizConfig?: LatestQuizConfig;
 }
 
 export interface CreateDiscussionModuleArgs
@@ -118,7 +116,7 @@ export interface UpdateAssignmentModuleArgs
 export interface UpdateQuizModuleArgs extends BaseUpdateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
-	rawQuizConfig?: QuizConfig;
+	rawQuizConfig?: LatestQuizConfig;
 }
 
 export interface UpdateDiscussionModuleArgs
@@ -237,7 +235,7 @@ interface Quiz {
 	description?: string | null;
 	instructions?: string | null;
 	timeLimit?: number | null; // Calculated from rawQuizConfig.globalTimer (in minutes)
-	rawQuizConfig?: LatestQuizConfig | null;
+	rawQuizConfig: LatestQuizConfig;
 	updatedAt: string;
 	createdAt: string;
 }
@@ -455,7 +453,7 @@ async function buildDiscriminatedUnionResult(
 	payload: Payload,
 	req: Partial<PayloadRequest> | undefined,
 	overrideAccess: boolean,
-): Promise<ActivityModuleResult> {
+) {
 	const { type } = data;
 
 	if (type === "page") {
@@ -470,6 +468,7 @@ async function buildDiscriminatedUnionResult(
 			...baseResult,
 			type: "page" as const,
 			...omit(pageData, ["createdBy", "id"]),
+			pageId: pageData.id,
 		};
 		return result;
 	} else if (type === "whiteboard") {
@@ -479,10 +478,11 @@ async function buildDiscriminatedUnionResult(
 				`Whiteboard data not found for activity module with id '${data.id}'`,
 			);
 		}
-		const result: WhiteboardModuleResult = {
+		const result = {
 			...baseResult,
 			type: "whiteboard" as const,
 			...omit(whiteboardData, ["createdBy", "id"]),
+			whiteboardId: whiteboardData.id,
 		};
 		return result;
 	} else if (type === "file") {
@@ -501,11 +501,12 @@ async function buildDiscriminatedUnionResult(
 			overrideAccess,
 		);
 
-		const result: FileModuleResult = {
+		const result = {
 			...baseResult,
 			type: "file" as const,
 			...omit(fileData, ["createdBy", "id", "media"]),
 			media: enrichedMedia,
+			fileId: fileData.id,
 		};
 		return result;
 	} else if (type === "assignment") {
@@ -515,10 +516,11 @@ async function buildDiscriminatedUnionResult(
 				`Assignment data not found for activity module with id '${data.id}'`,
 			);
 		}
-		const result: AssignmentModuleResult = {
+		const result = {
 			...baseResult,
-			type: "assignment",
+			type: "assignment" as const,
 			...omit(assignmentData, ["createdBy", "id"]),
+			assignmentId: assignmentData.id,
 		};
 		return result;
 	} else if (type === "quiz") {
@@ -538,11 +540,12 @@ async function buildDiscriminatedUnionResult(
 			}
 		}
 
-		const result: QuizModuleResult = {
+		const result = {
 			...baseResult,
-			type: "quiz",
+			type: "quiz" as const,
 			...omit(quizData, ["createdBy", "id"]),
 			timeLimit,
+			quizId: quizData.id,
 		};
 		return result;
 	} else {
@@ -554,9 +557,10 @@ async function buildDiscriminatedUnionResult(
 			);
 		}
 
-		const result: DiscussionModuleResult = {
+		const result = {
 			...baseResult,
-			type: "discussion",
+			type: "discussion" as const,
+			discussionId: discussionData.id,
 			...omit(discussionData, ["createdBy", "id"]),
 		};
 		return result;
@@ -1056,8 +1060,8 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 				req,
 				overrideAccess = false,
 				instructions,
-				rawQuizConfig,
 				userId: _userId,
+				rawQuizConfig,
 			} = args;
 
 			// Validate required fields
@@ -1082,9 +1086,11 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 							title,
 							description: description,
 							instructions: instructions,
-							rawQuizConfig: rawQuizConfig as unknown as {
-								[x: string]: unknown;
-							},
+							rawQuizConfig: (rawQuizConfig ??
+								createDefaultQuizConfig()) as unknown as Record<
+								string,
+								unknown
+							>,
 							createdBy: userId,
 						},
 						req: reqWithTransaction,
@@ -1459,9 +1465,8 @@ export function tryGetActivityModuleById(args: GetActivityModuleByIdArgs) {
 				quiz: activityModuleResult.quiz
 					? {
 							...activityModuleResult.quiz,
-							rawQuizConfig:
-								(activityModuleResult.quiz
-									.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
+							rawQuizConfig: activityModuleResult.quiz
+								.rawQuizConfig as unknown as LatestQuizConfig,
 						}
 					: null,
 				discussion: activityModuleResult.discussion,

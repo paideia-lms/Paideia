@@ -29,7 +29,6 @@ import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
-import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { redirect } from "react-router";
 import type { ActivityModule } from "server/payload-types";
@@ -140,7 +139,6 @@ const createCreateQuizActionRpc = createActionRpc({
 		quizPoints: z.coerce.number().optional(),
 		quizTimeLimit: z.coerce.number().optional(),
 		quizGradingType: z.enum(["automatic", "manual"]).optional(),
-		rawQuizConfig: z.custom<QuizConfig>().optional(),
 	}),
 	method: "POST",
 	action: Action.CreateQuiz,
@@ -292,7 +290,6 @@ const createQuizAction = createCreateQuizActionRpc.createAction(
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.quizInstructions,
-			rawQuizConfig: formData.rawQuizConfig,
 			req: payloadRequest,
 		});
 
@@ -531,7 +528,6 @@ function getQuizFormInitialValues() {
 		quizPoints: 100,
 		quizTimeLimit: 60,
 		quizGradingType: "automatic" as const,
-		rawQuizConfig: null as QuizConfig | null,
 	};
 }
 
@@ -552,7 +548,6 @@ function QuizFormWrapper() {
 						quizPoints: values.quizPoints,
 						quizTimeLimit: values.quizTimeLimit,
 						quizGradingType: values.quizGradingType,
-						rawQuizConfig: values.rawQuizConfig ?? undefined,
 					},
 				})
 			}

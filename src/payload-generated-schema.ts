@@ -804,7 +804,7 @@ export const quizzes = pgTable(
     title: varchar("title").notNull(),
     description: varchar("description"),
     instructions: varchar("instructions"),
-    rawQuizConfig: jsonb("raw_quiz_config"),
+    rawQuizConfig: jsonb("raw_quiz_config").notNull(),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
