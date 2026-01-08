@@ -1295,11 +1295,6 @@ const resultWrapFix: (
 	return null;
 };
 
-// Log level configuration
-// "error" - only show errors
-// "warning" - show warnings and errors
-export const logLevel: "error" | "warning" = "warning";
-
 // Define lint rules
 export const rules: LintRule[] = [
 	// {

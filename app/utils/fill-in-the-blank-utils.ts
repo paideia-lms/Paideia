@@ -18,6 +18,7 @@ function isConstantCase(str: string): boolean {
 
 /**
  * Validates that a blank ID is in snake_case or CONSTANT_CASE
+ * @knipignore export for testing
  */
 export function isValidBlankId(id: string): boolean {
 	return isSnakeCase(id) || isConstantCase(id);

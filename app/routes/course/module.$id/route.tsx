@@ -47,7 +47,6 @@ import { ModuleDatesInfo } from "./components/module-dates-info";
 import { SubmissionHistory } from "app/components/submission-history";
 import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
 import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
-import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsBoolean } from "nuqs";
 import {
 	createParser,
@@ -993,11 +992,6 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 
 		const handleQuizSubmit = async (answers: QuizAnswers) => {
 			if (!activeSubmission) return;
-
-			const _transformedAnswers = transformQuizAnswersToSubmissionFormat(
-				quizConfig,
-				answers,
-			);
 
 			// Calculate time spent if startedAt exists
 			let _timeSpent: number | undefined;

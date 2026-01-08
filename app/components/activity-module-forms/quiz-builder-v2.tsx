@@ -162,7 +162,7 @@ function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
 					`rawQuizConfig.nestedQuizzes.${quizIndex}.description`,
 				)}
 				key={form.key(`rawQuizConfig.nestedQuizzes.${quizIndex}.description`)}
-				label="Description (optional)"
+				label="Description"
 				minRows={2}
 			/>
 
@@ -172,13 +172,7 @@ function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
 				)}
 				key={form.key(`rawQuizConfig.nestedQuizzes.${quizIndex}.globalTimer`)}
 				label="Time Limit (seconds)"
-				description="Timer for this quiz (optional)"
 				min={0}
-			/>
-
-			<GradingConfigEditor
-				form={form}
-				path={`rawQuizConfig.nestedQuizzes.${quizIndex}.grading`}
 			/>
 
 			<Box>

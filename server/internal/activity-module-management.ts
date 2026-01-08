@@ -2211,6 +2211,7 @@ export function tryUpdateAssignmentModule(args: UpdateAssignmentModuleArgs) {
 
 /**
  * Updates a quiz activity module
+ * @deprecated we should not use a general update quiz module function, instead use the specific update quiz module functions
  */
 export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 	return Result.try(

@@ -115,7 +115,7 @@ export interface MentionListRef {
 	selectedItem: MentionItem | null;
 }
 
-export const MentionList = forwardRef(
+const MentionList = forwardRef(
 	({ items, command }: MentionListProps, ref: ForwardedRef<MentionListRef>) => {
 		const { colorScheme } = useMantineColorScheme();
 		const [selectedIndex, setSelectedIndex] = useState(0);
@@ -373,14 +373,14 @@ function getTextContentFromHtmlClient(html: string): string {
 /**
  * Calculate character count from text
  */
-export function getCharacterCount(text: string): number {
+function getCharacterCount(text: string): number {
 	return text.length;
 }
 
 /**
  * Calculate word count from text
  */
-export function getWordCount(text: string): number {
+function getWordCount(text: string): number {
 	return text
 		.trim()
 		.split(/\s+/)
@@ -390,7 +390,7 @@ export function getWordCount(text: string): number {
 /**
  * Check if text content is empty (after trimming)
  */
-export function isTextEmpty(text: string): boolean {
+function isTextEmpty(text: string): boolean {
 	return text.trim().length === 0;
 }
 

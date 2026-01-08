@@ -45,6 +45,7 @@ export interface FileType {
  * Strongly typed MIME types constant
  * Uses MIME_TYPES from @mantine/dropzone where available,
  * otherwise uses mime.getType() with fallback to string literals
+ * @knipignore
  */
 export const MimeTypes = {
 	// Images - from Mantine

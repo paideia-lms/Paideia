@@ -62,22 +62,7 @@ import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { UseQuizFormReturnType } from "./quiz-form";
 
-// ============================================================================
-// GRADING CONFIG EDITOR
-// ============================================================================
 
-export function PassScoringInput({ form }: { form: UseQuizFormReturnType }) {
-	return (
-		<NumberInput
-			{...form.getInputProps("rawQuizConfig.grading.passingScore")}
-			key={form.key("rawQuizConfig.grading.passingScore")}
-			label="Passing Score (%)"
-			description="Minimum percentage to pass (0-100)"
-			min={0}
-			max={100}
-		/>
-	);
-}
 
 export interface GradingConfigEditorProps {
 	form: UseQuizFormReturnType;
@@ -117,8 +102,14 @@ export function GradingConfigEditor({ form, path }: GradingConfigEditorProps) {
 
 				{grading.enabled && (
 					<>
-						<PassScoringInput form={form} />
-
+						<NumberInput
+							{...form.getInputProps("rawQuizConfig.grading.passingScore")}
+							key={form.key("rawQuizConfig.grading.passingScore")}
+							label="Passing Score (%)"
+							description="Minimum percentage to pass (0-100)"
+							min={0}
+							max={100}
+						/>
 						<Checkbox
 							{...form.getInputProps(`${path}.showScoreToStudent`, {
 								type: "checkbox",

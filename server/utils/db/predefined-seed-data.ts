@@ -24,12 +24,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 			title: "Section 1: Basic Concepts",
 			description: "Fundamental programming concepts and syntax",
 			globalTimer: 10, // 10 seconds for testing
-			grading: {
-				enabled: true,
-				passingScore: 70,
-				showScoreToStudent: true,
-				showCorrectAnswers: true,
-			},
 			pages: [
 				{
 					id: "s1-page-1",
@@ -178,12 +172,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 			description:
 				"Comprehensive assessment covering all question types with various scoring methods",
 			globalTimer: 600, // 10 minutes
-			grading: {
-				enabled: true,
-				passingScore: 70,
-				showScoreToStudent: true,
-				showCorrectAnswers: true,
-			},
 			pages: [
 				{
 					id: "page-1",

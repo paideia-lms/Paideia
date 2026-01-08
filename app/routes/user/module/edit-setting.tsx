@@ -293,6 +293,9 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 
 const useUpdateAssignment = createUpdateAssignmentActionRpc.createHook<typeof updateAssignmentAction>();
 
+/**
+ * @deprecated we should not use a general update quiz module function, instead use the specific update quiz module functions
+ */
 const updateQuizAction = createUpdateQuizActionRpc.createAction(
 	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);

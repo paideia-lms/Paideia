@@ -248,7 +248,7 @@ export interface NestedQuizConfig {
 	pages: QuizPage[];
 	resources?: QuizResource[]; // Optional resources (HTML rich text)
 	globalTimer?: number; // Timer in seconds for the nested quiz
-	grading?: GradingConfig; // Grading configuration for this nested quiz
+	// grading?: GradingConfig; // Grading configuration for this nested quiz
 }
 
 // Regular Quiz Configuration - has pages directly
@@ -459,95 +459,4 @@ export function getDefaultScoring(questionType: QuestionType): ScoringConfig {
 		default:
 			return { type: "simple", points: 1 };
 	}
-}
-
-/**
- * Represents a Paideia Rubric Definition, used in advanced grading forms.
- * Corresponds to the data managed by gradingform_rubric_controller in Paideia.
- */
-export interface PaideiaRubricDefinition {
-	/** Unique identifier for the rubric. */
-	id: number;
-	/** Human-readable name or title of the rubric. */
-	name: string;
-	/** Optional detailed description of the rubric's purpose. */
-	description?: string;
-	/** Array of criteria that form the rubric's structure. */
-	criteria: PaideiaRubricCriterion[];
-	/** Status of the rubric (e.g., 'draft' or 'ready'). */
-	status: "draft" | "ready";
-	/** Timestamp of creation. */
-	timecreated: number;
-	/** Timestamp of last modification. */
-	timemodified: number;
-}
-
-/**
- * Represents a single criterion within a rubric.
- * Each criterion has multiple levels for assessment.
- */
-export interface PaideiaRubricCriterion {
-	/** Unique identifier for the criterion. */
-	id: number;
-	/** Descriptive name of the criterion (e.g., "Organization"). */
-	name: string;
-	/** Detailed explanation of what the criterion assesses. */
-	description: string;
-	/** Array of levels associated with this criterion. */
-	levels: PaideiaRubricLevel[];
-	/** Sorting order for display (lower values appear first). */
-	sortorder: number;
-}
-
-/**
- * Represents a performance level for a given criterion.
- * Levels define qualitative descriptions and associated scores.
- */
-export interface PaideiaRubricLevel {
-	/** Unique identifier for the level. */
-	id: number;
-	/** Qualitative description of this performance level. */
-	definition: string;
-	/** Numerical score assigned to this level (non-negative). */
-	score: number;
-	/** Sorting order for display within the criterion (left to right). */
-	sortorder: number;
-}
-
-/**
- * Represents a filled instance of a rubric for a specific submission (grading).
- * Corresponds to rubric_fillings in Paideia's grading data.
- */
-export interface PaideiaRubricFilling {
-	/** Unique identifier for the filling instance. */
-	id: number;
-	/** Foreign key to the rubric definition ID. */
-	rubricid: number;
-	/** ID of the instance (e.g., assignment submission). */
-	instanceid: number;
-	/** Array of criterion-level selections for this filling. */
-	criterionlevel: { [criterionId: number]: number }; // Maps criterion ID to selected level ID
-	/** Overall calculated score from the filling. */
-	score: number;
-	/** Timestamp when the filling was completed. */
-	timecreated: number;
-	/** Timestamp of last update to the filling. */
-	timemodified: number;
-}
-
-/**
- * Represents optional remarks or feedback associated with a rubric filling.
- * Corresponds to rubric_filling_filled_levels in Paideia.
- */
-export interface PaideiaRubricRemark {
-	/** Unique identifier for the remark. */
-	id: number;
-	/** Foreign key to the filling ID. */
-	fillingid: number;
-	/** Foreign key to the criterion ID. */
-	criterionid: number;
-	/** Additional textual feedback for the criterion. */
-	remark: string;
-	/** Timestamp of the remark. */
-	timemodified: number;
 }
