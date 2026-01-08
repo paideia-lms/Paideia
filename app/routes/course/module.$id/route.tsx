@@ -54,7 +54,7 @@ import {
 	parseAsStringEnum,
 } from "nuqs/server";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
+import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";

@@ -3,14 +3,14 @@ import type {
 	Question as QuestionV1,
 	QuizConfig as QuizConfigV1,
 	QuizPage as QuizPageV1,
-} from "./types";
+} from "./v1";
 import type {
 	FillInTheBlankQuestion as FillInTheBlankQuestionV2,
 	NestedQuizConfig,
 	Question as QuestionV2,
 	QuizConfig as QuizConfigV2,
 	QuizPage as QuizPageV2,
-} from "./types.v2";
+} from "./v2";
 
 export type LatestQuizConfig = QuizConfigV2;
 

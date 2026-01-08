@@ -1,5 +1,5 @@
 import type { SeedData } from "../seed-schema";
-import type { LatestQuizConfig } from "server/json";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import {
 	type ActivityModuleResult,
 	tryCreateAssignmentModule,

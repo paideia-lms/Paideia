@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import type { LatestCourseModuleSettings } from "server/json";
+import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateAssignmentModuleArgs,

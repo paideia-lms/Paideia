@@ -3,8 +3,8 @@ import type {
 	NestedQuizConfig,
 	QuizAnswers,
 	QuizConfig,
-} from "server/json/raw-quiz-config/types.v2";
-import { isContainerQuiz } from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
+import { isContainerQuiz } from "server/json/raw-quiz-config/v2";
 
 interface UseNestedQuizStateOptions {
 	quizConfig: QuizConfig;

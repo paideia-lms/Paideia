@@ -1,14 +1,14 @@
 import type { Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import type {
-	LatestAssignmentSettings,
+	LatestCourseAssignmentSettings,
 	LatestCourseModuleSettings,
-	LatestDiscussionSettings,
-	LatestFileSettings,
-	LatestPageSettings,
-	LatestQuizSettings,
-	LatestWhiteboardSettings,
-} from "server/json";
+	LatestCourseDiscussionSettings,
+	LatestCourseFileSettings,
+	LatestCoursePageSettings,
+	LatestCourseQuizSettings,
+	LatestCourseWhiteboardSettings,
+} from "server/json/course-module-settings/version-resolver";
 import { Result } from "typescript-result";
 import {
 	DevelopmentError,
@@ -73,7 +73,7 @@ interface BaseCourseActivityModuleLinkResult {
 interface PageModuleLinkResult extends BaseCourseActivityModuleLinkResult {
 	type: "page";
 	activityModule: Extract<ActivityModuleResult, { type: "page" }>;
-	settings: LatestPageSettings | null;
+	settings: LatestCoursePageSettings | null;
 }
 
 /**
@@ -83,7 +83,7 @@ interface WhiteboardModuleLinkResult
 	extends BaseCourseActivityModuleLinkResult {
 	type: "whiteboard";
 	activityModule: Extract<ActivityModuleResult, { type: "whiteboard" }>;
-	settings: LatestWhiteboardSettings | null;
+	settings: LatestCourseWhiteboardSettings | null;
 }
 
 /**
@@ -92,7 +92,7 @@ interface WhiteboardModuleLinkResult
 interface FileModuleLinkResult extends BaseCourseActivityModuleLinkResult {
 	type: "file";
 	activityModule: Extract<ActivityModuleResult, { type: "file" }>;
-	settings: LatestFileSettings | null;
+	settings: LatestCourseFileSettings | null;
 }
 
 /**
@@ -102,7 +102,7 @@ interface AssignmentModuleLinkResult
 	extends BaseCourseActivityModuleLinkResult {
 	type: "assignment";
 	activityModule: Extract<ActivityModuleResult, { type: "assignment" }>;
-	settings: LatestAssignmentSettings | null;
+	settings: LatestCourseAssignmentSettings | null;
 }
 
 /**
@@ -111,7 +111,7 @@ interface AssignmentModuleLinkResult
 interface QuizModuleLinkResult extends BaseCourseActivityModuleLinkResult {
 	type: "quiz";
 	activityModule: Extract<ActivityModuleResult, { type: "quiz" }>;
-	settings: LatestQuizSettings | null;
+	settings: LatestCourseQuizSettings | null;
 }
 
 /**
@@ -121,7 +121,7 @@ interface DiscussionModuleLinkResult
 	extends BaseCourseActivityModuleLinkResult {
 	type: "discussion";
 	activityModule: Extract<ActivityModuleResult, { type: "discussion" }>;
-	settings: LatestDiscussionSettings | null;
+	settings: LatestCourseDiscussionSettings | null;
 }
 
 /**
@@ -716,35 +716,35 @@ async function buildCourseActivityModuleLinkResult(
 			...baseResult,
 			type: "page",
 			activityModule,
-			settings: settings?.settings as LatestPageSettings | null,
+			settings: settings?.settings as LatestCoursePageSettings | null,
 		} satisfies PageModuleLinkResult;
 	} else if (type === "whiteboard") {
 		return {
 			...baseResult,
 			type: "whiteboard",
 			activityModule,
-			settings: settings?.settings as LatestWhiteboardSettings | null,
+			settings: settings?.settings as LatestCourseWhiteboardSettings | null,
 		} satisfies WhiteboardModuleLinkResult;
 	} else if (type === "file") {
 		return {
 			...baseResult,
 			type: "file",
 			activityModule,
-			settings: settings?.settings as LatestFileSettings | null,
+			settings: settings?.settings as LatestCourseFileSettings | null,
 		} satisfies FileModuleLinkResult;
 	} else if (type === "assignment") {
 		return {
 			...baseResult,
 			type: "assignment",
 			activityModule,
-			settings: settings?.settings as LatestAssignmentSettings | null,
+			settings: settings?.settings as LatestCourseAssignmentSettings | null,
 		} satisfies AssignmentModuleLinkResult;
 	} else if (type === "quiz") {
 		return {
 			...baseResult,
 			type: "quiz",
 			activityModule,
-			settings: settings?.settings as LatestQuizSettings | null,
+			settings: settings?.settings as LatestCourseQuizSettings | null,
 		} satisfies QuizModuleLinkResult;
 	} else {
 		// discussion
@@ -752,7 +752,7 @@ async function buildCourseActivityModuleLinkResult(
 			...baseResult,
 			type: "discussion",
 			activityModule,
-			settings: settings?.settings as LatestDiscussionSettings | null,
+			settings: settings?.settings as LatestCourseDiscussionSettings | null,
 		} satisfies DiscussionModuleLinkResult;
 	}
 }

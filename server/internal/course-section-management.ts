@@ -18,7 +18,7 @@ import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
-import type { LatestCourseModuleSettings } from "server/json";
+import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 import { groupBy } from "node_modules/es-toolkit/dist/array/groupBy.mjs";
 
 // ============================================================================

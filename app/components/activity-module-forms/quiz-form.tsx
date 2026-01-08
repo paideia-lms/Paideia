@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
-import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
+import type { QuizConfig } from "server/json/raw-quiz-config/v2";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
 import type { QuizFormInitialValues as EditQuizFormInitialValues } from "app/routes/user/module/edit-setting";

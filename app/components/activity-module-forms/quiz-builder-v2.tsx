@@ -15,7 +15,7 @@ import {
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
-import type { NestedQuizConfig } from "server/json/raw-quiz-config/types.v2";
+import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 import type { UseQuizFormReturnType } from "./quiz-form";

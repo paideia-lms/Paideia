@@ -37,13 +37,14 @@ import {
 	tryUpdateWhiteboardModuleSettings,
 } from "server/internal/course-activity-module-link-management";
 import type {
-	LatestAssignmentSettings,
-	LatestDiscussionSettings,
-	LatestFileSettings,
-	LatestPageSettings,
-	LatestQuizSettings,
-	LatestWhiteboardSettings,
-} from "server/json";
+	LatestCourseAssignmentSettings,
+	LatestCourseDiscussionSettings,
+	LatestCourseFileSettings,
+	LatestCourseQuizSettings,
+	LatestCoursePageSettings,
+	LatestCourseWhiteboardSettings,
+} from "server/json/course-module-settings/version-resolver";
+
 import { permissions } from "server/utils/permissions";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import {
@@ -439,7 +440,7 @@ function PageSettingsFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: {
-	settings: LatestPageSettings | null;
+	settings: LatestCoursePageSettings | null;
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
@@ -493,7 +494,7 @@ function WhiteboardSettingsFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: {
-	settings: LatestWhiteboardSettings | null;
+	settings: LatestCourseWhiteboardSettings | null;
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
@@ -548,7 +549,7 @@ function FileSettingsFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: {
-	settings: LatestFileSettings | null;
+	settings: LatestCourseFileSettings | null;
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
@@ -602,7 +603,7 @@ function AssignmentSettingsFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: {
-	settings: LatestAssignmentSettings | null;
+	settings: LatestCourseAssignmentSettings | null;
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
@@ -701,7 +702,7 @@ function QuizSettingsFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: {
-	settings: LatestQuizSettings | null;
+	settings: LatestCourseQuizSettings | null;
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {
@@ -788,7 +789,7 @@ function DiscussionSettingsFormWrapper({
 	moduleLinkId,
 	onCancel,
 }: {
-	settings: LatestDiscussionSettings | null;
+	settings: LatestCourseDiscussionSettings | null;
 	moduleLinkId: number;
 	onCancel: () => void;
 }) {

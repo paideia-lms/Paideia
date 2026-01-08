@@ -61,7 +61,7 @@ import type {
 	ShortAnswerQuestion,
 	SingleSelectionMatrixQuestion,
 	WhiteboardQuestion,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";

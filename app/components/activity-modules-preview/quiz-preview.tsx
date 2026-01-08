@@ -33,14 +33,14 @@ import type {
 	QuizConfig,
 	QuizResource,
 	RegularQuizConfig,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import {
 	calculateTotalPoints,
 	getQuestionPoints,
 	getScoringDescription,
 	isContainerQuiz,
 	isRegularQuiz,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import { RichTextRenderer } from "../rich-text/rich-text-renderer";
 import { NestedQuizSelector } from "./nested-quiz-selector";
 import { QuestionRenderer } from "./question-renderer";

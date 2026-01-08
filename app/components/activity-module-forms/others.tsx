@@ -56,7 +56,7 @@ import type {
 	QuizResource,
 	RankingQuestion,
 	SingleSelectionMatrixQuestion,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";

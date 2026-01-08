@@ -6,7 +6,7 @@ import type {
 	QuestionAnswer,
 	QuizAnswers,
 	RegularQuizConfig,
-} from "../../../server/json/raw-quiz-config/types.v2";
+} from "../../../server/json/raw-quiz-config/v2";
 
 interface UseQuizFormOptions {
 	quizConfig: RegularQuizConfig | NestedQuizConfig;

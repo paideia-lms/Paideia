@@ -1,5 +1,5 @@
 import { QuizSubmissions } from "server/collections";
-import type { LatestQuizSettings } from "server/json";
+import type { LatestCourseQuizSettings } from "server/json/course-module-settings/version-resolver";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { JobQueue } from "../payload.config";
 import type { QuizSubmission } from "server/payload-types";
@@ -656,7 +656,7 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 
 			const quiz = activityModule.quiz;
 			const quizSettings =
-				courseModuleLink.settings as unknown as LatestQuizSettings | null;
+				courseModuleLink.settings as unknown as LatestCourseQuizSettings | null;
 
 			const isLate = quizSettings?.closingTime
 				? new Date() > new Date(quizSettings.closingTime)
@@ -810,7 +810,7 @@ export function tryCreateQuizSubmission(args: CreateQuizSubmissionArgs) {
 			}
 
 			const quizSettings =
-				courseModuleLink.settings as unknown as LatestQuizSettings | null;
+				courseModuleLink.settings as unknown as LatestCourseQuizSettings | null;
 
 			const isLate = quizSettings?.closingTime
 				? new Date() > new Date(quizSettings?.closingTime)
