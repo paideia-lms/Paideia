@@ -64,22 +64,6 @@ export const enum_activity_modules_type = pgEnum("enum_activity_modules_type", [
   "quiz",
   "discussion",
 ]);
-export const enum_quizzes_questions_question_type = pgEnum(
-  "enum_quizzes_questions_question_type",
-  [
-    "multiple_choice",
-    "true_false",
-    "short_answer",
-    "essay",
-    "fill_blank",
-    "matching",
-    "ordering",
-  ],
-);
-export const enum_quizzes_grading_type = pgEnum("enum_quizzes_grading_type", [
-  "automatic",
-  "manual",
-]);
 export const enum_discussions_thread_sorting = pgEnum(
   "enum_discussions_thread_sorting",
   ["recent", "upvoted", "active", "alphabetical"],
@@ -813,70 +797,6 @@ export const assignments = pgTable(
   ],
 );
 
-export const quizzes_questions_options = pgTable(
-  "quizzes_questions_options",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: varchar("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    text: varchar("text").notNull(),
-    isCorrect: boolean("is_correct").default(false),
-    feedback: varchar("feedback"),
-  },
-  (columns) => [
-    index("quizzes_questions_options_order_idx").on(columns._order),
-    index("quizzes_questions_options_parent_id_idx").on(columns._parentID),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quizzes_questions.id],
-      name: "quizzes_questions_options_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const quizzes_questions_hints = pgTable(
-  "quizzes_questions_hints",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: varchar("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    hint: varchar("hint").notNull(),
-  },
-  (columns) => [
-    index("quizzes_questions_hints_order_idx").on(columns._order),
-    index("quizzes_questions_hints_parent_id_idx").on(columns._parentID),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quizzes_questions.id],
-      name: "quizzes_questions_hints_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const quizzes_questions = pgTable(
-  "quizzes_questions",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    questionText: varchar("question_text").notNull(),
-    questionType:
-      enum_quizzes_questions_question_type("question_type").notNull(),
-    points: numeric("points", { mode: "number" }).notNull(),
-    correctAnswer: varchar("correct_answer"),
-    explanation: varchar("explanation"),
-  },
-  (columns) => [
-    index("quizzes_questions_order_idx").on(columns._order),
-    index("quizzes_questions_parent_id_idx").on(columns._parentID),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quizzes.id],
-      name: "quizzes_questions_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
 export const quizzes = pgTable(
   "quizzes",
   {
@@ -884,15 +804,6 @@ export const quizzes = pgTable(
     title: varchar("title").notNull(),
     description: varchar("description"),
     instructions: varchar("instructions"),
-    points: numeric("points", { mode: "number" }).default(100),
-    gradingType: enum_quizzes_grading_type("grading_type").default("automatic"),
-    showCorrectAnswers: boolean("show_correct_answers").default(false),
-    allowMultipleAttempts: boolean("allow_multiple_attempts").default(false),
-    shuffleQuestions: boolean("shuffle_questions").default(false),
-    shuffleAnswers: boolean("shuffle_answers").default(false),
-    showOneQuestionAtATime: boolean("show_one_question_at_a_time").default(
-      false,
-    ),
     rawQuizConfig: jsonb("raw_quiz_config"),
     createdBy: integer("created_by_id")
       .notNull()
@@ -3002,46 +2913,7 @@ export const relations_assignments = relations(
     }),
   }),
 );
-export const relations_quizzes_questions_options = relations(
-  quizzes_questions_options,
-  ({ one }) => ({
-    _parentID: one(quizzes_questions, {
-      fields: [quizzes_questions_options._parentID],
-      references: [quizzes_questions.id],
-      relationName: "options",
-    }),
-  }),
-);
-export const relations_quizzes_questions_hints = relations(
-  quizzes_questions_hints,
-  ({ one }) => ({
-    _parentID: one(quizzes_questions, {
-      fields: [quizzes_questions_hints._parentID],
-      references: [quizzes_questions.id],
-      relationName: "hints",
-    }),
-  }),
-);
-export const relations_quizzes_questions = relations(
-  quizzes_questions,
-  ({ one, many }) => ({
-    _parentID: one(quizzes, {
-      fields: [quizzes_questions._parentID],
-      references: [quizzes.id],
-      relationName: "questions",
-    }),
-    options: many(quizzes_questions_options, {
-      relationName: "options",
-    }),
-    hints: many(quizzes_questions_hints, {
-      relationName: "hints",
-    }),
-  }),
-);
-export const relations_quizzes = relations(quizzes, ({ one, many }) => ({
-  questions: many(quizzes_questions, {
-    relationName: "questions",
-  }),
+export const relations_quizzes = relations(quizzes, ({ one }) => ({
   createdBy: one(users, {
     fields: [quizzes.createdBy],
     references: [users.id],
@@ -3782,8 +3654,6 @@ type DatabaseSchema = {
   enum_enrollments_role: typeof enum_enrollments_role;
   enum_enrollments_status: typeof enum_enrollments_status;
   enum_activity_modules_type: typeof enum_activity_modules_type;
-  enum_quizzes_questions_question_type: typeof enum_quizzes_questions_question_type;
-  enum_quizzes_grading_type: typeof enum_quizzes_grading_type;
   enum_discussions_thread_sorting: typeof enum_discussions_thread_sorting;
   enum_assignment_submissions_status: typeof enum_assignment_submissions_status;
   enum_quiz_submissions_answers_question_type: typeof enum_quiz_submissions_answers_question_type;
@@ -3816,9 +3686,6 @@ type DatabaseSchema = {
   whiteboards: typeof whiteboards;
   assignments_allowed_file_types: typeof assignments_allowed_file_types;
   assignments: typeof assignments;
-  quizzes_questions_options: typeof quizzes_questions_options;
-  quizzes_questions_hints: typeof quizzes_questions_hints;
-  quizzes_questions: typeof quizzes_questions;
   quizzes: typeof quizzes;
   discussions_pinned_threads: typeof discussions_pinned_threads;
   discussions: typeof discussions;
@@ -3882,9 +3749,6 @@ type DatabaseSchema = {
   relations_whiteboards: typeof relations_whiteboards;
   relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
   relations_assignments: typeof relations_assignments;
-  relations_quizzes_questions_options: typeof relations_quizzes_questions_options;
-  relations_quizzes_questions_hints: typeof relations_quizzes_questions_hints;
-  relations_quizzes_questions: typeof relations_quizzes_questions;
   relations_quizzes: typeof relations_quizzes;
   relations_discussions_pinned_threads: typeof relations_discussions_pinned_threads;
   relations_discussions: typeof relations_discussions;

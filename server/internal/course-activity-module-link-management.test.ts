@@ -568,7 +568,6 @@ describe("Course Activity Module Link Management Functions", () => {
 				description: "Quiz module to test settings",
 				userId: testUser.id,
 				instructions: "Complete this quiz",
-				timeLimit: 60,
 				overrideAccess: true,
 			} satisfies CreateQuizModuleArgs;
 

@@ -157,27 +157,6 @@ describe("Activity Module Management", () => {
 				user: testUser as TypedUser,
 			}),
 			instructions: "Answer all questions",
-			points: 100,
-			gradingType: "automatic",
-			timeLimit: 60,
-			showCorrectAnswers: true,
-			allowMultipleAttempts: true,
-			shuffleQuestions: false,
-			shuffleAnswers: true,
-			showOneQuestionAtATime: false,
-			questions: [
-				{
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					points: 10,
-					options: [
-						{ text: "3", isCorrect: false, feedback: "Incorrect" },
-						{ text: "4", isCorrect: true, feedback: "Correct!" },
-						{ text: "5", isCorrect: false, feedback: "Incorrect" },
-					],
-					explanation: "2 + 2 equals 4",
-				},
-			],
 		};
 
 		const result = await tryCreateQuizModule(args);
@@ -338,7 +317,6 @@ describe("Activity Module Management", () => {
 					user: testUser as TypedUser,
 				}),
 				instructions: "Answer all questions",
-				points: 100,
 			}),
 			tryCreateDiscussionModule({
 				payload,
@@ -493,8 +471,6 @@ describe("Activity Module Management", () => {
 				user: testUser as TypedUser,
 			}),
 			instructions: "Original quiz instructions",
-			points: 50,
-			timeLimit: 30,
 		} satisfies CreateQuizModuleArgs;
 
 		const createResult = await tryCreateQuizModule(createArgs);
@@ -513,9 +489,6 @@ describe("Activity Module Management", () => {
 				user: testUser as TypedUser,
 			}),
 			instructions: "Updated quiz instructions",
-			points: 100,
-			timeLimit: 60,
-			showCorrectAnswers: true,
 		};
 
 		const updateResult = await tryUpdateQuizModule(updateArgs);
@@ -706,7 +679,6 @@ describe("Activity Module Management", () => {
 				user: testUser as TypedUser,
 			}),
 			instructions: "Answer all questions",
-			points: 100,
 		} satisfies CreateQuizModuleArgs;
 
 		const createResult = await tryCreateQuizModule(args);
@@ -716,7 +688,6 @@ describe("Activity Module Management", () => {
 		const createdModule = createResult.value;
 		if (createdModule.type !== "quiz")
 			throw new Error("Test Error: Activity module type is not quiz");
-		expect(createdModule.points).toBeDefined();
 
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
@@ -857,7 +828,6 @@ describe("Activity Module Management", () => {
 					user: testUser as TypedUser,
 				}),
 				instructions: "Answer all questions",
-				points: 100,
 			}),
 		]);
 

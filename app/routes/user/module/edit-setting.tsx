@@ -24,6 +24,7 @@ import {
 	tryUpdateWhiteboardModule,
 } from "server/internal/activity-module-management";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import { calculateTotalPoints } from "server/json/raw-quiz-config/v2";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
@@ -139,9 +140,6 @@ const createUpdateQuizActionRpc = createActionRpc({
 		title: z.string().min(1),
 		description: z.string().optional(),
 		quizInstructions: z.string().optional(),
-		quizPoints: z.coerce.number().optional(),
-		quizTimeLimit: z.coerce.number().optional(),
-		quizGradingType: z.enum(["automatic", "manual"]).optional(),
 		rawQuizConfig: z.custom<QuizConfig>().optional(),
 	}),
 	method: "POST",
@@ -306,9 +304,6 @@ const updateQuizAction = createUpdateQuizActionRpc.createAction(
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.quizInstructions,
-			points: formData.quizPoints,
-			timeLimit: formData.quizTimeLimit,
-			gradingType: formData.quizGradingType,
 			rawQuizConfig: formData.rawQuizConfig,
 			req: payloadRequest,
 			overrideAccess: false,
@@ -675,14 +670,29 @@ function getQuizFormInitialValues(
 		{ type: "quiz" }
 	>,
 ) {
+	// Calculate points from rawQuizConfig if available
+	const quizPoints =
+		module.rawQuizConfig && typeof module.rawQuizConfig === "object"
+			? calculateTotalPoints(module.rawQuizConfig as QuizConfig)
+			: 0;
+
+	// Calculate timeLimit from rawQuizConfig.globalTimer (convert seconds to minutes)
+	let quizTimeLimit: number | undefined;
+	if (
+		module.rawQuizConfig &&
+		typeof module.rawQuizConfig === "object" &&
+		"globalTimer" in module.rawQuizConfig &&
+		typeof module.rawQuizConfig.globalTimer === "number"
+	) {
+		quizTimeLimit = module.rawQuizConfig.globalTimer / 60;
+	}
+
 	return {
 		title: module.title,
 		description: module.description || "",
 		quizInstructions: module.instructions || "",
-		quizPoints: module.points ?? 100,
-		quizTimeLimit: module.timeLimit ?? 60,
-		// ! we force it to be automatic for now
-		quizGradingType: "automatic" as const,
+		quizPoints,
+		quizTimeLimit,
 		rawQuizConfig: (module.rawQuizConfig as QuizConfig | null) ?? null,
 	};
 }
@@ -709,9 +719,6 @@ function QuizFormWrapper({
 						title: values.title,
 						description: values.description,
 						quizInstructions: values.quizInstructions,
-						quizPoints: values.quizPoints,
-						quizTimeLimit: values.quizTimeLimit,
-						quizGradingType: values.quizGradingType,
 						rawQuizConfig:
 							values.rawQuizConfig === null ? undefined : values.rawQuizConfig,
 					},

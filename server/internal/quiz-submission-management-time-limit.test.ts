@@ -124,8 +124,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
 			instructions: "Complete quickly",
-			points: 100,
-			gradingType: "automatic",
 			rawQuizConfig: {
 				version: "v2",
 				type: "regular",
@@ -155,17 +153,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 					},
 				],
 			},
-			questions: [
-				{
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					points: 100,
-					options: [
-						{ text: "3", isCorrect: false },
-						{ text: "4", isCorrect: true },
-					],
-				},
-			],
 			createdBy: teacher.id,
 		};
 
@@ -181,8 +168,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 			description: "Module with quick quiz",
 			type: "quiz",
 			instructions: "Complete quickly",
-			points: 100,
-			gradingType: "automatic",
 			rawQuizConfig: {
 				version: "v2",
 				type: "regular",
@@ -212,17 +197,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 					},
 				],
 			},
-			questions: [
-				{
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					points: 100,
-					options: [
-						{ text: "3", isCorrect: false },
-						{ text: "4", isCorrect: true },
-					],
-				},
-			],
 			overrideAccess: true,
 		};
 

@@ -103,19 +103,34 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 				user: teacher as TypedUser,
 			}),
 			instructions: "Complete this quiz",
-			points: 100,
-			gradingType: "automatic",
-			questions: [
-				{
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					points: 100,
-					options: [
-						{ text: "3", isCorrect: false },
-						{ text: "4", isCorrect: true },
-					],
-				},
-			],
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Test Quiz",
+				pages: [
+					{
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
+						],
+					},
+				],
+			},
 		});
 
 		if (!activityModuleResult.ok) {

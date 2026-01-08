@@ -32,7 +32,7 @@ import { useNuqsSearchParams } from "~/utils/search-params-utils";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { redirect } from "react-router";
-import { ActivityModule } from "server/payload-types";
+import type { ActivityModule } from "server/payload-types";
 
 // Define search params for module creation
 export const loaderSearchParams = {
@@ -292,9 +292,6 @@ const createQuizAction = createCreateQuizActionRpc.createAction(
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.quizInstructions,
-			points: formData.quizPoints,
-			timeLimit: formData.quizTimeLimit,
-			gradingType: formData.quizGradingType,
 			rawQuizConfig: formData.rawQuizConfig,
 			req: payloadRequest,
 		});

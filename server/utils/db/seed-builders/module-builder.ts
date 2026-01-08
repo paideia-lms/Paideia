@@ -97,8 +97,6 @@ async function createModule(
 				title: moduleData.title,
 				description: moduleData.description,
 				instructions: moduleData.instructions,
-				points: moduleData.points,
-				timeLimit: moduleData.timeLimit,
 			};
 			if (moduleData.rawQuizConfig) {
 				quizArgs.rawQuizConfig = moduleData.rawQuizConfig as LatestQuizConfig;

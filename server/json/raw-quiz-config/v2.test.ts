@@ -2,26 +2,38 @@ import { describe, expect, test } from "bun:test";
 import type {
 	ContainerQuizConfig,
 	GradingConfig,
+	ManualScoring,
 	Question,
 	QuizConfig,
 	QuizPage,
 	QuizResource,
 	RegularQuizConfig,
+	SimpleScoring,
 } from "./v2";
 import {
+	addNestedQuiz,
 	addPage,
 	addQuestion,
 	addQuizResource,
+	moveQuestionToPage,
 	QuizConfigValidationError,
 	QuizElementNotFoundError,
 	removePage,
 	removeQuestion,
 	removeQuizResource,
+	removeNestedQuiz,
+	reorderNestedQuizzes,
+	reorderPages,
 	toggleQuizType,
+	updateContainerSettings,
 	updateGlobalTimer,
 	updateGradingConfig,
+	updateNestedQuizInfo,
 	updateNestedQuizTimer,
+	updatePageInfo,
 	updateQuestion,
+	updateQuestionScoring,
+	updateQuizInfo,
 	updateQuizResource,
 } from "./v2";
 
@@ -75,6 +87,18 @@ describe("Quiz Config Utility Functions", () => {
 				],
 				globalTimer: 30,
 			},
+			{
+				id: "nested-2",
+				title: "Section 2",
+				pages: [
+					{
+						id: "page-2",
+						title: "Page 2",
+						questions: [],
+					},
+				],
+				globalTimer: 20,
+			},
 		],
 		globalTimer: 60,
 		sequentialOrder: false,
@@ -106,8 +130,8 @@ describe("Quiz Config Utility Functions", () => {
 			expect(result.globalTimer).toBe(container.globalTimer);
 
 			if (result.type === "regular") {
-				// Should flatten all pages from nested quizzes
-				expect(result.pages).toHaveLength(1);
+				// Should flatten all pages from nested quizzes (2 nested quizzes, each with 1 page = 2 pages)
+				expect(result.pages).toHaveLength(2);
 				expect(result.pages[0]!.id).toBe("page-1");
 			}
 		});
@@ -161,17 +185,18 @@ describe("Quiz Config Utility Functions", () => {
 
 		test("throws error when container timer is less than sum of nested timers", () => {
 			const config = createContainerQuiz();
-			// nested timer is 30, trying to set parent to 20
-			expect(() => updateGlobalTimer({ config, seconds: 20 })).toThrow(
+			// nested timers are 30 + 20 = 50, trying to set parent to 40
+			expect(() => updateGlobalTimer({ config, seconds: 40 })).toThrow(
 				QuizConfigValidationError,
 			);
 		});
 
 		test("allows container timer equal to sum of nested timers", () => {
 			const config = createContainerQuiz();
-			const result = updateGlobalTimer({ config, seconds: 30 });
+			// nested timers are 30 + 20 = 50
+			const result = updateGlobalTimer({ config, seconds: 50 });
 
-			expect(result.globalTimer).toBe(30);
+			expect(result.globalTimer).toBe(50);
 		});
 	});
 
@@ -833,6 +858,559 @@ describe("Quiz Config Utility Functions", () => {
 			if (result.type === "container") {
 				expect(result.nestedQuizzes[0]!.pages).toHaveLength(1);
 			}
+		});
+	});
+
+	// ========================================================================
+	// NESTED QUIZ MANAGEMENT TESTS
+	// ========================================================================
+
+	describe("addNestedQuiz", () => {
+		test("adds nested quiz to end by default", () => {
+			const config = createContainerQuiz();
+			const result = addNestedQuiz({
+				config,
+				nestedQuiz: {
+					id: "nested-3",
+					title: "Quiz 3",
+					pages: [],
+				},
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes).toHaveLength(3);
+				expect(result.nestedQuizzes[2]!.id).toBe("nested-3");
+				expect(result.nestedQuizzes[2]!.title).toBe("Quiz 3");
+			}
+		});
+
+		test("adds nested quiz at specific position", () => {
+			const config = createContainerQuiz();
+			const result = addNestedQuiz({
+				config,
+				nestedQuiz: {
+					id: "nested-3",
+					title: "Quiz 3",
+				},
+				position: 0,
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes).toHaveLength(3);
+				expect(result.nestedQuizzes[0]!.id).toBe("nested-3");
+			}
+		});
+
+		test("uses default title if not provided", () => {
+			const config = createContainerQuiz();
+			const result = addNestedQuiz({
+				config,
+				nestedQuiz: { id: "nested-3" },
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[2]!.title).toBe("New Quiz");
+			}
+		});
+
+		test("throws error when called on regular quiz", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				addNestedQuiz({
+					config,
+					nestedQuiz: { id: "nested-1", title: "Quiz 1" },
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	describe("removeNestedQuiz", () => {
+		test("removes nested quiz from container", () => {
+			const config = createContainerQuiz();
+			const result = removeNestedQuiz({
+				config,
+				nestedQuizId: "nested-1",
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes).toHaveLength(1);
+				expect(result.nestedQuizzes[0]!.id).toBe("nested-2");
+			}
+		});
+
+		test("throws error when removing last nested quiz", () => {
+			const config = createContainerQuiz();
+			// Remove one first
+			const configWith1 = removeNestedQuiz({
+				config,
+				nestedQuizId: "nested-1",
+			});
+
+			expect(() =>
+				removeNestedQuiz({
+					config: configWith1,
+					nestedQuizId: "nested-2",
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+
+		test("throws error when nested quiz not found", () => {
+			const config = createContainerQuiz();
+			expect(() =>
+				removeNestedQuiz({
+					config,
+					nestedQuizId: "nonexistent",
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+
+		test("throws error when called on regular quiz", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				removeNestedQuiz({
+					config,
+					nestedQuizId: "nested-1",
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	describe("updateNestedQuizInfo", () => {
+		test("updates nested quiz title", () => {
+			const config = createContainerQuiz();
+			const result = updateNestedQuizInfo({
+				config,
+				nestedQuizId: "nested-1",
+				updates: { title: "Updated Title" },
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[0]!.title).toBe("Updated Title");
+			}
+		});
+
+		test("updates nested quiz description", () => {
+			const config = createContainerQuiz();
+			const result = updateNestedQuizInfo({
+				config,
+				nestedQuizId: "nested-1",
+				updates: { description: "New description" },
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[0]!.description).toBe("New description");
+			}
+		});
+
+		test("updates multiple fields at once", () => {
+			const config = createContainerQuiz();
+			const result = updateNestedQuizInfo({
+				config,
+				nestedQuizId: "nested-1",
+				updates: {
+					title: "New Title",
+					description: "New Description",
+				},
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[0]!.title).toBe("New Title");
+				expect(result.nestedQuizzes[0]!.description).toBe("New Description");
+			}
+		});
+
+		test("throws error when nested quiz not found", () => {
+			const config = createContainerQuiz();
+			expect(() =>
+				updateNestedQuizInfo({
+					config,
+					nestedQuizId: "nonexistent",
+					updates: { title: "New Title" },
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+
+		test("throws error when called on regular quiz", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				updateNestedQuizInfo({
+					config,
+					nestedQuizId: "nested-1",
+					updates: { title: "New Title" },
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	describe("reorderNestedQuizzes", () => {
+		test("reorders nested quizzes", () => {
+			const config = createContainerQuiz();
+			const result = reorderNestedQuizzes({
+				config,
+				nestedQuizIds: ["nested-2", "nested-1"],
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[0]!.id).toBe("nested-2");
+				expect(result.nestedQuizzes[1]!.id).toBe("nested-1");
+			}
+		});
+
+		test("throws error when ID count doesn't match", () => {
+			const config = createContainerQuiz();
+			expect(() =>
+				reorderNestedQuizzes({
+					config,
+					nestedQuizIds: ["nested-1"],
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+
+		test("throws error when invalid ID provided", () => {
+			const config = createContainerQuiz();
+			expect(() =>
+				reorderNestedQuizzes({
+					config,
+					nestedQuizIds: ["nested-1", "nonexistent"],
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+
+		test("throws error when called on regular quiz", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				reorderNestedQuizzes({
+					config,
+					nestedQuizIds: ["nested-1", "nested-2"],
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	// ========================================================================
+	// CONTAINER SETTINGS AND QUIZ INFO TESTS
+	// ========================================================================
+
+	describe("updateContainerSettings", () => {
+		test("updates sequentialOrder", () => {
+			const config = createContainerQuiz();
+			const result = updateContainerSettings({
+				config,
+				settings: { sequentialOrder: true },
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.sequentialOrder).toBe(true);
+			}
+		});
+
+		test("throws error when called on regular quiz", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				updateContainerSettings({
+					config,
+					settings: { sequentialOrder: true },
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	describe("updateQuizInfo", () => {
+		test("updates quiz title for regular quiz", () => {
+			const config = createRegularQuiz();
+			const result = updateQuizInfo({
+				config,
+				updates: { title: "New Quiz Title" },
+			});
+
+			expect(result.title).toBe("New Quiz Title");
+		});
+
+		test("updates quiz title for container quiz", () => {
+			const config = createContainerQuiz();
+			const result = updateQuizInfo({
+				config,
+				updates: { title: "New Container Title" },
+			});
+
+			expect(result.title).toBe("New Container Title");
+		});
+	});
+
+	// ========================================================================
+	// PAGE MANAGEMENT TESTS
+	// ========================================================================
+
+	describe("updatePageInfo", () => {
+		test("updates page title in regular quiz", () => {
+			const config = createRegularQuiz();
+			const result = updatePageInfo({
+				config,
+				pageId: "page-1",
+				updates: { title: "New Page Title" },
+			});
+
+			expect(result.type).toBe("regular");
+			if (result.type === "regular") {
+				expect(result.pages[0]!.title).toBe("New Page Title");
+			}
+		});
+
+		test("updates page title in nested quiz", () => {
+			const config = createContainerQuiz();
+			const result = updatePageInfo({
+				config,
+				pageId: "page-1",
+				updates: { title: "Updated Page" },
+				nestedQuizId: "nested-1",
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[0]!.pages[0]!.title).toBe("Updated Page");
+			}
+		});
+
+		test("throws error when page not found", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				updatePageInfo({
+					config,
+					pageId: "nonexistent",
+					updates: { title: "New Title" },
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+
+		test("throws error when nestedQuizId not provided for container quiz", () => {
+			const config = createContainerQuiz();
+			expect(() =>
+				updatePageInfo({
+					config,
+					pageId: "page-1",
+					updates: { title: "New Title" },
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	describe("reorderPages", () => {
+		test("reorders pages in regular quiz", () => {
+			const config = createRegularQuiz();
+			// Add another page first
+			const configWith2Pages = addPage({
+				config,
+				page: { id: "page-2", title: "Page 2" },
+			});
+
+			const result = reorderPages({
+				config: configWith2Pages,
+				pageIds: ["page-2", "page-1"],
+			});
+
+			expect(result.type).toBe("regular");
+			if (result.type === "regular") {
+				expect(result.pages[0]!.id).toBe("page-2");
+				expect(result.pages[1]!.id).toBe("page-1");
+			}
+		});
+
+		test("reorders pages in nested quiz", () => {
+			const config = createContainerQuiz();
+			// Add another page to nested quiz
+			const configWith2Pages = addPage({
+				config,
+				page: { id: "page-2", title: "Page 2" },
+				nestedQuizId: "nested-1",
+			});
+
+			const result = reorderPages({
+				config: configWith2Pages,
+				pageIds: ["page-2", "page-1"],
+				nestedQuizId: "nested-1",
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				expect(result.nestedQuizzes[0]!.pages[0]!.id).toBe("page-2");
+				expect(result.nestedQuizzes[0]!.pages[1]!.id).toBe("page-1");
+			}
+		});
+
+		test("throws error when page ID count doesn't match", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				reorderPages({
+					config,
+					pageIds: ["page-1", "page-2"],
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+
+		test("throws error when invalid page ID provided", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				reorderPages({
+					config,
+					pageIds: ["nonexistent"],
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+
+		test("throws error when nestedQuizId not provided for container quiz", () => {
+			const config = createContainerQuiz();
+			expect(() =>
+				reorderPages({
+					config,
+					pageIds: ["page-1"],
+				}),
+			).toThrow(QuizConfigValidationError);
+		});
+	});
+
+	// ========================================================================
+	// QUESTION MOVEMENT AND SCORING TESTS
+	// ========================================================================
+
+	describe("moveQuestionToPage", () => {
+		test("moves question to different page in regular quiz", () => {
+			const config = createRegularQuiz();
+			// Add second page with a question
+			const configWith2Pages = addPage({
+				config,
+				page: { id: "page-2", title: "Page 2" },
+			});
+
+			const result = moveQuestionToPage({
+				config: configWith2Pages,
+				questionId: "q1",
+				targetPageId: "page-2",
+			});
+
+			expect(result.type).toBe("regular");
+			if (result.type === "regular") {
+				expect(result.pages[0]!.questions).toHaveLength(0);
+				expect(result.pages[1]!.questions).toHaveLength(1);
+				expect(result.pages[1]!.questions[0]!.id).toBe("q1");
+			}
+		});
+
+		test("moves question to specific position on target page", () => {
+			const config = createRegularQuiz();
+			// Add second page with a question
+			let configWith2Pages = addPage({
+				config,
+				page: { id: "page-2", title: "Page 2" },
+			});
+			configWith2Pages = addQuestion({
+				config: configWith2Pages,
+				pageId: "page-2",
+				question: {
+					id: "q2",
+					type: "short-answer",
+					prompt: "Question 2",
+					correctAnswer: "",
+					scoring: { type: "simple", points: 1 },
+				},
+			});
+
+			const result = moveQuestionToPage({
+				config: configWith2Pages,
+				questionId: "q1",
+				targetPageId: "page-2",
+				position: 0,
+			});
+
+			expect(result.type).toBe("regular");
+			if (result.type === "regular") {
+				expect(result.pages[1]!.questions[0]!.id).toBe("q1");
+				expect(result.pages[1]!.questions[1]!.id).toBe("q2");
+			}
+		});
+
+		test("throws error when question not found", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				moveQuestionToPage({
+					config,
+					questionId: "nonexistent",
+					targetPageId: "page-1",
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+
+		test("throws error when target page not found", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				moveQuestionToPage({
+					config,
+					questionId: "q1",
+					targetPageId: "nonexistent",
+				}),
+			).toThrow(QuizElementNotFoundError);
+		});
+	});
+
+	describe("updateQuestionScoring", () => {
+		test("updates question scoring in regular quiz", () => {
+			const config = createRegularQuiz();
+			const newScoring: SimpleScoring = {
+				type: "simple",
+				points: 5,
+			};
+
+			const result = updateQuestionScoring({
+				config,
+				questionId: "q1",
+				scoring: newScoring,
+			});
+
+			expect(result.type).toBe("regular");
+			if (result.type === "regular") {
+				const question = result.pages[0]!.questions[0]!;
+				expect(question.scoring).toEqual(newScoring);
+			}
+		});
+
+		test("updates question scoring in nested quiz", () => {
+			const config = createContainerQuiz();
+			const newScoring: ManualScoring = {
+				type: "manual",
+				maxPoints: 10,
+			};
+
+			const result = updateQuestionScoring({
+				config,
+				questionId: "q1",
+				scoring: newScoring,
+				nestedQuizId: "nested-1",
+			});
+
+			expect(result.type).toBe("container");
+			if (result.type === "container") {
+				const question = result.nestedQuizzes[0]!.pages[0]!.questions[0]!;
+				expect(question.scoring).toEqual(newScoring);
+			}
+		});
+
+		test("throws error when question not found", () => {
+			const config = createRegularQuiz();
+			expect(() =>
+				updateQuestionScoring({
+					config,
+					questionId: "nonexistent",
+					scoring: { type: "simple", points: 5 },
+				}),
+			).toThrow(QuizElementNotFoundError);
 		});
 	});
 });

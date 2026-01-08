@@ -1446,3 +1446,469 @@ export function removePage({
 		nestedQuizzes: updatedNestedQuizzes,
 	};
 }
+
+// ============================================================================
+// ADDITIONAL CONSOLIDATED UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Add a new nested quiz to a container quiz
+ */
+export interface AddNestedQuizArgs {
+	config: QuizConfig;
+	nestedQuiz: Partial<NestedQuizConfig> & { id: string };
+	position?: number;
+}
+
+export function addNestedQuiz({
+	config,
+	nestedQuiz,
+	position,
+}: AddNestedQuizArgs): QuizConfig {
+	if (config.type !== "container") {
+		throw new QuizConfigValidationError(
+			"addNestedQuiz can only be called on container quizzes",
+		);
+	}
+
+	const newNestedQuiz: NestedQuizConfig = {
+		title: nestedQuiz.title ?? "New Quiz",
+		description: nestedQuiz.description,
+		globalTimer: nestedQuiz.globalTimer,
+		pages: nestedQuiz.pages ?? [],
+		resources: nestedQuiz.resources,
+		id: nestedQuiz.id,
+	};
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	if (
+		position !== undefined &&
+		position >= 0 &&
+		position <= updatedNestedQuizzes.length
+	) {
+		updatedNestedQuizzes.splice(position, 0, newNestedQuiz);
+	} else {
+		updatedNestedQuizzes.push(newNestedQuiz);
+	}
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Remove a nested quiz from a container quiz
+ * Cannot remove if it's the last nested quiz
+ */
+export interface RemoveNestedQuizArgs {
+	config: QuizConfig;
+	nestedQuizId: string;
+}
+
+export function removeNestedQuiz({
+	config,
+	nestedQuizId,
+}: RemoveNestedQuizArgs): QuizConfig {
+	if (config.type !== "container") {
+		throw new QuizConfigValidationError(
+			"removeNestedQuiz can only be called on container quizzes",
+		);
+	}
+
+	if (config.nestedQuizzes.length <= 1) {
+		throw new QuizConfigValidationError(
+			"Cannot remove the last nested quiz. Container must have at least one nested quiz.",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	return {
+		...config,
+		nestedQuizzes: config.nestedQuizzes.filter((nq) => nq.id !== nestedQuizId),
+	};
+}
+
+/**
+ * Update nested quiz metadata (title, description, etc.)
+ */
+export interface UpdateNestedQuizInfoArgs {
+	config: QuizConfig;
+	nestedQuizId: string;
+	updates: Partial<Pick<NestedQuizConfig, "title" | "description">>;
+}
+
+export function updateNestedQuizInfo({
+	config,
+	nestedQuizId,
+	updates,
+}: UpdateNestedQuizInfoArgs): QuizConfig {
+	if (config.type !== "container") {
+		throw new QuizConfigValidationError(
+			"updateNestedQuizInfo can only be called on container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...updatedNestedQuizzes[nestedIndex]!,
+		...updates,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Reorder nested quizzes in a container
+ */
+export interface ReorderNestedQuizzesArgs {
+	config: QuizConfig;
+	nestedQuizIds: string[];
+}
+
+export function reorderNestedQuizzes({
+	config,
+	nestedQuizIds,
+}: ReorderNestedQuizzesArgs): QuizConfig {
+	if (config.type !== "container") {
+		throw new QuizConfigValidationError(
+			"reorderNestedQuizzes can only be called on container quizzes",
+		);
+	}
+
+	// Validate that all IDs exist and match
+	if (nestedQuizIds.length !== config.nestedQuizzes.length) {
+		throw new QuizConfigValidationError(
+			"nestedQuizIds must contain all nested quiz IDs",
+		);
+	}
+
+	const quizMap = new Map(config.nestedQuizzes.map((nq) => [nq.id, nq]));
+	const reorderedQuizzes: NestedQuizConfig[] = [];
+
+	for (const id of nestedQuizIds) {
+		const quiz = quizMap.get(id);
+		if (!quiz) {
+			throw new QuizElementNotFoundError(
+				`Nested quiz with id '${id}' not found`,
+			);
+		}
+		reorderedQuizzes.push(quiz);
+	}
+
+	return {
+		...config,
+		nestedQuizzes: reorderedQuizzes,
+	};
+}
+
+/**
+ * Update container quiz settings (sequentialOrder, etc.)
+ */
+export interface UpdateContainerSettingsArgs {
+	config: QuizConfig;
+	settings: Partial<Pick<ContainerQuizConfig, "sequentialOrder">>;
+}
+
+export function updateContainerSettings({
+	config,
+	settings,
+}: UpdateContainerSettingsArgs): QuizConfig {
+	if (config.type !== "container") {
+		throw new QuizConfigValidationError(
+			"updateContainerSettings can only be called on container quizzes",
+		);
+	}
+
+	return {
+		...config,
+		...settings,
+	};
+}
+
+/**
+ * Update quiz top-level metadata (title)
+ */
+export interface UpdateQuizInfoArgs {
+	config: QuizConfig;
+	updates: Partial<Pick<QuizConfig, "title">>;
+}
+
+export function updateQuizInfo({
+	config,
+	updates,
+}: UpdateQuizInfoArgs): QuizConfig {
+	return {
+		...config,
+		...updates,
+	};
+}
+
+/**
+ * Update page metadata (title)
+ */
+export interface UpdatePageInfoArgs {
+	config: QuizConfig;
+	pageId: string;
+	updates: Partial<Pick<QuizPage, "title">>;
+	nestedQuizId?: string;
+}
+
+export function updatePageInfo({
+	config,
+	pageId,
+	updates,
+	nestedQuizId,
+}: UpdatePageInfoArgs): QuizConfig {
+	if (config.type === "regular") {
+		const pageIndex = config.pages.findIndex((p) => p.id === pageId);
+		if (pageIndex === -1) {
+			throw new QuizElementNotFoundError(`Page with id '${pageId}' not found`);
+		}
+
+		const updatedPages = [...config.pages];
+		updatedPages[pageIndex] = {
+			...updatedPages[pageIndex]!,
+			...updates,
+		};
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	const pageIndex = nestedQuiz.pages.findIndex((p) => p.id === pageId);
+	if (pageIndex === -1) {
+		throw new QuizElementNotFoundError(`Page with id '${pageId}' not found`);
+	}
+
+	const updatedPages = [...nestedQuiz.pages];
+	updatedPages[pageIndex] = {
+		...updatedPages[pageIndex]!,
+		...updates,
+	};
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Reorder pages within a quiz
+ */
+export interface ReorderPagesArgs {
+	config: QuizConfig;
+	pageIds: string[];
+	nestedQuizId?: string;
+}
+
+export function reorderPages({
+	config,
+	pageIds,
+	nestedQuizId,
+}: ReorderPagesArgs): QuizConfig {
+	if (config.type === "regular") {
+		// Validate all page IDs exist and match
+		if (pageIds.length !== config.pages.length) {
+			throw new QuizConfigValidationError("pageIds must contain all page IDs");
+		}
+
+		const pageMap = new Map(config.pages.map((p) => [p.id, p]));
+		const reorderedPages: QuizPage[] = [];
+
+		for (const id of pageIds) {
+			const page = pageMap.get(id);
+			if (!page) {
+				throw new QuizElementNotFoundError(`Page with id '${id}' not found`);
+			}
+			reorderedPages.push(page);
+		}
+
+		return {
+			...config,
+			pages: reorderedPages,
+		};
+	}
+
+	// Container quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+
+	// Validate all page IDs exist and match
+	if (pageIds.length !== nestedQuiz.pages.length) {
+		throw new QuizConfigValidationError("pageIds must contain all page IDs");
+	}
+
+	const pageMap = new Map(nestedQuiz.pages.map((p) => [p.id, p]));
+	const reorderedPages: QuizPage[] = [];
+
+	for (const id of pageIds) {
+		const page = pageMap.get(id);
+		if (!page) {
+			throw new QuizElementNotFoundError(`Page with id '${id}' not found`);
+		}
+		reorderedPages.push(page);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: reorderedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Move a question to a different page
+ */
+export interface MoveQuestionToPageArgs {
+	config: QuizConfig;
+	questionId: string;
+	targetPageId: string;
+	position?: number;
+	nestedQuizId?: string;
+}
+
+export function moveQuestionToPage({
+	config,
+	questionId,
+	targetPageId,
+	position,
+	nestedQuizId,
+}: MoveQuestionToPageArgs): QuizConfig {
+	// First find the question from the original config
+	let questionToMove: Question | null = null;
+
+	if (config.type === "regular") {
+		for (const page of config.pages) {
+			const question = page.questions.find((q) => q.id === questionId);
+			if (question) {
+				questionToMove = question;
+				break;
+			}
+		}
+	} else {
+		const nestedQuiz = nestedQuizId
+			? config.nestedQuizzes.find((nq) => nq.id === nestedQuizId)
+			: null;
+
+		if (nestedQuiz) {
+			for (const page of nestedQuiz.pages) {
+				const question = page.questions.find((q) => q.id === questionId);
+				if (question) {
+					questionToMove = question;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!questionToMove) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	// Remove the question
+	const configAfterRemove = removeQuestion({
+		config,
+		questionId,
+		nestedQuizId,
+	});
+
+	// Add it to the target page
+	return addQuestion({
+		config: configAfterRemove,
+		pageId: targetPageId,
+		question: questionToMove,
+		position,
+		nestedQuizId,
+	});
+}
+
+/**
+ * Update question scoring configuration
+ */
+export interface UpdateQuestionScoringArgs {
+	config: QuizConfig;
+	questionId: string;
+	scoring: Question["scoring"];
+	nestedQuizId?: string;
+}
+
+export function updateQuestionScoring({
+	config,
+	questionId,
+	scoring,
+	nestedQuizId,
+}: UpdateQuestionScoringArgs): QuizConfig {
+	return updateQuestion({
+		config,
+		questionId,
+		updates: { scoring } as Partial<Question>,
+		nestedQuizId,
+	});
+}

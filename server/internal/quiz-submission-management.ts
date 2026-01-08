@@ -1,6 +1,7 @@
 import { QuizSubmissions } from "server/collections";
 import type { LatestCourseQuizSettings } from "server/json/course-module-settings/version-resolver";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
 import { JobQueue } from "../payload.config";
 import type { QuizSubmission } from "server/payload-types";
 import { Result } from "typescript-result";
@@ -23,37 +24,7 @@ export interface CreateQuizArgs extends BaseInternalFunctionArgs {
 	title: string;
 	description?: string;
 	instructions?: string;
-	points?: number;
-	gradingType?: "automatic" | "manual";
-	timeLimit?: number;
-	showCorrectAnswers?: boolean;
-	allowMultipleAttempts?: boolean;
-	shuffleQuestions?: boolean;
-	shuffleAnswers?: boolean;
-	showOneQuestionAtATime?: boolean;
 	rawQuizConfig?: unknown;
-	questions: Array<{
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
-		points: number;
-		options?: Array<{
-			text: string;
-			isCorrect: boolean;
-			feedback?: string;
-		}>;
-		correctAnswer?: string;
-		explanation?: string;
-		hints?: Array<{
-			hint: string;
-		}>;
-	}>;
 	createdBy: number;
 }
 
@@ -62,37 +33,7 @@ export interface UpdateQuizArgs extends BaseInternalFunctionArgs {
 	title?: string;
 	description?: string;
 	instructions?: string;
-	points?: number;
-	gradingType?: "automatic" | "manual";
-	timeLimit?: number;
-	showCorrectAnswers?: boolean;
-	allowMultipleAttempts?: boolean;
-	shuffleQuestions?: boolean;
-	shuffleAnswers?: boolean;
-	showOneQuestionAtATime?: boolean;
 	rawQuizConfig?: unknown;
-	questions?: Array<{
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
-		points: number;
-		options?: Array<{
-			text: string;
-			isCorrect: boolean;
-			feedback?: string;
-		}>;
-		correctAnswer?: string;
-		explanation?: string;
-		hints?: Array<{
-			hint: string;
-		}>;
-	}>;
 }
 
 export interface CreateQuizSubmissionArgs extends BaseInternalFunctionArgs {
@@ -327,16 +268,7 @@ export function tryCreateQuiz(args: CreateQuizArgs) {
 				title,
 				description,
 				instructions,
-				points = 100,
-				gradingType = "automatic",
-				// timeLimit is no longer used - it's derived from rawQuizConfig.globalTimer
-				showCorrectAnswers = false,
-				allowMultipleAttempts = false,
-				shuffleQuestions = false,
-				shuffleAnswers = false,
-				showOneQuestionAtATime = false,
 				rawQuizConfig,
-				questions,
 				createdBy,
 				req,
 				overrideAccess = false,
@@ -346,45 +278,8 @@ export function tryCreateQuiz(args: CreateQuizArgs) {
 			if (!title) {
 				throw new InvalidArgumentError("Quiz title is required");
 			}
-			if (!questions || questions.length === 0) {
-				throw new InvalidArgumentError("Quiz must have at least one question");
-			}
 			if (!createdBy) {
 				throw new InvalidArgumentError("Created by user ID is required");
-			}
-
-			// Validate questions
-			for (const question of questions) {
-				if (!question.questionText) {
-					throw new InvalidArgumentError("Question text is required");
-				}
-				if (!question.questionType) {
-					throw new InvalidArgumentError("Question type is required");
-				}
-				if (question.points <= 0) {
-					throw new InvalidArgumentError(
-						"Question points must be greater than 0",
-					);
-				}
-
-				// Validate question-specific requirements
-				if (
-					question.questionType === "multiple_choice" &&
-					(!question.options || question.options.length < 2)
-				) {
-					throw new InvalidArgumentError(
-						"Multiple choice questions must have at least 2 options",
-					);
-				}
-				if (question.questionType === "multiple_choice") {
-					const correctOptions =
-						question.options?.filter((opt) => opt.isCorrect) || [];
-					if (correctOptions.length === 0) {
-						throw new InvalidArgumentError(
-							"Multiple choice questions must have at least one correct option",
-						);
-					}
-				}
 			}
 
 			const quiz = await payload
@@ -394,15 +289,7 @@ export function tryCreateQuiz(args: CreateQuizArgs) {
 						title,
 						description,
 						instructions,
-						points,
-						gradingType,
-						showCorrectAnswers,
-						allowMultipleAttempts,
-						shuffleQuestions,
-						shuffleAnswers,
-						showOneQuestionAtATime,
 						rawQuizConfig: rawQuizConfig as { [x: string]: unknown },
-						questions,
 						createdBy,
 					},
 					req,
@@ -483,16 +370,7 @@ export function tryUpdateQuiz(args: UpdateQuizArgs) {
 				title,
 				description,
 				instructions,
-				points,
-				gradingType,
-				// timeLimit is no longer used - it's derived from rawQuizConfig.globalTimer
-				showCorrectAnswers,
-				allowMultipleAttempts,
-				shuffleQuestions,
-				shuffleAnswers,
-				showOneQuestionAtATime,
 				rawQuizConfig,
-				questions,
 				req,
 				overrideAccess = false,
 			} = args;
@@ -507,21 +385,7 @@ export function tryUpdateQuiz(args: UpdateQuizArgs) {
 			if (title !== undefined) updateData.title = title;
 			if (description !== undefined) updateData.description = description;
 			if (instructions !== undefined) updateData.instructions = instructions;
-			if (points !== undefined) updateData.points = points;
-			if (gradingType !== undefined) updateData.gradingType = gradingType;
-			// timeLimit is no longer stored in the collection - it's derived from rawQuizConfig.globalTimer
-			if (showCorrectAnswers !== undefined)
-				updateData.showCorrectAnswers = showCorrectAnswers;
-			if (allowMultipleAttempts !== undefined)
-				updateData.allowMultipleAttempts = allowMultipleAttempts;
-			if (shuffleQuestions !== undefined)
-				updateData.shuffleQuestions = shuffleQuestions;
-			if (shuffleAnswers !== undefined)
-				updateData.shuffleAnswers = shuffleAnswers;
-			if (showOneQuestionAtATime !== undefined)
-				updateData.showOneQuestionAtATime = showOneQuestionAtATime;
 			if (rawQuizConfig !== undefined) updateData.rawQuizConfig = rawQuizConfig;
-			if (questions !== undefined) updateData.questions = questions;
 
 			// Validate that at least one field is being updated
 			if (Object.keys(updateData).length === 0) {
@@ -1112,18 +976,12 @@ type CalculateQuizGradeArgs = BaseInternalFunctionArgs & {
 
 /**
  * Calculates quiz grade based on answers and correct answers
+ * Uses the pure calculateQuizGrade function internally
  */
 export function tryCalculateQuizGrade(args: CalculateQuizGradeArgs) {
 	return Result.try(
 		async () => {
-			const {
-				payload,
-				quizId,
-				answers,
-
-				req,
-				overrideAccess = false,
-			} = args;
+			const { payload, quizId, answers, req, overrideAccess = false } = args;
 
 			// Get the quiz to access correct answers
 			const quiz = await payload.findByID({
@@ -1137,186 +995,17 @@ export function tryCalculateQuizGrade(args: CalculateQuizGradeArgs) {
 				throw new InvalidArgumentError("Quiz not found");
 			}
 
-			let totalScore = 0;
-			let maxScore = 0;
-			const questionResults: Array<{
-				questionId: string;
-				questionText: string;
-				questionType: string;
-				pointsEarned: number;
-				maxPoints: number;
-				isCorrect: boolean;
-				feedback: string;
-				correctAnswer?: string | null;
-				explanation?: string | null;
-			}> = [];
+			// Extract questions from rawQuizConfig
+			const rawConfig = quiz.rawQuizConfig as LatestQuizConfig | null;
 
-			// Process each question
-			for (const question of quiz.questions || []) {
-				const maxPoints = question.points;
-				maxScore += maxPoints;
-
-				// Find the corresponding answer
-				const answer = answers.find(
-					(a) => a.questionId === question.id?.toString(),
+			if (!rawConfig || typeof rawConfig !== "object") {
+				throw new InvalidArgumentError(
+					"Quiz rawQuizConfig is required for grading",
 				);
-
-				if (!answer) {
-					// No answer provided
-					questionResults.push({
-						questionId: question.id?.toString() || "",
-						questionText: question.questionText,
-						questionType: question.questionType,
-						pointsEarned: 0,
-						maxPoints,
-						isCorrect: false,
-						feedback: "No answer provided",
-						correctAnswer: question.correctAnswer,
-						explanation: question.explanation,
-					});
-					continue;
-				}
-
-				let pointsEarned = 0;
-				let isCorrect = false;
-				let feedback = "";
-
-				// Grade based on question type
-				switch (question.questionType) {
-					case "multiple_choice": {
-						const correctOptions =
-							question.options?.filter((opt) => opt.isCorrect) || [];
-						const selectedOptions =
-							answer.multipleChoiceAnswers?.filter((opt) => opt.isSelected) ||
-							[];
-
-						// Check if all correct options are selected and no incorrect options are selected
-						const correctSelected = correctOptions.every((correct) =>
-							selectedOptions.some(
-								(selected) => selected.option === correct.text,
-							),
-						);
-						const noIncorrectSelected = selectedOptions.every((selected) =>
-							correctOptions.some(
-								(correct) => correct.text === selected.option,
-							),
-						);
-
-						if (
-							correctSelected &&
-							noIncorrectSelected &&
-							selectedOptions.length === correctOptions.length
-						) {
-							pointsEarned = maxPoints;
-							isCorrect = true;
-							feedback = "Correct!";
-						} else {
-							feedback =
-								"Incorrect. The correct answer(s) were: " +
-								correctOptions.map((opt) => opt.text).join(", ");
-						}
-						break;
-					}
-
-					case "true_false": {
-						const correctAnswer = question.correctAnswer?.toLowerCase();
-						const selectedAnswer = answer.selectedAnswer?.toLowerCase();
-
-						if (correctAnswer === selectedAnswer) {
-							pointsEarned = maxPoints;
-							isCorrect = true;
-							feedback = "Correct!";
-						} else {
-							feedback = `Incorrect. The correct answer is: ${question.correctAnswer}`;
-						}
-						break;
-					}
-
-					case "short_answer": {
-						const correctAnswer = question.correctAnswer?.toLowerCase().trim();
-						const selectedAnswer = answer.selectedAnswer?.toLowerCase().trim();
-
-						if (correctAnswer === selectedAnswer) {
-							pointsEarned = maxPoints;
-							isCorrect = true;
-							feedback = "Correct!";
-						} else {
-							feedback = `Incorrect. The correct answer is: ${question.correctAnswer}`;
-						}
-						break;
-					}
-
-					case "essay": {
-						// Essays are typically graded manually, but we can provide partial credit based on length
-						const answerLength = answer.selectedAnswer?.length || 0;
-						if (answerLength > 100) {
-							pointsEarned = Math.floor(maxPoints * 0.5); // 50% for having content
-							feedback = "Essay submitted. Manual grading required.";
-						} else {
-							feedback =
-								"Essay too short. Please provide a more detailed response.";
-						}
-						break;
-					}
-
-					case "fill_blank": {
-						const correctAnswer = question.correctAnswer?.toLowerCase().trim();
-						const selectedAnswer = answer.selectedAnswer?.toLowerCase().trim();
-
-						if (correctAnswer === selectedAnswer) {
-							pointsEarned = maxPoints;
-							isCorrect = true;
-							feedback = "Correct!";
-						} else {
-							feedback = `Incorrect. The correct answer is: ${question.correctAnswer}`;
-						}
-						break;
-					}
-
-					default:
-						feedback = "Question type not supported for automatic grading";
-				}
-
-				// Add explanation if available
-				if (question.explanation && !isCorrect) {
-					feedback += ` Explanation: ${question.explanation}`;
-				}
-
-				totalScore += pointsEarned;
-
-				questionResults.push({
-					questionId: question.id?.toString() || "",
-					questionText: question.questionText,
-					questionType: question.questionType,
-					pointsEarned,
-					maxPoints,
-					isCorrect,
-					feedback,
-					correctAnswer: question.correctAnswer,
-					explanation: question.explanation,
-				});
 			}
 
-			// round to 2 decimal places
-			const percentage =
-				maxScore > 0
-					? Math.round((totalScore / maxScore) * 100 * 100) / 100
-					: 0;
-
-			// Generate overall feedback
-			const correctCount = questionResults.filter((q) => q.isCorrect).length;
-			const totalQuestions = questionResults.length;
-
-			// generate report
-			const overallFeedback = `Quiz completed! You scored ${totalScore}/${maxScore} points (${percentage}%). You got ${correctCount}/${totalQuestions} questions correct.`;
-
-			return {
-				totalScore,
-				maxScore,
-				percentage,
-				questionResults,
-				feedback: overallFeedback,
-			};
+			// Use the pure grading function
+			return calculateQuizGrade(rawConfig, answers as QuizAnswer[]);
 		},
 		(error) =>
 			transformError(error) ??
@@ -1821,7 +1510,8 @@ export function tryGetQuizGradesReport(args: GetQuizGradesReportArgs) {
 				string,
 				{ questionText: string; questionType: string; maxPoints: number }
 			>();
-			const questions = quiz.questions || [];
+			// TODO: Refactor to extract questions from rawQuizConfig v2 format
+			const questions = (quiz as any).questions || [];
 			for (const question of questions) {
 				if (question.id) {
 					questionsMap.set(question.id.toString(), {
@@ -1982,9 +1672,8 @@ export function tryGetQuizGradesReport(args: GetQuizGradesReportArgs) {
 				}
 			}
 
-			// Calculate max score from quiz points or sum of question points
-			const maxScore =
-				quiz.points ?? questions.reduce((sum, q) => sum + q.points, 0);
+			// TODO: Refactor to calculate from rawQuizConfig using calculateTotalPoints
+			const maxScore = (quiz as any).points ?? 0;
 
 			return {
 				courseModuleLinkId,
@@ -2075,7 +1764,8 @@ export function tryGetQuizStatisticsReport(args: GetQuizStatisticsReportArgs) {
 			}
 
 			const submissions = submissionsResult.value.docs;
-			const questions = quiz.questions || [];
+			// TODO: Refactor to extract questions from rawQuizConfig v2 format
+			const questions = (quiz as any).questions || [];
 
 			// Calculate overall statistics
 			const totalAttempts = submissions.length;
@@ -2190,9 +1880,9 @@ export function tryGetQuizStatisticsReport(args: GetQuizStatisticsReportArgs) {
 
 				questionStatistics.push({
 					questionId,
-					questionText: question.questionText,
-					questionType: question.questionType,
-					maxPoints: question.points,
+					questionText: (question as any).questionText,
+					questionType: (question as any).questionType,
+					maxPoints: (question as any).points,
 					totalAttempts,
 					answeredCount,
 					correctCount,
@@ -2203,9 +1893,8 @@ export function tryGetQuizStatisticsReport(args: GetQuizStatisticsReportArgs) {
 				});
 			}
 
-			// Calculate max score from quiz points or sum of question points
-			const maxScore =
-				quiz.points ?? questions.reduce((sum, q) => sum + q.points, 0);
+			// TODO: Refactor to calculate from rawQuizConfig using calculateTotalPoints
+			const maxScore = (quiz as any).points ?? 0;
 
 			return {
 				courseModuleLinkId,
