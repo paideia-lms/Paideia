@@ -91,7 +91,7 @@ export function useFormWithSyncedInitialValues<
 	useEffect(() => {
 		form.setInitialValues(initialValues);
 		form.reset();
-		// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+		// biome-ignore lint/correctness/useExhaustiveDependencies: we intentionally depend on the flattened scalar initial values instead of the full initialValues object identity to avoid unnecessary re-renders while still updating when any initial value actually changes
 	}, flattenedInitialValuesDependencies);
 
 	return form;
