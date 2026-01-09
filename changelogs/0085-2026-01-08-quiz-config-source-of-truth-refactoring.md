@@ -153,7 +153,7 @@ All changes below work together as a unified refactoring to reduce complexity:
 - `app/routes/user/module/new.tsx`:
   - Similar updates to form handling (if applicable)
 
-### 4.1. Quiz Builder V2 UI Refactoring
+### 4.1. Quiz Builder UI Refactoring
 
 **Overview:**
 A comprehensive frontend refactoring effort to break down the monolithic quiz form into smaller, independent, atomic forms. This refactoring improves maintainability, reduces complexity, and follows React best practices by eliminating nested forms and ensuring each form has a single responsibility.
@@ -168,7 +168,7 @@ The original quiz form (`QuizForm`) was a large, monolithic component that:
 
 **Solution: Component-Based Form Architecture**
 
-The v2 UI implements a strict component-based architecture where:
+The new quiz builder UI implements a strict component-based architecture where:
 
 1. **Each Form is Independent**: Every form component has its own `useForm` hook and `<form>` element
 2. **No Nested Forms**: Forms are never nested inside other forms - they are siblings in the component tree
@@ -187,7 +187,7 @@ The v2 UI implements a strict component-based architecture where:
 
 **Component Structure:**
 
-The v2 UI is organized into focused, single-purpose components:
+The quiz builder UI is organized into focused, single-purpose components:
 
 **Core Forms:**
 - `ModuleInfoForm` - Updates module title and description
@@ -236,7 +236,7 @@ The v2 UI is organized into focused, single-purpose components:
 
 3. **Type Safety Improvements:**
    - Created `types.ts` to centralize type definitions derived from `Route.ComponentProps`
-   - All v2 components derive types from the loader data rather than importing from server files
+   - All components derive types from the loader data rather than importing from server files
    - Ensures type consistency and accuracy across all components
 
 4. **Simplified Form Patterns:**
@@ -244,10 +244,10 @@ The v2 UI is organized into focused, single-purpose components:
    - No shared state between forms - each form manages its own state
    - Forms communicate only through server actions and revalidation
 
-**Files Created (V2 Components):**
+**Files Created:**
 
 **Core Components:**
-- `app/routes/user/module/edit-setting/components/v2/quiz-form-v2.tsx` - Main entry point for v2 UI
+- `app/routes/user/module/edit-setting/components/v2/quiz-form-v2.tsx` - Main entry point for quiz builder UI
 - `app/routes/user/module/edit-setting/components/v2/types.ts` - Centralized type definitions
 
 **Form Components (30+ files):**
@@ -265,9 +265,9 @@ The v2 UI is organized into focused, single-purpose components:
 
 **Integration:**
 
-- Added toggle switch in `QuizFormWrapper` to switch between v1 and v2 UI
-- V2 UI is fully functional but not yet the default (allows gradual migration)
-- All v2 components use the same server actions as v1, ensuring consistency
+- The new component-based quiz builder UI is now the only implementation
+- All components use server actions for data updates, ensuring consistency
+- The old monolithic quiz form has been completely removed
 
 **Benefits:**
 
@@ -281,7 +281,7 @@ The v2 UI is organized into focused, single-purpose components:
 
 **Technical Details:**
 
-- All v2 components are located in `app/routes/user/module/edit-setting/components/v2/`
+- All quiz builder components are located in `app/routes/user/module/edit-setting/components/v2/`
 - Components use Mantine's `useForm` hook for form state management
 - Server actions are accessed via hooks exported from `route.tsx` (e.g., `useUpdateQuestion`, `useAddPage`)
 - Forms automatically trigger revalidation after successful submission via React Router
@@ -385,8 +385,8 @@ Some functions in `quiz-submission-management.ts` still reference the old `quest
 - `app/routes/user/module/edit-setting.tsx` - Updated form handling
 - `app/routes/user/module/new.tsx` - Updated form handling (if applicable)
 
-### Frontend V2 Components (40+ files)
-- `app/routes/user/module/edit-setting/components/v2/` - Complete v2 UI implementation
+### Frontend Quiz Builder Components (40+ files)
+- `app/routes/user/module/edit-setting/components/v2/` - Complete quiz builder UI implementation
   - Core: `quiz-form-v2.tsx`, `types.ts`
   - Forms: `module-info-form.tsx`, `quiz-info-form.tsx`, `toggle-quiz-type-form.tsx`, `global-timer-form.tsx`, `grading-config-form.tsx`
   - Question forms: `question-form.tsx`, `update-question-form.tsx`, `question-options-form.tsx`, `question-scoring-form.tsx`, `add-question-form.tsx`
@@ -418,7 +418,7 @@ This unified refactoring delivers significant complexity reduction:
 7. **Lower Cognitive Load**: Developers only need to understand one data structure (`rawQuizConfig`) instead of two
 8. **Reduced Bug Surface**: Fewer places where data can be inconsistent or incorrectly updated
 
-### Frontend Complexity Reduction (V2 UI):
+### Frontend Complexity Reduction:
 
 1. **Component Isolation**: Each form is independent, making it easier to understand and modify individual features
 2. **Eliminated Nested Forms**: No form nesting means no hook conflicts or submission issues
@@ -426,10 +426,10 @@ This unified refactoring delivers significant complexity reduction:
 4. **React Best Practices**: Follows Rules of Hooks strictly, eliminating conditional hook call issues
 5. **Improved Maintainability**: Changes to one form don't affect others, reducing regression risk
 6. **Better Developer Experience**: Small, focused components are easier to navigate and understand
-7. **Type Safety**: Centralized type definitions ensure consistency across all v2 components
+7. **Type Safety**: Centralized type definitions ensure consistency across all components
 8. **Scalability**: Easy to add new forms or modify existing ones without affecting the entire system
 9. **Testability**: Small, focused components are easier to test in isolation
-10. **Gradual Migration**: Toggle between v1 and v2 allows incremental adoption
+10. **Simplified Architecture**: Single, consistent UI implementation eliminates confusion and maintenance overhead
 
 ## Future Work
 

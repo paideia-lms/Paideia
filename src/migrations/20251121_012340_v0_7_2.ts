@@ -21,7 +21,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+  // Update NULL weight values to 0 before setting NOT NULL constraint
   await db.execute(sql`
+    UPDATE "gradebook_items" SET "weight" = 0 WHERE "weight" IS NULL;
+  
    ALTER TABLE "discussion_submissions" DROP CONSTRAINT "discussion_submissions_graded_by_id_users_id_fk";
   
   DROP INDEX "discussion_submissions_graded_by_idx";
