@@ -25,6 +25,7 @@ export function tryRunSeed(args: TryRunSeedArgs) {
 
 			const userCount = await tryGetUserCount({
 				payload,
+				req,
 				overrideAccess: true,
 			}).getOrThrow();
 
