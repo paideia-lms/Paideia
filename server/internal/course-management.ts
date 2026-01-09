@@ -1240,7 +1240,7 @@ export interface UserAccessibleCourse {
 	category: string | null;
 	enrollmentStatus: "active" | "inactive" | "completed" | "dropped" | null;
 	completionPercentage: number;
-	thumbnailUrl: string | null;
+	thumbnailId: number | null;
 	role: "student" | "teacher" | "ta" | "manager" | null;
 	source: "enrollment" | "owner";
 	createdBy: number;
@@ -1283,19 +1283,13 @@ export function tryGetUserAccessibleCourses(
 			for (const course of createdCourses.docs) {
 				const categoryName = course.category ? course.category.name : null;
 
-				const thumbnailUrl = course.thumbnail
-					? href(`/api/media/file/:mediaId`, {
-							mediaId: course.thumbnail.id.toString(),
-						})
-					: null;
-
 				coursesMap.set(course.id, {
 					id: course.id,
 					title: course.title,
 					category: categoryName,
 					enrollmentStatus: null, // No enrollment status for owner
 					completionPercentage: 0, // Dummy for now
-					thumbnailUrl,
+					thumbnailId: course.thumbnail?.id ?? null,
 					role: null, // No role for owner
 					source: "owner",
 					createdBy: userId,
@@ -1326,11 +1320,11 @@ export function tryGetUserAccessibleCourses(
 					if (course) {
 						const categoryName = course.category?.name ?? null;
 
-						const thumbnailUrl = course.thumbnail
-							? href(`/api/media/file/:mediaId`, {
-									mediaId: course.thumbnail.id.toString(),
-								})
-							: null;
+						// const thumbnailUrl = course.thumbnail
+						// 	? href(`/api/media/file/:mediaId`, {
+						// 			mediaId: course.thumbnail.id.toString(),
+						// 		})
+						// 	: null;
 
 						// If course already exists in map (from owner), update with enrollment info
 						if (coursesMap.has(course.id)) {
@@ -1351,13 +1345,10 @@ export function tryGetUserAccessibleCourses(
 								enrollmentStatus: enrollment.status,
 								completionPercentage:
 									enrollment.status === "completed" ? 100 : 0, // Dummy calculation
-								thumbnailUrl,
+								thumbnailId: course.thumbnail?.id ?? null,
 								role: enrollment.role,
 								source: "enrollment",
-								createdBy:
-									typeof course.createdBy === "number"
-										? course.createdBy
-										: course.createdBy.id,
+								createdBy: course.createdBy.id,
 							});
 						}
 					}

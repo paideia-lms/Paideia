@@ -12,13 +12,6 @@ export class UnauthorizedError extends Error {
 	}
 }
 
-export class DuplicateBranchError extends Error {
-	static readonly type = "DuplicateBranchError";
-	get type() {
-		return DuplicateBranchError.type;
-	}
-}
-
 export class DuplicateActivityModuleError extends Error {
 	static readonly type = "DuplicateActivityModuleError";
 	get type() {
@@ -33,13 +26,6 @@ export class InvalidArgumentError extends Error {
 	}
 }
 
-export class NonExistingSourceError extends Error {
-	static readonly type = "NonExistingSourceError";
-	get type() {
-		return NonExistingSourceError.type;
-	}
-}
-
 export class TransactionIdNotFoundError extends Error {
 	static readonly type = "TransactionIdNotFoundError";
 	get type() {
@@ -51,13 +37,6 @@ export class NonExistingActivityModuleError extends Error {
 	static readonly type = "NonExistingActivityModuleError";
 	get type() {
 		return NonExistingActivityModuleError.type;
-	}
-}
-
-export class CommitNoChangeError extends Error {
-	static readonly type = "CommitNoChangeError";
-	get type() {
-		return CommitNoChangeError.type;
 	}
 }
 
@@ -79,13 +58,6 @@ export class DuplicateEnrollmentError extends Error {
 	static readonly type = "DuplicateEnrollmentError";
 	get type() {
 		return DuplicateEnrollmentError.type;
-	}
-}
-
-export class NonExistingMergeRequestError extends Error {
-	static readonly type = "NonExistingMergeRequestError";
-	get type() {
-		return NonExistingMergeRequestError.type;
 	}
 }
 
@@ -222,34 +194,6 @@ export class CourseAccessDeniedError extends Error {
 	}
 }
 
-export class CourseStructureNotFoundError extends Error {
-	static readonly type = "CourseStructureNotFoundError";
-	get type() {
-		return CourseStructureNotFoundError.type;
-	}
-}
-
-export class NonExistingPageError extends Error {
-	static readonly type = "NonExistingPageError";
-	get type() {
-		return NonExistingPageError.type;
-	}
-}
-
-export class NonExistingWhiteboardError extends Error {
-	static readonly type = "NonExistingWhiteboardError";
-	get type() {
-		return NonExistingWhiteboardError.type;
-	}
-}
-
-export class NonExistingFileError extends Error {
-	static readonly type = "NonExistingFileError";
-	get type() {
-		return NonExistingFileError.type;
-	}
-}
-
 export class EmailSendError extends Error {
 	static readonly type = "EmailSendError";
 	get type() {
@@ -275,13 +219,6 @@ export class MediaInUseError extends Error {
 	static readonly type = "MediaInUseError";
 	get type() {
 		return MediaInUseError.type;
-	}
-}
-
-export class ScriptValidationError extends Error {
-	static readonly type = "ScriptValidationError";
-	get type() {
-		return ScriptValidationError.type;
 	}
 }
 
@@ -313,24 +250,10 @@ export class EnrollmentCourseMismatchError extends Error {
 	}
 }
 
-export class FailedToCreateUserGradeError extends Error {
-	static readonly type = "FailedToCreateUserGradeError";
-	get type() {
-		return FailedToCreateUserGradeError.type;
-	}
-}
-
 export class NotImplementedError extends Error {
 	static readonly type = "NotImplementedError";
 	get type() {
 		return NotImplementedError.type;
-	}
-}
-
-export class VersionCheckError extends Error {
-	static readonly type = "VersionCheckError";
-	get type() {
-		return VersionCheckError.type;
 	}
 }
 
@@ -345,17 +268,13 @@ export function transformError(error: unknown) {
 	/**
 	 * list of our system error
 	 */
-	if (error instanceof NonExistingSourceError) return error;
-	else if (error instanceof DuplicateBranchError) return error;
-	else if (error instanceof UnauthorizedError) return error;
+	if (error instanceof UnauthorizedError) return error;
 	else if (error instanceof ContextNotFoundError) return error;
 	else if (error instanceof InvalidArgumentError) return error;
 	else if (error instanceof TransactionIdNotFoundError) return error;
 	else if (error instanceof NonExistingActivityModuleError) return error;
-	else if (error instanceof CommitNoChangeError) return error;
 	else if (error instanceof EnrollmentNotFoundError) return error;
 	else if (error instanceof DuplicateEnrollmentError) return error;
-	else if (error instanceof NonExistingMergeRequestError) return error;
 	else if (error instanceof NonExistingMediaError) return error;
 	else if (error instanceof GradebookNotFoundError) return error;
 	else if (error instanceof GradebookCategoryNotFoundError) return error;
@@ -374,22 +293,15 @@ export function transformError(error: unknown) {
 	else if (error instanceof AccessGrantNotFoundError) return error;
 	else if (error instanceof InvalidOwnerTransferError) return error;
 	else if (error instanceof CourseAccessDeniedError) return error;
-	else if (error instanceof CourseStructureNotFoundError) return error;
-	else if (error instanceof NonExistingPageError) return error;
-	else if (error instanceof NonExistingWhiteboardError) return error;
-	else if (error instanceof NonExistingFileError) return error;
 	else if (error instanceof EmailSendError) return error;
 	else if (error instanceof SeedDataLoadError) return error;
 	else if (error instanceof SandboxResetError) return error;
 	else if (error instanceof MediaInUseError) return error;
-	else if (error instanceof ScriptValidationError) return error;
 	else if (error instanceof QuizTimeLimitExceededError) return error;
 	else if (error instanceof DuplicateUserGradeError) return error;
 	else if (error instanceof UserNotFoundError) return error;
 	else if (error instanceof EnrollmentCourseMismatchError) return error;
-	else if (error instanceof FailedToCreateUserGradeError) return error;
 	else if (error instanceof NotImplementedError) return error;
-	else if (error instanceof VersionCheckError) return error;
 	else if (error instanceof UnknownError) return error;
 	// ! we let user handle the unknown error
 	else {

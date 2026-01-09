@@ -2,17 +2,33 @@ import type {
 	AssignmentSettings as AssignmentSettingsV1,
 	CourseModuleSettingsV1,
 	QuizSettings as QuizSettingsV1,
-} from "./types";
+} from "./v1";
 import type {
 	AssignmentSettingsV2,
 	CourseModuleSettingsV2,
 	QuizSettingsV2,
-} from "./types.v2";
+} from "./v2";
 
 /**
  * Type alias for the current version of course module settings
  */
 export type LatestCourseModuleSettings = CourseModuleSettingsV2;
+type ExtractSettings<T extends { type: string }> = Extract<
+	LatestCourseModuleSettings["settings"],
+	T
+>;
+export type LatestCourseQuizSettings = ExtractSettings<{ type: "quiz" }>;
+export type LatestCourseAssignmentSettings = ExtractSettings<{
+	type: "assignment";
+}>;
+export type LatestCourseDiscussionSettings = ExtractSettings<{
+	type: "discussion";
+}>;
+export type LatestCoursePageSettings = ExtractSettings<{ type: "page" }>;
+export type LatestCourseWhiteboardSettings = ExtractSettings<{
+	type: "whiteboard";
+}>;
+export type LatestCourseFileSettings = ExtractSettings<{ type: "file" }>;
 
 /**
  * Type guard to check if a config is a valid v1 settings object

@@ -26,6 +26,7 @@ import {
 	useUpdateCategory,
 	useUpdateItem,
 } from "app/routes/course.$id.grades/route";
+import type { Route } from "app/routes/course.$id.grades/route";
 
 export interface CreateGradeItemModalHandle {
 	open: () => void;
@@ -525,14 +526,7 @@ export interface UpdateGradeCategoryModalHandle {
 }
 
 type UpdateGradeCategoryButtonProps = {
-	category: {
-		id: number;
-		name: string;
-		description: string | null;
-		weight: number | null;
-		extraCredit: boolean;
-		hasItems: boolean;
-	};
+	category: Route.ComponentProps["loaderData"]["gradebook"]["categories"][number]
 	courseId: number;
 };
 
@@ -562,14 +556,7 @@ export function UpdateGradeCategoryButton({
 }
 
 interface UpdateGradeCategoryModalProps {
-	category: {
-		id: number;
-		name: string;
-		description: string | null;
-		weight: number | null;
-		extraCredit: boolean;
-		hasItems: boolean;
-	};
+	category: Route.ComponentProps["loaderData"]["gradebook"]["categories"][number];
 	courseId: number;
 }
 
@@ -579,6 +566,17 @@ export const UpdateGradeCategoryModal = forwardRef<
 >(({ category, courseId }, ref) => {
 	const [opened, setOpened] = useState(false);
 	const { submit: updateGradeCategory, isLoading } = useUpdateCategory();
+
+	// Calculate if category has nested items (subcategories or items)
+	// Handle both array format and Payload query result format
+	const subcategoriesLength =
+		Array.isArray(category.subcategories)
+			? category.subcategories.length
+			: category.subcategories?.docs?.length ?? 0;
+	const itemsLength = Array.isArray(category.items)
+		? category.items.length
+		: category.items?.docs?.length ?? 0;
+	const hasNestedItems = subcategoriesLength > 0 || itemsLength > 0;
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -652,7 +650,7 @@ export const UpdateGradeCategoryModal = forwardRef<
 						minRows={3}
 					/>
 
-					{category.hasItems ? (
+					{hasNestedItems ? (
 						<>
 							<Checkbox
 								{...form.getInputProps("overrideWeight", { type: "checkbox" })}

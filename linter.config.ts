@@ -395,6 +395,27 @@ const astPatterns = {
 	},
 
 	/**
+	 * Matches z.any() calls from zod
+	 * AST structure: CallExpression -> PropertyAccessExpression (z.any)
+	 */
+	zAnyCall: (node: ts.Node): boolean => {
+		if (ts.isCallExpression(node)) {
+			const expression = node.expression;
+			if (ts.isPropertyAccessExpression(expression)) {
+				// Check if it's z.any
+				if (
+					ts.isIdentifier(expression.expression) &&
+					expression.expression.text === "z" &&
+					expression.name.text === "any"
+				) {
+					return true;
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
 	 * Matches imports of href from "react-router"
 	 */
 	hrefImport: (node: ts.Node): boolean => {
@@ -416,6 +437,22 @@ const astPatterns = {
 						}
 					}
 				}
+			}
+		}
+		return false;
+	},
+
+	/**
+	 * Matches any import from "react-router"
+	 * This pattern matches any import declaration from "react-router" regardless of what's being imported
+	 */
+	reactRouterImport: (node: ts.Node): boolean => {
+		if (ts.isImportDeclaration(node)) {
+			const moduleSpecifier = node.moduleSpecifier;
+			if (ts.isStringLiteral(moduleSpecifier)) {
+				const modulePath = moduleSpecifier.text;
+				// Check if importing from "react-router"
+				return modulePath === "react-router";
 			}
 		}
 		return false;
@@ -1279,11 +1316,6 @@ const resultWrapFix: (
 	return null;
 };
 
-// Log level configuration
-// "error" - only show errors
-// "warning" - show warnings and errors
-export const logLevel: "error" | "warning" = "warning";
-
 // Define lint rules
 export const rules: LintRule[] = [
 	// {
@@ -1476,6 +1508,30 @@ export const rules: LintRule[] = [
 			{
 				name: "useQueryState import from nuqs",
 				matcher: astPatterns.useQueryStateImport,
+			},
+		],
+	},
+	{
+		name: "Ban react-router imports in server/internal",
+		description: "react-router should not be imported in server/internal files. Server-side code should not depend on React Router.",
+		includes: ["server/internal/**/*.ts", "!server/internal/**/*.test.ts", "!server/internal/**/*.spec.ts"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "import from react-router",
+				matcher: astPatterns.reactRouterImport,
+			},
+		],
+	},
+	{
+		name: "Ban z.any() usage",
+		description: "z.any() is strictly banned. Use discriminated unions, z.or(), or z.custom() with proper types instead.",
+		includes: ["app/**/*.ts", "app/**/*.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "z.any() call",
+				matcher: astPatterns.zAnyCall,
 			},
 		],
 	},

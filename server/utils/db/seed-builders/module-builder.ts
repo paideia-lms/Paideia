@@ -1,5 +1,4 @@
 import type { SeedData } from "../seed-schema";
-import type { LatestQuizConfig } from "server/json";
 import {
 	type ActivityModuleResult,
 	tryCreateAssignmentModule,
@@ -92,20 +91,12 @@ async function createModule(
 			}).getOrThrow()) as ActivityModuleResult;
 		}
 		case "quiz": {
-			const quizArgs: Parameters<typeof tryCreateQuizModule>[0] = {
+			return (await tryCreateQuizModule({
 				...baseArgs,
 				title: moduleData.title,
 				description: moduleData.description,
 				instructions: moduleData.instructions,
-				points: moduleData.points,
-				timeLimit: moduleData.timeLimit,
-			};
-			if (moduleData.rawQuizConfig) {
-				quizArgs.rawQuizConfig = moduleData.rawQuizConfig as LatestQuizConfig;
-			}
-			return (await tryCreateQuizModule(
-				quizArgs,
-			).getOrThrow()) as ActivityModuleResult;
+			}).getOrThrow()) as ActivityModuleResult;
 		}
 		case "discussion": {
 			return (await tryCreateDiscussionModule({

@@ -1,7 +1,10 @@
-import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
+import type { QuizConfig } from "server/json/raw-quiz-config/v2";
 import { devConstants } from "../constants";
 
-// Sample Nested Quiz Config for testing and seeding
+/**
+ * Sample Nested Quiz Config for testing and seeding
+ * @knipignore
+ */
 export const sampleNestedQuizConfig: QuizConfig = {
 	version: "v2",
 	type: "container",
@@ -21,12 +24,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 			title: "Section 1: Basic Concepts",
 			description: "Fundamental programming concepts and syntax",
 			globalTimer: 10, // 10 seconds for testing
-			grading: {
-				enabled: true,
-				passingScore: 70,
-				showScoreToStudent: true,
-				showCorrectAnswers: true,
-			},
 			pages: [
 				{
 					id: "s1-page-1",
@@ -175,12 +172,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 			description:
 				"Comprehensive assessment covering all question types with various scoring methods",
 			globalTimer: 600, // 10 minutes
-			grading: {
-				enabled: true,
-				passingScore: 70,
-				showScoreToStudent: true,
-				showCorrectAnswers: true,
-			},
 			pages: [
 				{
 					id: "page-1",
@@ -476,9 +467,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 		},
 	],
 };
-
-// Alias for backward compatibility
-export const sampleQuizConfig: QuizConfig = sampleNestedQuizConfig;
 
 export const testData = {
 	admin: {

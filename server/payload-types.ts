@@ -580,14 +580,7 @@ export interface Quiz {
   title: string;
   description?: string | null;
   instructions?: string | null;
-  points?: number | null;
-  gradingType?: ('automatic' | 'manual') | null;
-  showCorrectAnswers?: boolean | null;
-  allowMultipleAttempts?: boolean | null;
-  shuffleQuestions?: boolean | null;
-  shuffleAnswers?: boolean | null;
-  showOneQuestionAtATime?: boolean | null;
-  rawQuizConfig?:
+  rawQuizConfig:
     | {
         [k: string]: unknown;
       }
@@ -595,37 +588,6 @@ export interface Quiz {
     | string
     | number
     | boolean
-    | null;
-  questions?:
-    | {
-        questionText: string;
-        questionType:
-          | 'multiple_choice'
-          | 'true_false'
-          | 'short_answer'
-          | 'essay'
-          | 'fill_blank'
-          | 'matching'
-          | 'ordering';
-        points: number;
-        options?:
-          | {
-              text: string;
-              isCorrect?: boolean | null;
-              feedback?: string | null;
-              id?: string | null;
-            }[]
-          | null;
-        correctAnswer?: string | null;
-        explanation?: string | null;
-        hints?:
-          | {
-              hint: string;
-              id?: string | null;
-            }[]
-          | null;
-        id?: string | null;
-      }[]
     | null;
   createdBy: number | User;
   updatedAt: string;
@@ -1500,38 +1462,7 @@ export interface QuizzesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   instructions?: T;
-  points?: T;
-  gradingType?: T;
-  showCorrectAnswers?: T;
-  allowMultipleAttempts?: T;
-  shuffleQuestions?: T;
-  shuffleAnswers?: T;
-  showOneQuestionAtATime?: T;
   rawQuizConfig?: T;
-  questions?:
-    | T
-    | {
-        questionText?: T;
-        questionType?: T;
-        points?: T;
-        options?:
-          | T
-          | {
-              text?: T;
-              isCorrect?: T;
-              feedback?: T;
-              id?: T;
-            };
-        correctAnswer?: T;
-        explanation?: T;
-        hints?:
-          | T
-          | {
-              hint?: T;
-              id?: T;
-            };
-        id?: T;
-      };
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;

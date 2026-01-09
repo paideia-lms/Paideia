@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { QuizConfig as QuizConfigV1 } from "./types";
-import type { QuizConfig as QuizConfigV2 } from "./types.v2";
+import type { QuizConfig as QuizConfigV1 } from "./v1";
+import type { QuizConfig as QuizConfigV2 } from "./v2";
 import {
 	isValidQuizConfig,
 	resolveQuizConfigToLatest,

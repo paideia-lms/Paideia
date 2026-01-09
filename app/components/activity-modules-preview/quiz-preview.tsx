@@ -25,6 +25,7 @@ import {
 } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type {
+	GradingConfig,
 	NestedQuizConfig,
 	Question,
 	QuestionAnswer,
@@ -32,14 +33,14 @@ import type {
 	QuizConfig,
 	QuizResource,
 	RegularQuizConfig,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import {
 	calculateTotalPoints,
 	getQuestionPoints,
 	getScoringDescription,
 	isContainerQuiz,
 	isRegularQuiz,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import { RichTextRenderer } from "../rich-text/rich-text-renderer";
 import { NestedQuizSelector } from "./nested-quiz-selector";
 import { QuestionRenderer } from "./question-renderer";
@@ -143,6 +144,7 @@ interface SingleQuizPreviewProps {
 	onExit?: () => void;
 	disableInteraction?: boolean;
 	remainingTime?: number; // Remaining time in seconds for resumed quizzes
+	grading?: GradingConfig; // Grading config from parent quiz
 }
 
 export function SingleQuizPreview({
@@ -153,6 +155,7 @@ export function SingleQuizPreview({
 	onExit,
 	disableInteraction = false,
 	remainingTime,
+	grading,
 }: SingleQuizPreviewProps) {
 	const [showResults, setShowResults] = useState(false);
 	const [submittedAnswers, setSubmittedAnswers] = useState<Record<
@@ -289,9 +292,9 @@ export function SingleQuizPreview({
 						<div>
 							<Group gap="md" align="center">
 								<Title order={2}>{quizConfig.title}</Title>
-								{quizConfig.grading?.enabled && (
+								{grading?.enabled && (
 									<Tooltip
-										label={`Total: ${calculateTotalPoints(quizConfig)} points${quizConfig.grading.passingScore ? ` • Passing: ${quizConfig.grading.passingScore}%` : ""}`}
+										label={`Total: ${calculateTotalPoints(quizConfig)} points${grading.passingScore ? ` • Passing: ${grading.passingScore}%` : ""}`}
 										position="bottom"
 										multiline
 										w={250}
@@ -480,7 +483,7 @@ export function SingleQuizPreview({
 														<Badge size="lg" variant="outline">
 															Q{questionNumber}
 														</Badge>
-														{quizConfig.grading?.enabled && (
+														{grading?.enabled && (
 															<Tooltip
 																label={getScoringDescription(question.scoring)}
 																position="top"
@@ -664,6 +667,7 @@ export function QuizPreview({
 				quizConfig={quizConfig}
 				onSubmit={onSubmit}
 				remainingTime={remainingTime}
+				grading={quizConfig.grading}
 			/>
 		);
 	}
@@ -763,6 +767,7 @@ export function QuizPreview({
 					onExit={nestedQuizState.exitToContainer}
 					disableInteraction={isParentTimerExpired}
 					remainingTime={remainingTime}
+					grading={quizConfig.grading}
 				/>
 			) : null}
 		</Stack>

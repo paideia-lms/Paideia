@@ -1,17 +1,10 @@
 import { createContext } from "react-router";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
-import type {
-	LatestCourseModuleSettings,
-	LatestQuizConfig,
-	LatestQuizSettings,
-} from "server/json";
-import { calculateTotalPoints } from "server/json/raw-quiz-config/types.v2";
+import type { LatestCourseQuizSettings } from "server/json/course-module-settings/version-resolver";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import { calculateTotalPoints } from "server/json/raw-quiz-config/v2";
 import { Result } from "typescript-result";
-import {
-	NonExistingActivityModuleError,
-	transformError,
-	UnknownError,
-} from "~/utils/error";
+import { transformError, UnknownError } from "~/utils/error";
 import { tryListAssignmentSubmissions } from "../internal/assignment-submission-management";
 import { tryFindCourseActivityModuleLinkById } from "../internal/course-activity-module-link-management";
 import { tryGetPreviousNextModule } from "../internal/course-section-management";
@@ -391,7 +384,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				}
 
 				// Construct QuizData from activityModule and settings
-				const quizSettings = moduleLink.settings as LatestQuizSettings | null;
+				const quizSettings =
+					moduleLink.settings as LatestCourseQuizSettings | null;
 				const rawQuizConfig = moduleLink.activityModule.rawQuizConfig ?? null;
 				const timeLimit =
 					rawQuizConfig?.globalTimer !== undefined

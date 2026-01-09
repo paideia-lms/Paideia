@@ -4,7 +4,7 @@ import vfs from "../../../vfs";
  * Get file content from VFS as Buffer
  * Falls back to file system in development mode if VFS is empty
  */
-export async function getVfsFileBuffer(path: string): Promise<Buffer | null> {
+async function getVfsFileBuffer(path: string): Promise<Buffer | null> {
 	const base64Content = (vfs as Record<string, string>)[path];
 	if (base64Content) {
 		return Buffer.from(base64Content, "base64");

@@ -48,7 +48,7 @@ import {
 	IconMaximize,
 	IconMinimize,
 } from "@tabler/icons-react";
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef, useState, useMemo } from "react";
 import type {
 	ArticleQuestion,
 	ChoiceQuestion,
@@ -61,7 +61,7 @@ import type {
 	ShortAnswerQuestion,
 	SingleSelectionMatrixQuestion,
 	WhiteboardQuestion,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
@@ -75,26 +75,69 @@ const Excalidraw = lazy(() =>
 
 interface QuestionRendererProps {
 	question: Question;
-	value: unknown;
-	onChange: (value: unknown) => void;
+	value?: unknown;
+	onChange?: (value: unknown) => void;
 	showFeedback?: boolean;
 	disabled?: boolean;
 }
 
+function getDefaultValue(question: Question): unknown {
+	switch (question.type) {
+		case "multiple-choice":
+		case "short-answer":
+		case "long-answer":
+		case "article":
+		case "whiteboard":
+			return "";
+		case "choice":
+		case "ranking":
+			return [];
+		case "fill-in-the-blank":
+		case "single-selection-matrix":
+		case "multiple-selection-matrix":
+			return {};
+		default:
+			return null;
+	}
+}
+
 export function QuestionRenderer({
 	question,
-	value,
-	onChange,
+	value: controlledValue,
+	onChange: controlledOnChange,
 	showFeedback = false,
 	disabled = false,
 }: QuestionRendererProps) {
+	// Determine if we're in controlled or uncontrolled mode
+	const isControlled = controlledOnChange !== undefined;
+	const defaultValue = useMemo(() => getDefaultValue(question), [question]);
+
+	// Internal state for uncontrolled mode
+	const [uncontrolledValue, setUncontrolledValue] = useState<unknown>(defaultValue);
+
+	// Use controlled value if provided, otherwise use internal state
+	// In controlled mode, use the provided value (even if undefined)
+	// In uncontrolled mode, use internal state
+	const value = isControlled
+		? (controlledValue ?? defaultValue)
+		: uncontrolledValue;
+
+	// Create onChange handler that works for both modes
+	const handleChange = (newValue: unknown) => {
+		if (isControlled) {
+			controlledOnChange?.(newValue);
+		} else {
+			setUncontrolledValue(newValue);
+		}
+	};
+
 	switch (question.type) {
 		case "multiple-choice":
 			return (
 				<MultipleChoiceRenderer
 					question={question}
-					value={value as string}
-					onChange={onChange as (value: string) => void}
+					value={(value ?? "") as string}
+					onChange={handleChange as (value: string) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -103,8 +146,8 @@ export function QuestionRenderer({
 			return (
 				<ShortAnswerRenderer
 					question={question}
-					value={value as string}
-					onChange={onChange as (value: string) => void}
+					value={(value ?? "") as string}
+					onChange={handleChange as (value: string) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -113,8 +156,8 @@ export function QuestionRenderer({
 			return (
 				<LongAnswerRenderer
 					question={question}
-					value={value as string}
-					onChange={onChange as (value: string) => void}
+					value={(value ?? "") as string}
+					onChange={handleChange as (value: string) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -123,8 +166,8 @@ export function QuestionRenderer({
 			return (
 				<ArticleRenderer
 					question={question}
-					value={value as string}
-					onChange={onChange as (value: string) => void}
+					value={(value ?? "") as string}
+					onChange={handleChange as (value: string) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -133,8 +176,8 @@ export function QuestionRenderer({
 			return (
 				<FillInTheBlankRenderer
 					question={question}
-					value={value as Record<string, string>}
-					onChange={onChange as (value: Record<string, string>) => void}
+					value={(value ?? {}) as Record<string, string>}
+					onChange={handleChange as (value: Record<string, string>) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -143,8 +186,8 @@ export function QuestionRenderer({
 			return (
 				<ChoiceRenderer
 					question={question}
-					value={value as string[]}
-					onChange={onChange as (value: string[]) => void}
+					value={(value ?? []) as string[]}
+					onChange={handleChange as (value: string[]) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -153,8 +196,8 @@ export function QuestionRenderer({
 			return (
 				<RankingRenderer
 					question={question}
-					value={value as string[]}
-					onChange={onChange as (value: string[]) => void}
+					value={(value ?? []) as string[]}
+					onChange={handleChange as (value: string[]) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -163,8 +206,8 @@ export function QuestionRenderer({
 			return (
 				<SingleSelectionMatrixRenderer
 					question={question}
-					value={value as Record<string, string>}
-					onChange={onChange as (value: Record<string, string>) => void}
+					value={(value ?? {}) as Record<string, string>}
+					onChange={handleChange as (value: Record<string, string>) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -173,8 +216,8 @@ export function QuestionRenderer({
 			return (
 				<MultipleSelectionMatrixRenderer
 					question={question}
-					value={value as Record<string, string>}
-					onChange={onChange as (value: Record<string, string>) => void}
+					value={(value ?? {}) as Record<string, string>}
+					onChange={handleChange as (value: Record<string, string>) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>
@@ -183,8 +226,8 @@ export function QuestionRenderer({
 			return (
 				<WhiteboardRenderer
 					question={question}
-					value={value as string}
-					onChange={onChange as (value: string) => void}
+					value={(value ?? "") as string}
+					onChange={handleChange as (value: string) => void}
 					showFeedback={showFeedback}
 					disabled={disabled}
 				/>

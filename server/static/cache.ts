@@ -63,6 +63,9 @@ export async function isCached(
 	return false;
 }
 
+/**
+ * @knipignore
+ */
 export async function generateETag(file: BunFile) {
 	const hash = new Bun.CryptoHasher("md5");
 	hash.update(await file.arrayBuffer());

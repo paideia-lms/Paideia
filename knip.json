@@ -4,9 +4,9 @@
     "interface": true,
     "type": true
   },
-  "ignore" : ["src/payload-generated-schema.ts", "**/*.json", "scripts/**" , "tests/**"],
+  "ignore" : ["src/payload-generated-schema.ts", "**/*.json", "scripts/**" , "tests/**", "app/utils/constate.tsx", "server/utils/types.ts"],
   "tags": [
-    "-lintignore"
+    "-knipignore"
   ],
   "ignoreIssues": {
     "**": ["binaries", "duplicates", "unlisted","types"],

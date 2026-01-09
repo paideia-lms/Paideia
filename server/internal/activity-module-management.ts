@@ -1,9 +1,7 @@
 import { omit } from "es-toolkit";
 import type { Payload, PayloadRequest, TypedUser } from "payload";
-import type {
-	LatestQuizConfig,
-	LatestQuizConfig as QuizConfig,
-} from "server/json/raw-quiz-config/version-resolver";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import { createDefaultQuizConfig } from "server/json/raw-quiz-config/v2";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
@@ -53,35 +51,7 @@ export interface CreateAssignmentModuleArgs
 export interface CreateQuizModuleArgs extends BaseCreateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
-	points?: number;
-	gradingType?: "automatic" | "manual";
-	timeLimit?: number;
-	showCorrectAnswers?: boolean;
-	allowMultipleAttempts?: boolean;
-	shuffleQuestions?: boolean;
-	shuffleAnswers?: boolean;
-	showOneQuestionAtATime?: boolean;
-	rawQuizConfig?: QuizConfig;
-	questions?: Array<{
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
-		points: number;
-		options?: Array<{
-			text: string;
-			isCorrect: boolean;
-			feedback?: string;
-		}>;
-		correctAnswer?: string;
-		explanation?: string;
-		hints?: Array<{ hint: string }>;
-	}>;
+	rawQuizConfig?: LatestQuizConfig;
 }
 
 export interface CreateDiscussionModuleArgs
@@ -146,35 +116,6 @@ export interface UpdateAssignmentModuleArgs
 export interface UpdateQuizModuleArgs extends BaseUpdateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
-	points?: number;
-	gradingType?: "automatic" | "manual";
-	timeLimit?: number;
-	showCorrectAnswers?: boolean;
-	allowMultipleAttempts?: boolean;
-	shuffleQuestions?: boolean;
-	shuffleAnswers?: boolean;
-	showOneQuestionAtATime?: boolean;
-	rawQuizConfig?: QuizConfig;
-	questions?: Array<{
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
-		points: number;
-		options?: Array<{
-			text: string;
-			isCorrect: boolean;
-			feedback?: string;
-		}>;
-		correctAnswer?: string;
-		explanation?: string;
-		hints?: Array<{ hint: string }>;
-	}>;
 }
 
 export interface UpdateDiscussionModuleArgs
@@ -292,46 +233,8 @@ interface Quiz {
 	title: string;
 	description?: string | null;
 	instructions?: string | null;
-	points?: number | null;
 	timeLimit?: number | null; // Calculated from rawQuizConfig.globalTimer (in minutes)
-	gradingType?: ("automatic" | "manual") | null;
-	showCorrectAnswers?: boolean | null;
-	allowMultipleAttempts?: boolean | null;
-	shuffleQuestions?: boolean | null;
-	shuffleAnswers?: boolean | null;
-	showOneQuestionAtATime?: boolean | null;
-	rawQuizConfig?: LatestQuizConfig | null;
-	questions?:
-		| {
-				questionText: string;
-				questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank"
-					| "matching"
-					| "ordering";
-				points: number;
-				options?:
-					| {
-							text: string;
-							isCorrect?: boolean | null;
-							feedback?: string | null;
-							id?: string | null;
-					  }[]
-					| null;
-				correctAnswer?: string | null;
-				explanation?: string | null;
-				hints?:
-					| {
-							hint: string;
-							id?: string | null;
-					  }[]
-					| null;
-				id?: string | null;
-		  }[]
-		| null;
+	rawQuizConfig: LatestQuizConfig;
 	updatedAt: string;
 	createdAt: string;
 }
@@ -549,7 +452,7 @@ async function buildDiscriminatedUnionResult(
 	payload: Payload,
 	req: Partial<PayloadRequest> | undefined,
 	overrideAccess: boolean,
-): Promise<ActivityModuleResult> {
+) {
 	const { type } = data;
 
 	if (type === "page") {
@@ -564,6 +467,7 @@ async function buildDiscriminatedUnionResult(
 			...baseResult,
 			type: "page" as const,
 			...omit(pageData, ["createdBy", "id"]),
+			pageId: pageData.id,
 		};
 		return result;
 	} else if (type === "whiteboard") {
@@ -573,10 +477,11 @@ async function buildDiscriminatedUnionResult(
 				`Whiteboard data not found for activity module with id '${data.id}'`,
 			);
 		}
-		const result: WhiteboardModuleResult = {
+		const result = {
 			...baseResult,
 			type: "whiteboard" as const,
 			...omit(whiteboardData, ["createdBy", "id"]),
+			whiteboardId: whiteboardData.id,
 		};
 		return result;
 	} else if (type === "file") {
@@ -595,11 +500,12 @@ async function buildDiscriminatedUnionResult(
 			overrideAccess,
 		);
 
-		const result: FileModuleResult = {
+		const result = {
 			...baseResult,
 			type: "file" as const,
 			...omit(fileData, ["createdBy", "id", "media"]),
 			media: enrichedMedia,
+			fileId: fileData.id,
 		};
 		return result;
 	} else if (type === "assignment") {
@@ -609,10 +515,11 @@ async function buildDiscriminatedUnionResult(
 				`Assignment data not found for activity module with id '${data.id}'`,
 			);
 		}
-		const result: AssignmentModuleResult = {
+		const result = {
 			...baseResult,
-			type: "assignment",
+			type: "assignment" as const,
 			...omit(assignmentData, ["createdBy", "id"]),
+			assignmentId: assignmentData.id,
 		};
 		return result;
 	} else if (type === "quiz") {
@@ -632,11 +539,12 @@ async function buildDiscriminatedUnionResult(
 			}
 		}
 
-		const result: QuizModuleResult = {
+		const result = {
 			...baseResult,
-			type: "quiz",
+			type: "quiz" as const,
 			...omit(quizData, ["createdBy", "id"]),
 			timeLimit,
+			quizId: quizData.id,
 		};
 		return result;
 	} else {
@@ -648,9 +556,10 @@ async function buildDiscriminatedUnionResult(
 			);
 		}
 
-		const result: DiscussionModuleResult = {
+		const result = {
 			...baseResult,
-			type: "discussion",
+			type: "discussion" as const,
+			discussionId: discussionData.id,
 			...omit(discussionData, ["createdBy", "id"]),
 		};
 		return result;
@@ -1150,16 +1059,8 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 				req,
 				overrideAccess = false,
 				instructions,
-				points,
-				gradingType,
-				showCorrectAnswers,
-				allowMultipleAttempts,
-				shuffleQuestions,
-				shuffleAnswers,
-				showOneQuestionAtATime,
-				rawQuizConfig,
-				questions,
 				userId: _userId,
+				rawQuizConfig,
 			} = args;
 
 			// Validate required fields
@@ -1184,17 +1085,11 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 							title,
 							description: description,
 							instructions: instructions,
-							points: points,
-							gradingType: gradingType,
-							showCorrectAnswers: showCorrectAnswers,
-							allowMultipleAttempts: allowMultipleAttempts,
-							shuffleQuestions: shuffleQuestions,
-							shuffleAnswers: shuffleAnswers,
-							showOneQuestionAtATime: showOneQuestionAtATime,
-							rawQuizConfig: rawQuizConfig as unknown as {
-								[x: string]: unknown;
-							},
-							questions: questions,
+							rawQuizConfig: (rawQuizConfig ??
+								createDefaultQuizConfig()) as unknown as Record<
+								string,
+								unknown
+							>,
 							createdBy: userId,
 						},
 						req: reqWithTransaction,
@@ -1261,16 +1156,8 @@ export function tryCreateQuizModule(args: CreateQuizModuleArgs) {
 						lastName: owner.lastName ?? "",
 					},
 					instructions: quiz.instructions ?? null,
-					points: quiz.points ?? null,
-					gradingType: quiz.gradingType ?? null,
-					showCorrectAnswers: quiz.showCorrectAnswers ?? null,
-					allowMultipleAttempts: quiz.allowMultipleAttempts ?? null,
-					shuffleQuestions: quiz.shuffleQuestions ?? null,
-					shuffleAnswers: quiz.shuffleAnswers ?? null,
-					showOneQuestionAtATime: quiz.showOneQuestionAtATime ?? null,
 					rawQuizConfig:
 						(quiz.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
-					questions: quiz.questions ?? null,
 					updatedAt: activityModule.updatedAt,
 					createdAt: activityModule.createdAt,
 				} satisfies QuizModuleResult;
@@ -1577,9 +1464,8 @@ export function tryGetActivityModuleById(args: GetActivityModuleByIdArgs) {
 				quiz: activityModuleResult.quiz
 					? {
 							...activityModuleResult.quiz,
-							rawQuizConfig:
-								(activityModuleResult.quiz
-									.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
+							rawQuizConfig: activityModuleResult.quiz
+								.rawQuizConfig as unknown as LatestQuizConfig,
 						}
 					: null,
 				discussion: activityModuleResult.discussion,
@@ -1677,33 +1563,16 @@ export function tryUpdatePageModule(args: UpdatePageModuleArgs) {
 					);
 				}
 
-				await payload
+				const updatedModule = await payload
 					.update({
 						collection: "activity-modules",
 						id,
 						data: updateData,
 						req: reqWithTransaction,
 						overrideAccess,
-						depth: 0,
-					})
-					.then(stripDepth<0, "update">());
-
-				// Fetch updated module with depth 1 to get related data
-				const updatedModule = await payload
-					.findByID({
-						collection: "activity-modules",
-						id,
-						req: reqWithTransaction,
-						overrideAccess,
 						depth: 1,
 					})
-					.then(stripDepth<1, "findByID">());
-
-				if (!updatedModule) {
-					throw new NonExistingActivityModuleError(
-						`Failed to retrieve updated activity module with id '${id}'`,
-					);
-				}
+					.then(stripDepth<1, "update">());
 
 				// Build result directly since we know the type
 				const createdBy = updatedModule.createdBy;
@@ -1823,33 +1692,16 @@ export function tryUpdateWhiteboardModule(args: UpdateWhiteboardModuleArgs) {
 					);
 				}
 
-				await payload
+				const updatedModule = await payload
 					.update({
 						collection: "activity-modules",
 						id,
 						data: updateData,
 						req: reqWithTransaction,
 						overrideAccess,
-						depth: 0,
-					})
-					.then(stripDepth<0, "update">());
-
-				// Fetch updated module with depth 1 to get related data
-				const updatedModule = await payload
-					.findByID({
-						collection: "activity-modules",
-						id,
-						req: reqWithTransaction,
-						overrideAccess,
 						depth: 1,
 					})
-					.then(stripDepth<1, "findByID">());
-
-				if (!updatedModule) {
-					throw new NonExistingActivityModuleError(
-						`Failed to retrieve updated activity module with id '${id}'`,
-					);
-				}
+					.then(stripDepth<1, "update">());
 
 				// Build result directly since we know the type
 				const createdBy = updatedModule.createdBy;
@@ -2134,33 +1986,16 @@ export function tryUpdateAssignmentModule(args: UpdateAssignmentModuleArgs) {
 					);
 				}
 
-				await payload
+				const updatedModule = await payload
 					.update({
 						collection: "activity-modules",
 						id,
 						data: updateData,
 						req: reqWithTransaction,
 						overrideAccess,
-						depth: 0,
-					})
-					.then(stripDepth<0, "update">());
-
-				// Fetch updated module with depth 1 to get related data
-				const updatedModule = await payload
-					.findByID({
-						collection: "activity-modules",
-						id,
-						req: reqWithTransaction,
-						overrideAccess,
 						depth: 1,
 					})
-					.then(stripDepth<1, "findByID">());
-
-				if (!updatedModule) {
-					throw new NonExistingActivityModuleError(
-						`Failed to retrieve updated activity module with id '${id}'`,
-					);
-				}
+					.then(stripDepth<1, "update">());
 
 				// Build result directly since we know the type
 				const createdBy = updatedModule.createdBy;
@@ -2223,21 +2058,7 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 				req,
 				overrideAccess = false,
 				instructions,
-				points,
-				gradingType,
-				showCorrectAnswers,
-				allowMultipleAttempts,
-				shuffleQuestions,
-				shuffleAnswers,
-				showOneQuestionAtATime,
-				rawQuizConfig,
-				questions,
 			} = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Activity module ID is required");
-			}
 
 			// Get the existing activity module to check its current type
 			const existingModule = await payload
@@ -2283,17 +2104,6 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 							title: title ?? undefined,
 							description: description ?? undefined,
 							instructions: instructions,
-							points: points,
-							gradingType: gradingType,
-							showCorrectAnswers: showCorrectAnswers,
-							allowMultipleAttempts: allowMultipleAttempts,
-							shuffleQuestions: shuffleQuestions,
-							shuffleAnswers: shuffleAnswers,
-							showOneQuestionAtATime: showOneQuestionAtATime,
-							rawQuizConfig: rawQuizConfig as unknown as {
-								[x: string]: unknown;
-							},
-							questions: questions,
 						},
 						req: reqWithTransaction,
 						overrideAccess,
@@ -2308,33 +2118,16 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 					);
 				}
 
-				await payload
+				const updatedModule = await payload
 					.update({
 						collection: "activity-modules",
 						id,
 						data: updateData,
 						req: reqWithTransaction,
 						overrideAccess,
-						depth: 0,
-					})
-					.then(stripDepth<0, "update">());
-
-				// Fetch updated module with depth 1 to get related data
-				const updatedModule = await payload
-					.findByID({
-						collection: "activity-modules",
-						id,
-						req: reqWithTransaction,
-						overrideAccess,
 						depth: 1,
 					})
-					.then(stripDepth<1, "findByID">());
-
-				if (!updatedModule) {
-					throw new NonExistingActivityModuleError(
-						`Failed to retrieve updated activity module with id '${id}'`,
-					);
-				}
+					.then(stripDepth<1, "update">());
 
 				// Build result directly since we know the type
 				const createdBy = updatedModule.createdBy;
@@ -2361,17 +2154,9 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 						lastName: owner.lastName ?? "",
 					},
 					instructions: quizRelation?.instructions ?? null,
-					points: quizRelation?.points ?? null,
-					gradingType: quizRelation?.gradingType ?? null,
-					showCorrectAnswers: quizRelation?.showCorrectAnswers ?? null,
-					allowMultipleAttempts: quizRelation?.allowMultipleAttempts ?? null,
-					shuffleQuestions: quizRelation?.shuffleQuestions ?? null,
-					shuffleAnswers: quizRelation?.shuffleAnswers ?? null,
-					showOneQuestionAtATime: quizRelation?.showOneQuestionAtATime ?? null,
 					rawQuizConfig:
 						(quizRelation?.rawQuizConfig as unknown as LatestQuizConfig) ??
 						null,
-					questions: quizRelation?.questions ?? null,
 					updatedAt: updatedModule.updatedAt,
 					createdAt: updatedModule.createdAt,
 				} satisfies QuizModuleResult;
@@ -2494,33 +2279,16 @@ export function tryUpdateDiscussionModule(args: UpdateDiscussionModuleArgs) {
 					);
 				}
 
-				await payload
+				const updatedModule = await payload
 					.update({
 						collection: "activity-modules",
 						id,
 						data: updateData,
 						req: reqWithTransaction,
 						overrideAccess,
-						depth: 0,
-					})
-					.then(stripDepth<0, "update">());
-
-				// Fetch updated module with depth 1 to get related data
-				const updatedModule = await payload
-					.findByID({
-						collection: "activity-modules",
-						id,
-						req: reqWithTransaction,
-						overrideAccess,
 						depth: 1,
 					})
-					.then(stripDepth<1, "findByID">());
-
-				if (!updatedModule) {
-					throw new NonExistingActivityModuleError(
-						`Failed to retrieve updated activity module with id '${id}'`,
-					);
-				}
+					.then(stripDepth<1, "update">());
 
 				// Build result directly since we know the type
 				const createdBy = updatedModule.createdBy;

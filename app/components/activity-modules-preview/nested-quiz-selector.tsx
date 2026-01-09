@@ -12,7 +12,7 @@ import { IconCheck, IconClock, IconLock } from "@tabler/icons-react";
 import type {
 	NestedQuizConfig,
 	QuizConfig,
-} from "server/json/raw-quiz-config/types.v2";
+} from "server/json/raw-quiz-config/v2";
 
 interface NestedQuizSelectorProps {
 	quizConfig: QuizConfig;

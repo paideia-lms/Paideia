@@ -37,17 +37,16 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
 import {
-	PagePreview,
-	WhiteboardPreview,
 	AssignmentPreview,
-} from "app/components/activity-module-forms";
+} from "app/components/activity-modules-preview/assignment-preview";
+import { PagePreview } from "app/components/activity-modules-preview/page-preview";
+import { WhiteboardPreview } from "app/components/activity-modules-preview/whiteboard-preview";
 import { FilePreview } from "app/components/activity-modules-preview/file-preview";
 import { DiscussionThreadView } from "./components/discussion-thread-view";
 import { ModuleDatesInfo } from "./components/module-dates-info";
 import { SubmissionHistory } from "app/components/submission-history";
 import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
 import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
-import { transformQuizAnswersToSubmissionFormat } from "./utils";
 import { parseAsBoolean } from "nuqs";
 import {
 	createParser,
@@ -55,7 +54,7 @@ import {
 	parseAsStringEnum,
 } from "nuqs/server";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
+import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
@@ -993,11 +992,6 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 
 		const handleQuizSubmit = async (answers: QuizAnswers) => {
 			if (!activeSubmission) return;
-
-			const _transformedAnswers = transformQuizAnswersToSubmissionFormat(
-				quizConfig,
-				answers,
-			);
 
 			// Calculate time spent if startedAt exists
 			let _timeSpent: number | undefined;

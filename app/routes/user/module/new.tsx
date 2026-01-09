@@ -1,4 +1,4 @@
-import { Container, Paper, Select, Stack, Title } from "@mantine/core";
+import { Button, Container, Paper, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { parseAsStringEnum } from "nuqs";
 import { href } from "react-router";
@@ -15,10 +15,8 @@ import {
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
-import { QuizForm } from "~/components/activity-module-forms/quiz-form";
 import { WhiteboardForm } from "~/components/activity-module-forms/whiteboard-form";
 import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import {
 	badRequest,
 	ok,
@@ -30,9 +28,10 @@ import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { useNuqsSearchParams } from "~/utils/search-params-utils";
-import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { redirect } from "react-router";
+import type { ActivityModule } from "server/payload-types";
+import { useForm } from "@mantine/form";
 
 // Define search params for module creation
 export const loaderSearchParams = {
@@ -136,11 +135,6 @@ const createCreateQuizActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		quizInstructions: z.string().optional(),
-		quizPoints: z.coerce.number().optional(),
-		quizTimeLimit: z.coerce.number().optional(),
-		quizGradingType: z.enum(["automatic", "manual"]).optional(),
-		rawQuizConfig: z.custom<QuizConfig>().optional(),
 	}),
 	method: "POST",
 	action: Action.CreateQuiz,
@@ -291,11 +285,6 @@ const createQuizAction = createCreateQuizActionRpc.createAction(
 			payload,
 			title: formData.title,
 			description: formData.description,
-			instructions: formData.quizInstructions,
-			points: formData.quizPoints,
-			timeLimit: formData.quizTimeLimit,
-			gradingType: formData.quizGradingType,
-			rawQuizConfig: formData.rawQuizConfig,
 			req: payloadRequest,
 		});
 
@@ -526,41 +515,44 @@ function AssignmentFormWrapper() {
 	);
 }
 
-function getQuizFormInitialValues() {
-	return {
-		title: "",
-		description: "",
-		quizInstructions: "",
-		quizPoints: 100,
-		quizTimeLimit: 60,
-		quizGradingType: "automatic" as const,
-		rawQuizConfig: null as QuizConfig | null,
-	};
-}
+// export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
 
-export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
-
-function QuizFormWrapper() {
+function CreateQuizForm() {
 	const { submit: createQuiz, isLoading } = useCreateQuiz();
-	const initialValues = getQuizFormInitialValues();
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: { title: "", description: "" },
+		validate: {
+			title: (value) =>
+				value.trim().length === 0 ? "Title is required" : null,
+		},
+	})
 	return (
-		<QuizForm
-			initialValues={initialValues}
-			onSubmit={(values) =>
-				createQuiz({
-					values: {
-						title: values.title,
-						description: values.description,
-						quizInstructions: values.quizInstructions,
-						quizPoints: values.quizPoints,
-						quizTimeLimit: values.quizTimeLimit,
-						quizGradingType: values.quizGradingType,
-						rawQuizConfig: values.rawQuizConfig ?? undefined,
-					},
-				})
-			}
-			isLoading={isLoading}
-		/>
+		<form onSubmit={form.onSubmit((values) => createQuiz({ values: { title: values.title, description: values.description } }))}>
+
+
+			<TextInput
+				{...form.getInputProps("title")}
+				key={form.key("title")}
+				label="Title"
+				placeholder="Enter module title"
+				required
+				withAsterisk
+			/>
+
+			<Textarea
+				{...form.getInputProps("description")}
+				key={form.key("description")}
+				label="Description"
+				placeholder="Enter module description"
+				minRows={3}
+				autosize
+			/>
+
+			<Button type="submit" size="lg" mt="lg" loading={isLoading}>
+				Save
+			</Button>
+		</form>
 	);
 }
 
@@ -637,7 +629,7 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 						value={selectedType}
 						onChange={(value) =>
 							setQueryParams({
-								type: (value as ActivityModuleFormValues["type"]) || null,
+								type: (value as ActivityModule["type"]) || null,
 							})
 						}
 						label="Module Type"
@@ -660,7 +652,7 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 						<FileFormWrapper uploadLimit={uploadLimit} />
 					)}
 					{selectedType === "assignment" && <AssignmentFormWrapper />}
-					{selectedType === "quiz" && <QuizFormWrapper />}
+					{selectedType === "quiz" && <CreateQuizForm />}
 					{selectedType === "discussion" && <DiscussionFormWrapper />}
 				</Stack>
 			</Paper>

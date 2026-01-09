@@ -1,5 +1,5 @@
 import { AssignmentSubmissions } from "server/collections";
-import type { LatestCourseModuleSettings } from "server/json";
+import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,

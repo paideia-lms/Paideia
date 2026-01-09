@@ -1,5 +1,3 @@
-import type { Simplify } from "type-fest";
-
 // Quiz Resource - HTML rich text that can persist across multiple pages
 export interface QuizResource {
 	id: string;
@@ -169,11 +167,9 @@ export interface ArticleQuestion extends BaseQuestion {
 // Fill in the Blank Question
 export interface FillInTheBlankQuestion extends BaseQuestion {
 	type: "fill-in-the-blank";
-	// Prompt contains {{blank_id}} markers for blanks
-	// Each unique ID creates one answer field. Multiple {{blank_id}} with the same ID share the same answer.
-	// e.g., "The capital of France is {{capital}} and the largest city is {{capital}}." (same answer: { capital: "Paris" })
-	// e.g., "{{country}} has {{capital}} as its capital." (different answers: { country: "France", capital: "Paris" })
-	correctAnswers?: Record<string, string>; // Map of blank ID to correct answer
+	// Prompt contains {{blank}} markers for blanks
+	// e.g., "The capital of France is {{blank}} and the largest city is {{blank}}."
+	correctAnswers?: string[]; // Answers for each blank in order
 }
 
 // Choice Question (checkboxes - multiple selection)
@@ -246,57 +242,44 @@ export interface NestedQuizConfig {
 	title: string;
 	description?: string;
 	pages: QuizPage[];
-	resources?: QuizResource[]; // Optional resources (HTML rich text)
 	globalTimer?: number; // Timer in seconds for the nested quiz
 	grading?: GradingConfig; // Grading configuration for this nested quiz
 }
 
-// Regular Quiz Configuration - has pages directly
-export interface RegularQuizConfig {
-	version: "v2";
-	type: "regular";
+// Quiz Configuration - supports EITHER pages (regular) OR nestedQuizzes (container)
+export interface QuizConfig {
 	id: string;
 	title: string;
-	pages: QuizPage[];
-	resources?: QuizResource[]; // Optional resources (HTML rich text)
-	globalTimer?: number; // Timer in seconds for the entire quiz
-	grading?: GradingConfig; // Grading configuration for the quiz
-}
 
-// Container Quiz Configuration - contains nested quizzes
-export interface ContainerQuizConfig {
-	version: "v2";
-	type: "container";
-	id: string;
-	title: string;
-	nestedQuizzes: NestedQuizConfig[];
+	// Regular quiz structure
+	pages?: QuizPage[];
+
+	// Container quiz structure
+	nestedQuizzes?: NestedQuizConfig[];
 	sequentialOrder?: boolean; // If true, nested quizzes must be completed in order
+
+	resources?: QuizResource[]; // Optional resources (HTML rich text)
 	globalTimer?: number; // Timer in seconds for the entire quiz (parent timer)
 	grading?: GradingConfig; // Grading configuration for the quiz
 }
 
-// Quiz Configuration - discriminated union of regular and container quizzes
-export type QuizConfig = Simplify<RegularQuizConfig | ContainerQuizConfig>;
-
 // Answer types for each question type
 export type QuestionAnswer =
 	| string // multiple-choice, short-answer, long-answer, article
-	| string[] // choice, ranking
-	| Record<string, string>; // fill-in-the-blank, single-selection-matrix, multiple-selection-matrix
+	| string[] // fill-in-the-blank, choice, ranking
+	| Record<string, string>; // single-selection-matrix, multiple-selection-matrix
 
 // Quiz Answers
 export type QuizAnswers = Record<string, QuestionAnswer>;
 
 // Type guard: Check if a quiz is a container quiz with nested quizzes
-export function isContainerQuiz(
-	config: QuizConfig,
-): config is ContainerQuizConfig {
-	return config.type === "container";
+export function isContainerQuiz(config: QuizConfig): boolean {
+	return config.nestedQuizzes !== undefined && config.nestedQuizzes.length > 0;
 }
 
 // Type guard: Check if a quiz is a regular quiz with pages
-export function isRegularQuiz(config: QuizConfig): config is RegularQuizConfig {
-	return config.type === "regular";
+export function isRegularQuiz(config: QuizConfig): boolean {
+	return config.pages !== undefined && config.pages.length > 0;
 }
 
 // ============================================================================
@@ -379,26 +362,7 @@ export function getScoringDescription(scoring?: ScoringConfig): string {
 export function calculateTotalPoints(
 	config: QuizConfig | NestedQuizConfig,
 ): number {
-	if ("type" in config) {
-		// QuizConfig (discriminated union)
-		if (config.type === "regular") {
-			return config.pages.reduce((total, page) => {
-				return (
-					total +
-					page.questions.reduce((pageTotal, question) => {
-						return pageTotal + getQuestionPoints(question);
-					}, 0)
-				);
-			}, 0);
-		}
-		// Container quiz - sum all nested quizzes
-		if (config.type === "container") {
-			return config.nestedQuizzes.reduce((total, nested) => {
-				return total + calculateTotalPoints(nested);
-			}, 0);
-		}
-	} else {
-		// NestedQuizConfig
+	if ("pages" in config && config.pages) {
 		return config.pages.reduce((total, page) => {
 			return (
 				total +
@@ -459,95 +423,4 @@ export function getDefaultScoring(questionType: QuestionType): ScoringConfig {
 		default:
 			return { type: "simple", points: 1 };
 	}
-}
-
-/**
- * Represents a Paideia Rubric Definition, used in advanced grading forms.
- * Corresponds to the data managed by gradingform_rubric_controller in Paideia.
- */
-export interface PaideiaRubricDefinition {
-	/** Unique identifier for the rubric. */
-	id: number;
-	/** Human-readable name or title of the rubric. */
-	name: string;
-	/** Optional detailed description of the rubric's purpose. */
-	description?: string;
-	/** Array of criteria that form the rubric's structure. */
-	criteria: PaideiaRubricCriterion[];
-	/** Status of the rubric (e.g., 'draft' or 'ready'). */
-	status: "draft" | "ready";
-	/** Timestamp of creation. */
-	timecreated: number;
-	/** Timestamp of last modification. */
-	timemodified: number;
-}
-
-/**
- * Represents a single criterion within a rubric.
- * Each criterion has multiple levels for assessment.
- */
-export interface PaideiaRubricCriterion {
-	/** Unique identifier for the criterion. */
-	id: number;
-	/** Descriptive name of the criterion (e.g., "Organization"). */
-	name: string;
-	/** Detailed explanation of what the criterion assesses. */
-	description: string;
-	/** Array of levels associated with this criterion. */
-	levels: PaideiaRubricLevel[];
-	/** Sorting order for display (lower values appear first). */
-	sortorder: number;
-}
-
-/**
- * Represents a performance level for a given criterion.
- * Levels define qualitative descriptions and associated scores.
- */
-export interface PaideiaRubricLevel {
-	/** Unique identifier for the level. */
-	id: number;
-	/** Qualitative description of this performance level. */
-	definition: string;
-	/** Numerical score assigned to this level (non-negative). */
-	score: number;
-	/** Sorting order for display within the criterion (left to right). */
-	sortorder: number;
-}
-
-/**
- * Represents a filled instance of a rubric for a specific submission (grading).
- * Corresponds to rubric_fillings in Paideia's grading data.
- */
-export interface PaideiaRubricFilling {
-	/** Unique identifier for the filling instance. */
-	id: number;
-	/** Foreign key to the rubric definition ID. */
-	rubricid: number;
-	/** ID of the instance (e.g., assignment submission). */
-	instanceid: number;
-	/** Array of criterion-level selections for this filling. */
-	criterionlevel: { [criterionId: number]: number }; // Maps criterion ID to selected level ID
-	/** Overall calculated score from the filling. */
-	score: number;
-	/** Timestamp when the filling was completed. */
-	timecreated: number;
-	/** Timestamp of last update to the filling. */
-	timemodified: number;
-}
-
-/**
- * Represents optional remarks or feedback associated with a rubric filling.
- * Corresponds to rubric_filling_filled_levels in Paideia.
- */
-export interface PaideiaRubricRemark {
-	/** Unique identifier for the remark. */
-	id: number;
-	/** Foreign key to the filling ID. */
-	fillingid: number;
-	/** Foreign key to the criterion ID. */
-	criterionid: number;
-	/** Additional textual feedback for the criterion. */
-	remark: string;
-	/** Timestamp of the remark. */
-	timemodified: number;
 }

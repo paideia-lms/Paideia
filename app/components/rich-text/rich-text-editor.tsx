@@ -115,7 +115,7 @@ export interface MentionListRef {
 	selectedItem: MentionItem | null;
 }
 
-export const MentionList = forwardRef(
+const MentionList = forwardRef(
 	({ items, command }: MentionListProps, ref: ForwardedRef<MentionListRef>) => {
 		const { colorScheme } = useMantineColorScheme();
 		const [selectedIndex, setSelectedIndex] = useState(0);
@@ -279,7 +279,7 @@ const MOCK_PAGES: MentionItem[] = [
 
 type MentionType = "user" | "tag" | "page";
 
-export const createMentionSuggestion = (
+const createMentionSuggestion = (
 	type: MentionType,
 ): Omit<SuggestionOptions<MentionItem>, "editor"> => ({
 	items: ({ query }: { query: string }) => {
@@ -358,7 +358,7 @@ export const createMentionSuggestion = (
 });
 
 
-export function getTextContentFromHtmlClient(html: string): string {
+function getTextContentFromHtmlClient(html: string): string {
 	if (getTextContentFromHtmlServer) {
 		return getTextContentFromHtmlServer(html);
 	}
@@ -373,14 +373,14 @@ export function getTextContentFromHtmlClient(html: string): string {
 /**
  * Calculate character count from text
  */
-export function getCharacterCount(text: string): number {
+function getCharacterCount(text: string): number {
 	return text.length;
 }
 
 /**
  * Calculate word count from text
  */
-export function getWordCount(text: string): number {
+function getWordCount(text: string): number {
 	return text
 		.trim()
 		.split(/\s+/)
@@ -390,7 +390,7 @@ export function getWordCount(text: string): number {
 /**
  * Check if text content is empty (after trimming)
  */
-export function isTextEmpty(text: string): boolean {
+function isTextEmpty(text: string): boolean {
 	return text.trim().length === 0;
 }
 
@@ -403,22 +403,16 @@ export function isHtmlEmpty(html: string): boolean {
 }
 
 /**
- * Get text statistics for a given text
- */
-export function getTextStats(text: string) {
-	return {
-		characterCount: getCharacterCount(text),
-		wordCount: getWordCount(text),
-		isEmpty: isTextEmpty(text),
-	};
-}
-
-/**
  * Get text statistics from HTML content
+ * @knipignore
  */
 export function getTextStatsFromHtml(html: string) {
 	const textContent = getTextContentFromHtmlClient(html);
-	return getTextStats(textContent);
+	return {
+		characterCount: getCharacterCount(textContent),
+		wordCount: getWordCount(textContent),
+		isEmpty: isTextEmpty(textContent),
+	};
 }
 
 const lowlight = createLowlight();

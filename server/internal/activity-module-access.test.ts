@@ -8,7 +8,6 @@ import {
 	tryFindInstructorsForActivityModule,
 	tryGrantAccessToActivityModule,
 	tryRevokeAccessFromActivityModule,
-	tryTransferActivityModuleOwnership,
 } from "./activity-module-access";
 import {
 	tryAddActivityModuleToSection,
@@ -674,63 +673,6 @@ describe("Activity Module Access Control", () => {
 		}
 	});
 
-	test("should grant access to previous owner after ownership transfer", async () => {
-		const user1 = await getAuthUser(user1Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Transfer with Grant Test",
-				type: "discussion",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			req: { user: user1 },
-			overrideAccess: true,
-		});
-
-		// Transfer ownership to user2
-		await tryTransferActivityModuleOwnership({
-			payload,
-			activityModuleId: activityModule.id,
-			newOwnerId: testUser2.id,
-			currentOwnerId: testUser1.id,
-			overrideAccess: true,
-		});
-
-		// Previous owner (user1) should still have access
-		const result = await payload.findByID({
-			collection: "activity-modules",
-			id: activityModule.id,
-			req: { user: user1 },
-		});
-		expect(result.id).toBe(activityModule.id);
-
-		// Previous owner should be able to update
-		const updated = await payload.update({
-			collection: "activity-modules",
-			id: activityModule.id,
-			data: {
-				title: "Updated by Previous Owner",
-			},
-			req: { user: user1 },
-		});
-		expect(updated.title).toBe("Updated by Previous Owner");
-
-		// But previous owner should NOT be able to delete
-		try {
-			await payload.delete({
-				collection: "activity-modules",
-				id: activityModule.id,
-				req: { user: user1 },
-			});
-			expect(true).toBe(false); // Should not reach here
-		} catch (error) {
-			expect(error).toBeDefined();
-		}
-	});
-
 	test("should allow admin to access any activity module", async () => {
 		const user1 = await getAuthUser(user1Token);
 		const admin = await getAuthUser(adminToken);
@@ -841,69 +783,6 @@ describe("Activity Module Access Control", () => {
 
 		// Should succeed (no rule prevents it, though it's redundant)
 		expect(grantResult.ok).toBe(true);
-	});
-
-	test("should handle ownership transfer removing new owner's grant", async () => {
-		const user1 = await getAuthUser(user1Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Transfer Remove Grant Test",
-				type: "assignment",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			req: { user: user1 },
-			overrideAccess: true,
-		});
-
-		// Grant access to user2
-		await tryGrantAccessToActivityModule({
-			payload,
-			activityModuleId: activityModule.id,
-			grantedToUserId: testUser2.id,
-			grantedByUserId: testUser1.id,
-			overrideAccess: true,
-		});
-
-		// Transfer ownership to user2
-		await tryTransferActivityModuleOwnership({
-			payload,
-			activityModuleId: activityModule.id,
-			newOwnerId: testUser2.id,
-			currentOwnerId: testUser1.id,
-			overrideAccess: true,
-		});
-
-		// Verify the grant for user2 was removed (since they're now owner)
-		const grants = await payload.find({
-			collection: "activity-module-grants",
-			where: {
-				and: [
-					{ activityModule: { equals: activityModule.id } },
-					{ grantedTo: { equals: testUser2.id } },
-				],
-			},
-			overrideAccess: true,
-		});
-
-		expect(grants.docs.length).toBe(0);
-
-		// Verify user1 now has a grant
-		const user1Grants = await payload.find({
-			collection: "activity-module-grants",
-			where: {
-				and: [
-					{ activityModule: { equals: activityModule.id } },
-					{ grantedTo: { equals: testUser1.id } },
-				],
-			},
-			overrideAccess: true,
-		});
-
-		expect(user1Grants.docs.length).toBe(1);
 	});
 
 	test("should find grants for activity module", async () => {

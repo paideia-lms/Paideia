@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import type { LatestCourseModuleSettings } from "server/json";
+import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateAssignmentModuleArgs,
@@ -568,7 +568,6 @@ describe("Course Activity Module Link Management Functions", () => {
 				description: "Quiz module to test settings",
 				userId: testUser.id,
 				instructions: "Complete this quiz",
-				timeLimit: 60,
 				overrideAccess: true,
 			} satisfies CreateQuizModuleArgs;
 

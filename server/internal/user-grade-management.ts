@@ -950,16 +950,15 @@ export function tryAddAdjustment(args: AddAdjustmentArgs) {
 			} = args;
 
 			// Check if grade exists
-			const existingGrade = await payload.findByID({
-				collection: UserGrades.slug,
-				id: gradeId,
-				req,
-				overrideAccess,
-			});
-
-			if (!existingGrade) {
-				throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
-			}
+			const existingGrade = await payload
+				.findByID({
+					collection: UserGrades.slug,
+					id: gradeId,
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
 
 			// Create new adjustment
 			const newAdjustment = {
@@ -976,17 +975,20 @@ export function tryAddAdjustment(args: AddAdjustmentArgs) {
 			const currentAdjustments = existingGrade.adjustments || [];
 			const updatedAdjustments = [...currentAdjustments, newAdjustment];
 
-			const updatedGrade = await payload.update({
-				collection: UserGrades.slug,
-				id: gradeId,
-				data: {
-					adjustments: updatedAdjustments,
-				},
-				req,
-				overrideAccess,
-			});
+			const updatedGrade = await payload
+				.update({
+					collection: UserGrades.slug,
+					id: gradeId,
+					data: {
+						adjustments: updatedAdjustments,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
 
-			return updatedGrade as UserGrade;
+			return updatedGrade;
 		},
 		(error) =>
 			transformError(error) ??

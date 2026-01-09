@@ -10,14 +10,14 @@ import {
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
-import type { AssignmentModuleFormValues } from "~/utils/activity-module-schema";
+
 import {
 	PRESET_FILE_TYPE_OPTIONS,
 	presetValuesToFileTypes,
 } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import type { AssignmentFormInitialValues as NewAssignmentFormInitialValues } from "app/routes/user/module/new";
-import type { AssignmentFormInitialValues as EditAssignmentFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { AssignmentFormInitialValues as EditAssignmentFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { Simplify, UnionToIntersection } from "type-fest";
 import { FormableSimpleRichTextEditor } from "../form-components/formable-simple-rich-text-editor";
 
@@ -34,7 +34,7 @@ interface AssignmentFormProps {
 }
 
 const useAssignmentForm = (
-	initialValues: Partial<AssignmentModuleFormValues>,
+	initialValues: Partial<AssignmentFormProps["initialValues"]>,
 ) => {
 	const form = useForm({
 		mode: "uncontrolled",

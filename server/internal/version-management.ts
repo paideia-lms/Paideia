@@ -8,8 +8,6 @@ const DOCKER_HUB_USER = "hananoshikayomaru";
 const DOCKER_HUB_REPO = "paideia";
 const API_URL = `https://hub.docker.com/v2/repositories/${DOCKER_HUB_USER}/${DOCKER_HUB_REPO}/tags/?page_size=100`;
 
-export interface GetLatestVersionArgs extends BaseInternalFunctionArgs {}
-
 export interface LatestVersionResult {
 	latestVersion: string;
 	currentVersion: string;
@@ -20,9 +18,7 @@ export interface LatestVersionResult {
  * Fetches the latest semantic version tag from Docker Hub and compares it with the current version.
  * @returns Result with LatestVersionResult on success, error on failure
  */
-export function tryGetLatestVersion(
-	args: GetLatestVersionArgs & { currentVersion: string },
-) {
+export function tryGetLatestVersion(args: { currentVersion: string }) {
 	return Result.try(
 		async () => {
 			const { currentVersion } = args;
