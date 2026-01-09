@@ -42,6 +42,7 @@ export function PagesList({
                                         moduleId={moduleId}
                                         page={page}
                                         pageIndex={index}
+                                        quizConfig={quizConfig}
                                         nestedQuizId={nestedQuizId}
                                     />
                                 </div>

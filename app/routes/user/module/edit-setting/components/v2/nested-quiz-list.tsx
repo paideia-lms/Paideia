@@ -24,7 +24,7 @@ export function NestedQuizList({
 	// All hooks must be called before any early returns
 	const nestedQuizzes =
 		quizConfig.type === "container" ? quizConfig.nestedQuizzes : [];
-	
+
 	// Set active tab to the last quiz (newly added quizzes appear at the end)
 	const lastQuizId =
 		nestedQuizzes.length > 0
@@ -109,6 +109,7 @@ export function NestedQuizList({
 										moduleId={moduleId}
 										nestedQuiz={quiz}
 										nestedQuizIndex={nestedQuizzes.indexOf(quiz)}
+										parentQuizConfig={quizConfig}
 									/>
 								</Stack>
 							</Tabs.Panel>

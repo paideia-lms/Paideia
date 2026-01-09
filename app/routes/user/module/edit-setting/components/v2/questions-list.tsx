@@ -1,5 +1,5 @@
 import { Group, Paper, Stack, Title } from "@mantine/core";
-import type { QuizPage } from "./types";
+import type { QuizConfig, QuizPage } from "./types";
 import { QuestionForm } from "./question-form";
 import { AddQuestionForm } from "./add-question-form";
 import { RemoveQuestionButton } from "./remove-question-button";
@@ -8,12 +8,14 @@ interface QuestionsListProps {
     moduleId: number;
     page: QuizPage;
     pageIndex: number;
+    quizConfig: QuizConfig;
     nestedQuizId?: string;
 }
 
 export function QuestionsList({
     moduleId,
     page,
+    quizConfig,
     nestedQuizId,
 }: QuestionsListProps) {
     const questions = page.questions || [];
@@ -38,6 +40,7 @@ export function QuestionsList({
                                         moduleId={moduleId}
                                         question={question}
                                         questionIndex={index}
+                                        quizConfig={quizConfig}
                                         nestedQuizId={nestedQuizId}
                                     />
                                 </div>

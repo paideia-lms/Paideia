@@ -1,31 +1,25 @@
-import { Button, NumberInput, Paper, Stack, Textarea, TextInput, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import {
-	useUpdateNestedQuizInfo,
-	useUpdateNestedQuizTimer,
-} from "app/routes/user/module/edit-setting/route";
+import { Stack } from "@mantine/core";
 import { PagesList } from "./pages-list";
 import { ResourcesList } from "./resources-list";
 import type { NestedQuizConfig, QuizConfig } from "./types";
+import { UpdateNestedQuizInfoForm } from "./update-nested-quiz-info-form";
+import { UpdateNestedQuizTimerForm } from "./update-nested-quiz-timer-form";
 
 interface NestedQuizFormProps {
 	moduleId: number;
 	nestedQuiz: NestedQuizConfig;
 	nestedQuizIndex: number;
+	parentQuizConfig: QuizConfig;
 }
 
 export function NestedQuizForm({
 	moduleId,
 	nestedQuiz,
 	nestedQuizIndex,
+	parentQuizConfig,
 }: NestedQuizFormProps) {
-	const { submit: updateNestedQuizInfo, isLoading: isUpdatingInfo } =
-		useUpdateNestedQuizInfo();
-	const { submit: updateNestedQuizTimer, isLoading: isUpdatingTimer } =
-		useUpdateNestedQuizTimer();
-
-	// We need to get the full quiz config to pass to PagesList and ResourcesList
-	// For now, we'll create a temporary regular config structure
+	// Create a temporary regular config structure for PagesList and ResourcesList
+	// Include the parent container quiz's grading config since nested quizzes inherit it
 	const tempQuizConfig: QuizConfig = {
 		version: "v2",
 		type: "regular",
@@ -34,82 +28,20 @@ export function NestedQuizForm({
 		pages: nestedQuiz.pages,
 		resources: nestedQuiz.resources,
 		globalTimer: nestedQuiz.globalTimer,
+		grading: parentQuizConfig.type === "container" ? parentQuizConfig.grading : undefined,
 	};
-
-	const infoForm = useForm({
-		initialValues: {
-			title: nestedQuiz.title,
-			description: nestedQuiz.description || "",
-		},
-	});
-
-	const timerForm = useForm({
-		initialValues: {
-			seconds: nestedQuiz.globalTimer ?? undefined,
-		},
-	});
 
 	return (
 		<Stack gap="md">
-			<Paper withBorder p="md" radius="md">
-				<form
-					onSubmit={infoForm.onSubmit((values) => {
-						updateNestedQuizInfo({
-							params: { moduleId },
-							values: {
-								nestedQuizId: nestedQuiz.id,
-								updates: {
-									title: values.title,
-									description: values.description,
-								},
-							},
-						});
-					})}
-				>
-					<Stack gap="md">
-						<Title order={5}>Quiz Information</Title>
-						<TextInput
-							{...infoForm.getInputProps("title")}
-							label="Quiz Title"
-							required
-						/>
-						<Textarea
-							{...infoForm.getInputProps("description")}
-							label="Description"
-							minRows={2}
-						/>
-						<Button type="submit" loading={isUpdatingInfo}>
-							Save Quiz Information
-						</Button>
-					</Stack>
-				</form>
-			</Paper>
+			<UpdateNestedQuizInfoForm
+				moduleId={moduleId}
+				nestedQuiz={nestedQuiz}
+			/>
 
-			<Paper withBorder p="md" radius="md">
-				<form
-					onSubmit={timerForm.onSubmit((values) => {
-						updateNestedQuizTimer({
-							params: { moduleId },
-							values: {
-								nestedQuizId: nestedQuiz.id,
-								seconds: values.seconds ?? undefined,
-							},
-						});
-					})}
-				>
-					<Stack gap="md">
-						<Title order={5}>Time Limit</Title>
-						<NumberInput
-							{...timerForm.getInputProps("seconds")}
-							label="Time Limit (seconds)"
-							min={0}
-						/>
-						<Button type="submit" loading={isUpdatingTimer}>
-							Save Time Limit
-						</Button>
-					</Stack>
-				</form>
-			</Paper>
+			<UpdateNestedQuizTimerForm
+				moduleId={moduleId}
+				nestedQuiz={nestedQuiz}
+			/>
 
 			<ResourcesList
 				moduleId={moduleId}
