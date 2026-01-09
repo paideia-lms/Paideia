@@ -2,7 +2,6 @@ import {
 	ActionIcon,
 	Button,
 	Group,
-	Paper,
 	Stack,
 	Text,
 	TextInput,
@@ -42,82 +41,80 @@ export function RankingOptionsForm({
 		: itemKeys;
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit((values) => {
-					updateQuestionOptions({
-						params: { moduleId },
-						values: {
-							questionId: question.id,
-							options: {
-								items: values.items,
-								correctOrder: values.correctOrder,
-							},
-							nestedQuizId,
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuestionOptions({
+					params: { moduleId },
+					values: {
+						questionId: question.id,
+						options: {
+							items: values.items,
+							correctOrder: values.correctOrder,
 						},
-					});
-				})}
-			>
-				<Stack gap="md">
-					<Title order={5}>Ranking Items</Title>
-					<Group justify="space-between">
-						<Text size="sm" fw={500}>
-							Items (Drag to reorder in correct order)
+						nestedQuizId,
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={5}>Ranking Items</Title>
+				<Group justify="space-between">
+					<Text size="sm" fw={500}>
+						Items (Drag to reorder in correct order)
+					</Text>
+					<Button
+						size="compact-sm"
+						variant="light"
+						leftSection={<IconPlus size={14} />}
+						type="button"
+						onClick={() => {
+							const nextKey = String.fromCharCode(97 + itemKeys.length);
+							form.setFieldValue("items", {
+								...form.values.items,
+								[nextKey]: "",
+							});
+							form.setFieldValue("correctOrder", [...orderedKeys, nextKey]);
+						}}
+					>
+						Add Item
+					</Button>
+				</Group>
+
+				{orderedKeys.map((key, index) => (
+					<Group key={key} gap="xs" wrap="nowrap">
+						<Text size="sm" fw={500} style={{ minWidth: 30 }}>
+							#{index + 1}
 						</Text>
-						<Button
-							size="compact-sm"
-							variant="light"
-							leftSection={<IconPlus size={14} />}
+						<TextInput
+							{...form.getInputProps(`items.${key}`)}
+							placeholder={`Item ${key.toUpperCase()}`}
+							style={{ flex: 1 }}
+							size="sm"
+						/>
+						<ActionIcon
+							color="red"
+							variant="subtle"
 							type="button"
 							onClick={() => {
-								const nextKey = String.fromCharCode(97 + itemKeys.length);
-								form.setFieldValue("items", {
-									...form.values.items,
-									[nextKey]: "",
-								});
-								form.setFieldValue("correctOrder", [...orderedKeys, nextKey]);
+								const newItems = { ...form.values.items };
+								delete newItems[key];
+								form.setFieldValue("items", newItems);
+								form.setFieldValue(
+									"correctOrder",
+									orderedKeys.filter((k) => k !== key),
+								);
 							}}
+							disabled={itemKeys.length <= 2}
 						>
-							Add Item
-						</Button>
+							<IconTrash size={16} />
+						</ActionIcon>
 					</Group>
+				))}
 
-					{orderedKeys.map((key, index) => (
-						<Group key={key} gap="xs" wrap="nowrap">
-							<Text size="sm" fw={500} style={{ minWidth: 30 }}>
-								#{index + 1}
-							</Text>
-							<TextInput
-								{...form.getInputProps(`items.${key}`)}
-								placeholder={`Item ${key.toUpperCase()}`}
-								style={{ flex: 1 }}
-								size="sm"
-							/>
-							<ActionIcon
-								color="red"
-								variant="subtle"
-								type="button"
-								onClick={() => {
-									const newItems = { ...form.values.items };
-									delete newItems[key];
-									form.setFieldValue("items", newItems);
-									form.setFieldValue(
-										"correctOrder",
-										orderedKeys.filter((k) => k !== key),
-									);
-								}}
-								disabled={itemKeys.length <= 2}
-							>
-								<IconTrash size={16} />
-							</ActionIcon>
-						</Group>
-					))}
-
-					<Button type="submit" loading={isLoading}>
-						Save Ranking
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+				<Button type="submit" loading={isLoading}>
+					Save Ranking
+				</Button>
+			</Stack>
+		</form>
 	);
 }

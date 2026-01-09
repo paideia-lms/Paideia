@@ -153,6 +153,140 @@ All changes below work together as a unified refactoring to reduce complexity:
 - `app/routes/user/module/new.tsx`:
   - Similar updates to form handling (if applicable)
 
+### 4.1. Quiz Builder V2 UI Refactoring
+
+**Overview:**
+A comprehensive frontend refactoring effort to break down the monolithic quiz form into smaller, independent, atomic forms. This refactoring improves maintainability, reduces complexity, and follows React best practices by eliminating nested forms and ensuring each form has a single responsibility.
+
+**Problem Statement:**
+The original quiz form (`QuizForm`) was a large, monolithic component that:
+- Contained multiple nested forms within a single parent form
+- Had complex state management with shared `useForm` hooks
+- Violated React's Rules of Hooks with conditional hook calls
+- Made it difficult to understand and maintain individual form sections
+- Created potential for form submission conflicts and hook dependency issues
+
+**Solution: Component-Based Form Architecture**
+
+The v2 UI implements a strict component-based architecture where:
+
+1. **Each Form is Independent**: Every form component has its own `useForm` hook and `<form>` element
+2. **No Nested Forms**: Forms are never nested inside other forms - they are siblings in the component tree
+3. **One Hook Per Form**: Each form component uses exactly one action hook (`useUpdateQuestion`, `useAddPage`, etc.) paired with its own `useForm`
+4. **Explicit Submission**: All forms require explicit user action via submit buttons - no automatic submission on `onChange`
+5. **Single Responsibility**: Each form handles one specific concern (e.g., updating question prompt, adding a page, configuring grading)
+
+**Architecture Rules Enforced:**
+
+- ✅ Every action must be used with a `<form>` element and `useForm`
+- ✅ Related fields can be grouped into one form (e.g., quiz title and description)
+- ✅ Each form must have a save (submit) button - no automatic submission
+- ✅ Modals are not allowed for form interactions
+- ✅ Each form can only have one hook for separation of concerns
+- ✅ Forms cannot be nested - parent components render form components as siblings
+
+**Component Structure:**
+
+The v2 UI is organized into focused, single-purpose components:
+
+**Core Forms:**
+- `ModuleInfoForm` - Updates module title and description
+- `QuizInfoForm` - Updates quiz title
+- `ToggleQuizTypeForm` - Switches between regular and container quiz types
+- `GlobalTimerForm` - Sets global timer for quiz
+- `GradingConfigForm` - Configures grading settings (enabled, passing score, etc.)
+
+**Question Management:**
+- `UpdateQuestionForm` - Updates question prompt and feedback
+- `QuestionOptionsForm` - Delegates to type-specific option forms
+- `QuestionScoringForm` - Delegates to type-specific scoring forms
+- `AddQuestionForm` - Adds new questions to a page
+- Type-specific option forms: `MultipleChoiceOptionsForm`, `ShortAnswerOptionsForm`, `RankingOptionsForm`, etc.
+- Type-specific scoring forms: `SimpleScoringForm`, `WeightedScoringForm`, `ManualScoringForm`, etc.
+
+**Page Management:**
+- `UpdatePageInfoForm` - Updates page title
+- `AddPageForm` - Adds new pages
+- `PageForm` - Container component that renders page info form and questions list
+- `PagesList` - Lists all pages with add/remove functionality
+
+**Resource Management:**
+- `AddQuizResourceForm` - Adds new quiz resources
+- `UpdateQuizResourceForm` - Updates resource content and page associations
+- `ResourcesList` - Lists all resources with add/update/remove functionality
+
+**Nested Quiz Management (Container Quizzes):**
+- `UpdateNestedQuizInfoForm` - Updates nested quiz title and description
+- `UpdateNestedQuizTimerForm` - Sets timer for nested quiz
+- `AddNestedQuizForm` - Adds new nested quizzes
+- `NestedQuizForm` - Container component for nested quiz configuration
+- `NestedQuizList` - Lists all nested quizzes with container settings
+
+**Key Refactoring Changes:**
+
+1. **Extracted Nested Forms:**
+   - `UpdateQuestionForm` - Extracted from `QuestionForm` to avoid nesting with `QuestionOptionsForm` and `QuestionScoringForm`
+   - `UpdatePageInfoForm` - Extracted from `PageForm` to avoid nesting with `QuestionsList`
+   - `UpdateNestedQuizInfoForm` and `UpdateNestedQuizTimerForm` - Extracted from `NestedQuizForm` to avoid nesting with `ResourcesList` and `PagesList`
+
+2. **Eliminated Conditional Hook Calls:**
+   - Refactored `QuestionOptionsForm` to conditionally render separate components instead of conditionally calling hooks
+   - Refactored `QuestionScoringForm` to use a switch statement rendering separate scoring form components
+   - Each question type now has its own dedicated option and scoring form components
+
+3. **Type Safety Improvements:**
+   - Created `types.ts` to centralize type definitions derived from `Route.ComponentProps`
+   - All v2 components derive types from the loader data rather than importing from server files
+   - Ensures type consistency and accuracy across all components
+
+4. **Simplified Form Patterns:**
+   - All forms follow the same pattern: `useForm` → `useActionHook` → `<form>` → submit button
+   - No shared state between forms - each form manages its own state
+   - Forms communicate only through server actions and revalidation
+
+**Files Created (V2 Components):**
+
+**Core Components:**
+- `app/routes/user/module/edit-setting/components/v2/quiz-form-v2.tsx` - Main entry point for v2 UI
+- `app/routes/user/module/edit-setting/components/v2/types.ts` - Centralized type definitions
+
+**Form Components (30+ files):**
+- `module-info-form.tsx`, `quiz-info-form.tsx`, `toggle-quiz-type-form.tsx`
+- `global-timer-form.tsx`, `grading-config-form.tsx`
+- `update-question-form.tsx`, `question-form.tsx`, `question-options-form.tsx`, `question-scoring-form.tsx`
+- `add-question-form.tsx`, `update-page-info-form.tsx`, `page-form.tsx`, `add-page-form.tsx`
+- `add-quiz-resource-form.tsx`, `update-quiz-resource-form.tsx`
+- `update-nested-quiz-info-form.tsx`, `update-nested-quiz-timer-form.tsx`
+- `add-nested-quiz-form.tsx`, `nested-quiz-form.tsx`
+- Type-specific option forms (10 files)
+- Type-specific scoring forms (5 files)
+- List and container components (5 files)
+- Remove action buttons (4 files)
+
+**Integration:**
+
+- Added toggle switch in `QuizFormWrapper` to switch between v1 and v2 UI
+- V2 UI is fully functional but not yet the default (allows gradual migration)
+- All v2 components use the same server actions as v1, ensuring consistency
+
+**Benefits:**
+
+1. **Reduced Complexity**: Each form component is small, focused, and easy to understand
+2. **Better Maintainability**: Changes to one form don't affect others
+3. **Type Safety**: Centralized type definitions ensure consistency
+4. **React Best Practices**: No nested forms, no conditional hooks, clear component boundaries
+5. **Easier Testing**: Small, focused components are easier to test in isolation
+6. **Better Developer Experience**: Clear separation of concerns makes the codebase easier to navigate
+7. **Scalability**: Easy to add new forms or modify existing ones without affecting the entire system
+
+**Technical Details:**
+
+- All v2 components are located in `app/routes/user/module/edit-setting/components/v2/`
+- Components use Mantine's `useForm` hook for form state management
+- Server actions are accessed via hooks exported from `route.tsx` (e.g., `useUpdateQuestion`, `useAddPage`)
+- Forms automatically trigger revalidation after successful submission via React Router
+- No manual state synchronization needed - React Router handles data updates
+
 ### 5. Test Updates
 
 **Files Modified:**
@@ -251,6 +385,18 @@ Some functions in `quiz-submission-management.ts` still reference the old `quest
 - `app/routes/user/module/edit-setting.tsx` - Updated form handling
 - `app/routes/user/module/new.tsx` - Updated form handling (if applicable)
 
+### Frontend V2 Components (40+ files)
+- `app/routes/user/module/edit-setting/components/v2/` - Complete v2 UI implementation
+  - Core: `quiz-form-v2.tsx`, `types.ts`
+  - Forms: `module-info-form.tsx`, `quiz-info-form.tsx`, `toggle-quiz-type-form.tsx`, `global-timer-form.tsx`, `grading-config-form.tsx`
+  - Question forms: `question-form.tsx`, `update-question-form.tsx`, `question-options-form.tsx`, `question-scoring-form.tsx`, `add-question-form.tsx`
+  - Page forms: `page-form.tsx`, `update-page-info-form.tsx`, `add-page-form.tsx`, `pages-list.tsx`, `questions-list.tsx`
+  - Resource forms: `add-quiz-resource-form.tsx`, `update-quiz-resource-form.tsx`, `resources-list.tsx`
+  - Nested quiz forms: `nested-quiz-form.tsx`, `update-nested-quiz-info-form.tsx`, `update-nested-quiz-timer-form.tsx`, `add-nested-quiz-form.tsx`, `nested-quiz-list.tsx`
+  - Type-specific option forms (10 files): `multiple-choice-options-form.tsx`, `short-answer-options-form.tsx`, `long-answer-options-form.tsx`, `choice-options-form.tsx`, `fill-in-the-blank-options-form.tsx`, `ranking-options-form.tsx`, `single-selection-matrix-options-form.tsx`, `multiple-selection-matrix-options-form.tsx`
+  - Type-specific scoring forms (5 files): `simple-scoring-form.tsx`, `manual-scoring-form.tsx`, `weighted-scoring-form.tsx`, `ranking-scoring-form.tsx`, `matrix-scoring-form.tsx`
+  - Action buttons (4 files): `remove-question-button.tsx`, `remove-page-button.tsx`, `remove-quiz-resource-button.tsx`, `remove-nested-quiz-button.tsx`
+
 ### Test Files (4 files)
 - `server/internal/activity-module-management.test.ts` - Removed duplicate fields from tests
 - `server/internal/course-activity-module-link-management.test.ts` - Removed `timeLimit` from test
@@ -261,6 +407,8 @@ Some functions in `quiz-submission-management.ts` still reference the old `quest
 
 This unified refactoring delivers significant complexity reduction:
 
+### Backend Complexity Reduction:
+
 1. **Simplified Data Model**: Single source of truth eliminates duplication and reduces cognitive load
 2. **Dramatically Reduced Complexity**: Removed all field synchronization logic, eliminating entire classes of bugs
 3. **Consistency Guaranteed**: Impossible for duplicate fields to become out of sync since they no longer exist
@@ -269,6 +417,19 @@ This unified refactoring delivers significant complexity reduction:
 6. **Better Type Safety**: TypeScript can better infer types from a single source, catching errors at compile time
 7. **Lower Cognitive Load**: Developers only need to understand one data structure (`rawQuizConfig`) instead of two
 8. **Reduced Bug Surface**: Fewer places where data can be inconsistent or incorrectly updated
+
+### Frontend Complexity Reduction (V2 UI):
+
+1. **Component Isolation**: Each form is independent, making it easier to understand and modify individual features
+2. **Eliminated Nested Forms**: No form nesting means no hook conflicts or submission issues
+3. **Clear Separation of Concerns**: Each component has a single, well-defined responsibility
+4. **React Best Practices**: Follows Rules of Hooks strictly, eliminating conditional hook call issues
+5. **Improved Maintainability**: Changes to one form don't affect others, reducing regression risk
+6. **Better Developer Experience**: Small, focused components are easier to navigate and understand
+7. **Type Safety**: Centralized type definitions ensure consistency across all v2 components
+8. **Scalability**: Easy to add new forms or modify existing ones without affecting the entire system
+9. **Testability**: Small, focused components are easier to test in isolation
+10. **Gradual Migration**: Toggle between v1 and v2 allows incremental adoption
 
 ## Future Work
 

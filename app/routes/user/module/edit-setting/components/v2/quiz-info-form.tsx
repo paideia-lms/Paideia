@@ -20,29 +20,27 @@ export function QuizInfoForm({ moduleId, quizConfig }: QuizInfoFormProps) {
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit((values) => {
-					updateQuizInfo({
-						params: { moduleId },
-						values: {
-							updates: { title: values.title },
-						},
-					});
-				})}
-			>
-				<Stack gap="md">
-					<Title order={4}>Quiz Information</Title>
-					<TextInput
-						{...form.getInputProps("title")}
-						label="Quiz Title"
-						required
-					/>
-					<Button type="submit" loading={isLoading}>
-						Save Quiz Information
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuizInfo({
+					params: { moduleId },
+					values: {
+						updates: { title: values.title },
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={4}>Quiz Information</Title>
+				<TextInput
+					{...form.getInputProps("title")}
+					label="Quiz Title"
+					required
+				/>
+				<Button type="submit" loading={isLoading}>
+					Save Quiz Information
+				</Button>
+			</Stack>
+		</form>
 	);
 }

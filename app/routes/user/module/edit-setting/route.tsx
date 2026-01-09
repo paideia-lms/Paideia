@@ -2091,7 +2091,7 @@ function QuizFormWrapper({
 		{ type: "quiz" }
 	>;
 }) {
-	const [useV2UI, setUseV2UI] = useState(false);
+	const [useV2UI, setUseV2UI] = useState(true);
 	const { submit: updateQuiz, isLoading } = useUpdateQuiz();
 	const initialValues = getQuizFormInitialValues(module);
 

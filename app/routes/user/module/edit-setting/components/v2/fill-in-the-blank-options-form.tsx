@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Button, Stack, Text, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
 	useUpdateFillInTheBlankQuestion,
@@ -28,47 +28,45 @@ export function FillInTheBlankOptionsForm({
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit((values) => {
-					updateQuestionOptions({
-						params: { moduleId },
-						values: {
-							questionId: question.id,
-							options: {
-								correctAnswers: values.correctAnswers,
-							},
-							nestedQuizId,
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuestionOptions({
+					params: { moduleId },
+					values: {
+						questionId: question.id,
+						options: {
+							correctAnswers: values.correctAnswers,
 						},
-					});
-				})}
-			>
-				<Stack gap="md">
-					<Title order={5}>Correct Answers for Blanks</Title>
+						nestedQuizId,
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={5}>Correct Answers for Blanks</Title>
+				<Text size="sm" c="dimmed">
+					Use <code>{"{{blank_id}}"}</code> in the prompt to mark blank positions.
+				</Text>
+				{parsed.uniqueBlankIds.length > 0 ? (
+					<Stack gap="xs">
+						{parsed.uniqueBlankIds.map((blankId) => (
+							<TextInput
+								key={blankId}
+								{...form.getInputProps(`correctAnswers.${blankId}`)}
+								label={`Blank: ${blankId}`}
+								placeholder={`Answer for ${blankId}`}
+							/>
+						))}
+					</Stack>
+				) : (
 					<Text size="sm" c="dimmed">
-						Use <code>{"{{blank_id}}"}</code> in the prompt to mark blank positions.
+						Add {"{{blank_id}}"} markers to the prompt above
 					</Text>
-					{parsed.uniqueBlankIds.length > 0 ? (
-						<Stack gap="xs">
-							{parsed.uniqueBlankIds.map((blankId) => (
-								<TextInput
-									key={blankId}
-									{...form.getInputProps(`correctAnswers.${blankId}`)}
-									label={`Blank: ${blankId}`}
-									placeholder={`Answer for ${blankId}`}
-								/>
-							))}
-						</Stack>
-					) : (
-						<Text size="sm" c="dimmed">
-							Add {"{{blank_id}}"} markers to the prompt above
-						</Text>
-					)}
-					<Button type="submit" loading={isLoading}>
-						Save Answers
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+				)}
+				<Button type="submit" loading={isLoading}>
+					Save Answers
+				</Button>
+			</Stack>
+		</form>
 	);
 }

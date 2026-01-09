@@ -1,4 +1,4 @@
-import { Button, Paper, Select, Stack, Title } from "@mantine/core";
+import { Button, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
     useToggleQuizType,
@@ -22,8 +22,7 @@ export function ToggleQuizTypeForm({
     });
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <form
+        <form
                 onSubmit={form.onSubmit((values) => {
                     toggleQuizType({
                         params: { moduleId },
@@ -47,6 +46,5 @@ export function ToggleQuizTypeForm({
                     </Button>
                 </Stack>
             </form>
-        </Paper>
     );
 }

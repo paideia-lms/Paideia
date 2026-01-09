@@ -23,28 +23,26 @@ export function GlobalTimerForm({
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit((values) => {
-					updateGlobalTimer({
-						params: { moduleId },
-						values: { seconds: values.seconds ?? undefined },
-					});
-				})}
-			>
-				<Stack gap="md">
-					<Title order={4}>Global Timer</Title>
-					<NumberInput
-						{...form.getInputProps("seconds")}
-						label="Global Timer (seconds)"
-						description="Timer for the entire quiz (optional)"
-						min={0}
-					/>
-					<Button type="submit" loading={isLoading}>
-						Save Global Timer
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateGlobalTimer({
+					params: { moduleId },
+					values: { seconds: values.seconds ?? undefined },
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={4}>Global Timer</Title>
+				<NumberInput
+					{...form.getInputProps("seconds")}
+					label="Global Timer (seconds)"
+					description="Timer for the entire quiz (optional)"
+					min={0}
+				/>
+				<Button type="submit" loading={isLoading}>
+					Save Global Timer
+				</Button>
+			</Stack>
+		</form>
 	);
 }

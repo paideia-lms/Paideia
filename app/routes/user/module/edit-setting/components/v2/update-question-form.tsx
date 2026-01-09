@@ -1,6 +1,5 @@
 import {
     Button,
-    Paper,
     Stack,
     Textarea,
 } from "@mantine/core";
@@ -9,6 +8,8 @@ import {
     useUpdateQuestion,
 } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
+
+
 
 interface UpdateQuestionFormProps {
     moduleId: number;
@@ -31,42 +32,42 @@ export function UpdateQuestionForm({
     });
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <form
-                onSubmit={form.onSubmit((values) => {
-                    updateQuestion({
-                        params: { moduleId },
-                        values: {
-                            questionId: question.id,
-                            updates: {
-                                prompt: values.prompt,
-                                feedback: values.feedback,
-                            },
-                            nestedQuizId,
+        <form
+            onSubmit={form.onSubmit((values) => {
+                updateQuestion({
+                    params: { moduleId },
+                    values: {
+                        questionId: question.id,
+                        updates: {
+                            prompt: values.prompt,
+                            feedback: values.feedback,
                         },
-                    });
-                })}
-            >
-                <Stack gap="md">
-                    <Textarea
-                        {...form.getInputProps("prompt")}
-                        label="Question Prompt"
-                        minRows={2}
-                        required
-                    />
+                        nestedQuizId,
+                    },
+                });
+            })}
+        >
+            <Stack gap="md">
+                <Textarea
+                    {...form.getInputProps("prompt")}
+                    label="Question Prompt"
+                    minRows={2}
+                    required
+                />
 
-                    <Textarea
-                        {...form.getInputProps("feedback")}
-                        label="Feedback (optional)"
-                        description="Shown to students after answering"
-                        minRows={2}
-                    />
+                <Textarea
+                    {...form.getInputProps("feedback")}
+                    label="Feedback (optional)"
+                    description="Shown to students after answering"
+                    minRows={2}
+                />
 
-                    <Button type="submit" loading={isUpdating}>
-                        Save Question
-                    </Button>
-                </Stack>
-            </form>
-        </Paper>
+
+                <Button type="submit" loading={isUpdating}>
+                    Save Question
+                </Button>
+
+            </Stack>
+        </form>
     );
 }

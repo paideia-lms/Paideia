@@ -1,11 +1,19 @@
 import {
+    ActionIcon,
+    Collapse,
+    Group,
     Paper,
     Stack,
-    Title,
+    Text,
 } from "@mantine/core";
+import { IconChevronDown, IconChevronUp, IconGripVertical } from "@tabler/icons-react";
+import type { DraggableAttributes } from "@dnd-kit/core";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
+import { useState } from "react";
 import type { Question, QuizConfig } from "./types";
 import { QuestionOptionsForm } from "./question-options-form";
 import { QuestionScoringForm } from "./question-scoring-form";
+import { RemoveQuestionButton } from "./remove-question-button";
 import { UpdateQuestionForm } from "./update-question-form";
 
 interface QuestionFormProps {
@@ -14,6 +22,9 @@ interface QuestionFormProps {
     questionIndex: number;
     quizConfig: QuizConfig;
     nestedQuizId?: string;
+    sortableAttributes?: DraggableAttributes;
+    sortableListeners?: SyntheticListenerMap;
+    isDragging?: boolean;
 }
 
 const QuestionTypeLabels: Record<Question["type"], string> = {
@@ -35,35 +46,80 @@ export function QuestionForm({
     questionIndex,
     quizConfig,
     nestedQuizId,
+    sortableAttributes,
+    sortableListeners,
+    isDragging,
 }: QuestionFormProps) {
-
+    const [isExpanded, setIsExpanded] = useState(false);
 
     return (
         <Paper withBorder p="md" radius="md">
             <Stack gap="md">
-                <Title order={6}>
-                    Question {questionIndex + 1}: {QuestionTypeLabels[question.type]}
-                </Title>
+                <Group justify="space-between" wrap="nowrap">
+                    <Group gap="xs" style={{ flex: 1 }}>
+                        {sortableAttributes && sortableListeners && (
+                            <ActionIcon
+                                {...sortableAttributes}
+                                {...sortableListeners}
+                                variant="subtle"
+                                style={{
+                                    cursor: isDragging ? "grabbing" : "grab",
+                                }}
+                            >
+                                <IconGripVertical size={16} />
+                            </ActionIcon>
+                        )}
+                        <Text fw={500} size="sm">
+                            Question {questionIndex + 1}: {QuestionTypeLabels[question.type]}
+                        </Text>
+                        {!isExpanded && question.prompt && (
+                            <Text size="sm" c="dimmed" truncate style={{ flex: 1 }}>
+                                {question.prompt}
+                            </Text>
+                        )}
+                    </Group>
+                    <Group gap="xs">
+                        <ActionIcon
+                            variant="subtle"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                        >
+                            {isExpanded ? (
+                                <IconChevronUp size={16} />
+                            ) : (
+                                <IconChevronDown size={16} />
+                            )}
+                        </ActionIcon>
+                        <RemoveQuestionButton
+                            moduleId={moduleId}
+                            questionId={question.id}
+                            nestedQuizId={nestedQuizId}
+                        />
+                    </Group>
+                </Group>
 
-                <UpdateQuestionForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
+                <Collapse in={isExpanded}>
+                    <Stack gap="md">
+                        <UpdateQuestionForm
+                            moduleId={moduleId}
+                            question={question}
+                            nestedQuizId={nestedQuizId}
+                        />
 
-                <QuestionOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
+                        <QuestionOptionsForm
+                            moduleId={moduleId}
+                            question={question}
+                            nestedQuizId={nestedQuizId}
+                        />
 
-                {quizConfig.grading?.enabled && (
-                    <QuestionScoringForm
-                        moduleId={moduleId}
-                        question={question}
-                        nestedQuizId={nestedQuizId}
-                    />
-                )}
+                        {quizConfig.grading?.enabled && (
+                            <QuestionScoringForm
+                                moduleId={moduleId}
+                                question={question}
+                                nestedQuizId={nestedQuizId}
+                            />
+                        )}
+                    </Stack>
+                </Collapse>
             </Stack>
         </Paper>
     );

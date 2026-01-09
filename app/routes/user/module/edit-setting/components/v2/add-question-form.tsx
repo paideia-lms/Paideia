@@ -1,4 +1,4 @@
-import { Button, Paper, Select, Stack, Title } from "@mantine/core";
+import { Button, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
 	useAddQuestion,
@@ -36,37 +36,35 @@ export function AddQuestionForm({
 	};
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form onSubmit={form.onSubmit(handleSubmit)}>
-				<Stack gap="md">
-					<Title order={5}>Add Question</Title>
-					<Select
-						{...form.getInputProps("type")}
-						label="Question Type"
-						data={[
-							{ value: "multiple-choice", label: "Multiple Choice" },
-							{ value: "choice", label: "Choice (Multiple Selection)" },
-							{ value: "short-answer", label: "Short Answer" },
-							{ value: "long-answer", label: "Long Answer" },
-							{ value: "article", label: "Article" },
-							{ value: "fill-in-the-blank", label: "Fill in the Blank" },
-							{ value: "ranking", label: "Ranking" },
-							{
-								value: "single-selection-matrix",
-								label: "Single Selection Matrix",
-							},
-							{
-								value: "multiple-selection-matrix",
-								label: "Multiple Selection Matrix",
-							},
-							{ value: "whiteboard", label: "Whiteboard" },
-						]}
-					/>
-					<Button type="submit" loading={isLoading}>
-						Add Question
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form onSubmit={form.onSubmit(handleSubmit)}>
+			<Stack gap="md">
+				<Title order={5}>Add Question</Title>
+				<Select
+					{...form.getInputProps("type")}
+					label="Question Type"
+					data={[
+						{ value: "multiple-choice", label: "Multiple Choice" },
+						{ value: "choice", label: "Choice (Multiple Selection)" },
+						{ value: "short-answer", label: "Short Answer" },
+						{ value: "long-answer", label: "Long Answer" },
+						{ value: "article", label: "Article" },
+						{ value: "fill-in-the-blank", label: "Fill in the Blank" },
+						{ value: "ranking", label: "Ranking" },
+						{
+							value: "single-selection-matrix",
+							label: "Single Selection Matrix",
+						},
+						{
+							value: "multiple-selection-matrix",
+							label: "Multiple Selection Matrix",
+						},
+						{ value: "whiteboard", label: "Whiteboard" },
+					]}
+				/>
+				<Button type="submit" loading={isLoading}>
+					Add Question
+				</Button>
+			</Stack>
+		</form>
 	);
 }

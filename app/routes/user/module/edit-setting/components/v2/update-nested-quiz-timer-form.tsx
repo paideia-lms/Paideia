@@ -1,4 +1,4 @@
-import { Button, NumberInput, Paper, Stack, Title } from "@mantine/core";
+import { Button, NumberInput, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
 	useUpdateNestedQuizTimer,
@@ -24,8 +24,7 @@ export function UpdateNestedQuizTimerForm({
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
+		<form
 				onSubmit={form.onSubmit((values) => {
 					updateNestedQuizTimer({
 						params: { moduleId },
@@ -48,6 +47,5 @@ export function UpdateNestedQuizTimerForm({
 					</Button>
 				</Stack>
 			</form>
-		</Paper>
 	);
 }

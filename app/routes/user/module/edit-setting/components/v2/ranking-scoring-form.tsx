@@ -1,4 +1,4 @@
-import { Button, NumberInput, Paper, Select, Stack, Title } from "@mantine/core";
+import { Button, NumberInput, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
     useUpdateQuestionScoring,
@@ -29,67 +29,65 @@ export function RankingScoringForm({
     });
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <form
-                onSubmit={form.onSubmit((values) => {
-                    if (values.mode === "exact-order") {
-                        updateQuestionScoring({
-                            params: { moduleId },
-                            values: {
-                                questionId: question.id,
-                                scoring: {
-                                    type: "ranking",
-                                    mode: "exact-order",
-                                    maxPoints: values.maxPoints,
-                                },
-                                nestedQuizId,
+        <form
+            onSubmit={form.onSubmit((values) => {
+                if (values.mode === "exact-order") {
+                    updateQuestionScoring({
+                        params: { moduleId },
+                        values: {
+                            questionId: question.id,
+                            scoring: {
+                                type: "ranking",
+                                mode: "exact-order",
+                                maxPoints: values.maxPoints,
                             },
-                        });
-                    } else {
-                        updateQuestionScoring({
-                            params: { moduleId },
-                            values: {
-                                questionId: question.id,
-                                scoring: {
-                                    type: "ranking",
-                                    mode: "partial-order",
-                                    maxPoints: values.maxPoints,
-                                    pointsPerCorrectPosition: values.pointsPerCorrectPosition,
-                                },
-                                nestedQuizId,
+                            nestedQuizId,
+                        },
+                    });
+                } else {
+                    updateQuestionScoring({
+                        params: { moduleId },
+                        values: {
+                            questionId: question.id,
+                            scoring: {
+                                type: "ranking",
+                                mode: "partial-order",
+                                maxPoints: values.maxPoints,
+                                pointsPerCorrectPosition: values.pointsPerCorrectPosition,
                             },
-                        });
-                    }
-                })}
-            >
-                <Stack gap="md">
-                    <Title order={5}>Scoring</Title>
-                    <Select
-                        {...form.getInputProps("mode")}
-                        label="Scoring Mode"
-                        data={[
-                            { value: "exact-order", label: "Exact Order Required" },
-                            { value: "partial-order", label: "Partial Credit Per Position" },
-                        ]}
-                    />
+                            nestedQuizId,
+                        },
+                    });
+                }
+            })}
+        >
+            <Stack gap="md">
+                <Title order={5}>Scoring</Title>
+                <Select
+                    {...form.getInputProps("mode")}
+                    label="Scoring Mode"
+                    data={[
+                        { value: "exact-order", label: "Exact Order Required" },
+                        { value: "partial-order", label: "Partial Credit Per Position" },
+                    ]}
+                />
+                <NumberInput
+                    {...form.getInputProps("maxPoints")}
+                    label="Maximum Points"
+                    min={0}
+                />
+                {form.values.mode === "partial-order" && (
                     <NumberInput
-                        {...form.getInputProps("maxPoints")}
-                        label="Maximum Points"
+                        {...form.getInputProps("pointsPerCorrectPosition")}
+                        label="Points Per Correct Position"
                         min={0}
+                        step={0.1}
                     />
-                    {form.values.mode === "partial-order" && (
-                        <NumberInput
-                            {...form.getInputProps("pointsPerCorrectPosition")}
-                            label="Points Per Correct Position"
-                            min={0}
-                            step={0.1}
-                        />
-                    )}
-                    <Button type="submit" loading={isLoading}>
-                        Save Scoring
-                    </Button>
-                </Stack>
-            </form>
-        </Paper>
+                )}
+                <Button type="submit" loading={isLoading}>
+                    Save Scoring
+                </Button>
+            </Stack>
+        </form>
     );
 }

@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
     useUpdateNestedQuizInfo,
@@ -25,8 +25,7 @@ export function UpdateNestedQuizInfoForm({
     });
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <form
+        <form
                 onSubmit={form.onSubmit((values) => {
                     updateNestedQuizInfo({
                         params: { moduleId },
@@ -57,6 +56,5 @@ export function UpdateNestedQuizInfoForm({
                     </Button>
                 </Stack>
             </form>
-        </Paper>
     );
 }

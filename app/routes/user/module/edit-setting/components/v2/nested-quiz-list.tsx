@@ -46,77 +46,75 @@ export function NestedQuizList({
 	}
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<Stack gap="md">
-				<Title order={4}>Nested Quizzes</Title>
+		<Stack gap="md">
+			<Title order={4}>Nested Quizzes</Title>
 
-				<AddNestedQuizForm moduleId={moduleId} />
+			<AddNestedQuizForm moduleId={moduleId} />
 
-				{/* Container Settings */}
-				<Paper withBorder p="md" radius="md">
-					<form
-						onSubmit={settingsForm.onSubmit((values) => {
-							updateContainerSettings({
-								params: { moduleId },
-								values: {
-									settings: { sequentialOrder: values.sequentialOrder },
-								},
-							});
-						})}
-					>
-						<Stack gap="md">
-							<Checkbox
-								{...settingsForm.getInputProps("sequentialOrder", {
-									type: "checkbox",
-								})}
-								label="Sequential Order (Quizzes must be completed in order)"
-							/>
-							<Button type="submit" loading={isUpdatingSettings}>
-								Save Container Settings
-							</Button>
-						</Stack>
-					</form>
+			{/* Container Settings */}
+			<Paper withBorder p="md" radius="md">
+				<form
+					onSubmit={settingsForm.onSubmit((values) => {
+						updateContainerSettings({
+							params: { moduleId },
+							values: {
+								settings: { sequentialOrder: values.sequentialOrder },
+							},
+						});
+					})}
+				>
+					<Stack gap="md">
+						<Checkbox
+							{...settingsForm.getInputProps("sequentialOrder", {
+								type: "checkbox",
+							})}
+							label="Sequential Order (Quizzes must be completed in order)"
+						/>
+						<Button type="submit" loading={isUpdatingSettings}>
+							Save Container Settings
+						</Button>
+					</Stack>
+				</form>
+			</Paper>
+
+			{nestedQuizzes.length === 0 ? (
+				<Paper withBorder p="xl" radius="md">
+					<p>No quizzes yet. Add a quiz above.</p>
 				</Paper>
-
-				{nestedQuizzes.length === 0 ? (
-					<Paper withBorder p="xl" radius="md">
-						<p>No quizzes yet. Add a quiz above.</p>
-					</Paper>
-				) : (
-					<Tabs value={activeTab} onChange={setActiveTab}>
-						<Tabs.List>
-							{nestedQuizzes.map((quiz) => (
-								<Tabs.Tab key={quiz.id} value={quiz.id}>
-									{quiz.title || `Quiz ${nestedQuizzes.indexOf(quiz) + 1}`}
-								</Tabs.Tab>
-							))}
-						</Tabs.List>
-
+			) : (
+				<Tabs value={activeTab} onChange={setActiveTab}>
+					<Tabs.List>
 						{nestedQuizzes.map((quiz) => (
-							<Tabs.Panel key={quiz.id} value={quiz.id} pt="md">
-								<Stack gap="md">
-									<Group justify="space-between">
-										<Title order={5}>
-											{quiz.title || `Quiz ${nestedQuizzes.indexOf(quiz) + 1}`}
-										</Title>
-										<RemoveNestedQuizButton
-											moduleId={moduleId}
-											nestedQuizId={quiz.id}
-											disabled={nestedQuizzes.length <= 1}
-										/>
-									</Group>
-									<NestedQuizForm
-										moduleId={moduleId}
-										nestedQuiz={quiz}
-										nestedQuizIndex={nestedQuizzes.indexOf(quiz)}
-										parentQuizConfig={quizConfig}
-									/>
-								</Stack>
-							</Tabs.Panel>
+							<Tabs.Tab key={quiz.id} value={quiz.id}>
+								{quiz.title || `Quiz ${nestedQuizzes.indexOf(quiz) + 1}`}
+							</Tabs.Tab>
 						))}
-					</Tabs>
-				)}
-			</Stack>
-		</Paper>
+					</Tabs.List>
+
+					{nestedQuizzes.map((quiz) => (
+						<Tabs.Panel key={quiz.id} value={quiz.id} pt="md">
+							<Stack gap="md">
+								<Group justify="space-between">
+									<Title order={5}>
+										{quiz.title || `Quiz ${nestedQuizzes.indexOf(quiz) + 1}`}
+									</Title>
+									<RemoveNestedQuizButton
+										moduleId={moduleId}
+										nestedQuizId={quiz.id}
+										disabled={nestedQuizzes.length <= 1}
+									/>
+								</Group>
+								<NestedQuizForm
+									moduleId={moduleId}
+									nestedQuiz={quiz}
+									nestedQuizIndex={nestedQuizzes.indexOf(quiz)}
+									parentQuizConfig={quizConfig}
+								/>
+							</Stack>
+						</Tabs.Panel>
+					))}
+				</Tabs>
+			)}
+		</Stack>
 	);
 }

@@ -23,44 +23,42 @@ export function ModuleInfoForm({ module }: ModuleInfoFormProps) {
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit((values) => {
-					updateQuiz({
-						params: { moduleId: module.id },
-						values: {
-							title: values.title,
-							description: values.description,
-							quizInstructions: values.quizInstructions,
-							rawQuizConfig: rawQuizConfig ?? undefined,
-						},
-					});
-				})}
-			>
-				<Stack gap="md">
-					<Title order={4}>Module Information</Title>
-					<TextInput
-						{...form.getInputProps("title")}
-						label="Title"
-						required
-					/>
-					<Textarea
-						{...form.getInputProps("description")}
-						label="Description"
-						minRows={3}
-						autosize
-					/>
-					<Textarea
-						{...form.getInputProps("quizInstructions")}
-						label="Quiz Instructions"
-						minRows={3}
-						autosize
-					/>
-					<Button type="submit" loading={isLoading}>
-						Save Module Information
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuiz({
+					params: { moduleId: module.id },
+					values: {
+						title: values.title,
+						description: values.description,
+						quizInstructions: values.quizInstructions,
+						rawQuizConfig: rawQuizConfig ?? undefined,
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={4}>Module Information</Title>
+				<TextInput
+					{...form.getInputProps("title")}
+					label="Title"
+					required
+				/>
+				<Textarea
+					{...form.getInputProps("description")}
+					label="Description"
+					minRows={3}
+					autosize
+				/>
+				<Textarea
+					{...form.getInputProps("quizInstructions")}
+					label="Quiz Instructions"
+					minRows={3}
+					autosize
+				/>
+				<Button type="submit" loading={isLoading}>
+					Save Module Information
+				</Button>
+			</Stack>
+		</form>
 	);
 }

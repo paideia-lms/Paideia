@@ -2,6 +2,7 @@ import { Paper, Stack, Title } from "@mantine/core";
 import type { QuizConfig, QuizPage } from "./types";
 import { QuestionsList } from "./questions-list";
 import { UpdatePageInfoForm } from "./update-page-info-form";
+import { RemovePageButton } from "./remove-page-button";
 
 interface PageFormProps {
 	moduleId: number;
@@ -19,24 +20,30 @@ export function PageForm({
 	nestedQuizId,
 }: PageFormProps) {
 	return (
-		<Paper withBorder p="md" radius="md">
-			<Stack gap="md">
-				<Title order={5}>Page {pageIndex + 1}</Title>
+		<Stack gap="md">
+			<Title order={5}>Page {pageIndex + 1}
 
-				<UpdatePageInfoForm
+				<RemovePageButton
 					moduleId={moduleId}
-					page={page}
+					pageId={page.id}
 					nestedQuizId={nestedQuizId}
+					disabled={quizConfig.pages.length <= 1}
 				/>
+			</Title>
 
-				<QuestionsList
-					moduleId={moduleId}
-					page={page}
-					pageIndex={pageIndex}
-					quizConfig={quizConfig}
-					nestedQuizId={nestedQuizId}
-				/>
-			</Stack>
-		</Paper>
+			<UpdatePageInfoForm
+				moduleId={moduleId}
+				page={page}
+				nestedQuizId={nestedQuizId}
+			/>
+
+			<QuestionsList
+				moduleId={moduleId}
+				page={page}
+				pageIndex={pageIndex}
+				quizConfig={quizConfig}
+				nestedQuizId={nestedQuizId}
+			/>
+		</Stack>
 	);
 }

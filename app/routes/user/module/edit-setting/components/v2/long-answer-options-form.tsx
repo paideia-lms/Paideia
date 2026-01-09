@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, Textarea, Title } from "@mantine/core";
+import { Button, Stack, Textarea, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
 	useUpdateLongAnswerQuestion,
@@ -26,34 +26,32 @@ export function LongAnswerOptionsForm({
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit((values) => {
-					updateQuestionOptions({
-						params: { moduleId },
-						values: {
-							questionId: question.id,
-							options: {
-								correctAnswer: values.correctAnswer,
-							},
-							nestedQuizId,
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuestionOptions({
+					params: { moduleId },
+					values: {
+						questionId: question.id,
+						options: {
+							correctAnswer: values.correctAnswer,
 						},
-					});
-				})}
-			>
-				<Stack gap="md">
-					<Title order={5}>Sample/Expected Answer</Title>
-					<Textarea
-						{...form.getInputProps("correctAnswer")}
-						label="Sample/Expected Answer (optional)"
-						description="For reference purposes (requires manual grading)"
-						minRows={3}
-					/>
-					<Button type="submit" loading={isLoading}>
-						Save Answer
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+						nestedQuizId,
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={5}>Sample/Expected Answer</Title>
+				<Textarea
+					{...form.getInputProps("correctAnswer")}
+					label="Sample/Expected Answer (optional)"
+					description="For reference purposes (requires manual grading)"
+					minRows={3}
+				/>
+				<Button type="submit" loading={isLoading}>
+					Save Answer
+				</Button>
+			</Stack>
+		</form>
 	);
 }

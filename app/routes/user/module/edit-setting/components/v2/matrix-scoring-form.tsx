@@ -1,4 +1,4 @@
-import { Button, NumberInput, Paper, Select, Stack, Title } from "@mantine/core";
+import { Button, NumberInput, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
     useUpdateQuestionScoring,
@@ -29,50 +29,48 @@ export function MatrixScoringForm({
     });
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <form
-                onSubmit={form.onSubmit((values) => {
-                    updateQuestionScoring({
-                        params: { moduleId },
-                        values: {
-                            questionId: question.id,
-                            scoring: {
-                                type: "matrix",
-                                mode: values.mode,
-                                maxPoints: values.maxPoints,
-                                pointsPerRow: values.pointsPerRow,
-                            },
-                            nestedQuizId,
+        <form
+            onSubmit={form.onSubmit((values) => {
+                updateQuestionScoring({
+                    params: { moduleId },
+                    values: {
+                        questionId: question.id,
+                        scoring: {
+                            type: "matrix",
+                            mode: values.mode,
+                            maxPoints: values.maxPoints,
+                            pointsPerRow: values.pointsPerRow,
                         },
-                    });
-                })}
-            >
-                <Stack gap="md">
-                    <Title order={5}>Scoring</Title>
-                    <Select
-                        {...form.getInputProps("mode")}
-                        label="Scoring Mode"
-                        data={[
-                            { value: "all-or-nothing", label: "All or Nothing (per row)" },
-                            { value: "partial", label: "Partial Credit (per row)" },
-                        ]}
-                    />
-                    <NumberInput
-                        {...form.getInputProps("maxPoints")}
-                        label="Maximum Points"
-                        min={0}
-                    />
-                    <NumberInput
-                        {...form.getInputProps("pointsPerRow")}
-                        label="Points Per Row"
-                        min={0}
-                        step={0.1}
-                    />
-                    <Button type="submit" loading={isLoading}>
-                        Save Scoring
-                    </Button>
-                </Stack>
-            </form>
-        </Paper>
+                        nestedQuizId,
+                    },
+                });
+            })}
+        >
+            <Stack gap="md">
+                <Title order={5}>Scoring</Title>
+                <Select
+                    {...form.getInputProps("mode")}
+                    label="Scoring Mode"
+                    data={[
+                        { value: "all-or-nothing", label: "All or Nothing (per row)" },
+                        { value: "partial", label: "Partial Credit (per row)" },
+                    ]}
+                />
+                <NumberInput
+                    {...form.getInputProps("maxPoints")}
+                    label="Maximum Points"
+                    min={0}
+                />
+                <NumberInput
+                    {...form.getInputProps("pointsPerRow")}
+                    label="Points Per Row"
+                    min={0}
+                    step={0.1}
+                />
+                <Button type="submit" loading={isLoading}>
+                    Save Scoring
+                </Button>
+            </Stack>
+        </form>
     );
 }

@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, TextInput, Title } from "@mantine/core";
+import { Button, Stack, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
 	useAddNestedQuiz,
@@ -18,28 +18,26 @@ export function AddNestedQuizForm({
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit(() => {
-					addNestedQuiz({
-						params: { moduleId },
-						values: {},
-					});
-					form.reset();
-				})}
-			>
-				<Stack gap="md">
-					<Title order={4}>Add Quiz</Title>
-					<TextInput
-						{...form.getInputProps("title")}
-						label="Quiz Title"
-						placeholder="e.g., Quiz 1"
-					/>
-					<Button type="submit" loading={isLoading}>
-						Add Quiz
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form
+			onSubmit={form.onSubmit(() => {
+				addNestedQuiz({
+					params: { moduleId },
+					values: {},
+				});
+				form.reset();
+			})}
+		>
+			<Stack gap="md">
+				<Title order={4}>Add Quiz</Title>
+				<TextInput
+					{...form.getInputProps("title")}
+					label="Quiz Title"
+					placeholder="e.g., Quiz 1"
+				/>
+				<Button type="submit" loading={isLoading}>
+					Add Quiz
+				</Button>
+			</Stack>
+		</form>
 	);
 }

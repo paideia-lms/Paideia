@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, TextInput, Title } from "@mantine/core";
+import { Button, Stack, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
 	useAddPage,
@@ -22,30 +22,28 @@ export function AddPageForm({
 	});
 
 	return (
-		<Paper withBorder p="md" radius="md">
-			<form
-				onSubmit={form.onSubmit(() => {
-					addPage({
-						params: { moduleId },
-						values: {
-							nestedQuizId,
-						},
-					});
-					form.reset();
-				})}
-			>
-				<Stack gap="md">
-					<Title order={4}>Add Page</Title>
-					<TextInput
-						{...form.getInputProps("title")}
-						label="Page Title"
-						placeholder="e.g., Page 1"
-					/>
-					<Button type="submit" loading={isLoading}>
-						Add Page
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form
+			onSubmit={form.onSubmit(() => {
+				addPage({
+					params: { moduleId },
+					values: {
+						nestedQuizId,
+					},
+				});
+				form.reset();
+			})}
+		>
+			<Stack gap="md">
+				<Title order={4}>Add Page</Title>
+				<TextInput
+					{...form.getInputProps("title")}
+					label="Page Title"
+					placeholder="e.g., Page 1"
+				/>
+				<Button type="submit" loading={isLoading}>
+					Add Page
+				</Button>
+			</Stack>
+		</form>
 	);
 }

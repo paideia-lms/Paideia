@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, TextInput } from "@mantine/core";
+import { Button, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import {
     useUpdatePageInfo,
@@ -25,8 +25,7 @@ export function UpdatePageInfoForm({
     });
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <form
+        <form
                 onSubmit={form.onSubmit((values) => {
                     updatePageInfo({
                         params: { moduleId },
@@ -49,6 +48,5 @@ export function UpdatePageInfoForm({
                     </Button>
                 </Stack>
             </form>
-        </Paper>
     );
 }

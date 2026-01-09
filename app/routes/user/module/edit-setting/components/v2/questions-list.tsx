@@ -1,8 +1,26 @@
+import {
+    closestCenter,
+    DndContext,
+    type DragEndEvent,
+    DragOverlay,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Group, Paper, Stack, Title } from "@mantine/core";
-import type { QuizConfig, QuizPage } from "./types";
-import { QuestionForm } from "./question-form";
+import { useMoveQuestionToPage } from "app/routes/user/module/edit-setting/route";
+import { useEffect, useState } from "react";
 import { AddQuestionForm } from "./add-question-form";
-import { RemoveQuestionButton } from "./remove-question-button";
+import { QuestionForm } from "./question-form";
+import { SortableItem } from "./sortable-item";
+import type { QuizConfig, QuizPage } from "./types";
 
 interface QuestionsListProps {
     moduleId: number;
@@ -18,40 +36,100 @@ export function QuestionsList({
     quizConfig,
     nestedQuizId,
 }: QuestionsListProps) {
+    const { submit: moveQuestion, isLoading: isMoving } = useMoveQuestionToPage();
     const questions = page.questions || [];
+
+    // Local state for optimistic updates
+    const [orderedQuestions, setOrderedQuestions] = useState(questions);
+    const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveQuestionId(event.active.id as string);
+    };
+
+    const handleDragCancel = () => {
+        setActiveQuestionId(null);
+    };
+
+    // Sync local state with props when data changes
+    useEffect(() => {
+        setOrderedQuestions(questions);
+    }, [questions]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = orderedQuestions.findIndex((q) => q.id === active.id);
+            const newIndex = orderedQuestions.findIndex((q) => q.id === over.id);
+
+            setOrderedQuestions((items) => arrayMove(items, oldIndex, newIndex));
+
+            // Trigger server action to update position
+            moveQuestion({
+                params: { moduleId },
+                values: {
+                    questionId: active.id as string,
+                    targetPageId: page.id,
+                    position: newIndex,
+                    nestedQuizId,
+                },
+            });
+        }
+    };
 
     return (
         <Paper withBorder p="md" radius="md">
             <Stack gap="md">
                 <Title order={5}>Questions</Title>
 
-                <AddQuestionForm moduleId={moduleId} pageId={page.id} nestedQuizId={nestedQuizId} />
+                <AddQuestionForm
+                    moduleId={moduleId}
+                    pageId={page.id}
+                    nestedQuizId={nestedQuizId}
+                />
 
-                {questions.length === 0 ? (
+                {orderedQuestions.length === 0 ? (
                     <Paper withBorder p="xl" radius="md">
                         <p>No questions yet. Add a question above.</p>
                     </Paper>
                 ) : (
-                    <Stack gap="md">
-                        {questions.map((question, index) => (
-                            <Group key={question.id} align="flex-start" wrap="nowrap">
-                                <div style={{ flex: 1 }}>
-                                    <QuestionForm
-                                        moduleId={moduleId}
-                                        question={question}
-                                        questionIndex={index}
-                                        quizConfig={quizConfig}
-                                        nestedQuizId={nestedQuizId}
-                                    />
-                                </div>
-                                <RemoveQuestionButton
-                                    moduleId={moduleId}
-                                    questionId={question.id}
-                                    nestedQuizId={nestedQuizId}
-                                />
-                            </Group>
-                        ))}
-                    </Stack>
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                        onDragStart={handleDragStart}
+                        onDragCancel={handleDragCancel}
+                    >
+                        <SortableContext
+                            items={orderedQuestions.map((q) => q.id)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <Stack gap="md">
+                                {orderedQuestions.map((question, index) => (
+                                    <SortableItem key={question.id} id={question.id}>
+                                        <QuestionForm
+                                            moduleId={moduleId}
+                                            question={question}
+                                            questionIndex={index}
+                                            quizConfig={quizConfig}
+                                            nestedQuizId={nestedQuizId}
+                                        />
+                                    </SortableItem>
+                                ))}
+                            </Stack>
+                            <DragOverlay>
+                                {activeQuestionId && <div>Dragging: {activeQuestionId}</div>}
+                            </DragOverlay>
+                        </SortableContext>
+                    </DndContext>
                 )}
             </Stack>
         </Paper>
