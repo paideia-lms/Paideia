@@ -48,16 +48,12 @@ import {
 	tryUpdateQuizInfo,
 	tryUpdateQuizResource,
 } from "./quiz-module-management";
-import {
-	tryCreateQuizModule,
-	type CreateQuizModuleArgs,
-} from "./activity-module-management";
+import { tryCreateQuizModule } from "./activity-module-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
 import {
 	createDefaultQuizConfig,
-	type Question,
 	type QuizResource,
 } from "server/json/raw-quiz-config/v2";
 
@@ -702,19 +698,11 @@ describe("Quiz Module Management", () => {
 
 	describe("tryAddQuestion", () => {
 		test("should add question to page in regular quiz", async () => {
-			const newQuestion: Question = {
-				id: "q-new",
-				type: "short-answer",
-				prompt: "What is your name?",
-				correctAnswer: "",
-				scoring: { type: "simple", points: 1 },
-			};
-
 			const args: AddQuestionArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
 				pageId: "page-1",
-				question: newQuestion,
+				questionType: "short-answer",
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -735,7 +723,11 @@ describe("Quiz Module Management", () => {
 				const page = updatedQuiz.rawQuizConfig.pages.find(
 					(p) => p.id === "page-1",
 				);
-				expect(page?.questions.some((q) => q.id === "q-new")).toBe(true);
+				// Question ID is auto-generated, so just check that a question was added
+				expect(page?.questions.length).toBeGreaterThan(0);
+				expect(page?.questions.some((q) => q.type === "short-answer")).toBe(
+					true,
+				);
 			}
 		});
 	});
@@ -747,13 +739,7 @@ describe("Quiz Module Management", () => {
 				payload,
 				activityModuleId: regularQuizModuleId,
 				pageId: "page-1",
-				question: {
-					id: "q-to-remove",
-					type: "short-answer",
-					prompt: "To remove",
-					correctAnswer: "",
-					scoring: { type: "simple", points: 1 },
-				},
+				questionType: "short-answer",
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -763,11 +749,25 @@ describe("Quiz Module Management", () => {
 			expect(addQuestionResult.ok).toBe(true);
 			if (!addQuestionResult.ok) return;
 
+			// Get the question ID from the result
+			const addedQuiz = addQuestionResult.value;
+			if (
+				!addedQuiz.rawQuizConfig ||
+				addedQuiz.rawQuizConfig.type !== "regular"
+			) {
+				throw new Error("Expected regular quiz");
+			}
+			const page = addedQuiz.rawQuizConfig.pages.find((p) => p.id === "page-1");
+			if (!page || page.questions.length === 0) {
+				throw new Error("Question not found");
+			}
+			const questionId = page.questions[page.questions.length - 1]!.id;
+
 			// Now remove it
 			const args: RemoveQuestionArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
-				questionId: "q-to-remove",
+				questionId,
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -786,7 +786,7 @@ describe("Quiz Module Management", () => {
 				updatedQuiz.rawQuizConfig.type === "regular"
 			) {
 				const questionExists = updatedQuiz.rawQuizConfig.pages.some((page) =>
-					page.questions.some((q) => q.id === "q-to-remove"),
+					page.questions.some((q) => q.id === questionId),
 				);
 				expect(questionExists).toBe(false);
 			}
@@ -800,13 +800,7 @@ describe("Quiz Module Management", () => {
 				payload,
 				activityModuleId: regularQuizModuleId,
 				pageId: "page-1",
-				question: {
-					id: "q-to-update",
-					type: "short-answer",
-					prompt: "Original prompt",
-					correctAnswer: "",
-					scoring: { type: "simple", points: 1 },
-				},
+				questionType: "short-answer",
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -816,11 +810,25 @@ describe("Quiz Module Management", () => {
 			expect(addQuestionResult.ok).toBe(true);
 			if (!addQuestionResult.ok) return;
 
+			// Get the question ID from the result
+			const addedQuiz = addQuestionResult.value;
+			if (
+				!addedQuiz.rawQuizConfig ||
+				addedQuiz.rawQuizConfig.type !== "regular"
+			) {
+				throw new Error("Expected regular quiz");
+			}
+			const page = addedQuiz.rawQuizConfig.pages.find((p) => p.id === "page-1");
+			if (!page || page.questions.length === 0) {
+				throw new Error("Question not found");
+			}
+			const questionId = page.questions[page.questions.length - 1]!.id;
+
 			// Now update it
 			const args: UpdateQuestionArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
-				questionId: "q-to-update",
+				questionId,
 				updates: {
 					prompt: "Updated prompt",
 				},
@@ -843,22 +851,17 @@ describe("Quiz Module Management", () => {
 			) {
 				const question = updatedQuiz.rawQuizConfig.pages
 					.flatMap((p) => p.questions)
-					.find((q) => q.id === "q-to-update");
+					.find((q) => q.id === questionId);
 				expect(question?.prompt).toBe("Updated prompt");
 			}
 		});
 	});
 
 	describe("tryAddPage", () => {
-		test("should add page to regular quiz", async () => {
+		test("should add blank page to regular quiz", async () => {
 			const args: AddPageArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
-				page: {
-					id: "page-new",
-					title: "New Page",
-					questions: [],
-				},
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -876,9 +879,13 @@ describe("Quiz Module Management", () => {
 				updatedQuiz.rawQuizConfig &&
 				updatedQuiz.rawQuizConfig.type === "regular"
 			) {
-				expect(
-					updatedQuiz.rawQuizConfig.pages.some((p) => p.id === "page-new"),
-				).toBe(true);
+				expect(updatedQuiz.rawQuizConfig.pages.length).toBeGreaterThan(1);
+				const newPage =
+					updatedQuiz.rawQuizConfig.pages[
+						updatedQuiz.rawQuizConfig.pages.length - 1
+					]!;
+				expect(newPage.title).toBe("New Page");
+				expect(newPage.questions).toEqual([]);
 			}
 		});
 	});
@@ -889,11 +896,6 @@ describe("Quiz Module Management", () => {
 			const addPageResult = await tryAddPage({
 				payload,
 				activityModuleId: regularQuizModuleId,
-				page: {
-					id: "page-to-remove",
-					title: "To Remove",
-					questions: [],
-				},
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -935,15 +937,10 @@ describe("Quiz Module Management", () => {
 	});
 
 	describe("tryAddNestedQuiz", () => {
-		test("should add nested quiz to container quiz", async () => {
+		test("should add blank nested quiz to container quiz", async () => {
 			const args: AddNestedQuizArgs = {
 				payload,
 				activityModuleId: containerQuizModuleId,
-				nestedQuiz: {
-					id: "nested-new",
-					title: "New Nested Quiz",
-					pages: [],
-				},
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -961,11 +958,16 @@ describe("Quiz Module Management", () => {
 				updatedQuiz.rawQuizConfig &&
 				updatedQuiz.rawQuizConfig.type === "container"
 			) {
-				expect(
-					updatedQuiz.rawQuizConfig.nestedQuizzes.some(
-						(nq) => nq.id === "nested-new",
-					),
-				).toBe(true);
+				expect(updatedQuiz.rawQuizConfig.nestedQuizzes.length).toBeGreaterThan(
+					2,
+				);
+				const newNested =
+					updatedQuiz.rawQuizConfig.nestedQuizzes[
+						updatedQuiz.rawQuizConfig.nestedQuizzes.length - 1
+					]!;
+				expect(newNested.title).toBe("New Quiz");
+				expect(newNested.pages).toHaveLength(1);
+				expect(newNested.pages[0]!.title).toBe("Page 1");
 			}
 		});
 	});
@@ -976,11 +978,6 @@ describe("Quiz Module Management", () => {
 			const addNestedResult = await tryAddNestedQuiz({
 				payload,
 				activityModuleId: containerQuizModuleId,
-				nestedQuiz: {
-					id: "nested-to-remove",
-					title: "To Remove",
-					pages: [],
-				},
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -1285,11 +1282,6 @@ describe("Quiz Module Management", () => {
 			const addPageResult = await tryAddPage({
 				payload,
 				activityModuleId: regularQuizModuleId,
-				page: {
-					id: "page-target",
-					title: "Target Page",
-					questions: [],
-				},
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -1304,13 +1296,7 @@ describe("Quiz Module Management", () => {
 				payload,
 				activityModuleId: regularQuizModuleId,
 				pageId: "page-1",
-				question: {
-					id: "q-to-move",
-					type: "short-answer",
-					prompt: "Question to move",
-					correctAnswer: "",
-					scoring: { type: "simple", points: 1 },
-				},
+				questionType: "short-answer",
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -1320,12 +1306,35 @@ describe("Quiz Module Management", () => {
 			expect(addQuestionResult.ok).toBe(true);
 			if (!addQuestionResult.ok) return;
 
+			// Get the question ID and target page ID from the result
+			const addedQuiz = addQuestionResult.value;
+			if (
+				!addedQuiz.rawQuizConfig ||
+				addedQuiz.rawQuizConfig.type !== "regular"
+			) {
+				throw new Error("Expected regular quiz");
+			}
+			const sourcePage = addedQuiz.rawQuizConfig.pages.find(
+				(p) => p.id === "page-1",
+			);
+			if (!sourcePage || sourcePage.questions.length === 0) {
+				throw new Error("Question not found");
+			}
+			const questionId =
+				sourcePage.questions[sourcePage.questions.length - 1]!.id;
+			const targetPageId = addedQuiz.rawQuizConfig.pages.find(
+				(p) => p.id !== "page-1",
+			)?.id;
+			if (!targetPageId) {
+				throw new Error("Target page not found");
+			}
+
 			// Now move it
 			const args: MoveQuestionToPageArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
-				questionId: "q-to-move",
-				targetPageId: "page-target",
+				questionId,
+				targetPageId,
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -1343,18 +1352,18 @@ describe("Quiz Module Management", () => {
 				updatedQuiz.rawQuizConfig &&
 				updatedQuiz.rawQuizConfig.type === "regular"
 			) {
-				const sourcePage = updatedQuiz.rawQuizConfig.pages.find(
+				const updatedSourcePage = updatedQuiz.rawQuizConfig.pages.find(
 					(p) => p.id === "page-1",
 				);
-				const targetPage = updatedQuiz.rawQuizConfig.pages.find(
-					(p) => p.id === "page-target",
+				const updatedTargetPage = updatedQuiz.rawQuizConfig.pages.find(
+					(p) => p.id === targetPageId,
 				);
-				expect(sourcePage?.questions.some((q) => q.id === "q-to-move")).toBe(
-					false,
-				);
-				expect(targetPage?.questions.some((q) => q.id === "q-to-move")).toBe(
-					true,
-				);
+				expect(
+					updatedSourcePage?.questions.some((q) => q.id === questionId),
+				).toBe(false);
+				expect(
+					updatedTargetPage?.questions.some((q) => q.id === questionId),
+				).toBe(true);
 			}
 		});
 	});
@@ -1366,13 +1375,7 @@ describe("Quiz Module Management", () => {
 				payload,
 				activityModuleId: regularQuizModuleId,
 				pageId: "page-1",
-				question: {
-					id: "q-scoring",
-					type: "short-answer",
-					prompt: "Question",
-					correctAnswer: "",
-					scoring: { type: "simple", points: 1 },
-				},
+				questionType: "short-answer",
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -1382,11 +1385,25 @@ describe("Quiz Module Management", () => {
 			expect(addQuestionResult.ok).toBe(true);
 			if (!addQuestionResult.ok) return;
 
+			// Get the question ID from the result
+			const addedQuiz = addQuestionResult.value;
+			if (
+				!addedQuiz.rawQuizConfig ||
+				addedQuiz.rawQuizConfig.type !== "regular"
+			) {
+				throw new Error("Expected regular quiz");
+			}
+			const page = addedQuiz.rawQuizConfig.pages.find((p) => p.id === "page-1");
+			if (!page || page.questions.length === 0) {
+				throw new Error("Question not found");
+			}
+			const questionId = page.questions[page.questions.length - 1]!.id;
+
 			// Now update scoring
 			const args: UpdateQuestionScoringArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
-				questionId: "q-scoring",
+				questionId,
 				scoring: {
 					type: "simple",
 					points: 5,
@@ -1410,7 +1427,7 @@ describe("Quiz Module Management", () => {
 			) {
 				const question = updatedQuiz.rawQuizConfig.pages
 					.flatMap((p) => p.questions)
-					.find((q) => q.id === "q-scoring");
+					.find((q) => q.id === questionId);
 				expect(question?.scoring).toEqual({ type: "simple", points: 5 });
 			}
 		});

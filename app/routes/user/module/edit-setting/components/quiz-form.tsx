@@ -11,12 +11,11 @@ import { useForm } from "@mantine/form";
 import type { QuizConfig } from "server/json/raw-quiz-config/v2";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
-import type { QuizFormInitialValues as EditQuizFormInitialValues } from "app/routes/user/module/edit-setting";
-import type { QuizFormInitialValues as NewQuizFormInitialValues } from "app/routes/user/module/new";
+import type { QuizFormInitialValues as EditQuizFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { Simplify, UnionToIntersection } from "type-fest";
 
 type QuizFormData = Simplify<
-	UnionToIntersection<NewQuizFormInitialValues | EditQuizFormInitialValues>
+	UnionToIntersection<EditQuizFormInitialValues>
 >;
 
 interface QuizFormProps {
@@ -33,9 +32,6 @@ const useQuizForm = (initialValues: Partial<QuizFormData> | undefined) => {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
 			quizInstructions: initialValues?.quizInstructions ?? "",
-			quizPoints: initialValues?.quizPoints ?? 100,
-			quizTimeLimit: initialValues?.quizTimeLimit ?? 60,
-			quizGradingType: initialValues?.quizGradingType ?? "automatic",
 			rawQuizConfig: initialValues?.rawQuizConfig ?? null,
 		},
 		validate: {

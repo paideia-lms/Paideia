@@ -3,7 +3,7 @@ import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useRef } from "react";
 import { FormableFileUploader } from "~/components/form-components/formable-file-uploader";
-import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { FileFormInitialValues as NewFileFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
 

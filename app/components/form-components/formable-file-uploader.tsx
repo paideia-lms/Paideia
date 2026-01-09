@@ -71,9 +71,9 @@ export function FormableFileUploader<T>({
                     }),
                 }))}
                 onChange={({ files: newFiles, mediaIds: newMediaIds }) => {
-                    console.log("newFiles", newFiles);
-                    console.log("newMediaIds", newMediaIds);
-                    console.log("formKey", formKey);
+                    // console.log("newFiles", newFiles);
+                    // console.log("newMediaIds", newMediaIds);
+                    // console.log("formKey", formKey);
                     form.setFieldValue(
                         formKey,
                         { files: newFiles, mediaIds: newMediaIds } as any,

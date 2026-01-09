@@ -59,8 +59,8 @@ import type {
 } from "server/json/raw-quiz-config/v2";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
-import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { UseQuizFormReturnType } from "./quiz-form";
+import { FormableSimpleRichTextEditor } from "app/components/form-components/formable-simple-rich-text-editor";
 
 
 
@@ -1334,18 +1334,13 @@ export function ResourceEditor({
 							size="sm"
 						/>
 
-						<Box>
-							<Text size="sm" fw={500} mb="xs">
-								Content
-							</Text>
-							<SimpleRichTextEditor
-								content={resource.content}
-								onChange={(content) => {
-									form.setFieldValue(`${path}.content` as const, content);
-								}}
-								placeholder="Enter resource content..."
-							/>
-						</Box>
+						<FormableSimpleRichTextEditor
+							form={form}
+							formKey={`${path}.content`}
+							key={form.key(`${path}.content`)}
+							label="Content"
+							placeholder="Enter resource content..."
+						/>
 
 						<Box>
 							<Text size="sm" fw={500} mb="xs">

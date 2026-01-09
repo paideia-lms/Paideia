@@ -675,7 +675,12 @@ export function updateNestedQuizTimer({
  */
 export interface UpdateGradingConfigArgs {
 	config: QuizConfig;
-	gradingConfig: Partial<GradingConfig>;
+	gradingConfig: {
+		enabled?: boolean;
+		passingScore?: number;
+		showScoreToStudent?: boolean;
+		showCorrectAnswers?: boolean;
+	};
 }
 
 export function updateGradingConfig({
@@ -710,11 +715,16 @@ export function updateGradingConfig({
  * - For regular quiz: adds to root resources
  * - For container quiz root: throws error (resources only allowed in nested quizzes)
  * - For nested quiz: provide nestedQuizId
- * - Validates that resource.pages references valid page IDs
+ * - Validates that pages references valid page IDs
  */
 export interface AddQuizResourceArgs {
 	config: QuizConfig;
-	resource: QuizResource;
+	resource: {
+		id: string;
+		title?: string;
+		content: string;
+		pages: string[];
+	};
 	nestedQuizId?: string;
 }
 
@@ -729,10 +739,17 @@ export function addQuizResource({
 		);
 	}
 
+	const quizResource: QuizResource = {
+		id: resource.id,
+		title: resource.title,
+		content: resource.content,
+		pages: resource.pages,
+	};
+
 	if (config.type === "regular") {
 		// Validate page IDs
 		const validPageIds = new Set(config.pages.map((p) => p.id));
-		const invalidPageIds = resource.pages.filter(
+		const invalidPageIds = quizResource.pages.filter(
 			(pid) => !validPageIds.has(pid),
 		);
 		if (invalidPageIds.length > 0) {
@@ -743,7 +760,7 @@ export function addQuizResource({
 
 		return {
 			...config,
-			resources: [...(config.resources ?? []), resource],
+			resources: [...(config.resources ?? []), quizResource],
 		};
 	}
 
@@ -767,7 +784,9 @@ export function addQuizResource({
 
 	// Validate page IDs
 	const validPageIds = new Set(nestedQuiz.pages.map((p) => p.id));
-	const invalidPageIds = resource.pages.filter((pid) => !validPageIds.has(pid));
+	const invalidPageIds = quizResource.pages.filter(
+		(pid) => !validPageIds.has(pid),
+	);
 	if (invalidPageIds.length > 0) {
 		throw new QuizConfigValidationError(
 			`Invalid page IDs in resource: ${invalidPageIds.join(", ")}`,
@@ -777,7 +796,7 @@ export function addQuizResource({
 	const updatedNestedQuizzes = [...config.nestedQuizzes];
 	updatedNestedQuizzes[nestedIndex] = {
 		...nestedQuiz,
-		resources: [...(nestedQuiz.resources ?? []), resource],
+		resources: [...(nestedQuiz.resources ?? []), quizResource],
 	};
 
 	return {
@@ -863,7 +882,11 @@ export function removeQuizResource({
 export interface UpdateQuizResourceArgs {
 	config: QuizConfig;
 	resourceId: string;
-	updates: Partial<Omit<QuizResource, "id">>;
+	updates: {
+		title?: string;
+		content?: string;
+		pages?: string[];
+	};
 	nestedQuizId?: string;
 }
 
@@ -973,28 +996,130 @@ export function updateQuizResource({
  * Add a question to a specific page
  * - For nested quiz: provide nestedQuizId
  * - Adds to end of page if position not provided
- * - Generates default ID if question.id not provided
+ * - Creates a blank question with default values based on questionType
  * - Throws error if page not found
  */
 export interface AddQuestionArgs {
 	config: QuizConfig;
 	pageId: string;
-	question: Question;
+	questionType: QuestionType;
 	position?: number;
 	nestedQuizId?: string;
+}
+
+/**
+ * Create a default blank question based on question type
+ */
+function createDefaultQuestion(questionType: QuestionType): Question {
+	const id = `question-${Date.now()}`;
+	const defaultScoring = getDefaultScoring(questionType);
+
+	switch (questionType) {
+		case "multiple-choice":
+			return {
+				id,
+				type: "multiple-choice",
+				prompt: "",
+				options: { a: "Option A", b: "Option B" },
+				correctAnswer: "a",
+				scoring: defaultScoring,
+			};
+		case "choice":
+			return {
+				id,
+				type: "choice",
+				prompt: "",
+				options: { a: "Option A", b: "Option B" },
+				correctAnswers: [],
+				scoring: defaultScoring,
+			};
+		case "short-answer":
+			return {
+				id,
+				type: "short-answer",
+				prompt: "",
+				correctAnswer: "",
+				scoring: defaultScoring,
+			};
+		case "long-answer":
+			return {
+				id,
+				type: "long-answer",
+				prompt: "",
+				correctAnswer: "",
+				scoring: defaultScoring,
+			};
+		case "article":
+			return {
+				id,
+				type: "article",
+				prompt: "",
+				scoring: defaultScoring,
+			};
+		case "fill-in-the-blank":
+			return {
+				id,
+				type: "fill-in-the-blank",
+				prompt: "",
+				correctAnswers: {},
+				scoring: defaultScoring,
+			};
+		case "ranking":
+			return {
+				id,
+				type: "ranking",
+				prompt: "",
+				items: { a: "Item A", b: "Item B" },
+				correctOrder: [],
+				scoring: defaultScoring,
+			};
+		case "single-selection-matrix":
+			return {
+				id,
+				type: "single-selection-matrix",
+				prompt: "",
+				rows: { "row-1": "Row 1" },
+				columns: { "col-1": "Column 1", "col-2": "Column 2" },
+				correctAnswers: {},
+				scoring: defaultScoring,
+			};
+		case "multiple-selection-matrix":
+			return {
+				id,
+				type: "multiple-selection-matrix",
+				prompt: "",
+				rows: { "row-1": "Row 1" },
+				columns: { "col-1": "Column 1", "col-2": "Column 2" },
+				correctAnswers: {},
+				scoring: defaultScoring,
+			};
+		case "whiteboard":
+			return {
+				id,
+				type: "whiteboard",
+				prompt: "",
+				scoring: defaultScoring,
+			};
+		default:
+			return {
+				id,
+				type: "multiple-choice",
+				prompt: "",
+				options: { a: "Option A", b: "Option B" },
+				correctAnswer: "a",
+				scoring: defaultScoring,
+			};
+	}
 }
 
 export function addQuestion({
 	config,
 	pageId,
-	question,
+	questionType,
 	position,
 	nestedQuizId,
 }: AddQuestionArgs): QuizConfig {
-	// Generate ID if not provided
-	const questionWithId: Question = question.id
-		? question
-		: { ...question, id: `question-${Date.now()}` };
+	const questionWithId = createDefaultQuestion(questionType);
 
 	if (config.type === "regular") {
 		const pageIndex = config.pages.findIndex((p) => p.id === pageId);
@@ -1167,13 +1292,16 @@ export function removeQuestion({
 /**
  * Update a question by ID
  * - For nested quiz: provide nestedQuizId
- * - Deep merges updates with existing question
+ * - Only updates prompt and feedback (other fields updated via separate functions)
  * - Throws error if question not found
  */
 export interface UpdateQuestionArgs {
 	config: QuizConfig;
 	questionId: string;
-	updates: Partial<Question>;
+	updates: {
+		prompt?: string;
+		feedback?: string;
+	};
 	nestedQuizId?: string;
 }
 
@@ -1189,7 +1317,11 @@ export function updateQuestion({
 			const questions = page.questions.map((q) => {
 				if (q.id === questionId) {
 					found = true;
-					return { ...q, ...updates, id: q.id } as Question; // Preserve original ID
+					return {
+						...q,
+						prompt: updates.prompt ?? q.prompt,
+						feedback: updates.feedback ?? q.feedback,
+					};
 				}
 				return q;
 			});
@@ -1233,7 +1365,11 @@ export function updateQuestion({
 		const questions = page.questions.map((q) => {
 			if (q.id === questionId) {
 				found = true;
-				return { ...q, ...updates, id: q.id } as Question; // Preserve original ID
+				return {
+					...q,
+					prompt: updates.prompt ?? q.prompt,
+					feedback: updates.feedback ?? q.feedback,
+				};
 			}
 			return q;
 		});
@@ -1262,44 +1398,984 @@ export function updateQuestion({
 }
 
 /**
- * Add a new page
- * - For nested quiz: provide nestedQuizId
- * - Adds to end if position not provided
- * - Generates default ID and title if not provided
+ * Update multiple choice question options
  */
-export interface AddPageArgs {
+export interface UpdateMultipleChoiceQuestionArgs {
 	config: QuizConfig;
-	page: Partial<QuizPage> & { questions?: Question[] };
-	position?: number;
+	questionId: string;
+	options: {
+		options?: Record<string, string>;
+		correctAnswer?: string;
+	};
 	nestedQuizId?: string;
 }
 
-export function addPage({
+export function updateMultipleChoiceQuestion({
 	config,
-	page,
-	position,
+	questionId,
+	options,
 	nestedQuizId,
-}: AddPageArgs): QuizConfig {
-	// Generate ID and title if not provided
-	const newPage: QuizPage = {
-		id: page.id ?? `page-${Date.now()}`,
-		title: page.title ?? "New Page",
-		questions: page.questions ?? [],
-	};
-
+}: UpdateMultipleChoiceQuestionArgs): QuizConfig {
 	if (config.type === "regular") {
-		const pages = [...config.pages];
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "multiple-choice") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a multiple-choice question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.options !== undefined && { options: options.options }),
+						...(options.correctAnswer !== undefined && {
+							correctAnswer: options.correctAnswer,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
 
-		// Insert at position or end
-		if (position !== undefined && position >= 0 && position <= pages.length) {
-			pages.splice(position, 0, newPage);
-		} else {
-			pages.push(newPage);
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
 		}
 
 		return {
 			...config,
-			pages,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "multiple-choice") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a multiple-choice question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.options !== undefined && { options: options.options }),
+					...(options.correctAnswer !== undefined && {
+						correctAnswer: options.correctAnswer,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update choice question options
+ */
+export interface UpdateChoiceQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		options?: Record<string, string>;
+		correctAnswers?: string[];
+	};
+	nestedQuizId?: string;
+}
+
+export function updateChoiceQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateChoiceQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "choice") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a choice question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.options !== undefined && { options: options.options }),
+						...(options.correctAnswers !== undefined && {
+							correctAnswers: options.correctAnswers,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "choice") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a choice question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.options !== undefined && { options: options.options }),
+					...(options.correctAnswers !== undefined && {
+						correctAnswers: options.correctAnswers,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update short answer question options
+ */
+export interface UpdateShortAnswerQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		correctAnswer?: string;
+	};
+	nestedQuizId?: string;
+}
+
+export function updateShortAnswerQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateShortAnswerQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "short-answer") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a short-answer question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.correctAnswer !== undefined && {
+							correctAnswer: options.correctAnswer,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "short-answer") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a short-answer question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.correctAnswer !== undefined && {
+						correctAnswer: options.correctAnswer,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update long answer question options
+ */
+export interface UpdateLongAnswerQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		correctAnswer?: string;
+	};
+	nestedQuizId?: string;
+}
+
+export function updateLongAnswerQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateLongAnswerQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "long-answer") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a long-answer question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.correctAnswer !== undefined && {
+							correctAnswer: options.correctAnswer,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "long-answer") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a long-answer question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.correctAnswer !== undefined && {
+						correctAnswer: options.correctAnswer,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update fill-in-the-blank question options
+ */
+export interface UpdateFillInTheBlankQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		correctAnswers?: Record<string, string>;
+	};
+	nestedQuizId?: string;
+}
+
+export function updateFillInTheBlankQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateFillInTheBlankQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "fill-in-the-blank") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a fill-in-the-blank question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.correctAnswers !== undefined && {
+							correctAnswers: options.correctAnswers,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions: questions as Question[],
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "fill-in-the-blank") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a fill-in-the-blank question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.correctAnswers !== undefined && {
+						correctAnswers: options.correctAnswers,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update ranking question options
+ */
+export interface UpdateRankingQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		items?: Record<string, string>;
+		correctOrder?: string[];
+	};
+	nestedQuizId?: string;
+}
+
+export function updateRankingQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateRankingQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "ranking") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a ranking question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.items !== undefined && { items: options.items }),
+						...(options.correctOrder !== undefined && {
+							correctOrder: options.correctOrder,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "ranking") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a ranking question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.items !== undefined && { items: options.items }),
+					...(options.correctOrder !== undefined && {
+						correctOrder: options.correctOrder,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update single selection matrix question options
+ */
+export interface UpdateSingleSelectionMatrixQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		rows?: Record<string, string>;
+		columns?: Record<string, string>;
+		correctAnswers?: Record<string, string>;
+	};
+	nestedQuizId?: string;
+}
+
+export function updateSingleSelectionMatrixQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateSingleSelectionMatrixQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "single-selection-matrix") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a single-selection-matrix question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.rows !== undefined && { rows: options.rows }),
+						...(options.columns !== undefined && {
+							columns: options.columns,
+						}),
+						...(options.correctAnswers !== undefined && {
+							correctAnswers: options.correctAnswers,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "single-selection-matrix") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a single-selection-matrix question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.rows !== undefined && { rows: options.rows }),
+					...(options.columns !== undefined && {
+						columns: options.columns,
+					}),
+					...(options.correctAnswers !== undefined && {
+						correctAnswers: options.correctAnswers,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Update multiple selection matrix question options
+ */
+export interface UpdateMultipleSelectionMatrixQuestionArgs {
+	config: QuizConfig;
+	questionId: string;
+	options: {
+		rows?: Record<string, string>;
+		columns?: Record<string, string>;
+		correctAnswers?: Record<string, string[]>;
+	};
+	nestedQuizId?: string;
+}
+
+export function updateMultipleSelectionMatrixQuestion({
+	config,
+	questionId,
+	options,
+	nestedQuizId,
+}: UpdateMultipleSelectionMatrixQuestionArgs): QuizConfig {
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					if (q.type !== "multiple-selection-matrix") {
+						throw new QuizConfigValidationError(
+							`Question with id '${questionId}' is not a multiple-selection-matrix question`,
+						);
+					}
+					found = true;
+					return {
+						...q,
+						...(options.rows !== undefined && { rows: options.rows }),
+						...(options.columns !== undefined && {
+							columns: options.columns,
+						}),
+						...(options.correctAnswers !== undefined && {
+							correctAnswers: options.correctAnswers,
+						}),
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions: questions as Question[],
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				if (q.type !== "multiple-selection-matrix") {
+					throw new QuizConfigValidationError(
+						`Question with id '${questionId}' is not a multiple-selection-matrix question`,
+					);
+				}
+				found = true;
+				return {
+					...q,
+					...(options.rows !== undefined && { rows: options.rows }),
+					...(options.columns !== undefined && {
+						columns: options.columns,
+					}),
+					...(options.correctAnswers !== undefined && {
+						correctAnswers: options.correctAnswers,
+					}),
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions: questions as Question[],
+		};
+	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
+}
+
+/**
+ * Add a new blank page at the end
+ * - For nested quiz: provide nestedQuizId
+ * - Creates a blank page with default ID and title
+ */
+export interface AddPageArgs {
+	config: QuizConfig;
+	nestedQuizId?: string;
+}
+
+export function addPage({ config, nestedQuizId }: AddPageArgs): QuizConfig {
+	// Generate ID and title
+	const newPage: QuizPage = {
+		id: `page-${Date.now()}`,
+		title: "New Page",
+		questions: [],
+	};
+
+	if (config.type === "regular") {
+		return {
+			...config,
+			pages: [...config.pages, newPage],
 		};
 	}
 
@@ -1320,19 +2396,10 @@ export function addPage({
 	}
 
 	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
-	const pages = [...nestedQuiz.pages];
-
-	// Insert at position or end
-	if (position !== undefined && position >= 0 && position <= pages.length) {
-		pages.splice(position, 0, newPage);
-	} else {
-		pages.push(newPage);
-	}
-
 	const updatedNestedQuizzes = [...config.nestedQuizzes];
 	updatedNestedQuizzes[nestedIndex] = {
 		...nestedQuiz,
-		pages,
+		pages: [...nestedQuiz.pages, newPage],
 	};
 
 	return {
@@ -1452,19 +2519,13 @@ export function removePage({
 // ============================================================================
 
 /**
- * Add a new nested quiz to a container quiz
+ * Add a new blank nested quiz to a container quiz at the end
  */
 export interface AddNestedQuizArgs {
 	config: QuizConfig;
-	nestedQuiz: Partial<NestedQuizConfig> & { id: string };
-	position?: number;
 }
 
-export function addNestedQuiz({
-	config,
-	nestedQuiz,
-	position,
-}: AddNestedQuizArgs): QuizConfig {
+export function addNestedQuiz({ config }: AddNestedQuizArgs): QuizConfig {
 	if (config.type !== "container") {
 		throw new QuizConfigValidationError(
 			"addNestedQuiz can only be called on container quizzes",
@@ -1472,28 +2533,20 @@ export function addNestedQuiz({
 	}
 
 	const newNestedQuiz: NestedQuizConfig = {
-		title: nestedQuiz.title ?? "New Quiz",
-		description: nestedQuiz.description,
-		globalTimer: nestedQuiz.globalTimer,
-		pages: nestedQuiz.pages ?? [],
-		resources: nestedQuiz.resources,
-		id: nestedQuiz.id,
+		id: `nested-${Date.now()}`,
+		title: "New Quiz",
+		pages: [
+			{
+				id: `page-${Date.now()}`,
+				title: "Page 1",
+				questions: [],
+			},
+		],
 	};
-
-	const updatedNestedQuizzes = [...config.nestedQuizzes];
-	if (
-		position !== undefined &&
-		position >= 0 &&
-		position <= updatedNestedQuizzes.length
-	) {
-		updatedNestedQuizzes.splice(position, 0, newNestedQuiz);
-	} else {
-		updatedNestedQuizzes.push(newNestedQuiz);
-	}
 
 	return {
 		...config,
-		nestedQuizzes: updatedNestedQuizzes,
+		nestedQuizzes: [...config.nestedQuizzes, newNestedQuiz],
 	};
 }
 
@@ -1543,7 +2596,10 @@ export function removeNestedQuiz({
 export interface UpdateNestedQuizInfoArgs {
 	config: QuizConfig;
 	nestedQuizId: string;
-	updates: Partial<Pick<NestedQuizConfig, "title" | "description">>;
+	updates: {
+		title?: string;
+		description?: string;
+	};
 }
 
 export function updateNestedQuizInfo({
@@ -1627,7 +2683,9 @@ export function reorderNestedQuizzes({
  */
 export interface UpdateContainerSettingsArgs {
 	config: QuizConfig;
-	settings: Partial<Pick<ContainerQuizConfig, "sequentialOrder">>;
+	settings: {
+		sequentialOrder?: boolean;
+	};
 }
 
 export function updateContainerSettings({
@@ -1651,7 +2709,9 @@ export function updateContainerSettings({
  */
 export interface UpdateQuizInfoArgs {
 	config: QuizConfig;
-	updates: Partial<Pick<QuizConfig, "title">>;
+	updates: {
+		title?: string;
+	};
 }
 
 export function updateQuizInfo({
@@ -1670,7 +2730,9 @@ export function updateQuizInfo({
 export interface UpdatePageInfoArgs {
 	config: QuizConfig;
 	pageId: string;
-	updates: Partial<Pick<QuizPage, "title">>;
+	updates: {
+		title?: string;
+	};
 	nestedQuizId?: string;
 }
 
@@ -1880,13 +2942,92 @@ export function moveQuestionToPage({
 	});
 
 	// Add it to the target page
-	return addQuestion({
-		config: configAfterRemove,
-		pageId: targetPageId,
-		question: questionToMove,
-		position,
-		nestedQuizId,
-	});
+	// Note: moveQuestionToPage preserves the existing question, so we need to add it back manually
+	// Since addQuestion now only accepts questionType, we need to manually insert the question
+	if (configAfterRemove.type === "regular") {
+		const pageIndex = configAfterRemove.pages.findIndex(
+			(p) => p.id === targetPageId,
+		);
+		if (pageIndex === -1) {
+			throw new QuizElementNotFoundError(
+				`Page with id '${targetPageId}' not found`,
+			);
+		}
+
+		const page = configAfterRemove.pages[pageIndex]!;
+		const questions = [...page.questions];
+
+		if (
+			position !== undefined &&
+			position >= 0 &&
+			position <= questions.length
+		) {
+			questions.splice(position, 0, questionToMove);
+		} else {
+			questions.push(questionToMove);
+		}
+
+		const updatedPages = [...configAfterRemove.pages];
+		updatedPages[pageIndex] = {
+			...page,
+			questions,
+		};
+
+		return {
+			...configAfterRemove,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = configAfterRemove.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = configAfterRemove.nestedQuizzes[nestedIndex]!;
+	const pageIndex = nestedQuiz.pages.findIndex((p) => p.id === targetPageId);
+	if (pageIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Page with id '${targetPageId}' not found`,
+		);
+	}
+
+	const page = nestedQuiz.pages[pageIndex]!;
+	const questions = [...page.questions];
+
+	if (position !== undefined && position >= 0 && position <= questions.length) {
+		questions.splice(position, 0, questionToMove);
+	} else {
+		questions.push(questionToMove);
+	}
+
+	const updatedPages = [...nestedQuiz.pages];
+	updatedPages[pageIndex] = {
+		...page,
+		questions,
+	};
+
+	const updatedNestedQuizzes = [...configAfterRemove.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...configAfterRemove,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
 }
 
 /**
@@ -1905,12 +3046,88 @@ export function updateQuestionScoring({
 	scoring,
 	nestedQuizId,
 }: UpdateQuestionScoringArgs): QuizConfig {
-	return updateQuestion({
-		config,
-		questionId,
-		updates: { scoring } as Partial<Question>,
-		nestedQuizId,
+	if (config.type === "regular") {
+		let found = false;
+		const updatedPages = config.pages.map((page) => {
+			const questions = page.questions.map((q) => {
+				if (q.id === questionId) {
+					found = true;
+					return {
+						...q,
+						scoring,
+					};
+				}
+				return q;
+			});
+			return {
+				...page,
+				questions,
+			};
+		});
+
+		if (!found) {
+			throw new QuizElementNotFoundError(
+				`Question with id '${questionId}' not found`,
+			);
+		}
+
+		return {
+			...config,
+			pages: updatedPages,
+		};
+	}
+
+	// Container quiz - update in nested quiz
+	if (!nestedQuizId) {
+		throw new QuizConfigValidationError(
+			"nestedQuizId is required for container quizzes",
+		);
+	}
+
+	const nestedIndex = config.nestedQuizzes.findIndex(
+		(nq) => nq.id === nestedQuizId,
+	);
+	if (nestedIndex === -1) {
+		throw new QuizElementNotFoundError(
+			`Nested quiz with id '${nestedQuizId}' not found`,
+		);
+	}
+
+	const nestedQuiz = config.nestedQuizzes[nestedIndex]!;
+	let found = false;
+	const updatedPages = nestedQuiz.pages.map((page) => {
+		const questions = page.questions.map((q) => {
+			if (q.id === questionId) {
+				found = true;
+				return {
+					...q,
+					scoring,
+				};
+			}
+			return q;
+		});
+		return {
+			...page,
+			questions,
+		};
 	});
+
+	if (!found) {
+		throw new QuizElementNotFoundError(
+			`Question with id '${questionId}' not found`,
+		);
+	}
+
+	const updatedNestedQuizzes = [...config.nestedQuizzes];
+	updatedNestedQuizzes[nestedIndex] = {
+		...nestedQuiz,
+		pages: updatedPages,
+	};
+
+	return {
+		...config,
+		nestedQuizzes: updatedNestedQuizzes,
+	};
 }
 
 /**

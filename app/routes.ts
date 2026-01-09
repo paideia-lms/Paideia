@@ -43,12 +43,8 @@ export const routes = [
 				layout("layouts/user-module-edit-layout.tsx", [
 					route(
 						"user/module/edit/:moduleId",
-						"routes/user/module/edit-setting.tsx",
+						"routes/user/module/edit-setting/route.tsx",
 					),
-					// route(
-					// 	"user/module/edit/:moduleId/setting",
-					// 	"routes/user/module/edit-setting.tsx",
-					// ),
 					route(
 						"user/module/edit/:moduleId/access",
 						"routes/user/module/edit-access.tsx",

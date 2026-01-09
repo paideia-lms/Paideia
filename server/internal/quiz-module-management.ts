@@ -33,12 +33,16 @@ import {
 	updateQuestionScoring,
 	updateQuizInfo,
 	updateQuizResource,
-	type ContainerQuizConfig,
-	type GradingConfig,
-	type NestedQuizConfig,
+	updateMultipleChoiceQuestion,
+	updateChoiceQuestion,
+	updateShortAnswerQuestion,
+	updateLongAnswerQuestion,
+	updateFillInTheBlankQuestion,
+	updateRankingQuestion,
+	updateSingleSelectionMatrixQuestion,
+	updateMultipleSelectionMatrixQuestion,
 	type Question,
-	type QuizPage,
-	type QuizResource,
+	type QuestionType,
 } from "server/json/raw-quiz-config/v2";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 
@@ -287,7 +291,12 @@ export function tryUpdateNestedQuizTimer(args: UpdateNestedQuizTimerArgs) {
  */
 export interface UpdateGradingConfigArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-	gradingConfig: Partial<GradingConfig>;
+	gradingConfig: {
+		enabled?: boolean;
+		passingScore?: number;
+		showScoreToStudent?: boolean;
+		showCorrectAnswers?: boolean;
+	};
 }
 
 export function tryUpdateGradingConfig(args: UpdateGradingConfigArgs) {
@@ -333,7 +342,12 @@ export function tryUpdateGradingConfig(args: UpdateGradingConfigArgs) {
  */
 export interface AddQuizResourceArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-	resource: QuizResource;
+	resource: {
+		id: string;
+		title?: string;
+		content: string;
+		pages: string[];
+	};
 	nestedQuizId?: string;
 }
 
@@ -432,7 +446,11 @@ export function tryRemoveQuizResource(args: RemoveQuizResourceArgs) {
 export interface UpdateQuizResourceArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	resourceId: string;
-	updates: Partial<Omit<QuizResource, "id">>;
+	updates: {
+		title?: string;
+		content?: string;
+		pages?: string[];
+	};
 	nestedQuizId?: string;
 }
 
@@ -484,7 +502,7 @@ export function tryUpdateQuizResource(args: UpdateQuizResourceArgs) {
 export interface AddQuestionArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	pageId: string;
-	question: Question;
+	questionType: QuestionType;
 	position?: number;
 	nestedQuizId?: string;
 }
@@ -498,7 +516,7 @@ export function tryAddQuestion(args: AddQuestionArgs) {
 				req,
 				overrideAccess = false,
 				pageId,
-				question,
+				questionType,
 				position,
 				nestedQuizId,
 			} = args;
@@ -513,7 +531,7 @@ export function tryAddQuestion(args: AddQuestionArgs) {
 			const updatedConfig = addQuestion({
 				config: rawQuizConfig,
 				pageId,
-				question,
+				questionType,
 				position,
 				nestedQuizId,
 			});
@@ -588,7 +606,10 @@ export function tryRemoveQuestion(args: RemoveQuestionArgs) {
 export interface UpdateQuestionArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	questionId: string;
-	updates: Partial<Question>;
+	updates: {
+		prompt?: string;
+		feedback?: string;
+	};
 	nestedQuizId?: string;
 }
 
@@ -639,8 +660,6 @@ export function tryUpdateQuestion(args: UpdateQuestionArgs) {
  */
 export interface AddPageArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-	page: Partial<QuizPage> & { questions?: Question[] };
-	position?: number;
 	nestedQuizId?: string;
 }
 
@@ -652,8 +671,6 @@ export function tryAddPage(args: AddPageArgs) {
 				activityModuleId,
 				req,
 				overrideAccess = false,
-				page,
-				position,
 				nestedQuizId,
 			} = args;
 
@@ -666,8 +683,6 @@ export function tryAddPage(args: AddPageArgs) {
 
 			const updatedConfig = addPage({
 				config: rawQuizConfig,
-				page,
-				position,
 				nestedQuizId,
 			});
 
@@ -740,21 +755,12 @@ export function tryRemovePage(args: RemovePageArgs) {
  */
 export interface AddNestedQuizArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-	nestedQuiz: Partial<NestedQuizConfig> & { id: string };
-	position?: number;
 }
 
 export function tryAddNestedQuiz(args: AddNestedQuizArgs) {
 	return Result.try(
 		async () => {
-			const {
-				payload,
-				activityModuleId,
-				req,
-				overrideAccess = false,
-				nestedQuiz,
-				position,
-			} = args;
+			const { payload, activityModuleId, req, overrideAccess = false } = args;
 
 			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
 				payload,
@@ -765,8 +771,6 @@ export function tryAddNestedQuiz(args: AddNestedQuizArgs) {
 
 			const updatedConfig = addNestedQuiz({
 				config: rawQuizConfig,
-				nestedQuiz,
-				position,
 			});
 
 			return updateQuizConfigAndReturn(
@@ -836,7 +840,10 @@ export function tryRemoveNestedQuiz(args: RemoveNestedQuizArgs) {
 export interface UpdateNestedQuizInfoArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	nestedQuizId: string;
-	updates: Partial<Pick<NestedQuizConfig, "title" | "description">>;
+	updates: {
+		title?: string;
+		description?: string;
+	};
 }
 
 export function tryUpdateNestedQuizInfo(args: UpdateNestedQuizInfoArgs) {
@@ -930,7 +937,9 @@ export function tryReorderNestedQuizzes(args: ReorderNestedQuizzesArgs) {
  */
 export interface UpdateContainerSettingsArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-	settings: Partial<Pick<ContainerQuizConfig, "sequentialOrder">>;
+	settings: {
+		sequentialOrder?: boolean;
+	};
 }
 
 export function tryUpdateContainerSettings(args: UpdateContainerSettingsArgs) {
@@ -976,7 +985,9 @@ export function tryUpdateContainerSettings(args: UpdateContainerSettingsArgs) {
  */
 export interface UpdateQuizInfoArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-	updates: Partial<Pick<LatestQuizConfig, "title">>;
+	updates: {
+		title?: string;
+	};
 }
 
 export function tryUpdateQuizInfo(args: UpdateQuizInfoArgs) {
@@ -1023,7 +1034,9 @@ export function tryUpdateQuizInfo(args: UpdateQuizInfoArgs) {
 export interface UpdatePageInfoArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	pageId: string;
-	updates: Partial<Pick<QuizPage, "title">>;
+	updates: {
+		title?: string;
+	};
 	nestedQuizId?: string;
 }
 
@@ -1222,5 +1235,473 @@ export function tryUpdateQuestionScoring(args: UpdateQuestionScoringArgs) {
 		(error) =>
 			transformError(error) ??
 			new UnknownError("Failed to update question scoring", { cause: error }),
+	);
+}
+
+/**
+ * Update multiple choice question options
+ */
+export interface UpdateMultipleChoiceQuestionArgs
+	extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		options?: Record<string, string>;
+		correctAnswer?: string;
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateMultipleChoiceQuestion(
+	args: UpdateMultipleChoiceQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateMultipleChoiceQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateMultipleChoiceQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update multiple choice question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Update choice question options
+ */
+export interface UpdateChoiceQuestionArgs extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		options?: Record<string, string>;
+		correctAnswers?: string[];
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateChoiceQuestion(args: UpdateChoiceQuestionArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateChoiceQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateChoiceQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update choice question", { cause: error }),
+	);
+}
+
+/**
+ * Update short answer question options
+ */
+export interface UpdateShortAnswerQuestionArgs
+	extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		correctAnswer?: string;
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateShortAnswerQuestion(
+	args: UpdateShortAnswerQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateShortAnswerQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateShortAnswerQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update short answer question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Update long answer question options
+ */
+export interface UpdateLongAnswerQuestionArgs extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		correctAnswer?: string;
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateLongAnswerQuestion(
+	args: UpdateLongAnswerQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateLongAnswerQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateLongAnswerQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update long answer question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Update fill-in-the-blank question options
+ */
+export interface UpdateFillInTheBlankQuestionArgs
+	extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		correctAnswers?: Record<string, string>;
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateFillInTheBlankQuestion(
+	args: UpdateFillInTheBlankQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateFillInTheBlankQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateFillInTheBlankQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update fill-in-the-blank question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Update ranking question options
+ */
+export interface UpdateRankingQuestionArgs extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		items?: Record<string, string>;
+		correctOrder?: string[];
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateRankingQuestion(args: UpdateRankingQuestionArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateRankingQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateRankingQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update ranking question", { cause: error }),
+	);
+}
+
+/**
+ * Update single selection matrix question options
+ */
+export interface UpdateSingleSelectionMatrixQuestionArgs
+	extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		rows?: Record<string, string>;
+		columns?: Record<string, string>;
+		correctAnswers?: Record<string, string>;
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateSingleSelectionMatrixQuestion(
+	args: UpdateSingleSelectionMatrixQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateSingleSelectionMatrixQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateSingleSelectionMatrixQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update single selection matrix question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Update multiple selection matrix question options
+ */
+export interface UpdateMultipleSelectionMatrixQuestionArgs
+	extends BaseInternalFunctionArgs {
+	activityModuleId: number;
+	questionId: string;
+	options: {
+		rows?: Record<string, string>;
+		columns?: Record<string, string>;
+		correctAnswers?: Record<string, string[]>;
+	};
+	nestedQuizId?: string;
+}
+
+export function tryUpdateMultipleSelectionMatrixQuestion(
+	args: UpdateMultipleSelectionMatrixQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess = false,
+				questionId,
+				options,
+				nestedQuizId,
+			} = args;
+
+			const { rawQuizConfig, quizId } = await getQuizModuleAndId(
+				payload,
+				activityModuleId,
+				req,
+				overrideAccess,
+			);
+
+			const updatedConfig = updateMultipleSelectionMatrixQuestion({
+				config: rawQuizConfig,
+				questionId,
+				options,
+				nestedQuizId,
+			});
+
+			return updateQuizConfigAndReturn(
+				payload,
+				quizId,
+				updatedConfig,
+				req,
+				overrideAccess,
+				"tryUpdateMultipleSelectionMatrixQuestion",
+			);
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update multiple selection matrix question", {
+				cause: error,
+			}),
 	);
 }

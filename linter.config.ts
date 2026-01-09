@@ -395,6 +395,27 @@ const astPatterns = {
 	},
 
 	/**
+	 * Matches z.any() calls from zod
+	 * AST structure: CallExpression -> PropertyAccessExpression (z.any)
+	 */
+	zAnyCall: (node: ts.Node): boolean => {
+		if (ts.isCallExpression(node)) {
+			const expression = node.expression;
+			if (ts.isPropertyAccessExpression(expression)) {
+				// Check if it's z.any
+				if (
+					ts.isIdentifier(expression.expression) &&
+					expression.expression.text === "z" &&
+					expression.name.text === "any"
+				) {
+					return true;
+				}
+			}
+		}
+		return false;
+	},
+
+	/**
 	 * Matches imports of href from "react-router"
 	 */
 	hrefImport: (node: ts.Node): boolean => {
@@ -1499,6 +1520,18 @@ export const rules: LintRule[] = [
 			{
 				name: "import from react-router",
 				matcher: astPatterns.reactRouterImport,
+			},
+		],
+	},
+	{
+		name: "Ban z.any() usage",
+		description: "z.any() is strictly banned. Use discriminated unions, z.or(), or z.custom() with proper types instead.",
+		includes: ["app/**/*.ts", "app/**/*.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "z.any() call",
+				matcher: astPatterns.zAnyCall,
 			},
 		],
 	},

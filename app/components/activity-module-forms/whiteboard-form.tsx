@@ -1,7 +1,7 @@
 import { Button, Stack, TextInput, Textarea } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { FormableWhiteboard } from "~/components/form-components/formable-whiteboard";
-import type { WhiteboardFormInitialValues as EditWhiteboardFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { WhiteboardFormInitialValues as EditWhiteboardFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { WhiteboardFormInitialValues as NewWhiteboardFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
 

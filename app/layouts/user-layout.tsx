@@ -84,7 +84,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 		if (
 			pageInfo.is["routes/user/modules"] ||
 			pageInfo.is["routes/user/module/new"] ||
-			pageInfo.is["routes/user/module/edit-setting"]
+			pageInfo.is["routes/user/module/edit-setting/route"]
 		)
 			return UserTab.Modules;
 		if (pageInfo.is["routes/user/grades"]) return UserTab.Grades;

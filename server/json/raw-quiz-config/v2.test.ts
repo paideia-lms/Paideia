@@ -1,11 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type {
 	ContainerQuizConfig,
-	GradingConfig,
 	ManualScoring,
-	Question,
-	QuizConfig,
-	QuizPage,
 	QuizResource,
 	RegularQuizConfig,
 	SimpleScoring,
@@ -520,57 +516,44 @@ describe("Quiz Config Utility Functions", () => {
 	describe("addQuestion", () => {
 		test("adds question to end of page in regular quiz", () => {
 			const config = createRegularQuiz();
-			const newQuestion: Question = {
-				id: "q2",
-				type: "short-answer",
-				prompt: "What is your name?",
-			};
 
 			const result = addQuestion({
 				config,
 				pageId: "page-1",
-				question: newQuestion,
+				questionType: "short-answer",
 			});
 
 			expect(result.type).toBe("regular");
 			if (result.type === "regular") {
 				expect(result.pages[0]!.questions).toHaveLength(2);
-				expect(result.pages[0]!.questions[1]).toEqual(newQuestion);
+				expect(result.pages[0]!.questions[1]!.type).toBe("short-answer");
+				expect(result.pages[0]!.questions[1]!.prompt).toBe("");
 			}
 		});
 
 		test("adds question at specific position", () => {
 			const config = createRegularQuiz();
-			const newQuestion: Question = {
-				id: "q2",
-				type: "short-answer",
-				prompt: "What is your name?",
-			};
 
 			const result = addQuestion({
 				config,
 				pageId: "page-1",
-				question: newQuestion,
+				questionType: "short-answer",
 				position: 0,
 			});
 
 			expect(result.type).toBe("regular");
 			if (result.type === "regular") {
-				expect(result.pages[0]!.questions[0]).toEqual(newQuestion);
+				expect(result.pages[0]!.questions[0]!.type).toBe("short-answer");
 			}
 		});
 
 		test("generates ID if not provided", () => {
 			const config = createRegularQuiz();
-			const newQuestion = {
-				type: "short-answer" as const,
-				prompt: "What is your name?",
-			};
 
 			const result = addQuestion({
 				config,
 				pageId: "page-1",
-				question: newQuestion as unknown as Question,
+				questionType: "short-answer",
 			});
 
 			expect(result.type).toBe("regular");
@@ -581,36 +564,32 @@ describe("Quiz Config Utility Functions", () => {
 
 		test("throws error when page not found", () => {
 			const config = createRegularQuiz();
-			const newQuestion: Question = {
-				id: "q2",
-				type: "short-answer",
-				prompt: "What is your name?",
-			};
 
 			expect(() =>
-				addQuestion({ config, pageId: "nonexistent", question: newQuestion }),
+				addQuestion({
+					config,
+					pageId: "nonexistent",
+					questionType: "short-answer",
+				}),
 			).toThrow(QuizElementNotFoundError);
 		});
 
 		test("adds question to nested quiz", () => {
 			const config = createContainerQuiz();
-			const newQuestion: Question = {
-				id: "q2",
-				type: "multiple-choice",
-				prompt: "What is 3+3?",
-				options: { a: "5", b: "6" },
-			};
 
 			const result = addQuestion({
 				config,
 				pageId: "page-1",
-				question: newQuestion,
+				questionType: "multiple-choice",
 				nestedQuizId: "nested-1",
 			});
 
 			expect(result.type).toBe("container");
 			if (result.type === "container") {
 				expect(result.nestedQuizzes[0]!.pages[0]!.questions).toHaveLength(2);
+				expect(result.nestedQuizzes[0]!.pages[0]!.questions[1]!.type).toBe(
+					"multiple-choice",
+				);
 			}
 		});
 	});
@@ -671,7 +650,6 @@ describe("Quiz Config Utility Functions", () => {
 				config,
 				questionId: "q1",
 				updates: {
-					id: "different-id",
 					prompt: "Updated prompt",
 				},
 			});
@@ -679,6 +657,22 @@ describe("Quiz Config Utility Functions", () => {
 			expect(result.type).toBe("regular");
 			if (result.type === "regular") {
 				expect(result.pages[0]!.questions[0]!.id).toBe("q1");
+			}
+		});
+
+		test("does not allow changing question type via updates", () => {
+			const config = createRegularQuiz();
+
+			// updateQuestion only accepts prompt and feedback, so type cannot be changed
+			const result = updateQuestion({
+				config,
+				questionId: "q1",
+				updates: { prompt: "Updated prompt" },
+			});
+
+			expect(result.type).toBe("regular");
+			if (result.type === "regular") {
+				expect(result.pages[0]!.questions[0]!.type).toBe("multiple-choice");
 			}
 		});
 
@@ -713,59 +707,25 @@ describe("Quiz Config Utility Functions", () => {
 	});
 
 	describe("addPage", () => {
-		test("adds page to end of regular quiz", () => {
+		test("adds blank page to end of regular quiz", () => {
 			const config = createRegularQuiz();
-			const newPage: Partial<QuizPage> = {
-				id: "page-2",
-				title: "Page 2",
-				questions: [],
-			};
 
-			const result = addPage({ config, page: newPage });
+			const result = addPage({ config });
 
 			expect(result.type).toBe("regular");
 			if (result.type === "regular") {
 				expect(result.pages).toHaveLength(2);
-				expect(result.pages[1]!.id).toBe("page-2");
-			}
-		});
-
-		test("adds page at specific position", () => {
-			const config = createRegularQuiz();
-			const newPage: Partial<QuizPage> = {
-				id: "page-0",
-				title: "Page 0",
-			};
-
-			const result = addPage({ config, page: newPage, position: 0 });
-
-			expect(result.type).toBe("regular");
-			if (result.type === "regular") {
-				expect(result.pages[0]!.id).toBe("page-0");
-			}
-		});
-
-		test("generates ID and title if not provided", () => {
-			const config = createRegularQuiz();
-			const result = addPage({ config, page: {} });
-
-			expect(result.type).toBe("regular");
-			if (result.type === "regular") {
 				expect(result.pages[1]!.id).toMatch(/^page-/);
 				expect(result.pages[1]!.title).toBe("New Page");
+				expect(result.pages[1]!.questions).toEqual([]);
 			}
 		});
 
-		test("adds page to nested quiz", () => {
+		test("adds blank page to nested quiz", () => {
 			const config = createContainerQuiz();
-			const newPage: Partial<QuizPage> = {
-				id: "page-2",
-				title: "Page 2",
-			};
 
 			const result = addPage({
 				config,
-				page: newPage,
 				nestedQuizId: "nested-1",
 			});
 
@@ -866,64 +826,27 @@ describe("Quiz Config Utility Functions", () => {
 	// ========================================================================
 
 	describe("addNestedQuiz", () => {
-		test("adds nested quiz to end by default", () => {
+		test("adds blank nested quiz to end", () => {
 			const config = createContainerQuiz();
 			const result = addNestedQuiz({
 				config,
-				nestedQuiz: {
-					id: "nested-3",
-					title: "Quiz 3",
-					pages: [],
-				},
 			});
 
 			expect(result.type).toBe("container");
 			if (result.type === "container") {
 				expect(result.nestedQuizzes).toHaveLength(3);
-				expect(result.nestedQuizzes[2]!.id).toBe("nested-3");
-				expect(result.nestedQuizzes[2]!.title).toBe("Quiz 3");
-			}
-		});
-
-		test("adds nested quiz at specific position", () => {
-			const config = createContainerQuiz();
-			const result = addNestedQuiz({
-				config,
-				nestedQuiz: {
-					id: "nested-3",
-					title: "Quiz 3",
-				},
-				position: 0,
-			});
-
-			expect(result.type).toBe("container");
-			if (result.type === "container") {
-				expect(result.nestedQuizzes).toHaveLength(3);
-				expect(result.nestedQuizzes[0]!.id).toBe("nested-3");
-			}
-		});
-
-		test("uses default title if not provided", () => {
-			const config = createContainerQuiz();
-			const result = addNestedQuiz({
-				config,
-				nestedQuiz: { id: "nested-3" },
-			});
-
-			expect(result.type).toBe("container");
-			if (result.type === "container") {
+				expect(result.nestedQuizzes[2]!.id).toMatch(/^nested-/);
 				expect(result.nestedQuizzes[2]!.title).toBe("New Quiz");
+				expect(result.nestedQuizzes[2]!.pages).toHaveLength(1);
+				expect(result.nestedQuizzes[2]!.pages[0]!.title).toBe("Page 1");
 			}
 		});
 
 		test("throws error when called on regular quiz", () => {
 			const config = createRegularQuiz();
-			expect(() =>
-				addNestedQuiz({
-					config,
-					nestedQuiz: { id: "nested-1", title: "Quiz 1" },
-				}),
-			).toThrow(QuizConfigValidationError);
+			expect(() => addNestedQuiz({ config })).toThrow(
+				QuizConfigValidationError,
+			);
 		});
 	});
 
@@ -1209,18 +1132,24 @@ describe("Quiz Config Utility Functions", () => {
 			// Add another page first
 			const configWith2Pages = addPage({
 				config,
-				page: { id: "page-2", title: "Page 2" },
 			});
+
+			// Get the actual page IDs after adding
+			if (configWith2Pages.type !== "regular") {
+				throw new Error("Expected regular quiz");
+			}
+			const pageIds = configWith2Pages.pages.map((p) => p.id);
+			const reversedPageIds = [...pageIds].reverse();
 
 			const result = reorderPages({
 				config: configWith2Pages,
-				pageIds: ["page-2", "page-1"],
+				pageIds: reversedPageIds,
 			});
 
 			expect(result.type).toBe("regular");
 			if (result.type === "regular") {
-				expect(result.pages[0]!.id).toBe("page-2");
-				expect(result.pages[1]!.id).toBe("page-1");
+				expect(result.pages[0]!.id).toBe(reversedPageIds[0]!);
+				expect(result.pages[1]!.id).toBe(reversedPageIds[1]!);
 			}
 		});
 
@@ -1229,20 +1158,27 @@ describe("Quiz Config Utility Functions", () => {
 			// Add another page to nested quiz
 			const configWith2Pages = addPage({
 				config,
-				page: { id: "page-2", title: "Page 2" },
 				nestedQuizId: "nested-1",
 			});
 
+			// Get the actual page IDs after adding
+			if (configWith2Pages.type !== "container") {
+				throw new Error("Expected container quiz");
+			}
+			const nestedQuiz = configWith2Pages.nestedQuizzes[0]!;
+			const pageIds = nestedQuiz.pages.map((p) => p.id);
+			const reversedPageIds = [...pageIds].reverse();
+
 			const result = reorderPages({
 				config: configWith2Pages,
-				pageIds: ["page-2", "page-1"],
+				pageIds: reversedPageIds,
 				nestedQuizId: "nested-1",
 			});
 
 			expect(result.type).toBe("container");
 			if (result.type === "container") {
-				expect(result.nestedQuizzes[0]!.pages[0]!.id).toBe("page-2");
-				expect(result.nestedQuizzes[0]!.pages[1]!.id).toBe("page-1");
+				expect(result.nestedQuizzes[0]!.pages[0]!.id).toBe(reversedPageIds[0]!);
+				expect(result.nestedQuizzes[0]!.pages[1]!.id).toBe(reversedPageIds[1]!);
 			}
 		});
 
@@ -1284,16 +1220,21 @@ describe("Quiz Config Utility Functions", () => {
 	describe("moveQuestionToPage", () => {
 		test("moves question to different page in regular quiz", () => {
 			const config = createRegularQuiz();
-			// Add second page with a question
+			// Add second page
 			const configWith2Pages = addPage({
 				config,
-				page: { id: "page-2", title: "Page 2" },
 			});
+
+			// Get the actual page ID after adding
+			if (configWith2Pages.type !== "regular") {
+				throw new Error("Expected regular quiz");
+			}
+			const targetPageId = configWith2Pages.pages[1]!.id;
 
 			const result = moveQuestionToPage({
 				config: configWith2Pages,
 				questionId: "q1",
-				targetPageId: "page-2",
+				targetPageId,
 			});
 
 			expect(result.type).toBe("regular");
@@ -1309,31 +1250,37 @@ describe("Quiz Config Utility Functions", () => {
 			// Add second page with a question
 			let configWith2Pages = addPage({
 				config,
-				page: { id: "page-2", title: "Page 2" },
 			});
+
+			// Get the actual page ID after adding
+			if (configWith2Pages.type !== "regular") {
+				throw new Error("Expected regular quiz");
+			}
+			const targetPageId = configWith2Pages.pages[1]!.id;
+
 			configWith2Pages = addQuestion({
 				config: configWith2Pages,
-				pageId: "page-2",
-				question: {
-					id: "q2",
-					type: "short-answer",
-					prompt: "Question 2",
-					correctAnswer: "",
-					scoring: { type: "simple", points: 1 },
-				},
+				pageId: targetPageId,
+				questionType: "short-answer",
 			});
+
+			// Get the question ID that was just added
+			if (configWith2Pages.type !== "regular") {
+				throw new Error("Expected regular quiz");
+			}
+			const q2Id = configWith2Pages.pages[1]!.questions[0]!.id;
 
 			const result = moveQuestionToPage({
 				config: configWith2Pages,
 				questionId: "q1",
-				targetPageId: "page-2",
+				targetPageId,
 				position: 0,
 			});
 
 			expect(result.type).toBe("regular");
 			if (result.type === "regular") {
 				expect(result.pages[1]!.questions[0]!.id).toBe("q1");
-				expect(result.pages[1]!.questions[1]!.id).toBe("q2");
+				expect(result.pages[1]!.questions[1]!.id).toBe(q2Id);
 			}
 		});
 

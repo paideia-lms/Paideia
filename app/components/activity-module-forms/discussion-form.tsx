@@ -6,7 +6,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import type { DiscussionFormInitialValues as EditDiscussionFormInitialValues } from "app/routes/user/module/edit-setting";
+import type { DiscussionFormInitialValues as EditDiscussionFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { DiscussionFormInitialValues as NewDiscussionFormInitialValues } from "app/routes/user/module/new";
 import type { Simplify, UnionToIntersection } from "type-fest";
 import { FormableSimpleRichTextEditor } from "../form-components/formable-simple-rich-text-editor";

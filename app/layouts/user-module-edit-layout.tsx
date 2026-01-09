@@ -68,7 +68,7 @@ export default function UserModuleEditLayout({
 
 	// Determine current tab based on pageInfo
 	const getCurrentTab = () => {
-		if (pageInfo.is["routes/user/module/edit-setting"])
+		if (pageInfo.is["routes/user/module/edit-setting/route"])
 			return ModuleEditTab.Setting;
 		if (pageInfo.is["routes/user/module/edit-access"])
 			return ModuleEditTab.Access;
