@@ -41,7 +41,7 @@ const stopImpersonationAction = stopImpersonationRpc.createAction(
 				}) : pageInfo.is["layouts/course-layout"].params.moduleLinkId
 					? getRouteUrl("/course/module/:moduleLinkId", {
 						params: { moduleLinkId: pageInfo.is["layouts/course-layout"].params.moduleLinkId.toString() },
-						searchParams: { action: null, threadId: null },
+						searchParams: { view: null, threadId: null, replyTo: null, },
 					}) : pageInfo.is["layouts/course-layout"].params.sectionId
 						? getRouteUrl("/course/section/:sectionId", {
 							params: { sectionId: pageInfo.is["layouts/course-layout"].params.sectionId.toString() },

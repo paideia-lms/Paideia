@@ -129,22 +129,22 @@ export interface GetNextAttemptNumberArgs extends BaseInternalFunctionArgs {
 export interface MarkQuizAttemptAsCompleteArgs
 	extends BaseInternalFunctionArgs {
 	submissionId: number;
-	answers?: Array<{
-		questionId: string;
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-		selectedAnswer?: string;
-		multipleChoiceAnswers?: Array<{
-			option: string;
-			isSelected: boolean;
-		}>;
-	}>;
-	timeSpent?: number;
+	// answers?: Array<{
+	// 	questionId: string;
+	// 	questionText: string;
+	// 	questionType:
+	// 		| "multiple_choice"
+	// 		| "true_false"
+	// 		| "short_answer"
+	// 		| "essay"
+	// 		| "fill_blank";
+	// 	selectedAnswer?: string;
+	// 	multipleChoiceAnswers?: Array<{
+	// 		option: string;
+	// 		isSelected: boolean;
+	// 	}>;
+	// }>;
+	// timeSpent?: number;
 	/**
 	 * If true, bypasses the time limit check (useful for auto-submit)
 	 */
@@ -602,6 +602,8 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 
 /**
  * Creates a new quiz submission
+ *
+ * @deprecated this will be removed soon.
  */
 export function tryCreateQuizSubmission(args: CreateQuizSubmissionArgs) {
 	return Result.try(
@@ -915,27 +917,30 @@ export function tryMarkQuizAttemptAsComplete(
 			}
 
 			// Build update data
-			const updateData: Record<string, unknown> = {
-				status: "completed",
-				submittedAt: new Date().toISOString(),
-			};
+			// const updateData: Record<string, unknown> = {
+			// 	status: "completed",
+			// 	submittedAt: new Date().toISOString(),
+			// };
 
 			// Add answers if provided
-			if (args.answers !== undefined) {
-				updateData.answers = args.answers;
-			}
+			// if (args.answers !== undefined) {
+			// 	updateData.answers = args.answers;
+			// }
 
-			// Add timeSpent if provided
-			if (args.timeSpent !== undefined) {
-				updateData.timeSpent = args.timeSpent;
-			}
+			// // Add timeSpent if provided
+			// if (args.timeSpent !== undefined) {
+			// 	updateData.timeSpent = args.timeSpent;
+			// }
 
 			// Update status to completed
 			const updatedSubmission = await payload
 				.update({
 					collection: "quiz-submissions",
 					id: submissionId,
-					data: updateData,
+					data: {
+						status: "completed",
+						submittedAt: new Date().toISOString(),
+					},
 
 					req,
 					overrideAccess,

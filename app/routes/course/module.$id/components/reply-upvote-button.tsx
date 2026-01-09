@@ -6,33 +6,33 @@ import { useRemoveUpvoteReply, useUpvoteReply } from "../route";
 interface ReplyUpvoteButtonProps {
 	reply: DiscussionReply;
 	moduleLinkId: number;
-	threadId: string;
+	threadId: number;
 }
 
 export function ReplyUpvoteButton({
 	reply,
 	moduleLinkId,
-	threadId,
 }: ReplyUpvoteButtonProps) {
-	const { submit: upvoteReply } = useUpvoteReply();
-	const { submit: removeUpvoteReply } = useRemoveUpvoteReply();
+	const { submit: upvoteReply, isLoading: isUpvotingReply } = useUpvoteReply();
+	const { submit: removeUpvoteReply, isLoading: isRemovingUpvoteReply } = useRemoveUpvoteReply();
 
-	const handleUpvote = () => {
-		const submissionId = Number.parseInt(reply.id, 10);
-		if (Number.isNaN(submissionId)) return;
+	const handleUpvote = (e?: React.MouseEvent) => {
+		if (e) {
+			e.stopPropagation();
+		}
 
 		if (reply.isUpvoted) {
 			removeUpvoteReply({
 				params: { moduleLinkId },
 				values: {
-					submissionId,
+					submissionId: reply.id,
 				},
 			});
 		} else {
 			upvoteReply({
 				params: { moduleLinkId },
 				values: {
-					submissionId,
+					submissionId: reply.id,
 				},
 			});
 		}
@@ -45,6 +45,7 @@ export function ReplyUpvoteButton({
 				color={reply.isUpvoted ? "blue" : "gray"}
 				size="sm"
 				onClick={handleUpvote}
+				loading={isRemovingUpvoteReply || isUpvotingReply}
 			>
 				{reply.isUpvoted ? (
 					<IconArrowBigUpFilled size={16} />

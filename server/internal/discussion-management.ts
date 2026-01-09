@@ -360,7 +360,7 @@ export function tryGetDiscussionThreadsWithAllReplies(
 			}
 
 			// Get all threads for this course module link
-			const threadsResult = await tryListDiscussionSubmissions({
+			const threads = await tryListDiscussionSubmissions({
 				payload,
 				courseModuleLinkId,
 				postType: "thread",
@@ -369,13 +369,7 @@ export function tryGetDiscussionThreadsWithAllReplies(
 				page: 1,
 				req,
 				overrideAccess,
-			});
-
-			if (!threadsResult.ok) {
-				throw threadsResult.error;
-			}
-
-			const threads = threadsResult.value;
+			}).getOrThrow();
 
 			// Get all replies and comments for this course module link
 			const allRepliesAndCommentsResult = await payload
@@ -1161,7 +1155,7 @@ export function tryDeleteDiscussionSubmission(
 }
 
 export interface DiscussionReply {
-	id: string;
+	id: number;
 	content: string;
 	author: string;
 	authorAvatar: string;
@@ -1199,21 +1193,15 @@ export function tryGetDiscussionThreadWithReplies(
 
 			const user = req?.user;
 
-			const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
+			const threads = await tryGetDiscussionThreadsWithAllReplies({
 				payload,
 				courseModuleLinkId,
 				req,
 				overrideAccess,
-			});
-
-			if (!threadsResult.ok) {
-				throw threadsResult.error;
-			}
+			}).getOrThrow();
 
 			// Find the specific thread
-			const threadData = threadsResult.value.threads.find(
-				(t) => t.thread.id === threadId,
-			);
+			const threadData = threads.threads.find((t) => t.thread.id === threadId);
 
 			if (!threadData) {
 				throw new NonExistingActivityModuleError(
@@ -1235,9 +1223,16 @@ export function tryGetDiscussionThreadWithReplies(
 				: "U";
 
 			const isUpvoted =
-				thread.upvotes?.some((upvote) => {
-					return upvote.user === user?.id;
-				}) ?? false;
+				thread.upvotes?.some(
+					(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+						console.log(upvote);
+						const upvoteUser =
+							typeof upvote.user === "object" && upvote.user !== null
+								? upvote.user
+								: null;
+						return upvoteUser?.id === user?.id;
+					},
+				) ?? false;
 
 			// Transform nested replies into DiscussionReply format
 			const transformReply = (
@@ -1267,7 +1262,7 @@ export function tryGetDiscussionThreadWithReplies(
 					) ?? false;
 
 				return {
-					id: String(reply.id),
+					id: reply.id,
 					content: reply.content,
 					author: replyAuthorName,
 					authorAvatar: replyAuthorAvatar,
@@ -1288,7 +1283,7 @@ export function tryGetDiscussionThreadWithReplies(
 
 			return {
 				thread: {
-					id: String(thread.id),
+					id: thread.id,
 					title: thread.title || "",
 					content: thread.content,
 					author: authorName,

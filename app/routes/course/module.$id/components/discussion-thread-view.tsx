@@ -1,5 +1,4 @@
 import { Paper, Stack, Text, Title } from "@mantine/core";
-import { parseAsString, useQueryState } from "nuqs";
 import type {
 	DiscussionData,
 	DiscussionReply,
@@ -7,6 +6,8 @@ import type {
 } from "~/components/activity-modules-preview/discussion-preview";
 import { DiscussionThreadDetailView } from "./discussion-thread-detail-view";
 import { DiscussionThreadListView } from "./discussion-thread-list-view";
+import type { inferParserType } from "nuqs";
+import type { loaderSearchParams } from "../route";
 
 interface DiscussionThreadViewProps {
 	discussion: DiscussionData | null;
@@ -15,6 +16,9 @@ interface DiscussionThreadViewProps {
 	replies: DiscussionReply[];
 	moduleLinkId: number;
 	courseId: number;
+	view: inferParserType<typeof loaderSearchParams>["view"];
+	replyTo: inferParserType<typeof loaderSearchParams>["replyTo"];
+	sortBy: inferParserType<typeof loaderSearchParams>["sortBy"];
 }
 
 export function DiscussionThreadView({
@@ -24,18 +28,10 @@ export function DiscussionThreadView({
 	replies,
 	moduleLinkId,
 	courseId,
+	view,
+	replyTo,
+	sortBy,
 }: DiscussionThreadViewProps) {
-	const [threadId, setThreadId] = useQueryState(
-		"threadId",
-		parseAsString.withOptions({ shallow: false }),
-	);
-	const [, setReplyTo] = useQueryState("replyTo");
-
-	// Fallback: if threadId is set but thread is not provided, try to find it from threads list
-	const selectedThread =
-		thread ||
-		(threadId ? threads.find((t) => t.id === threadId) || null : null);
-
 	if (!discussion) {
 		return (
 			<Paper withBorder p="xl" radius="md">
@@ -48,19 +44,16 @@ export function DiscussionThreadView({
 	}
 
 	// Show thread detail view
-	if (threadId && selectedThread) {
+	if (thread) {
 		return (
 			<DiscussionThreadDetailView
-				thread={selectedThread}
+				thread={thread}
 				replies={replies}
 				discussion={discussion}
 				moduleLinkId={moduleLinkId}
-				threadId={threadId}
+				threadId={thread.id}
 				courseId={courseId}
-				onBack={() => {
-					setThreadId(null);
-					setReplyTo(null);
-				}}
+				replyTo={replyTo}
 			/>
 		);
 	}
@@ -72,7 +65,8 @@ export function DiscussionThreadView({
 			discussion={discussion}
 			moduleLinkId={moduleLinkId}
 			courseId={courseId}
-			onThreadClick={(id) => setThreadId(id)}
+			view={view}
+			sortBy={sortBy}
 		/>
 	);
 }

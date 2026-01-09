@@ -33,7 +33,7 @@ export interface BaseFormattedModuleSettings {
 export type FormattedModuleSettings = BaseFormattedModuleSettings | null;
 
 export interface DiscussionThread {
-	id: string;
+	id: number;
 	title: string;
 	content: string;
 	author: string;
@@ -511,7 +511,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 
 					return {
 						...threadData,
-						id: String(thread.id),
+						id: thread.id,
 						title: thread.title || "",
 						content: thread.content,
 						author: authorName,

@@ -3,38 +3,35 @@ import { IconArrowBigUp, IconArrowBigUpFilled } from "@tabler/icons-react";
 import type { DiscussionThread } from "~/components/activity-modules-preview/discussion-preview";
 import { useRemoveUpvoteThread, useUpvoteThread } from "../route";
 
-interface ThreadUpvoteButtonProps {
+interface ThreadUpvoteDownButtonProps {
 	thread: DiscussionThread;
 	moduleLinkId: number;
-	threadId?: string;
 }
 
-export function ThreadUpvoteButton({
+export function ThreadUpvoteDownVoteButton({
 	thread,
 	moduleLinkId,
-}: ThreadUpvoteButtonProps) {
-	const { submit: upvoteThread } = useUpvoteThread();
-	const { submit: removeUpvoteThread } = useRemoveUpvoteThread();
+}: ThreadUpvoteDownButtonProps) {
+	const { submit: upvoteThread, isLoading: isUpvotingThread } = useUpvoteThread();
+	const { submit: removeUpvoteThread, isLoading: isRemovingUpvoteThread } = useRemoveUpvoteThread();
 
 	const handleUpvote = (e?: React.MouseEvent) => {
 		if (e) {
 			e.stopPropagation();
 		}
-		const submissionId = Number.parseInt(thread.id, 10);
-		if (Number.isNaN(submissionId)) return;
 
 		if (thread.isUpvoted) {
 			removeUpvoteThread({
 				params: { moduleLinkId },
 				values: {
-					submissionId,
+					submissionId: thread.id,
 				},
 			});
 		} else {
 			upvoteThread({
 				params: { moduleLinkId },
 				values: {
-					submissionId,
+					submissionId: thread.id,
 				},
 			});
 		}
@@ -47,6 +44,7 @@ export function ThreadUpvoteButton({
 					variant={thread.isUpvoted ? "filled" : "subtle"}
 					color={thread.isUpvoted ? "blue" : "gray"}
 					onClick={handleUpvote}
+					loading={isRemovingUpvoteThread || isUpvotingThread}
 				>
 					{thread.isUpvoted ? (
 						<IconArrowBigUpFilled size={20} />

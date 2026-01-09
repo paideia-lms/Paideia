@@ -61,6 +61,7 @@ import { getRouteUrl } from "app/utils/search-params-utils";
 
 export type { Route }
 
+
 /**
  * Type-safe constants for module actions
  * These actions are used in query parameters to control UI state
@@ -88,17 +89,6 @@ export const QuizActions = {
 } as const;
 
 
-
-export const loaderSearchParams = {
-	action: parseAsStringEnum([
-		...Object.values(AssignmentActions),
-		...Object.values(DiscussionActions),
-		...Object.values(QuizActions),
-	]),
-	threadId: parseAsInteger,
-	showQuiz: parseAsBoolean.withDefault(false)
-};
-
 /**
  * Custom parser for replyTo parameter
  * Accepts either "thread" (string) or a number (comment/reply ID)
@@ -123,7 +113,20 @@ const parseAsReplyTo = createParser({
 		}
 		return "thread"; // fallback
 	},
-}).withDefault("thread");
+});
+
+export const loaderSearchParams = {
+	view: parseAsStringEnum([
+		...Object.values(AssignmentActions),
+		...Object.values(DiscussionActions),
+		...Object.values(QuizActions),
+	]),
+	threadId: parseAsInteger,
+	showQuiz: parseAsBoolean.withDefault(false),
+	replyTo: parseAsReplyTo,
+	sortBy: parseAsStringEnum(["recent", "upvoted", "active"]).withDefault("recent"),
+};
+
 
 const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
 
@@ -180,7 +183,7 @@ const createReplyRpc = createActionRpc({
 		/**
 		 * it is either "thread" or the comment id
 		 */
-		replyTo: parseAsReplyTo,
+		replyTo: parseAsReplyTo.withDefault("thread"),
 	},
 });
 
@@ -219,8 +222,8 @@ const removeUpvoteReplyRpc = createActionRpc({
 const markQuizAttemptAsCompleteRpc = createActionRpc({
 	formDataSchema: z.object({
 		submissionId: z.coerce.number(),
-		answers: z.string().nullish(),
-		timeSpent: z.string().nullish(),
+		// answers: z.string().nullish(),
+		// timeSpent: z.string().nullish(),
 	}),
 	method: "POST",
 	action: QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE,
@@ -559,48 +562,46 @@ const markQuizAttemptAsCompleteAction = markQuizAttemptAsCompleteRpc.createActio
 		}
 
 		// Parse answers if provided
-		let answers:
-			| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-			}>
-			| undefined;
+		// let answers:
+		// 	| Array<{
+		// 		questionId: string;
+		// 		questionText: string;
+		// 		questionType:
+		// 		| "multiple_choice"
+		// 		| "true_false"
+		// 		| "short_answer"
+		// 		| "essay"
+		// 		| "fill_blank";
+		// 		selectedAnswer?: string;
+		// 		multipleChoiceAnswers?: Array<{
+		// 			option: string;
+		// 			isSelected: boolean;
+		// 		}>;
+		// 	}>
+		// 	| undefined;
 
-		if (formData.answers) {
-			try {
-				answers = JSON.parse(formData.answers) as typeof answers;
-			} catch {
-				return badRequest({ error: "Invalid answers format" });
-			}
-		}
+		// if (formData.answers) {
+		// 	try {
+		// 		answers = JSON.parse(formData.answers) as typeof answers;
+		// 	} catch {
+		// 		return badRequest({ error: "Invalid answers format" });
+		// 	}
+		// }
 
 		// Parse timeSpent if provided
-		let timeSpent: number | undefined;
-		if (formData.timeSpent) {
-			const parsed = Number.parseFloat(formData.timeSpent);
-			if (!Number.isNaN(parsed)) {
-				timeSpent = parsed;
-			}
-		}
+		// let timeSpent: number | undefined;
+		// if (formData.timeSpent) {
+		// 	const parsed = Number.parseFloat(formData.timeSpent);
+		// 	if (!Number.isNaN(parsed)) {
+		// 		timeSpent = parsed;
+		// 	}
 
 		const submitResult = await tryMarkQuizAttemptAsComplete({
 			payload,
 			submissionId: formData.submissionId,
-			answers,
-			timeSpent,
+			// answers,
+			// timeSpent,
 			req: payloadRequest,
-			overrideAccess: false,
 		});
 
 		if (!submitResult.ok) {
@@ -611,7 +612,7 @@ const markQuizAttemptAsCompleteAction = markQuizAttemptAsCompleteRpc.createActio
 		return redirect(
 			getRouteUrl("/course/module/:moduleLinkId", {
 				params: { moduleLinkId: String(moduleLinkId) },
-				searchParams: { showQuiz: false, action: null, threadId: null, }
+				searchParams: { showQuiz: false, view: null, threadId: null, replyTo: null }
 			})
 		);
 	},
@@ -673,7 +674,7 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 			return redirect(
 				getRouteUrl("/course/module/:moduleLinkId", {
 					params: { moduleLinkId: String(moduleLinkId) },
-					searchParams: { showQuiz: true, action: null, threadId: null, }
+					searchParams: { showQuiz: true, view: null, threadId: null, replyTo: null }
 				})
 			);
 		}
@@ -710,7 +711,7 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 		return redirect(
 			getRouteUrl("/course/module/:moduleLinkId", {
 				params: { moduleLinkId: String(moduleLinkId) },
-				searchParams: { showQuiz: true, action: null, threadId: null, }
+				searchParams: { showQuiz: true, view: null, threadId: null, replyTo: null }
 			})
 		);
 	},
@@ -947,14 +948,13 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 	);
 }
 
+
 type QuizModuleViewProps = {
 	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
 	showQuiz: boolean;
 };
 
 function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
-	const { submit: startQuizAttempt, isLoading: isStartingQuiz } =
-		useStartQuizAttempt();
 	const {
 		submit: markQuizAttemptAsComplete,
 		isLoading: isMarkingQuizAttemptAsComplete,
@@ -1034,11 +1034,7 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 			<QuizInstructionsView
 				quiz={loaderData.quiz}
 				allSubmissions={allQuizSubmissionsForDisplay}
-				onStartQuiz={() => {
-					startQuizAttempt({
-						params: { moduleLinkId: loaderData.id },
-					});
-				}}
+				moduleLinkId={loaderData.id}
 				canStartAttempt={loaderData.permissions.quiz?.canStartAttempt.allowed ?? false}
 				quizRemainingTime={loaderData.quizRemainingTime}
 				canPreview={loaderData.permissions.quiz?.canPreview.allowed ?? false}
@@ -1067,72 +1063,9 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 	);
 }
 
-type DiscussionModuleViewProps = {
-	loaderData: Extract<
-		Route.ComponentProps["loaderData"],
-		{ type: "discussion" }
-	>;
-};
-
-function DiscussionModuleView({ loaderData }: DiscussionModuleViewProps) {
-	return (
-		<>
-			<ModuleDatesInfo settings={loaderData.settings} />
-			<DiscussionThreadView
-				discussion={loaderData.discussion || null}
-				threads={loaderData.threads}
-				thread={loaderData.thread ?? null}
-				replies={loaderData.replies ?? []}
-				moduleLinkId={Number(loaderData.moduleLinkId)}
-				courseId={loaderData.course.id}
-			/>
-		</>
-	);
-}
-
-type FileModuleViewProps = {
-	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "file" }>;
-};
-
-function FileModuleView({ loaderData }: FileModuleViewProps) {
-	return (
-		<>
-			<ModuleDatesInfo settings={loaderData.settings} />
-			<FilePreview files={loaderData.activityModule.media || []} />
-		</>
-	);
-}
-
-type PageModuleViewProps = {
-	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "page" }>;
-};
-
-function PageModuleView({ loaderData }: PageModuleViewProps) {
-	const content = loaderData.activityModule.content;
-	return (
-		<>
-			<ModuleDatesInfo settings={loaderData.settings} />
-			<PagePreview content={content || "<p>No content available</p>"} />
-		</>
-	);
-}
-
-type WhiteboardModuleViewProps = {
-	loaderData: Extract<
-		Route.ComponentProps["loaderData"],
-		{ type: "whiteboard" }
-	>;
-};
 
 
-function WhiteboardModuleView({ loaderData }: WhiteboardModuleViewProps) {
-	return (
-		<>
-			<ModuleDatesInfo settings={loaderData.settings} />
-			<WhiteboardPreview content={loaderData.activityModule.content ?? ""} />
-		</>
-	);
-}
+
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	const {
@@ -1160,17 +1093,46 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 
 			<Stack gap="xl">
 				{loaderData.type === "assignment" ? (
-					<AssignmentModuleView loaderData={loaderData} />
+					<>
+						<ModuleDatesInfo settings={loaderData.settings} />
+						<AssignmentPreview
+							assignment={loaderData.assignment}
+							submission={loaderData.assignmentSubmission}
+							allSubmissions={loaderData.allSubmissionsForDisplay}
+						/>
+					</>
 				) : loaderData.type === "quiz" ? (
 					<QuizModuleView loaderData={loaderData} showQuiz={loaderData.searchParams.showQuiz} />
 				) : loaderData.type === "discussion" ? (
-					<DiscussionModuleView loaderData={loaderData} />
+					<>
+						<ModuleDatesInfo settings={loaderData.settings} />
+						<DiscussionThreadView
+							discussion={loaderData.discussion || null}
+							threads={loaderData.threads}
+							thread={loaderData.thread ?? null}
+							replies={loaderData.replies ?? []}
+							moduleLinkId={Number(loaderData.moduleLinkId)}
+							courseId={loaderData.course.id}
+							view={loaderData.searchParams.view}
+							replyTo={loaderData.searchParams.replyTo}
+							sortBy={loaderData.searchParams.sortBy}
+						/>
+					</>
 				) : loaderData.type === "file" ? (
-					<FileModuleView loaderData={loaderData} />
+					<>
+						<ModuleDatesInfo settings={loaderData.settings} />
+						<FilePreview files={loaderData.activityModule.media || []} />
+					</>
 				) : loaderData.type === "page" ? (
-					<PageModuleView loaderData={loaderData} />
+					<>
+						<ModuleDatesInfo settings={loaderData.settings} />
+						<PagePreview content={loaderData.activityModule.content ?? "<p>No content available</p>"} />
+					</>
 				) : loaderData.type === "whiteboard" ? (
-					<WhiteboardModuleView loaderData={loaderData} />
+					<>
+						<ModuleDatesInfo settings={loaderData.settings} />
+						<WhiteboardPreview content={loaderData.activityModule.content ?? ""} />
+					</>
 				) : null}
 
 				<PreviousNextNavigation

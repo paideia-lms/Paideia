@@ -19,7 +19,6 @@ export function CreateThreadFormWrapper({
 	return (
 		<CreateThreadForm
 			onSubmit={(title, content) => {
-				console.log("Creating thread", title, content);
 				createThread({
 					params: { moduleLinkId },
 					values: {
