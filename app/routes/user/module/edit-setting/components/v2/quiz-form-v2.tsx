@@ -1,7 +1,6 @@
 import { Stack } from "@mantine/core";
 import type { Route } from "../../+types/route";
 import { ToggleQuizTypeForm } from "./toggle-quiz-type-form";
-import { QuizInfoForm } from "./quiz-info-form";
 import { GlobalTimerForm } from "./global-timer-form";
 import { GradingConfigForm } from "./grading-config-form";
 import { NestedQuizList } from "./nested-quiz-list";
@@ -18,7 +17,6 @@ interface QuizFormV2Props {
 
 export function QuizFormV2({ module }: QuizFormV2Props) {
     const rawQuizConfig = module.rawQuizConfig;
-    const quizType = rawQuizConfig?.type ?? "regular";
 
     return (
         <Stack gap="lg">
@@ -26,12 +24,7 @@ export function QuizFormV2({ module }: QuizFormV2Props) {
             <ModuleInfoForm module={module} />
 
             {/* Quiz Type Toggle */}
-            <ToggleQuizTypeForm moduleId={module.id} currentType={quizType} />
-
-            {/* Quiz Info */}
-            {rawQuizConfig && (
-                <QuizInfoForm moduleId={module.id} quizConfig={rawQuizConfig} />
-            )}
+            <ToggleQuizTypeForm moduleId={module.id} currentType={rawQuizConfig?.type ?? "regular"} />
 
             {/* Global Timer */}
             {rawQuizConfig && (
@@ -44,7 +37,7 @@ export function QuizFormV2({ module }: QuizFormV2Props) {
             )}
 
             {/* Regular Quiz: Pages and Resources */}
-            {rawQuizConfig && quizType === "regular" && (
+            {rawQuizConfig && rawQuizConfig.type === "regular" && (
                 <>
                     <ResourcesList
                         moduleId={module.id}
@@ -60,7 +53,7 @@ export function QuizFormV2({ module }: QuizFormV2Props) {
             )}
 
             {/* Container Quiz: Nested Quizzes */}
-            {rawQuizConfig && quizType === "container" && (
+            {rawQuizConfig && rawQuizConfig.type === "container" && (
                 <NestedQuizList moduleId={module.id} quizConfig={rawQuizConfig} />
             )}
         </Stack>

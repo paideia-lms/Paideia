@@ -1,43 +1,28 @@
-import { Button, Stack, TextInput, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { Button } from "@mantine/core";
 import {
 	useAddNestedQuiz,
 } from "app/routes/user/module/edit-setting/route";
-
-interface AddNestedQuizFormProps {
+import { IconPlus } from "@tabler/icons-react";
+interface AddNestedQuizButtonProps {
 	moduleId: number;
 }
 
-export function AddNestedQuizForm({
+export function AddNestedQuizButton({
 	moduleId,
-}: AddNestedQuizFormProps) {
+}: AddNestedQuizButtonProps) {
 	const { submit: addNestedQuiz, isLoading } = useAddNestedQuiz();
 
-	const form = useForm({
-		initialValues: {},
-	});
-
 	return (
-		<form
-			onSubmit={form.onSubmit(() => {
-				addNestedQuiz({
-					params: { moduleId },
-					values: {},
-				});
-				form.reset();
-			})}
+		<Button loading={isLoading} onClick={() => {
+			addNestedQuiz({
+				params: { moduleId },
+				values: {},
+			});
+		}}
+			leftSection={<IconPlus size={16} />}
+			variant="subtle"
 		>
-			<Stack gap="md">
-				<Title order={4}>Add Quiz</Title>
-				<TextInput
-					{...form.getInputProps("title")}
-					label="Quiz Title"
-					placeholder="e.g., Quiz 1"
-				/>
-				<Button type="submit" loading={isLoading}>
-					Add Quiz
-				</Button>
-			</Stack>
-		</form>
+			Add Quiz
+		</Button>
 	);
 }

@@ -4,6 +4,9 @@ import type {
 	LooseKeys,
 } from "node_modules/@mantine/form/lib/paths.types";
 import { useForceUpdate } from "@mantine/hooks";
+import { useEffect } from "react";
+import { keys } from "es-toolkit/compat";
+import { flattenObject } from "es-toolkit";
 
 /**
  * https://github.com/mantinedev/mantine/blob/master/packages/%40mantine/form/src/paths/get-splitted-path.ts
@@ -74,4 +77,22 @@ export function triggerFormUpdate<Values, T extends LooseKeys<Values>>(
 	// This function's purpose is to trigger re-render, not type checking
 	const value = getPath(path, form.getValues()) as any;
 	form.setFieldValue(path, value, { forceUpdate: true });
+}
+
+export function useFormWithSyncedInitialValues<
+	T extends Record<string, unknown>,
+>(form: UseFormReturnType<T>, initialValues: T) {
+	const flattenedInitialValues = flattenObject(initialValues);
+	const flattenedInitialValuesKeys = keys(flattenedInitialValues);
+	const flattenedInitialValuesDependencies = flattenedInitialValuesKeys.map(
+		(key) => flattenedInitialValues[key],
+	);
+
+	useEffect(() => {
+		form.setInitialValues(initialValues);
+		form.reset();
+		// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	}, flattenedInitialValuesDependencies);
+
+	return form;
 }

@@ -1,59 +1,32 @@
-import { Button, Stack, TextInput, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { Button } from "@mantine/core";
 import {
 	useAddQuizResource,
 } from "app/routes/user/module/edit-setting/route";
-import type { QuizResource } from "./types";
-
-interface AddQuizResourceFormProps {
+import { IconPlus } from "@tabler/icons-react";
+interface AddQuizResourceButtonProps {
 	moduleId: number;
 	nestedQuizId?: string;
 }
 
-export function AddQuizResourceForm({
+export function AddQuizResourceButton({
 	moduleId,
 	nestedQuizId,
-}: AddQuizResourceFormProps) {
+}: AddQuizResourceButtonProps) {
 	const { submit: addQuizResource, isLoading } = useAddQuizResource();
 
-	const form = useForm({
-		initialValues: {
-			title: "",
-			content: "",
-			pages: [] as string[],
-		},
-	});
-
 	return (
-		<form
-			onSubmit={form.onSubmit((values) => {
-				const newResource: QuizResource = {
-					id: `resource-${Date.now()}`,
-					title: values.title,
-					content: values.content,
-					pages: values.pages,
-				};
-				addQuizResource({
-					params: { moduleId },
-					values: {
-						resource: newResource,
-						nestedQuizId,
-					},
-				});
-				form.reset();
-			})}
+		<Button loading={isLoading} onClick={() => {
+			addQuizResource({
+				params: { moduleId },
+				values: {
+					nestedQuizId,
+				},
+			});
+		}}
+			leftSection={<IconPlus size={16} />}
+			variant="subtle"
 		>
-			<Stack gap="md">
-				<Title order={4}>Add Resource</Title>
-				<TextInput
-					{...form.getInputProps("title")}
-					label="Resource Title (optional)"
-					placeholder="e.g., Reference Material"
-				/>
-				<Button type="submit" loading={isLoading}>
-					Add Resource
-				</Button>
-			</Stack>
-		</form>
+			Add Resource
+		</Button>
 	);
 }

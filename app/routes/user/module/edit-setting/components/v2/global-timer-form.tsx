@@ -4,6 +4,7 @@ import {
 	useUpdateGlobalTimer,
 } from "app/routes/user/module/edit-setting/route";
 import type { QuizConfig } from "./types";
+import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
 interface GlobalTimerFormProps {
 	moduleId: number;
@@ -16,11 +17,15 @@ export function GlobalTimerForm({
 }: GlobalTimerFormProps) {
 	const { submit: updateGlobalTimer, isLoading } = useUpdateGlobalTimer();
 
+	const initialValues = {
+		seconds: quizConfig.globalTimer ?? undefined,
+	};
+
 	const form = useForm({
-		initialValues: {
-			seconds: quizConfig.globalTimer ?? undefined,
-		},
+		initialValues,
 	});
+
+	useFormWithSyncedInitialValues(form, initialValues);
 
 	return (
 		<form
@@ -39,7 +44,7 @@ export function GlobalTimerForm({
 					description="Timer for the entire quiz (optional)"
 					min={0}
 				/>
-				<Button type="submit" loading={isLoading}>
+				<Button type="submit" loading={isLoading} disabled={!form.isDirty()}>
 					Save Global Timer
 				</Button>
 			</Stack>

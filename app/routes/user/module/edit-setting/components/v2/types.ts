@@ -7,8 +7,8 @@ type QuizModule = Extract<
 
 export type QuizConfig = NonNullable<QuizModule["rawQuizConfig"]>;
 
-type RegularQuizConfig = Extract<QuizConfig, { type: "regular" }>;
-type ContainerQuizConfig = Extract<QuizConfig, { type: "container" }>;
+export type RegularQuizConfig = Extract<QuizConfig, { type: "regular" }>;
+export type ContainerQuizConfig = Extract<QuizConfig, { type: "container" }>;
 
 export type QuizPage = RegularQuizConfig["pages"][number];
 

@@ -1,26 +1,70 @@
-import { Button, Checkbox, Group, Paper, Stack, Tabs, Title } from "@mantine/core";
+import {
+	Button,
+	Checkbox,
+	Group,
+	Paper,
+	Stack,
+	Tabs,
+	Title,
+} from "@mantine/core";
 import { useState } from "react";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateContainerSettings,
-} from "app/routes/user/module/edit-setting/route";
-import type { QuizConfig } from "./types";
+import { useUpdateContainerSettings } from "app/routes/user/module/edit-setting/route";
+import type { ContainerQuizConfig } from "./types";
 import { NestedQuizForm } from "./nested-quiz-form";
-import { AddNestedQuizForm } from "./add-nested-quiz-form";
+import { AddNestedQuizButton } from "./add-nested-quiz-form";
 import { RemoveNestedQuizButton } from "./remove-nested-quiz-button";
+import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+
+interface ContainerSettingsFormProps {
+	moduleId: number;
+	quizConfig: ContainerQuizConfig;
+}
 
 interface NestedQuizListProps {
 	moduleId: number;
-	quizConfig: QuizConfig;
+	quizConfig: ContainerQuizConfig;
 }
 
-export function NestedQuizList({
+function ContainerSettingsForm({
 	moduleId,
 	quizConfig,
-}: NestedQuizListProps) {
+}: ContainerSettingsFormProps) {
 	const { submit: updateContainerSettings, isLoading: isUpdatingSettings } =
 		useUpdateContainerSettings();
+	const initialValues = {
+		sequentialOrder: quizConfig.sequentialOrder ?? false,
+	};
+	const form = useForm({
+		initialValues,
+	});
 
+	useFormWithSyncedInitialValues(form, initialValues);
+
+	return (
+		<form
+			onSubmit={form.onSubmit(async (values) => {
+				await updateContainerSettings({
+					params: { moduleId },
+					values: { settings: { sequentialOrder: values.sequentialOrder } },
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Checkbox
+					{...form.getInputProps("sequentialOrder", { type: "checkbox" })}
+					label="Sequential Order (Quizzes must be completed in order)"
+				/>
+
+				<Button type="submit" loading={isUpdatingSettings} disabled={!form.isDirty()}>
+					Save Container Settings
+				</Button>
+			</Stack>
+		</form>
+	);
+}
+
+export function NestedQuizList({ moduleId, quizConfig }: NestedQuizListProps) {
 	// All hooks must be called before any early returns
 	const nestedQuizzes =
 		quizConfig.type === "container" ? quizConfig.nestedQuizzes : [];
@@ -32,50 +76,17 @@ export function NestedQuizList({
 			: null;
 	const [activeTab, setActiveTab] = useState<string | null>(lastQuizId);
 
-	const settingsForm = useForm({
-		initialValues: {
-			sequentialOrder:
-				quizConfig.type === "container"
-					? quizConfig.sequentialOrder ?? false
-					: false,
-		},
-	});
-
 	if (quizConfig.type !== "container") {
 		return null;
 	}
 
 	return (
 		<Stack gap="md">
-			<Title order={4}>Nested Quizzes</Title>
-
-			<AddNestedQuizForm moduleId={moduleId} />
-
+			<Title order={4}>
+				Nested Quizzes <AddNestedQuizButton moduleId={moduleId} />
+			</Title>
 			{/* Container Settings */}
-			<Paper withBorder p="md" radius="md">
-				<form
-					onSubmit={settingsForm.onSubmit((values) => {
-						updateContainerSettings({
-							params: { moduleId },
-							values: {
-								settings: { sequentialOrder: values.sequentialOrder },
-							},
-						});
-					})}
-				>
-					<Stack gap="md">
-						<Checkbox
-							{...settingsForm.getInputProps("sequentialOrder", {
-								type: "checkbox",
-							})}
-							label="Sequential Order (Quizzes must be completed in order)"
-						/>
-						<Button type="submit" loading={isUpdatingSettings}>
-							Save Container Settings
-						</Button>
-					</Stack>
-				</form>
-			</Paper>
+			<ContainerSettingsForm moduleId={moduleId} quizConfig={quizConfig} />
 
 			{nestedQuizzes.length === 0 ? (
 				<Paper withBorder p="xl" radius="md">

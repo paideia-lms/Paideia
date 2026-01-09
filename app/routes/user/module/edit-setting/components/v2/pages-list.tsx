@@ -18,9 +18,8 @@ import {
 import { Group, Paper, Stack, Title } from "@mantine/core";
 import { useReorderPages } from "app/routes/user/module/edit-setting/route";
 import { useEffect, useState } from "react";
-import { AddPageForm } from "./add-page-form";
+import { AddPageButton } from "./add-page-form";
 import { PageForm } from "./page-form";
-import { RemovePageButton } from "./remove-page-button";
 import { SortableItem } from "./sortable-item";
 import type { QuizConfig, QuizPage } from "./types";
 
@@ -96,9 +95,9 @@ export function PagesList({
     return (
 
         <Stack gap="md">
-            <Title order={4}>Pages</Title>
-
-            <AddPageForm moduleId={moduleId} nestedQuizId={nestedQuizId} />
+            <Title order={4}>Pages
+                <AddPageButton moduleId={moduleId} nestedQuizId={nestedQuizId} />
+            </Title>
 
             {orderedPages.length === 0 ? (
                 <Paper withBorder p="xl" radius="md">
@@ -126,6 +125,7 @@ export function PagesList({
                                         page={page}
                                         pageIndex={index}
                                         quizConfig={quizConfig}
+                                        totalPages={orderedPages.length}
                                         nestedQuizId={nestedQuizId}
                                     />
 

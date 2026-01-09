@@ -1,49 +1,34 @@
-import { Button, Stack, TextInput, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { Button } from "@mantine/core";
 import {
 	useAddPage,
 } from "app/routes/user/module/edit-setting/route";
+import { IconPlus } from "@tabler/icons-react";
 
-interface AddPageFormProps {
+interface AddPageButtonProps {
 	moduleId: number;
 	nestedQuizId?: string;
 }
 
-export function AddPageForm({
+export function AddPageButton({
 	moduleId,
 	nestedQuizId,
-}: AddPageFormProps) {
+}: AddPageButtonProps) {
 	const { submit: addPage, isLoading } = useAddPage();
 
-	const form = useForm({
-		initialValues: {
-			title: "",
-		},
-	});
-
 	return (
-		<form
-			onSubmit={form.onSubmit(() => {
-				addPage({
-					params: { moduleId },
-					values: {
-						nestedQuizId,
-					},
-				});
-				form.reset();
-			})}
+
+		<Button loading={isLoading} onClick={() => {
+			addPage({
+				params: { moduleId },
+				values: {
+					nestedQuizId,
+				},
+			});
+		}}
+			leftSection={<IconPlus size={16} />}
+			variant="subtle"
 		>
-			<Stack gap="md">
-				<Title order={4}>Add Page</Title>
-				<TextInput
-					{...form.getInputProps("title")}
-					label="Page Title"
-					placeholder="e.g., Page 1"
-				/>
-				<Button type="submit" loading={isLoading}>
-					Add Page
-				</Button>
-			</Stack>
-		</form>
+			Add Page
+		</Button>
 	);
 }

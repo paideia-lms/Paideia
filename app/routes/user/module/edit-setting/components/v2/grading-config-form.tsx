@@ -4,6 +4,7 @@ import {
 	useUpdateGradingConfig,
 } from "app/routes/user/module/edit-setting/route";
 import type { QuizConfig } from "./types";
+import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
 interface GradingConfigFormProps {
 	moduleId: number;
@@ -18,14 +19,18 @@ export function GradingConfigForm({
 
 	const grading = quizConfig.grading ?? { enabled: false };
 
+	const initialValues = {
+		enabled: grading.enabled ?? false,
+		passingScore: grading.passingScore ?? undefined,
+		showScoreToStudent: grading.showScoreToStudent ?? false,
+		showCorrectAnswers: grading.showCorrectAnswers ?? false,
+	};
+
 	const form = useForm({
-		initialValues: {
-			enabled: grading.enabled ?? false,
-			passingScore: grading.passingScore ?? undefined,
-			showScoreToStudent: grading.showScoreToStudent ?? false,
-			showCorrectAnswers: grading.showCorrectAnswers ?? false,
-		},
+		initialValues,
 	});
+
+	useFormWithSyncedInitialValues(form, initialValues);
 
 	return (
 		<form
@@ -72,7 +77,7 @@ export function GradingConfigForm({
 						/>
 					</>
 				)}
-				<Button type="submit" loading={isLoading}>
+				<Button type="submit" loading={isLoading} disabled={!form.isDirty()}>
 					Save Grading Configuration
 				</Button>
 			</Stack>

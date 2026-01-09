@@ -61,7 +61,6 @@ import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
-import { QuizForm } from "app/routes/user/module/edit-setting/components/quiz-form";
 import { QuizFormV2 } from "app/routes/user/module/edit-setting/components/v2/quiz-form-v2";
 import { WhiteboardForm } from "~/components/activity-module-forms/whiteboard-form";
 import { AssignmentForm } from "~/components/activity-module-forms/assignment-form";
@@ -200,33 +199,12 @@ const createUpdateAssignmentActionRpc = createActionRpc({
 	action: Action.UpdateAssignment,
 });
 
-/** 
- * @deprecated use the broken down specific update functions 
- * - updateQuizInfo
- * - updateQuizResource
- * - updateQuestion
- * - updateQuestionScoring
- * - updateNestedQuizInfo
- * - updateNestedQuizTimer
- * - updateContainerSettings
- * - updateGlobalTimer
- * - updateGradingConfig
- * - updatePageInfo
- * - reorderPages
- * - moveQuestionToPage
- * - reorderNestedQuizzes
- * - addNestedQuiz
- * - removeNestedQuiz
- * - addPage
- * - removePage
- * ...
- */
+
 const createUpdateQuizActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
 		quizInstructions: z.string().optional(),
-		rawQuizConfig: z.custom<QuizConfig>().optional(),
 	}),
 	method: "POST",
 	action: Action.UpdateQuiz,
@@ -280,12 +258,6 @@ const createUpdateGradingConfigActionRpc = createActionRpc({
 });
 const createAddQuizResourceActionRpc = createActionRpc({
 	formDataSchema: z.object({
-		resource: z.object({
-			id: z.string(),
-			title: z.string().optional(),
-			content: z.string(),
-			pages: z.array(z.string()),
-		}),
 		nestedQuizId: z.string().optional(),
 	}),
 	method: "POST",
@@ -745,9 +717,7 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 
 const useUpdateAssignment = createUpdateAssignmentActionRpc.createHook<typeof updateAssignmentAction>();
 
-/**
- * @deprecated we should not use a general update quiz module function, instead use the specific update quiz module functions
- */
+
 const updateQuizAction = createUpdateQuizActionRpc.createAction(
 	async ({ context, params, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
@@ -758,9 +728,7 @@ const updateQuizAction = createUpdateQuizActionRpc.createAction(
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.quizInstructions,
-			rawQuizConfig: formData.rawQuizConfig,
 			req: payloadRequest,
-			overrideAccess: false,
 		});
 
 		if (!updateResult.ok) {
@@ -928,7 +896,12 @@ const addQuizResourceAction = createAddQuizResourceActionRpc.createAction(
 		const result = await tryAddQuizResource({
 			payload,
 			activityModuleId: params.moduleId,
-			resource: formData.resource,
+			resource: {
+				id: `resource-${Date.now()}`,
+				title: "",
+				content: "",
+				pages: [],
+			},
 			nestedQuizId: formData.nestedQuizId,
 			req: payloadRequest,
 		});
@@ -1283,32 +1256,6 @@ const updateContainerSettingsAction = createUpdateContainerSettingsActionRpc.cre
 
 const useUpdateContainerSettings = createUpdateContainerSettingsActionRpc.createHook<typeof updateContainerSettingsAction>();
 
-const updateQuizInfoAction = createUpdateQuizInfoActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		const result = await tryUpdateQuizInfo({
-			payload,
-			activityModuleId: params.moduleId,
-			updates: formData.updates,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
-			});
-		}
-
-		return ok({
-			success: true,
-			message: "Quiz info updated successfully",
-		});
-	},
-);
-
-const useUpdateQuizInfo = createUpdateQuizInfoActionRpc.createHook<typeof updateQuizInfoAction>();
 
 const updatePageInfoAction = createUpdatePageInfoActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1792,7 +1739,6 @@ const [action] = createActionMap({
 	[Action.UpdateNestedQuizInfo]: updateNestedQuizInfoAction,
 	[Action.ReorderNestedQuizzes]: reorderNestedQuizzesAction,
 	[Action.UpdateContainerSettings]: updateContainerSettingsAction,
-	[Action.UpdateQuizInfo]: updateQuizInfoAction,
 	[Action.UpdatePageInfo]: updatePageInfoAction,
 	[Action.ReorderPages]: reorderPagesAction,
 	[Action.MoveQuestionToPage]: moveQuestionToPageAction,
@@ -1836,7 +1782,6 @@ export {
 	useUpdateNestedQuizInfo,
 	useReorderNestedQuizzes,
 	useUpdateContainerSettings,
-	useUpdateQuizInfo,
 	useUpdatePageInfo,
 	useReorderPages,
 	useMoveQuestionToPage,
@@ -2067,64 +2012,8 @@ function AssignmentFormWrapper({
 	);
 }
 
-function getQuizFormInitialValues(
-	module: Extract<
-		Route.ComponentProps["loaderData"]["module"],
-		{ type: "quiz" }
-	>,
-) {
-	return {
-		title: module.title,
-		description: module.description || "",
-		quizInstructions: module.instructions || "",
-		rawQuizConfig: (module.rawQuizConfig as QuizConfig | null) ?? null,
-	};
-}
 
-export type QuizFormInitialValues = ReturnType<typeof getQuizFormInitialValues>;
 
-function QuizFormWrapper({
-	module,
-}: {
-	module: Extract<
-		Route.ComponentProps["loaderData"]["module"],
-		{ type: "quiz" }
-	>;
-}) {
-	const [useV2UI, setUseV2UI] = useState(true);
-	const { submit: updateQuiz, isLoading } = useUpdateQuiz();
-	const initialValues = getQuizFormInitialValues(module);
-
-	return (
-		<Stack gap="md">
-			<Switch
-				label="Use V2 UI (Smaller Forms)"
-				checked={useV2UI}
-				onChange={(e) => setUseV2UI(e.currentTarget.checked)}
-			/>
-			{useV2UI ? (
-				<QuizFormV2 module={module} />
-			) : (
-				<QuizForm
-					initialValues={initialValues}
-					onSubmit={(values) =>
-						updateQuiz({
-							params: { moduleId: module.id },
-							values: {
-								title: values.title,
-								description: values.description,
-								quizInstructions: values.quizInstructions,
-								rawQuizConfig:
-									values.rawQuizConfig === null ? undefined : values.rawQuizConfig,
-							},
-						})
-					}
-					isLoading={isLoading}
-				/>
-			)}
-		</Stack>
-	);
-}
 
 function getDiscussionFormInitialValues(
 	module: Extract<
@@ -2229,7 +2118,7 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 						{module.type === "assignment" && (
 							<AssignmentFormWrapper module={module} />
 						)}
-						{module.type === "quiz" && <QuizFormWrapper module={module} />}
+						{module.type === "quiz" && <QuizFormV2 module={module} />}
 						{module.type === "discussion" && (
 							<DiscussionFormWrapper module={module} />
 						)}

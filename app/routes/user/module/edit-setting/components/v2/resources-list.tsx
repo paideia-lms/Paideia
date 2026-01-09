@@ -1,6 +1,6 @@
 import { Paper, Stack, Title } from "@mantine/core";
 import type { QuizConfig, QuizPage } from "./types";
-import { AddQuizResourceForm } from "./add-quiz-resource-form";
+import { AddQuizResourceButton } from "./add-quiz-resource-form";
 import { UpdateQuizResourceForm } from "./update-quiz-resource-form";
 import { Group } from "@mantine/core";
 
@@ -32,9 +32,11 @@ export function ResourcesList({
     return (
 
         <Stack gap="md">
-            <Title order={4}>Resources</Title>
+            <Title order={4}>Resources
+                <AddQuizResourceButton moduleId={moduleId} nestedQuizId={nestedQuizId} />
+            </Title>
 
-            <AddQuizResourceForm moduleId={moduleId} nestedQuizId={nestedQuizId} />
+
 
             {resources.length === 0 ? (
                 <Paper withBorder p="xl" radius="md">

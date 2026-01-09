@@ -9,6 +9,7 @@ interface PageFormProps {
 	page: QuizPage;
 	pageIndex: number;
 	quizConfig: QuizConfig;
+	totalPages: number;
 	nestedQuizId?: string;
 }
 
@@ -18,7 +19,9 @@ export function PageForm({
 	pageIndex,
 	quizConfig,
 	nestedQuizId,
+	totalPages,
 }: PageFormProps) {
+
 	return (
 		<Stack gap="md">
 			<Title order={5}>Page {pageIndex + 1}
@@ -27,7 +30,7 @@ export function PageForm({
 					moduleId={moduleId}
 					pageId={page.id}
 					nestedQuizId={nestedQuizId}
-					disabled={quizConfig.pages.length <= 1}
+					disabled={totalPages <= 1}
 				/>
 			</Title>
 

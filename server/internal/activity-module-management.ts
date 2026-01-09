@@ -116,7 +116,6 @@ export interface UpdateAssignmentModuleArgs
 export interface UpdateQuizModuleArgs extends BaseUpdateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
-	rawQuizConfig?: LatestQuizConfig;
 }
 
 export interface UpdateDiscussionModuleArgs
@@ -2047,7 +2046,6 @@ export function tryUpdateAssignmentModule(args: UpdateAssignmentModuleArgs) {
 
 /**
  * Updates a quiz activity module
- * @deprecated we should not use a general update quiz module function, instead use the specific update quiz module functions
  */
 export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 	return Result.try(
@@ -2060,7 +2058,6 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 				req,
 				overrideAccess = false,
 				instructions,
-				rawQuizConfig,
 			} = args;
 
 			// Get the existing activity module to check its current type
@@ -2107,9 +2104,6 @@ export function tryUpdateQuizModule(args: UpdateQuizModuleArgs) {
 							title: title ?? undefined,
 							description: description ?? undefined,
 							instructions: instructions,
-							rawQuizConfig: rawQuizConfig as unknown as {
-								[x: string]: unknown;
-							},
 						},
 						req: reqWithTransaction,
 						overrideAccess,

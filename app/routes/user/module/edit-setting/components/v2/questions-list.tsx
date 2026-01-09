@@ -2,6 +2,7 @@ import {
     closestCenter,
     DndContext,
     type DragEndEvent,
+    type DragStartEvent,
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
@@ -14,7 +15,15 @@ import {
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Group, Paper, Stack, Title } from "@mantine/core";
+import {
+    ActionIcon,
+    Collapse,
+    Group,
+    Paper,
+    Stack,
+    Title,
+} from "@mantine/core";
+import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { useMoveQuestionToPage } from "app/routes/user/module/edit-setting/route";
 import { useEffect, useState } from "react";
 import { AddQuestionForm } from "./add-question-form";
@@ -36,12 +45,13 @@ export function QuestionsList({
     quizConfig,
     nestedQuizId,
 }: QuestionsListProps) {
-    const { submit: moveQuestion, isLoading: isMoving } = useMoveQuestionToPage();
+    const { submit: moveQuestion } = useMoveQuestionToPage();
     const questions = page.questions || [];
 
     // Local state for optimistic updates
     const [orderedQuestions, setOrderedQuestions] = useState(questions);
     const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+    const [isExpanded, setIsExpanded] = useState(true);
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveQuestionId(event.active.id as string);
@@ -86,52 +96,68 @@ export function QuestionsList({
     };
 
     return (
-        <Paper withBorder p="md" radius="md">
-            <Stack gap="md">
-                <Title order={5}>Questions</Title>
+        <Stack gap="md">
 
-                <AddQuestionForm
-                    moduleId={moduleId}
-                    pageId={page.id}
-                    nestedQuizId={nestedQuizId}
-                />
+            <Title order={5}>Questions
 
-                {orderedQuestions.length === 0 ? (
-                    <Paper withBorder p="xl" radius="md">
-                        <p>No questions yet. Add a question above.</p>
-                    </Paper>
-                ) : (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                        onDragStart={handleDragStart}
-                        onDragCancel={handleDragCancel}
-                    >
-                        <SortableContext
-                            items={orderedQuestions.map((q) => q.id)}
-                            strategy={verticalListSortingStrategy}
+                <ActionIcon
+                    variant="subtle"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
+                    {isExpanded ? (
+                        <IconChevronUp size={16} />
+                    ) : (
+                        <IconChevronDown size={16} />
+                    )}
+                </ActionIcon>
+            </Title>
+
+
+            <Collapse in={isExpanded}>
+                <Stack gap="md">
+                    <AddQuestionForm
+                        moduleId={moduleId}
+                        pageId={page.id}
+                        nestedQuizId={nestedQuizId}
+                    />
+
+                    {orderedQuestions.length === 0 ? (
+                        <Paper withBorder p="xl" radius="md">
+                            <p>No questions yet. Add a question above.</p>
+                        </Paper>
+                    ) : (
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                            onDragStart={handleDragStart}
+                            onDragCancel={handleDragCancel}
                         >
-                            <Stack gap="md">
-                                {orderedQuestions.map((question, index) => (
-                                    <SortableItem key={question.id} id={question.id}>
-                                        <QuestionForm
-                                            moduleId={moduleId}
-                                            question={question}
-                                            questionIndex={index}
-                                            quizConfig={quizConfig}
-                                            nestedQuizId={nestedQuizId}
-                                        />
-                                    </SortableItem>
-                                ))}
-                            </Stack>
-                            <DragOverlay>
-                                {activeQuestionId && <div>Dragging: {activeQuestionId}</div>}
-                            </DragOverlay>
-                        </SortableContext>
-                    </DndContext>
-                )}
-            </Stack>
-        </Paper>
+                            <SortableContext
+                                items={orderedQuestions.map((q) => q.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <Stack gap="md">
+                                    {orderedQuestions.map((question, index) => (
+                                        <SortableItem key={question.id} id={question.id}>
+                                            <QuestionForm
+                                                moduleId={moduleId}
+                                                question={question}
+                                                questionIndex={index}
+                                                quizConfig={quizConfig}
+                                                nestedQuizId={nestedQuizId}
+                                            />
+                                        </SortableItem>
+                                    ))}
+                                </Stack>
+                                <DragOverlay>
+                                    {activeQuestionId && <div>Dragging: {activeQuestionId}</div>}
+                                </DragOverlay>
+                            </SortableContext>
+                        </DndContext>
+                    )}
+                </Stack>
+            </Collapse>
+        </Stack>
     );
 }
