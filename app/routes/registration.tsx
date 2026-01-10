@@ -34,13 +34,14 @@ import {
 import type { Route } from "./+types/registration";
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload, envVars } = context.get(globalContextKey);
+	const { payload, envVars, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	const userCount = await tryGetUserCount({
 		payload,
 		// ! this is a system request, we don't care about access control
 		overrideAccess: true,
+		req: payloadRequest,
 	}).getOrElse(() => {
 		throw new InternalServerErrorResponse("Failed to get user count");
 	});
@@ -59,13 +60,12 @@ export async function loader({ context }: Route.LoaderArgs) {
 		payload,
 		// ! this is a system request, we don't care about access control
 		overrideAccess: true,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to get registration settings");
 	});
 
-	if (!settingsResult.ok) {
-		throw new ForbiddenResponse("Failed to get registration settings");
-	}
-
-	const registrationDisabled = settingsResult.value.disableRegistration;
+	const registrationDisabled = settingsResult.disableRegistration;
 
 	// console.log("registrationDisabled", registrationDisabled);
 
@@ -98,13 +98,14 @@ const registerRpc = createActionRpc({
 
 const registerAction = registerRpc.createAction(
 	async ({ context, formData, request }) => {
-		const { payload, requestInfo, envVars } = context.get(globalContextKey);
+		const { payload, requestInfo, envVars, payloadRequest } = context.get(globalContextKey);
 
 		// Determine if first user
 		const userCountResult = await tryGetUserCount({
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+			req: payloadRequest,
 		});
 		if (!userCountResult.ok) {
 			return badRequest({
@@ -121,6 +122,7 @@ const registerAction = registerRpc.createAction(
 			payload,
 			// ! this has override access because it is a system request, we don't care about access control
 			overrideAccess: true,
+			req: payloadRequest,
 		});
 		if (
 			settingsResult.ok &&
@@ -143,6 +145,7 @@ const registerAction = registerRpc.createAction(
 				lastName: formData.lastName,
 				// ! this is a system request, we don't care about access control
 				overrideAccess: true,
+				req: payloadRequest,
 			});
 
 			if (!result.ok) {
@@ -175,6 +178,7 @@ const registerAction = registerRpc.createAction(
 			role: registrationRole,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+			req: payloadRequest,
 		});
 
 		if (!result.ok) {

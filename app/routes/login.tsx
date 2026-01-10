@@ -11,7 +11,7 @@ import {
 } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, Link, redirect } from "react-router";
+import { Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
@@ -23,15 +23,17 @@ import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import { badRequest, InternalServerErrorResponse } from "~/utils/responses";
 import type { Route } from "./+types/login";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
+	const { payloadRequest } = context.get(globalContextKey);
 	// Mock loader - just return some basic data
 	const userSession = context.get(userContextKey);
 
 	if (userSession?.isAuthenticated) {
-		return redirect(href("/"));
+		return redirect(getRouteUrl("/", {}));
 	}
 
 	const { payload } = context.get(globalContextKey);
@@ -41,6 +43,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 			payload,
 			// ! this is a system request, we dont care about access control
 			overrideAccess: true,
+			req: payloadRequest,
 		}).getOrElse(() => {
 			throw new InternalServerErrorResponse("Failed to get user count");
 		}),
@@ -48,6 +51,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+			req: payloadRequest,
 		}).getOrElse(() => {
 			throw new InternalServerErrorResponse(
 				"Failed to get registration settings",
@@ -56,7 +60,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	]);
 
 	if (userCount === 0) {
-		return redirect(href("/registration"));
+		return redirect(getRouteUrl("/registration", {}));
 	}
 
 	const registrationDisabled = settingsResult.disableRegistration;
@@ -89,7 +93,7 @@ const loginAction = loginRpc.createAction(
 		const { payload, requestInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (userSession?.isAuthenticated) {
-			return redirect(href("/"));
+			return redirect(getRouteUrl("/", {}));
 		}
 
 		const loginResult = await tryLogin({
@@ -108,7 +112,7 @@ const loginAction = loginRpc.createAction(
 
 		const { token, exp } = loginResult.value;
 
-		return redirect(href("/"), {
+		return redirect(getRouteUrl("/", {}), {
 			headers: {
 				"Set-Cookie": setCookie(
 					token,
@@ -257,7 +261,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 							<Text ta="center" c="dimmed" size="sm">
 								<Anchor
 									component={Link}
-									to={href("/registration")}
+									to={getRouteUrl("/registration", {})}
 									underline="always"
 								>
 									Create an account

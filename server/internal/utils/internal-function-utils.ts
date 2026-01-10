@@ -20,7 +20,10 @@ interface BaseRequest extends Omit<Partial<PayloadRequest>, "user"> {
 export interface BaseInternalFunctionArgs {
 	payload: BasePayload;
 	// user?: Partial<TypedUser> | null;
-	req?: BaseRequest;
+	/**
+	 * ! we don't use optional because we want to enforce user to provide req in all cases. user needs to explicitly provide req: undefined
+	 */
+	req: BaseRequest | undefined;
 	overrideAccess?: boolean;
 }
 

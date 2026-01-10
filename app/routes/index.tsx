@@ -163,12 +163,11 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		const reg = await tryGetRegistrationSettings({
 			payload,
 			overrideAccess: true,
-		});
-		if (!reg.ok) {
+			req: payloadRequest,
+		}).getOrElse(() => {
 			throw new ForbiddenResponse("Failed to get registration settings");
-		}
-		const settings = reg.value;
-		showRegistrationButton = settings.showRegistrationButton;
+		});
+		showRegistrationButton = reg.showRegistrationButton;
 
 		return {
 			isAuthenticated: false as const,

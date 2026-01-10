@@ -31,7 +31,6 @@ import {
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
-import { createDefaultQuizConfig } from "server/json/raw-quiz-config/v2";
 
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -65,6 +64,7 @@ describe("Activity Module Management", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 	});
 
@@ -853,6 +853,7 @@ describe("Activity Module Management", () => {
 			payload,
 			type: "page",
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(pageModulesResult.ok).toBe(true);
@@ -867,6 +868,7 @@ describe("Activity Module Management", () => {
 			payload,
 			type: "file",
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(fileModulesResult.ok).toBe(true);
@@ -924,6 +926,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "",
 			content: "<p>Test</p>",
+			req: undefined,
 		};
 
 		const result1 = await tryCreatePageModule(invalidArgs1);
@@ -934,6 +937,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test",
 			content: "<p>Test</p>",
+			req: undefined,
 		};
 
 		const result3 = await tryCreatePageModule(invalidArgs3);
@@ -947,6 +951,7 @@ describe("Activity Module Management", () => {
 		const result = await tryGetActivityModuleById({
 			payload,
 			id: 99999,
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -958,6 +963,7 @@ describe("Activity Module Management", () => {
 			id: 99999,
 			title: "Updated Title",
 			content: "<p>Updated</p>",
+			req: undefined,
 		} satisfies UpdatePageModuleArgs;
 
 		const result = await tryUpdatePageModule(updateArgs);
@@ -968,6 +974,7 @@ describe("Activity Module Management", () => {
 		const result = await tryDeleteActivityModule({
 			payload,
 			id: 99999,
+			req: undefined,
 		});
 		expect(result.ok).toBe(false);
 	});

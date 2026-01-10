@@ -20,15 +20,15 @@ import {
 	IconPlus,
 	IconX,
 } from "@tabler/icons-react";
-import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { getMimeTypesArray } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { isHtmlEmpty } from "../rich-text/rich-text-editor";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { SubmissionData } from "../submission-history";
-import { AssignmentActions } from "app/routes/course/module.$id/route";
-
+import { AssignmentActions, loaderSearchParams } from "app/routes/course/module.$id/route";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import type { inferParserType } from "nuqs";
 // ============================================================================
 // Types
 // ============================================================================
@@ -70,6 +70,7 @@ interface AssignmentPreviewProps {
 	isSubmitting?: boolean;
 	canSubmit?: boolean;
 	isStudent?: boolean;
+	view: inferParserType<typeof loaderSearchParams>["view"];
 }
 
 interface FileWithId {
@@ -480,12 +481,9 @@ export function AssignmentPreview({
 	isSubmitting = false,
 	canSubmit = true,
 	isStudent = false,
+	view
 }: AssignmentPreviewProps) {
-	const [action, setAction] = useQueryState("action");
-
-	const handleCloseForm = () => {
-		setAction(null);
-	};
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams)
 
 	const handleSubmit = async (data: { textContent: string; files: File[] }) => {
 		if (onSubmit) {
@@ -504,12 +502,12 @@ export function AssignmentPreview({
 		);
 	}
 
-	if (action === AssignmentActions.SUBMIT_ASSIGNMENT && canSubmit) {
+	if (view === AssignmentActions.SUBMIT_ASSIGNMENT && canSubmit) {
 		return (
 			<SubmissionForm
 				assignment={assignment}
 				isSubmitting={isSubmitting}
-				onClose={handleCloseForm}
+				onClose={() => setQueryParams({ view: null })}
 				onSubmit={handleSubmit}
 			/>
 		);
@@ -521,7 +519,7 @@ export function AssignmentPreview({
 			allSubmissions={allSubmissions}
 			submission={submission}
 			// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
-			onAddSubmission={() => { }}
+			onAddSubmission={() => setQueryParams({ view: AssignmentActions.SUBMIT_ASSIGNMENT })}
 			canSubmit={canSubmit}
 			isStudent={isStudent}
 		/>

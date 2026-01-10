@@ -55,6 +55,7 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,

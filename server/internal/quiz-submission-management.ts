@@ -595,6 +595,8 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 					collection: "course-activity-module-links",
 					id: courseModuleLinkId,
 					depth: 2, // Need to get activity module and quiz
+					req,
+					overrideAccess,
 				})
 				.then(stripDepth<2, "findByID">());
 

@@ -32,7 +32,11 @@ describe("Database Seeding", () => {
 	});
 
 	test("should successfully seed database without errors", async () => {
-		const result = await tryRunSeed({ payload });
+		const result = await tryRunSeed({
+			payload,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(result.ok).toBe(true);
 
 		if (!result.ok) {

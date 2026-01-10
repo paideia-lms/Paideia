@@ -155,7 +155,7 @@ export const middleware = [
 	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
-	async ({ context }) => {
+	async ({ context, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -164,6 +164,7 @@ export const middleware = [
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+			req: request
 		}).getOrDefault({
 			maintenanceSettings: { maintenanceMode: false },
 			sitePolicies: {
@@ -453,6 +454,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 		pageInfo,
 		systemGlobals,
 		envVars,
+		payloadRequest,
 	} = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
@@ -462,6 +464,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const userCount = await tryGetUserCount({
 		payload,
 		overrideAccess: true,
+		req: payloadRequest,
 	}).getOrElse(() => {
 		throw new InternalServerErrorResponse("Failed to get user count");
 	});

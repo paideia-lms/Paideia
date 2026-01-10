@@ -702,6 +702,8 @@ export function tryFindAllCourses(args: FindAllCoursesArgs) {
 								},
 								pagination: false,
 								depth: 0,
+								req,
+								overrideAccess,
 							});
 							const ids = matched.docs.map((c) => c.id);
 							if (ids.length > 0) {

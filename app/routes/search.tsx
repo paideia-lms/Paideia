@@ -36,7 +36,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
     searchParams: searchSearchParams,
 })(async ({ context, searchParams }) => {
-    const { payload } = context.get(globalContextKey);
+    const { payload, payloadRequest } = context.get(globalContextKey);
     const userSession = context.get(userContextKey);
 
     if (!userSession?.isAuthenticated) {
@@ -50,6 +50,7 @@ export const loader = createRouteLoader({
         query: query || undefined,
         page,
         limit: 10,
+        req: payloadRequest,
     });
 
     if (!searchResult.ok) {

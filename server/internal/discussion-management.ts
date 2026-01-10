@@ -114,6 +114,8 @@ export function tryCreateDiscussionSubmission(
 				title,
 				content,
 				parentThread,
+				req,
+				overrideAccess = false,
 			} = args;
 
 			// Validate required fields
@@ -147,6 +149,8 @@ export function tryCreateDiscussionSubmission(
 			const courseModuleLink = await payload.findByID({
 				collection: "course-activity-module-links",
 				id: courseModuleLinkId,
+				req,
+				overrideAccess,
 			});
 
 			if (!courseModuleLink) {
@@ -168,6 +172,8 @@ export function tryCreateDiscussionSubmission(
 						lastActivityAt: new Date().toISOString(),
 					},
 					depth: 1,
+					req,
+					overrideAccess,
 				})
 				.then(stripDepth<1, "create">());
 			// If this is a reply or comment, update the parent thread's lastActivityAt
@@ -178,6 +184,8 @@ export function tryCreateDiscussionSubmission(
 					data: {
 						lastActivityAt: new Date().toISOString(),
 					},
+					req,
+					overrideAccess,
 				});
 			}
 
@@ -214,7 +222,16 @@ export function tryUpdateDiscussionSubmission(
 ) {
 	return Result.try(
 		async () => {
-			const { payload, id, title, content, isPinned, isLocked } = args;
+			const {
+				payload,
+				id,
+				title,
+				content,
+				isPinned,
+				isLocked,
+				req,
+				overrideAccess = false,
+			} = args;
 
 			// Validate ID
 			if (!id) {
@@ -248,6 +265,8 @@ export function tryUpdateDiscussionSubmission(
 					id,
 					data: updateData,
 					depth: 1,
+					req,
+					overrideAccess,
 				})
 				.then(stripDepth<1, "update">());
 
@@ -283,7 +302,7 @@ export function tryGetDiscussionSubmissionById(
 ) {
 	return Result.try(
 		async () => {
-			const { payload, id } = args;
+			const { payload, id, req, overrideAccess = false } = args;
 
 			// Validate ID
 			if (!id) {
@@ -302,6 +321,8 @@ export function tryGetDiscussionSubmissionById(
 						],
 					},
 					depth: 1, // Fetch related data
+					req,
+					overrideAccess,
 				})
 				.then(stripDepth<1, "find">());
 

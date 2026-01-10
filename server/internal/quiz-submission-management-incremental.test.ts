@@ -66,6 +66,7 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -77,6 +78,7 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 

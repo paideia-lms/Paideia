@@ -84,6 +84,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!sectionResult.ok) {
@@ -190,6 +191,7 @@ describe("Activity Module Access Control", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const user2Args: CreateUserArgs = {
@@ -202,6 +204,7 @@ describe("Activity Module Access Control", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const user3Args: CreateUserArgs = {
@@ -214,6 +217,7 @@ describe("Activity Module Access Control", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const adminArgs: CreateUserArgs = {
@@ -226,6 +230,7 @@ describe("Activity Module Access Control", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const userResult1 = await tryCreateUser(user1Args);
@@ -487,6 +492,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(grantResult.ok).toBe(true);
@@ -526,6 +532,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// User2 should now be able to read
@@ -562,6 +569,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// User2 should be able to update
@@ -601,6 +609,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// User2 should NOT be able to delete
@@ -640,6 +649,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Verify user2 can read
@@ -656,6 +666,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			userId: testUser2.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(revokeResult.ok).toBe(true);
@@ -741,6 +752,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 		expect(firstGrant.ok).toBe(true);
 
@@ -751,6 +763,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 		expect(secondGrant.ok).toBe(false);
 	});
@@ -779,6 +792,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser1.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Should succeed (no rule prevents it, though it's redundant)
@@ -808,6 +822,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser2.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Grant access to user3
@@ -817,6 +832,7 @@ describe("Activity Module Access Control", () => {
 			grantedToUserId: testUser3.id,
 			grantedByUserId: testUser1.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Find grants
@@ -824,6 +840,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			activityModuleId: activityModule.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(grantsResult.ok).toBe(true);
@@ -877,6 +894,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section for activity module access",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!sectionResult.ok) {
@@ -923,6 +941,7 @@ describe("Activity Module Access Control", () => {
 		const instructorsResult = await tryFindInstructorsForActivityModule({
 			payload,
 			activityModuleId: activityModule.id,
+			req: undefined,
 		});
 
 		expect(instructorsResult.ok).toBe(true);
@@ -1003,6 +1022,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section 1",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		const section2Result = await tryCreateSection({
@@ -1013,6 +1033,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section 2",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!section1Result.ok || !section2Result.ok) {
@@ -1067,6 +1088,7 @@ describe("Activity Module Access Control", () => {
 		const instructorsResult = await tryFindInstructorsForActivityModule({
 			payload,
 			activityModuleId: activityModule.id,
+			req: undefined,
 		});
 
 		expect(instructorsResult.ok).toBe(true);
@@ -1103,6 +1125,7 @@ describe("Activity Module Access Control", () => {
 		const instructorsResult = await tryFindInstructorsForActivityModule({
 			payload,
 			activityModuleId: activityModule.id,
+			req: undefined,
 		});
 
 		expect(instructorsResult.ok).toBe(true);
@@ -1132,6 +1155,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			activityModuleId: activityModule.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(grantsResult.ok).toBe(true);
@@ -1155,6 +1179,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser2.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);
@@ -1200,6 +1225,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser3.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);
@@ -1289,6 +1315,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section 1",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		const section2Result = await tryCreateSection({
@@ -1299,6 +1326,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section 2",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!section1Result.ok || !section2Result.ok) {
@@ -1354,6 +1382,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser2.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);
@@ -1430,6 +1459,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section for inactive enrollment",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!sectionResult.ok) {
@@ -1464,6 +1494,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser2.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);
@@ -1515,6 +1546,7 @@ describe("Activity Module Access Control", () => {
 				description: "Test section for student enrollment",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!sectionResult.ok) {
@@ -1549,6 +1581,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser2.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);
@@ -1567,6 +1600,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser3.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);
@@ -1613,6 +1647,7 @@ describe("Activity Module Access Control", () => {
 			payload,
 			userId: testUser2.id,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(autoGrantedResult.ok).toBe(true);

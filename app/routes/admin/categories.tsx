@@ -110,7 +110,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -126,17 +126,18 @@ export const loader = createRouteLoader({
 	const treeResult = await tryGetCategoryTree({
 		payload,
 		overrideAccess: true,
-	});
-	if (!treeResult.ok) {
+		req: payloadRequest,
+	}).getOrElse(() => {
 		throw new ForbiddenResponse("Failed to get categories");
-	}
+	})
 
-	const flat = flattenCategories(treeResult.value);
+	const flat = flattenCategories(treeResult);
 	// count courses without category (uncategorized)
 	const uncategorizedCountRes = await payload.count({
 		collection: "courses",
 		where: { category: { exists: false } },
 		overrideAccess: true,
+		req: payloadRequest,
 	});
 	const uncategorizedCount = uncategorizedCountRes.totalDocs;
 	// selected category details
@@ -157,6 +158,7 @@ export const loader = createRouteLoader({
 				payload,
 				categoryId: idNum,
 				overrideAccess: true,
+				req: payloadRequest,
 			});
 			if (catRes.ok) {
 				const directCoursesCountRes = await payload.count({
@@ -169,16 +171,19 @@ export const loader = createRouteLoader({
 						payload,
 						parentId: idNum,
 						overrideAccess: true,
+						req: payloadRequest,
 					}),
 					tryGetTotalNestedCoursesCount({
 						payload,
 						categoryId: idNum,
 						overrideAccess: true,
+						req: payloadRequest,
 					}),
 					tryGetCategoryAncestors({
 						payload,
 						categoryId: idNum,
 						overrideAccess: true,
+						req: payloadRequest,
 					}),
 				]);
 				const parentField = catRes.value.parent;

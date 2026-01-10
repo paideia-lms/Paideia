@@ -60,6 +60,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Create teacher user
 		const teacherArgs: CreateUserArgs = {
 			payload,
+			req: undefined,
 			data: {
 				email: "teacher@example.com",
 				password: "password123",
@@ -88,6 +89,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const studentResult = await tryCreateUser(studentArgs);
@@ -106,6 +108,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 				createdBy: teacherId,
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 		expect(courseResult.ok).toBe(true);
 		if (!courseResult.ok) {
@@ -181,6 +184,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 				description: "Test section for assignment submissions",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!sectionResult.ok) {
@@ -457,6 +461,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(listResult.ok).toBe(true);

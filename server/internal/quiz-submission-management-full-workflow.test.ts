@@ -79,6 +79,7 @@ describe("Quiz Management - Full Workflow", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -90,6 +91,7 @@ describe("Quiz Management - Full Workflow", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -106,6 +108,7 @@ describe("Quiz Management - Full Workflow", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment

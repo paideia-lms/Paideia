@@ -62,6 +62,7 @@ describe("User Management Functions", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const adminResult = await tryCreateUser(adminArgs);
@@ -77,6 +78,7 @@ describe("User Management Functions", () => {
 				_verified: true,
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Login to get admin token
@@ -116,6 +118,7 @@ describe("User Management Functions", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateUser(userArgs);
@@ -139,6 +142,7 @@ describe("User Management Functions", () => {
 					lastName: "User",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			// Create first user
@@ -160,6 +164,7 @@ describe("User Management Functions", () => {
 					lastName: "User",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateUser(userArgs);
@@ -203,6 +208,7 @@ describe("User Management Functions", () => {
 					lastName: "User",
 				},
 				overrideAccess: false,
+				req: undefined,
 			};
 
 			const result = await tryCreateUser(userArgs);
@@ -221,6 +227,7 @@ describe("User Management Functions", () => {
 					theme: "dark",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateUser(userArgs);
@@ -241,6 +248,7 @@ describe("User Management Functions", () => {
 					lastName: "Default",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateUser(userArgs);
@@ -264,6 +272,7 @@ describe("User Management Functions", () => {
 					lastName: "Test",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateUser(createArgs);
@@ -280,6 +289,7 @@ describe("User Management Functions", () => {
 						bio: "Updated bio",
 					},
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const updateResult = await tryUpdateUser(updateArgs);
@@ -303,6 +313,7 @@ describe("User Management Functions", () => {
 					lastName: "Existent",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryUpdateUser(updateArgs);
@@ -318,6 +329,7 @@ describe("User Management Functions", () => {
 					firstName: "Unauthorized",
 				},
 				overrideAccess: false,
+				req: undefined,
 			};
 
 			const result = await tryUpdateUser(updateArgs);
@@ -337,6 +349,7 @@ describe("User Management Functions", () => {
 					theme: "light",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateUser(createArgs);
@@ -353,6 +366,7 @@ describe("User Management Functions", () => {
 						theme: "dark",
 					},
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const updateResult = await tryUpdateUser(updateArgs);
@@ -376,6 +390,7 @@ describe("User Management Functions", () => {
 					lastName: "Test",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			await tryCreateUser(userArgs);
@@ -384,6 +399,7 @@ describe("User Management Functions", () => {
 				payload,
 				email: "find-test@example.com",
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryFindUserByEmail(findArgs);
@@ -399,6 +415,7 @@ describe("User Management Functions", () => {
 				payload,
 				email: "nonexistent@example.com",
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryFindUserByEmail(findArgs);
@@ -414,6 +431,7 @@ describe("User Management Functions", () => {
 				payload,
 				email: "find-test@example.com",
 				overrideAccess: false,
+				req: undefined,
 			};
 
 			const result = await tryFindUserByEmail(findArgs);
@@ -433,6 +451,7 @@ describe("User Management Functions", () => {
 					lastName: "Test",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateUser(userArgs);
@@ -443,6 +462,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId: createResult.value.id,
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const findResult = await tryFindUserById(findArgs);
@@ -460,6 +480,7 @@ describe("User Management Functions", () => {
 				payload,
 				userId: 99999,
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryFindUserById(findArgs);
@@ -472,6 +493,7 @@ describe("User Management Functions", () => {
 				payload,
 				userId: 1,
 				overrideAccess: false,
+				req: undefined,
 			};
 
 			const result = await tryFindUserById(findArgs);
@@ -491,6 +513,7 @@ describe("User Management Functions", () => {
 					lastName: "Test",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateUser(userArgs);
@@ -501,6 +524,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId: createResult.value.id,
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const deleteResult = await tryDeleteUser(deleteArgs);
@@ -515,6 +539,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId: createResult.value.id,
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const findResult = await tryFindUserById(findArgs);
@@ -533,6 +558,7 @@ describe("User Management Functions", () => {
 					lastName: "Test",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateUser(createArgs);
@@ -559,6 +585,7 @@ describe("User Management Functions", () => {
 				payload,
 				userId: 1,
 				overrideAccess: false,
+				req: undefined,
 			};
 
 			const result = await tryDeleteUser(deleteArgs);
@@ -586,6 +613,7 @@ describe("User Management Functions", () => {
 						lastName: "Test",
 					},
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				await tryCreateUser(createArgs);
@@ -595,6 +623,7 @@ describe("User Management Functions", () => {
 				payload,
 				limit: 100,
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryFindAllUsers(findArgs);
@@ -612,6 +641,7 @@ describe("User Management Functions", () => {
 				limit: 2,
 				page: 1,
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryFindAllUsers(findArgs);
@@ -629,6 +659,7 @@ describe("User Management Functions", () => {
 				payload,
 				sort: "-createdAt",
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryFindAllUsers(findArgs);
@@ -660,6 +691,7 @@ describe("User Management Functions", () => {
 			const findArgs: FindAllUsersArgs = {
 				payload,
 				overrideAccess: false,
+				req: undefined,
 			};
 
 			const result = await tryFindAllUsers(findArgs);
@@ -711,6 +743,7 @@ describe("User Management Functions", () => {
 						password: "testpassword123",
 					},
 					overrideAccess: true,
+					req: undefined,
 				};
 				await tryCreateUser(createArgs);
 			}
@@ -720,6 +753,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "Alice",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(searchByFirstName.ok).toBe(true);
@@ -737,6 +771,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "Manager",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(searchByLastName.ok).toBe(true);
@@ -750,6 +785,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "developer",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(searchByEmail.ok).toBe(true);
@@ -763,6 +799,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "role:admin",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(filterByAdminRole.ok).toBe(true);
@@ -777,6 +814,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "role:content-manager,analytics-viewer",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(filterByMultipleRoles.ok).toBe(true);
@@ -795,6 +833,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "Alice role:admin",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(combinedSearch.ok).toBe(true);
@@ -811,6 +850,7 @@ describe("User Management Functions", () => {
 				limit: 2,
 				page: 1,
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(searchWithPagination.ok).toBe(true);
@@ -826,6 +866,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "nonexistentuser12345",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(noResultsSearch.ok).toBe(true);
@@ -839,6 +880,7 @@ describe("User Management Functions", () => {
 				payload,
 				query: "",
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(emptyQuerySearch.ok).toBe(true);
@@ -875,6 +917,7 @@ describe("User Management Functions", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateUser(createArgs);
@@ -888,6 +931,7 @@ describe("User Management Functions", () => {
 					payload,
 					email: "lifecycle@example.com",
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const findByEmailResult = await tryFindUserByEmail(findByEmailArgs);
@@ -898,6 +942,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId,
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const findByIdResult = await tryFindUserById(findByIdArgs);
@@ -912,6 +957,7 @@ describe("User Management Functions", () => {
 						bio: "Updated in lifecycle test",
 					},
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const updateResult = await tryUpdateUser(updateArgs);
@@ -922,6 +968,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId,
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const deleteResult = await tryDeleteUser(deleteArgs);
@@ -932,6 +979,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId,
 					overrideAccess: true,
+					req: undefined,
 				};
 
 				const findAfterDeleteResult =
@@ -957,6 +1005,7 @@ describe("User Management Functions", () => {
 					role: "admin",
 				},
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			if (!adminResult.ok) {
@@ -975,6 +1024,7 @@ describe("User Management Functions", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			if (!studentResult.ok) {
@@ -990,6 +1040,7 @@ describe("User Management Functions", () => {
 					collection: "users",
 					id: adminUser.id,
 					overrideAccess: true,
+					req: undefined,
 				});
 			}
 			if (studentUser) {
@@ -997,6 +1048,7 @@ describe("User Management Functions", () => {
 					collection: "users",
 					id: studentUser.id,
 					overrideAccess: true,
+					req: undefined,
 				});
 			}
 		});
@@ -1013,6 +1065,7 @@ describe("User Management Functions", () => {
 					role: "admin",
 				},
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			if (!anotherAdminResult.ok) {
@@ -1033,6 +1086,7 @@ describe("User Management Functions", () => {
 				collection: "users",
 				id: anotherAdminResult.value.id,
 				overrideAccess: true,
+				req: undefined,
 			});
 		});
 
@@ -1093,6 +1147,7 @@ describe("First User Check Functions - With overrideAccess", () => {
 			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1108,11 +1163,13 @@ describe("First User Check Functions - With overrideAccess", () => {
 				collection: "users",
 				where: {},
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1164,6 +1221,7 @@ describe("First User Check Functions - With Access Control", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const adminResult = await tryCreateUser(adminArgs);
@@ -1179,6 +1237,7 @@ describe("First User Check Functions - With Access Control", () => {
 				_verified: true,
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Create regular user
@@ -1192,6 +1251,7 @@ describe("First User Check Functions - With Access Control", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const userResult = await tryCreateUser(userArgs);
@@ -1207,6 +1267,7 @@ describe("First User Check Functions - With Access Control", () => {
 				_verified: true,
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		// Login to get tokens
@@ -1277,6 +1338,7 @@ describe("First User Check Functions - With Access Control", () => {
 			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: false,
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -1320,6 +1382,7 @@ describe("Authentication Functions", () => {
 			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow();
 
 			expect(result).toBe(0);
@@ -1370,6 +1433,7 @@ describe("Authentication Functions", () => {
 			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow();
 
 			expect(result).toBe(1);

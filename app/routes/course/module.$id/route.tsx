@@ -293,7 +293,7 @@ const submitAssignmentRpc = createActionRpc({
 // Individual action functions
 const createThreadAction = createThreadRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload } = context.get(globalContextKey);
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -344,6 +344,7 @@ const createThreadAction = createThreadRpc.createAction(
 			title: title.trim(),
 			content: content.trim(),
 			overrideAccess: false,
+			req: payloadRequest,
 		});
 
 		if (!createResult.ok) {
@@ -1228,6 +1229,7 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 				isSubmitting={isSubmitting}
 				canSubmit={loaderData.canSubmit.allowed}
 				isStudent={loaderData.isStudent ?? false}
+				view={loaderData.searchParams.view}
 			/>
 			{loaderData.allSubmissionsForDisplay.length > 0 && (
 				<SubmissionHistory
