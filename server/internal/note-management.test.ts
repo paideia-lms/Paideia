@@ -14,6 +14,7 @@ import {
 } from "./note-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 import { href } from "react-router";
+import { createLocalReq } from "./utils/internal-function-utils";
 
 describe("Note Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -331,6 +332,13 @@ describe("Note Management Functions", () => {
 		});
 
 		test("should update note content successfully", async () => {
+			// Get full user object for request
+			const user = await payload.findByID({
+				collection: "users",
+				id: testUser.id,
+				overrideAccess: true,
+			});
+
 			const result = await tryUpdateNote({
 				payload,
 				noteId: testNote.id,
@@ -338,8 +346,10 @@ describe("Note Management Functions", () => {
 					content: "Updated content",
 				},
 				overrideAccess: true,
-
-				req: undefined,
+				req: createLocalReq({
+					user: user as TypedUser,
+					request: new Request("http://localhost:3000/api/notes"),
+				}),
 			});
 
 			expect(result.ok).toBe(true);
@@ -402,6 +412,13 @@ describe("Note Management Functions", () => {
 
 			// Update with media reference
 			const updatedHtml = `<p>Updated content with images!</p><img src="/api/media/file/${testMediaId}" alt="Test image" />`;
+			// Get full user object for request
+			const user = await payload.findByID({
+				collection: "users",
+				id: testUser.id,
+				overrideAccess: true,
+			});
+
 			const updateResult = await tryUpdateNote({
 				payload,
 				noteId,
@@ -409,8 +426,10 @@ describe("Note Management Functions", () => {
 					content: updatedHtml,
 				},
 				overrideAccess: true,
-
-				req: undefined,
+				req: createLocalReq({
+					user: user as TypedUser,
+					request: new Request("http://localhost:3000/api/notes"),
+				}),
 			});
 
 			expect(updateResult.ok).toBe(true);
@@ -426,6 +445,13 @@ describe("Note Management Functions", () => {
 		});
 
 		test("should trim whitespace from updated content", async () => {
+			// Get full user object for request
+			const user = await payload.findByID({
+				collection: "users",
+				id: testUser.id,
+				overrideAccess: true,
+			});
+
 			const result = await tryUpdateNote({
 				payload,
 				noteId: testNote.id,
@@ -433,8 +459,10 @@ describe("Note Management Functions", () => {
 					content: "   Updated with spaces   ",
 				},
 				overrideAccess: true,
-
-				req: undefined,
+				req: createLocalReq({
+					user: user as TypedUser,
+					request: new Request("http://localhost:3000/api/notes"),
+				}),
 			});
 
 			expect(result.ok).toBe(true);
@@ -877,6 +905,13 @@ describe("Note Management Functions", () => {
 		});
 
 		test("should update any note with overrideAccess", async () => {
+			// Get full user object for request
+			const user = await payload.findByID({
+				collection: "users",
+				id: testUser.id,
+				overrideAccess: true,
+			});
+
 			const result = await tryUpdateNote({
 				payload,
 				noteId: user1PrivateNote.id,
@@ -884,8 +919,10 @@ describe("Note Management Functions", () => {
 					content: "Updated with overrideAccess",
 				},
 				overrideAccess: true,
-
-				req: undefined,
+				req: createLocalReq({
+					user: user as TypedUser,
+					request: new Request("http://localhost:3000/api/notes"),
+				}),
 			});
 
 			expect(result.ok).toBe(true);

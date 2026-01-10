@@ -1217,7 +1217,10 @@ describe("User Grade Management", () => {
 		// Create discussion submissions (thread, reply, comment)
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1236,7 +1239,10 @@ describe("User Grade Management", () => {
 
 		const replyArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1254,7 +1260,10 @@ describe("User Grade Management", () => {
 
 		const commentArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,

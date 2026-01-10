@@ -592,7 +592,6 @@ describe("Course Management Functions", () => {
 					slug: "course-with-category",
 				},
 				overrideAccess: true,
-
 				req: undefined,
 			};
 
@@ -601,11 +600,11 @@ describe("Course Management Functions", () => {
 			if (!createResult.ok) throw new Error("Failed to create course");
 
 			// create a category to assign
-			const req = new Request("http://localhost/test");
 			const catResult = await tryCreateCategory({
 				payload,
-				req,
 				name: "Test Category",
+				overrideAccess: true,
+				req: undefined,
 			});
 			expect(catResult.ok).toBe(true);
 			if (!catResult.ok) throw new Error("Failed to create category");
@@ -630,7 +629,6 @@ describe("Course Management Functions", () => {
 				payload,
 				courseId: createResult.value.id,
 				overrideAccess: true,
-
 				req: undefined,
 			});
 			expect(findResult.ok).toBe(true);
@@ -1220,7 +1218,6 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: regularUser.id,
 				overrideAccess: true,
-
 				req: undefined,
 			});
 

@@ -1,4 +1,5 @@
 import type {
+	createLocalReq as createLocalReqFromPayload,
 	BasePayload,
 	PayloadRequest,
 	RequestContext,
@@ -57,6 +58,18 @@ export function interceptPayloadError({
 		);
 }
 
+/**
+ * this is significantly different from Payload's actual `createLocalReq` function in both parameters and functionality.
+ *
+ * The reason why we create this is because we don't want it to be an async function.
+ *
+ * This function simply copies properties from a Request object, while Payload's `createLocalReq` function:
+ * - Handles localization - Sets up locale and fallbackLocale based on configuration
+ * - Sets up i18n - Initializes internationalization
+ * - Creates fake URL properties - When called outside HTTP context
+ * - Sets up Payload-specific properties - Including payloadAPI, payload, i18n, t, payloadDataLoader, routeParams, query
+ *
+ */
 export function createLocalReq({
 	request,
 	user,
