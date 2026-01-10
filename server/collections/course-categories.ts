@@ -1,4 +1,4 @@
-import type { CollectionConfig, Payload } from "payload";
+import type { CollectionConfig, Payload, PayloadRequest } from "payload";
 import type { CourseCategory } from "server/payload-types";
 
 // Course Categories collection - hierarchical course organization
@@ -60,6 +60,7 @@ export const CourseCategories = {
 							req.payload,
 							currentId,
 							parentId,
+							req,
 						);
 						if (isDescendant) {
 							throw new Error(
@@ -80,7 +81,11 @@ export const CourseCategories = {
 					if (maxDepth != null && maxDepth > 0) {
 						const parentId =
 							typeof data.parent === "number" ? data.parent : data.parent.id;
-						const parentDepth = await calculateDepth(req.payload, parentId);
+						const parentDepth = await calculateDepth(
+							req.payload,
+							parentId,
+							req,
+						);
 						const newDepth = parentDepth + 1;
 
 						if (newDepth >= maxDepth) {
@@ -104,6 +109,7 @@ async function checkIsDescendant(
 	payload: Payload,
 	ancestorId: number,
 	candidateId: number,
+	req?: Partial<PayloadRequest>,
 ): Promise<boolean> {
 	let currentId: number | null = candidateId;
 
@@ -116,6 +122,8 @@ async function checkIsDescendant(
 			collection: "course-categories",
 			id: currentId,
 			depth: 0,
+			req,
+			overrideAccess: true,
 		});
 
 		currentId =
@@ -133,6 +141,7 @@ async function checkIsDescendant(
 async function calculateDepth(
 	payload: Payload,
 	categoryId: number,
+	req?: Partial<PayloadRequest>,
 ): Promise<number> {
 	let depth = 0;
 	let currentId: number | null = categoryId;
@@ -142,6 +151,8 @@ async function calculateDepth(
 			collection: "course-categories",
 			id: currentId,
 			depth: 0,
+			req,
+			overrideAccess: true,
 		});
 
 		currentId =

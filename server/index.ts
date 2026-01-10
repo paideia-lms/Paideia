@@ -60,15 +60,16 @@ async function startServer() {
 	console.log("Mode: ", process.env.NODE_ENV);
 
 	if (process.env.NODE_ENV === "development") {
-		await tryRunSeed({ payload });
+		// ! a system request, so we don't need to provide a request
+		await tryRunSeed({ payload, req: undefined, overrideAccess: true });
 	}
 	// Check if sandbox mode is enabled and reset database
 	else if (envVars.SANDBOX_MODE.enabled) {
 		console.log("🔄 Sandbox mode enabled, resetting database on startup...");
 		const resetResult = await tryResetSandbox({
 			payload,
-			// ! a mock request because this is a system command
-			req: new Request("http://localhost:3000"),
+			req: undefined,
+			overrideAccess: true,
 		});
 		if (!resetResult.ok) {
 			// crash the server

@@ -80,7 +80,6 @@ export default function UserModuleEditLayout({
 	const handleTabChange = (value: string | null) => {
 		if (!value) return;
 
-
 		switch (value) {
 			case ModuleEditTab.Setting:
 				navigate(

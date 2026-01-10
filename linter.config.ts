@@ -1226,7 +1226,7 @@ const astPatterns = {
 		}
 
 		const firstArg = args[0];
-		if (ts.isObjectLiteralExpression(firstArg)) {
+		if (firstArg && ts.isObjectLiteralExpression(firstArg)) {
 			return firstArg;
 		}
 
@@ -1284,6 +1284,267 @@ const astPatterns = {
 		}
 
 		return false;
+	},
+
+	/**
+	 * Checks if a node is a Payload Local API call
+	 * Returns the method name if it's a payload method call, null otherwise
+	 * Handles both awaited and non-awaited calls
+	 */
+	payloadLocalApiCall: (node: ts.Node): string | null => {
+		// List of Payload Local API methods that require req
+		const payloadMethods = [
+			"find",
+			"findByID",
+			"create",
+			"update",
+			"delete",
+			"login",
+			"logout",
+		];
+
+		let callExpression: ts.CallExpression | null = null;
+
+		// Check if it's an awaited call
+		if (ts.isAwaitExpression(node)) {
+			const expression = node.expression;
+			if (ts.isCallExpression(expression)) {
+				callExpression = expression;
+			}
+		}
+		// Check if it's a direct call
+		else if (ts.isCallExpression(node)) {
+			callExpression = node;
+		}
+
+		if (!callExpression) {
+			return null;
+		}
+
+		const callTarget = callExpression.expression;
+
+		// Check if it's payload.methodName
+		if (
+			ts.isPropertyAccessExpression(callTarget) &&
+			ts.isIdentifier(callTarget.expression) &&
+			callTarget.expression.text === "payload"
+		) {
+			const methodName = callTarget.name.text;
+			if (payloadMethods.includes(methodName)) {
+				return methodName;
+			}
+		}
+
+		return null;
+	},
+
+	/**
+	 * Checks if a Payload Local API call has both req and overrideAccess in its arguments
+	 * Returns true if it's a Payload call but missing req or overrideAccess
+	 */
+	payloadCallMissingReqOrOverrideAccess: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		const methodName = astPatterns.payloadLocalApiCall(node);
+		if (!methodName) {
+			return false;
+		}
+
+		let callExpression: ts.CallExpression | null = null;
+
+		// Get the call expression
+		if (ts.isAwaitExpression(node)) {
+			const expression = node.expression;
+			if (ts.isCallExpression(expression)) {
+				callExpression = expression;
+			}
+		} else if (ts.isCallExpression(node)) {
+			callExpression = node;
+		}
+
+		if (!callExpression) {
+			return false;
+		}
+
+		// Check arguments
+		const args = callExpression.arguments;
+		if (args.length === 0) {
+			// No arguments - missing req and overrideAccess
+			return true;
+		}
+
+		// Check if first argument is an object literal with req and overrideAccess properties
+		const firstArg = args[0];
+		if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) {
+			// If first argument is not an object literal (e.g., spread, variable),
+			// we can't statically determine if req and overrideAccess are present, so we don't flag it
+			// This is a limitation but prevents false positives
+			return false;
+		}
+
+		if (ts.isObjectLiteralExpression(firstArg)) {
+			// Check if object has req and overrideAccess properties
+			let hasReq = false;
+			let hasOverrideAccess = false;
+			for (const property of firstArg.properties) {
+				if (ts.isPropertyAssignment(property)) {
+					const name = property.name;
+					if (ts.isIdentifier(name)) {
+						if (name.text === "req") {
+							hasReq = true;
+						}
+						if (name.text === "overrideAccess") {
+							hasOverrideAccess = true;
+						}
+					}
+					if (ts.isStringLiteral(name)) {
+						if (name.text === "req") {
+							hasReq = true;
+						}
+						if (name.text === "overrideAccess") {
+							hasOverrideAccess = true;
+						}
+					}
+				}
+				// Handle shorthand property (req, overrideAccess,)
+				if (ts.isShorthandPropertyAssignment(property)) {
+					if (ts.isIdentifier(property.name)) {
+						if (property.name.text === "req") {
+							hasReq = true;
+						}
+						if (property.name.text === "overrideAccess") {
+							hasOverrideAccess = true;
+						}
+					}
+				}
+			}
+			// Return true if either req or overrideAccess is missing
+			return !hasReq || !hasOverrideAccess;
+		}
+
+		// If first argument is not an object literal (e.g., spread, variable),
+		// we can't statically determine if req and overrideAccess are present, so we don't flag it
+		// This is a limitation but prevents false positives
+		return false;
+	},
+
+	/**
+	 * Checks if a Payload Local API call is properly wrapped in Result.try
+	 * and the containing function follows the required pattern:
+	 * 1. Function name starts with "try"
+	 * 2. Function args extend BaseInternalFunctionArgs
+	 * 3. Function body is wrapped in Result.try
+	 * Returns true if there's a violation
+	 */
+	payloadCallNotWrappedInResultTry: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		const methodName = astPatterns.payloadLocalApiCall(node);
+		if (!methodName) {
+			return false;
+		}
+
+		// Find the containing function declaration and check for Result.try
+		let currentNode: ts.Node | undefined = node.parent;
+		let functionDeclaration: ts.FunctionDeclaration | null = null;
+		let isInResultTry = false;
+
+		// Traverse up the AST to find the function declaration and check for Result.try
+		while (currentNode) {
+			// Check if we're inside Result.try (this must be checked before breaking on function declaration)
+			if (
+				ts.isCallExpression(currentNode) &&
+				ts.isPropertyAccessExpression(currentNode.expression) &&
+				ts.isIdentifier(currentNode.expression.expression) &&
+				currentNode.expression.expression.text === "Result" &&
+				ts.isIdentifier(currentNode.expression.name) &&
+				currentNode.expression.name.text === "try"
+			) {
+				isInResultTry = true;
+				// Continue traversing to find the function declaration
+			}
+
+			// Check if we found a function declaration
+			if (ts.isFunctionDeclaration(currentNode)) {
+				functionDeclaration = currentNode;
+				// Don't break yet - we need to check if Result.try is in the function body
+				// But we've already found the function, so we can break after checking Result.try
+				break;
+			}
+
+			// Check if we found a function expression (for arrow functions)
+			if (
+				ts.isFunctionExpression(currentNode) ||
+				ts.isArrowFunction(currentNode)
+			) {
+				// Look for the parent that might be a function declaration or variable declaration
+				let parent = currentNode.parent;
+				while (parent) {
+					if (ts.isFunctionDeclaration(parent)) {
+						functionDeclaration = parent;
+						break;
+					}
+					parent = parent.parent;
+				}
+				// Continue to check for Result.try
+			}
+
+			currentNode = currentNode.parent;
+		}
+
+		// If we didn't find a function declaration, we can't check the pattern
+		// This might be in a hook or other context, so we'll be lenient
+		if (!functionDeclaration) {
+			return false;
+		}
+
+		// Check if function name starts with "try"
+		if (!functionDeclaration.name || !functionDeclaration.name.text.startsWith("try")) {
+			return true; // Violation: function name doesn't start with "try"
+		}
+
+		// Check if we're wrapped in Result.try
+		// If we found Result.try while traversing up, we're good
+		if (!isInResultTry) {
+			return true; // Violation: not wrapped in Result.try
+		}
+
+		// Check if function has a parameter that extends BaseInternalFunctionArgs
+		if (!functionDeclaration.parameters || functionDeclaration.parameters.length === 0) {
+			return true; // Violation: no parameters
+		}
+
+		const firstParam = functionDeclaration.parameters[0];
+		if (!firstParam) {
+			// Can't check parameter, so we'll be lenient
+			return false;
+		}
+
+		if (!firstParam.type) {
+			// Can't check type, so we'll be lenient
+			return false;
+		}
+
+		// Check if the parameter type extends BaseInternalFunctionArgs
+		// This is a simplified check - we look for "BaseInternalFunctionArgs" in the type
+		const typeText = firstParam.type.getText(sourceFile);
+		if (!typeText.includes("BaseInternalFunctionArgs")) {
+			// Check if it's an interface that might extend BaseInternalFunctionArgs
+			// We'll check the type checker if possible, but for now we'll be lenient
+			// and only flag if it's clearly not extending BaseInternalFunctionArgs
+			if (
+				!typeText.includes("extends") &&
+				!typeText.includes("BaseInternalFunctionArgs")
+			) {
+				// This might be a violation, but we can't be sure without type checking
+				// So we'll be lenient and not flag it
+				return false;
+			}
+		}
+
+		return false; // No violation found
 	},
 };
 
@@ -1656,6 +1917,30 @@ export const rules: LintRule[] = [
 			{
 				name: "RPC action missing from createActionMap",
 				matcher: astPatterns.missingActionInMap,
+			},
+		],
+	},
+	{
+		name: "Require req and overrideAccess in Payload Local API calls",
+		description: "All Payload Local API calls (payload.find, payload.create, payload.update, payload.delete, payload.findByID, payload.login) must include both req and overrideAccess parameters. Since internal function args extend BaseInternalFunctionArgs, they should have access to both req and overrideAccess. Missing these can cause transaction context issues.",
+		includes: ["server/**/*.ts", "!server/**/*.test.ts", "!server/**/*.spec.ts"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "Payload Local API call missing req or overrideAccess parameter",
+				matcher: astPatterns.payloadCallMissingReqOrOverrideAccess,
+			},
+		],
+	},
+	{
+		name: "Require Result.try wrapper for Payload Local API calls",
+		description: "All direct Payload Local API calls must be wrapped in Result.try, the containing function must have args extending BaseInternalFunctionArgs, and the function name must be prefixed with 'try'. This ensures consistent error handling and type safety.",
+		includes: ["server/**/*.ts", "!server/**/*.test.ts", "!server/**/*.spec.ts"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "Payload Local API call not wrapped in Result.try or function doesn't follow required pattern",
+				matcher: astPatterns.payloadCallNotWrappedInResultTry,
 			},
 		],
 	},

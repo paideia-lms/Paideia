@@ -66,6 +66,7 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -77,6 +78,7 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -93,6 +95,8 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment
@@ -103,6 +107,8 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create section
@@ -115,6 +121,8 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create quiz with multiple question types
@@ -167,6 +175,8 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 			rawQuizConfig: quizConfig,
 			userId: teacher.id,
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		activityModuleId = activityModuleResult.id;
@@ -195,6 +205,7 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 			section: section.id,
 			order: 1,
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		courseActivityModuleLink =

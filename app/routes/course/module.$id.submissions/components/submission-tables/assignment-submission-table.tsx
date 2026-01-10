@@ -58,13 +58,9 @@ type SubmissionType = SubmissionData & {
 	};
 };
 
-
-
 // ============================================================================
 // Components
 // ============================================================================
-
-
 
 export function AssignmentBatchActions({
 	selectedCount,
@@ -140,7 +136,6 @@ export function AssignmentBatchActions({
 	);
 }
 
-
 function StudentSubmissionRow({
 	courseId,
 	enrollment,
@@ -168,10 +163,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
+				const attemptA = a.attemptNumber || 0;
+				const attemptB = b.attemptNumber || 0;
+				return attemptB - attemptA;
+			})
 		: [];
 
 	// Filter out draft submissions for display
@@ -259,8 +254,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-						"submittedAt" in latestSubmission &&
-						latestSubmission.submittedAt
+					"submittedAt" in latestSubmission &&
+					latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -281,17 +276,14 @@ function StudentSubmissionRow({
 											// 	moduleLinkId: String(moduleLinkId),
 											// }) +
 											// `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
-											getRouteUrl(
-												"/course/module/:moduleLinkId/submissions",
-												{
-													params: { moduleLinkId: moduleLinkId.toString() },
-													searchParams: {
-														action: null,
-														view: View.GRADING,
-														submissionId: latestSubmission.id,
-													},
+											getRouteUrl("/course/module/:moduleLinkId/submissions", {
+												params: { moduleLinkId: moduleLinkId.toString() },
+												searchParams: {
+													action: null,
+													view: View.GRADING,
+													submissionId: latestSubmission.id,
 												},
-											)
+											})
 										}
 										leftSection={<IconPencil size={14} />}
 									>

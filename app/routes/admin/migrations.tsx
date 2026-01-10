@@ -126,7 +126,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 function DumpPostgresButton() {
 	const { submit: dumpPostgres, isLoading } = useDumpPostgres();
 	return (
-		<Button onClick={() => dumpPostgres({ values: {} })} disabled={isLoading} loading={isLoading}>
+		<Button
+			onClick={() => dumpPostgres({ values: {} })}
+			disabled={isLoading}
+			loading={isLoading}
+		>
 			Dump Database
 		</Button>
 	);

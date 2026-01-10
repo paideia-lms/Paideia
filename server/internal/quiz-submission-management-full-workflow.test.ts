@@ -79,6 +79,7 @@ describe("Quiz Management - Full Workflow", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -90,6 +91,7 @@ describe("Quiz Management - Full Workflow", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -106,6 +108,7 @@ describe("Quiz Management - Full Workflow", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment
@@ -116,6 +119,8 @@ describe("Quiz Management - Full Workflow", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create activity module with quiz
@@ -227,6 +232,8 @@ describe("Quiz Management - Full Workflow", () => {
 				description: "Test section for quiz submissions",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create course-activity-module-link
@@ -404,6 +411,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: quizId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -456,6 +465,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			courseModuleLinkId: courseActivityModuleLink.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -475,6 +486,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			studentId: student.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(studentListResult.ok).toBe(true);
@@ -490,6 +503,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(inProgressListResult.ok).toBe(true);
@@ -509,6 +524,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -563,6 +580,8 @@ describe("Quiz Management - Full Workflow", () => {
 			limit: 2,
 			page: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(page1Result.ok).toBe(true);
@@ -580,6 +599,7 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: 99999,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -590,6 +610,7 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: 99999,
 			overrideAccess: true,
+			req: undefined,
 		});
 		expect(result.ok).toBe(false);
 	});
@@ -602,6 +623,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -688,6 +711,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submissionWithAnswer.ok).toBe(true);
 		if (!submissionWithAnswer.ok) return;
@@ -717,6 +742,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submissionWithoutAnswer.ok).toBe(true);
 		if (!submissionWithoutAnswer.ok) return;
@@ -735,6 +762,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -817,6 +846,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submission.ok).toBe(true);
 		if (!submission.ok) return;
@@ -832,6 +863,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -930,6 +963,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1012,6 +1047,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submissionWithFlag.ok).toBe(true);
 		if (!submissionWithFlag.ok) return;
@@ -1028,6 +1065,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1124,6 +1163,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submission.ok).toBe(true);
 		if (!submission.ok) return;
@@ -1142,6 +1183,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1224,6 +1267,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submissionWithFlag.ok).toBe(true);
 		if (!submissionWithFlag.ok) return;
@@ -1253,6 +1298,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submissionWithoutFlag.ok).toBe(true);
 		if (!submissionWithoutFlag.ok) return;
@@ -1272,6 +1319,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1354,6 +1403,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: submissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submission.ok).toBe(true);
 		if (!submission.ok) return;
@@ -1369,6 +1420,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1467,6 +1520,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1523,6 +1578,8 @@ describe("Quiz Management - Full Workflow", () => {
 			studentId: student.id,
 			status: "in_progress",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (existingSubmissions.ok) {
@@ -1630,6 +1687,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: createdQuiz.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(getResult.ok).toBe(true);
 		if (!getResult.ok) return;
@@ -1764,6 +1823,8 @@ describe("Quiz Management - Full Workflow", () => {
 			enrollmentId: enrollment.id,
 			attemptNumber: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const quickStartResult = await tryStartQuizAttempt(quickStartArgs);
@@ -1787,6 +1848,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			submissionId: quickSubmissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(submitResult.ok).toBe(false);
 		if (submitResult.ok) return;
@@ -1937,6 +2000,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: autoSubmitSubmissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(initialSubmission.ok).toBe(true);
 		if (!initialSubmission.ok) return;
@@ -2005,6 +2070,8 @@ describe("Quiz Management - Full Workflow", () => {
 			payload,
 			id: autoSubmitSubmissionId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(finalSubmission.ok).toBe(true);
 		if (!finalSubmission.ok) return;

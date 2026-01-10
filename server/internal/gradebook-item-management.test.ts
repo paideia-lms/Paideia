@@ -57,6 +57,8 @@ describe("Gradebook Item Management", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const studentArgs: CreateUserArgs = {
@@ -69,6 +71,8 @@ describe("Gradebook Item Management", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const instructorResult = await tryCreateUser(instructorArgs);
@@ -93,6 +97,8 @@ describe("Gradebook Item Management", () => {
 				createdBy: instructor.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(courseResult.ok).toBe(true);

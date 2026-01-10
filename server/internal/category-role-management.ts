@@ -227,6 +227,7 @@ export function tryRevokeCategoryRole(args: RevokeCategoryRoleArgs) {
 						],
 					},
 					req: txInfo.reqWithTransaction,
+					overrideAccess,
 				});
 
 				if (assignments.docs.length === 0) {
@@ -268,7 +269,13 @@ export function tryRevokeCategoryRole(args: RevokeCategoryRoleArgs) {
 export function tryUpdateCategoryRole(args: UpdateCategoryRoleArgs) {
 	return Result.try(
 		async () => {
-			const { payload, assignmentId, newRole, req } = args;
+			const {
+				payload,
+				assignmentId,
+				newRole,
+				req,
+				overrideAccess = false,
+			} = args;
 
 			if (!assignmentId) {
 				throw new InvalidArgumentError("Assignment ID is required");
@@ -288,6 +295,7 @@ export function tryUpdateCategoryRole(args: UpdateCategoryRoleArgs) {
 						role: newRole,
 					},
 					req: txInfo.reqWithTransaction,
+					overrideAccess,
 				})) as CategoryRoleAssignment;
 
 				return updated;

@@ -1,10 +1,4 @@
-import {
-	Button,
-	Stack,
-	Textarea,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import type { DiscussionFormInitialValues as EditDiscussionFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { DiscussionFormInitialValues as NewDiscussionFormInitialValues } from "app/routes/user/module/new";
@@ -79,7 +73,6 @@ export function DiscussionForm({
 					placeholder="Enter discussion instructions..."
 				/>
 
-
 				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 					Save
 				</Button>
@@ -87,4 +80,3 @@ export function DiscussionForm({
 		</form>
 	);
 }
-

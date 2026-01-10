@@ -44,6 +44,7 @@ describe("Appearance Settings Functions", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		if (!userResult.ok) {
@@ -107,6 +108,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			mediaId: logoMediaId!,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(findUsagesResult.ok).toBe(true);
@@ -188,6 +190,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			mediaId: logoLightId!,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(logoLightUsagesResult.ok).toBe(true);
@@ -205,6 +208,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			mediaId: logoDarkId!,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(logoDarkUsagesResult.ok).toBe(true);
@@ -222,6 +226,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			mediaId: compactLogoLightId!,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(compactLogoLightUsagesResult.ok).toBe(true);
@@ -286,6 +291,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			mediaId: faviconLightId!,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(faviconLightUsagesResult.ok).toBe(true);
@@ -304,6 +310,7 @@ describe("Appearance Settings Functions", () => {
 			payload,
 			mediaId: faviconDarkId!,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(faviconDarkUsagesResult.ok).toBe(true);
@@ -354,6 +361,7 @@ describe("Appearance Settings Functions", () => {
 		const getSettingsResult = await tryGetAppearanceSettings({
 			payload,
 			overrideAccess: true,
+			req: undefined,
 		});
 
 		expect(getSettingsResult.ok).toBe(true);

@@ -205,8 +205,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		const thumbnailUrl = enrollment.course.thumbnail
 			? href(`/api/media/file/:mediaId`, {
-				mediaId: enrollment.course.thumbnail.toString(),
-			})
+					mediaId: enrollment.course.thumbnail.toString(),
+				})
 			: null;
 		return {
 			...enrollment.course,

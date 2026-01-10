@@ -1,59 +1,58 @@
 import { Button, NumberInput, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-    useUpdateQuestionScoring,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateQuestionScoring } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface SimpleScoringFormProps {
-    moduleId: number;
-    question: Question;
-    scoring: Extract<Question["scoring"], { type: "simple" }>;
-    nestedQuizId?: string;
+	moduleId: number;
+	question: Question;
+	scoring: Extract<Question["scoring"], { type: "simple" }>;
+	nestedQuizId?: string;
 }
 
 export function SimpleScoringForm({
-    moduleId,
-    question,
-    scoring,
-    nestedQuizId,
+	moduleId,
+	question,
+	scoring,
+	nestedQuizId,
 }: SimpleScoringFormProps) {
-    const { submit: updateQuestionScoring, isLoading } = useUpdateQuestionScoring();
+	const { submit: updateQuestionScoring, isLoading } =
+		useUpdateQuestionScoring();
 
-    const form = useForm({
-        initialValues: {
-            points: scoring.points,
-        },
-    });
+	const form = useForm({
+		initialValues: {
+			points: scoring.points,
+		},
+	});
 
-    return (
-        <form
-            onSubmit={form.onSubmit((values) => {
-                updateQuestionScoring({
-                    params: { moduleId },
-                    values: {
-                        questionId: question.id,
-                        scoring: {
-                            type: "simple",
-                            points: values.points,
-                        },
-                        nestedQuizId,
-                    },
-                });
-            })}
-        >
-            <Stack gap="md">
-                <Title order={5}>Scoring</Title>
-                <NumberInput
-                    {...form.getInputProps("points")}
-                    label="Points"
-                    description="Points awarded for correct answer"
-                    min={0}
-                />
-                <Button type="submit" loading={isLoading}>
-                    Save Scoring
-                </Button>
-            </Stack>
-        </form>
-    );
+	return (
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuestionScoring({
+					params: { moduleId },
+					values: {
+						questionId: question.id,
+						scoring: {
+							type: "simple",
+							points: values.points,
+						},
+						nestedQuizId,
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={5}>Scoring</Title>
+				<NumberInput
+					{...form.getInputProps("points")}
+					label="Points"
+					description="Points awarded for correct answer"
+					min={0}
+				/>
+				<Button type="submit" loading={isLoading}>
+					Save Scoring
+				</Button>
+			</Stack>
+		</form>
+	);
 }

@@ -155,7 +155,7 @@ export const middleware = [
 	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
-	async ({ context }) => {
+	async ({ context, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -164,6 +164,7 @@ export const middleware = [
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+			req: request,
 		}).getOrDefault({
 			maintenanceSettings: { maintenanceMode: false },
 			sitePolicies: {
@@ -343,7 +344,9 @@ export const middleware = [
 			currentUser &&
 			// if user login, he must have user access context
 			userAccessContext &&
-			(pageInfo.is["layouts/user-layout"] || pageInfo.is["routes/user/overview"] || pageInfo.is["routes/user/profile"])
+			(pageInfo.is["layouts/user-layout"] ||
+				pageInfo.is["routes/user/overview"] ||
+				pageInfo.is["routes/user/profile"])
 		) {
 			// Get the profile user id from params, or use current user id
 			const profileUserId = params.id ? Number(params.id) : currentUser.id;
@@ -352,15 +355,15 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							userSession,
-							globalContext,
-						)
+								userAccessContext,
+								userSession,
+								globalContext,
+							)
 						: await getUserProfileContext({
-							profileUserId,
-							userSession,
-							globalContext,
-						});
+								profileUserId,
+								userSession,
+								globalContext,
+							});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -453,6 +456,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 		pageInfo,
 		systemGlobals,
 		envVars,
+		payloadRequest,
 	} = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
@@ -462,6 +466,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const userCount = await tryGetUserCount({
 		payload,
 		overrideAccess: true,
+		req: payloadRequest,
 	}).getOrElse(() => {
 		throw new InternalServerErrorResponse("Failed to get user count");
 	});
@@ -550,17 +555,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 			environment !== "development"
 				? null
 				: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				},
+						userSession: userSession,
+						courseContext: context.get(courseContextKey),
+						courseModuleContext: context.get(courseModuleContextKey),
+						courseSectionContext: context.get(courseSectionContextKey),
+						enrolmentContext: context.get(enrolmentContextKey),
+						userModuleContext: context.get(userModuleContextKey),
+						userProfileContext: context.get(userProfileContextKey),
+						userAccessContext: context.get(userAccessContextKey),
+						userContext: context.get(userContextKey),
+						systemGlobals: systemGlobals,
+					},
 		isSandboxMode,
 		nextResetTime,
 	};

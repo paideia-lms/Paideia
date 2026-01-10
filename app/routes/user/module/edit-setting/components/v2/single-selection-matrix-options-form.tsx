@@ -10,9 +10,7 @@ import {
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateSingleSelectionMatrixQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateSingleSelectionMatrixQuestion } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface SingleSelectionMatrixOptionsFormProps {
@@ -61,7 +59,9 @@ export function SingleSelectionMatrixOptionsForm({
 				<Title order={5}>Matrix Configuration</Title>
 				<Stack gap="xs">
 					<Group justify="space-between">
-						<Text size="sm" fw={500}>Rows</Text>
+						<Text size="sm" fw={500}>
+							Rows
+						</Text>
 						<Button
 							size="compact-sm"
 							variant="light"
@@ -108,7 +108,9 @@ export function SingleSelectionMatrixOptionsForm({
 
 				<Stack gap="xs">
 					<Group justify="space-between">
-						<Text size="sm" fw={500}>Columns</Text>
+						<Text size="sm" fw={500}>
+							Columns
+						</Text>
 						<Button
 							size="compact-sm"
 							variant="light"
@@ -159,7 +161,9 @@ export function SingleSelectionMatrixOptionsForm({
 
 				{rowKeys.length > 0 && columnKeys.length > 0 && (
 					<Stack gap="xs">
-						<Text size="sm" fw={500}>Correct Answers</Text>
+						<Text size="sm" fw={500}>
+							Correct Answers
+						</Text>
 						<Table striped highlightOnHover withTableBorder>
 							<Table.Thead>
 								<Table.Tr>
@@ -182,7 +186,9 @@ export function SingleSelectionMatrixOptionsForm({
 												<input
 													type="radio"
 													name={`matrix-${rowKey}`}
-													checked={form.values.correctAnswers[rowKey] === colKey}
+													checked={
+														form.values.correctAnswers[rowKey] === colKey
+													}
 													onChange={() => {
 														form.setFieldValue("correctAnswers", {
 															...form.values.correctAnswers,

@@ -69,6 +69,7 @@ export const autoSubmitQuiz: TaskConfig<"autoSubmitQuiz"> = {
 			overrideAccess: true,
 			// ! we can bypass the time limit check because the timer has expired and this is a system request
 			bypassTimeLimit: true,
+			req,
 		});
 
 		if (!submitResult.ok) {

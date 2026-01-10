@@ -104,7 +104,6 @@ export function AssignmentForm({
 					placeholder="Enter assignment instructions..."
 				/>
 
-
 				<Checkbox
 					{...form.getInputProps("assignmentRequireTextSubmission", {
 						type: "checkbox",
@@ -130,7 +129,6 @@ export function AssignmentForm({
 		</form>
 	);
 }
-
 
 function FileSubmissionSettings({
 	form,

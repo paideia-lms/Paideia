@@ -130,7 +130,8 @@ const impersonateAction = createImpersonateActionRpc.createAction(
 	},
 );
 
-export const useImpersonate = createImpersonateActionRpc.createHook<typeof impersonateAction>();
+export const useImpersonate =
+	createImpersonateActionRpc.createHook<typeof impersonateAction>();
 
 const [action] = createActionMap({
 	[Action.Impersonate]: impersonateAction,
@@ -141,9 +142,7 @@ export { action };
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (
-		actionData?.status === StatusCode.BadRequest
-	) {
+	if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
 			message: actionData?.error,

@@ -1,55 +1,53 @@
 import { Button, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-    useToggleQuizType,
-} from "app/routes/user/module/edit-setting/route";
+import { useToggleQuizType } from "app/routes/user/module/edit-setting/route";
 import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
 interface ToggleQuizTypeFormProps {
-    moduleId: number;
-    currentType: "regular" | "container";
+	moduleId: number;
+	currentType: "regular" | "container";
 }
 
 export function ToggleQuizTypeForm({
-    moduleId,
-    currentType,
+	moduleId,
+	currentType,
 }: ToggleQuizTypeFormProps) {
-    const { submit: toggleQuizType, isLoading } = useToggleQuizType();
+	const { submit: toggleQuizType, isLoading } = useToggleQuizType();
 
-    const initialValues = {
-        newType: currentType,
-    };
+	const initialValues = {
+		newType: currentType,
+	};
 
-    const form = useForm({
-        initialValues,
-    });
+	const form = useForm({
+		initialValues,
+	});
 
-    useFormWithSyncedInitialValues(form, initialValues);
+	useFormWithSyncedInitialValues(form, initialValues);
 
-    return (
-        <form
-            onSubmit={form.onSubmit((values) => {
-                toggleQuizType({
-                    params: { moduleId },
-                    values: { newType: values.newType },
-                });
-            })}
-        >
-            <Stack gap="md">
-                <Title order={4}>Quiz Type</Title>
-                <Select
-                    {...form.getInputProps("newType")}
-                    label="Quiz Type"
-                    description="Choose between a regular quiz or a container quiz with multiple quizzes"
-                    data={[
-                        { value: "regular", label: "Regular Quiz" },
-                        { value: "container", label: "Container Quiz (Multiple Quizzes)" },
-                    ]}
-                />
-                <Button type="submit" loading={isLoading} disabled={!form.isDirty()}>
-                    Save Quiz Type
-                </Button>
-            </Stack>
-        </form>
-    );
+	return (
+		<form
+			onSubmit={form.onSubmit((values) => {
+				toggleQuizType({
+					params: { moduleId },
+					values: { newType: values.newType },
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={4}>Quiz Type</Title>
+				<Select
+					{...form.getInputProps("newType")}
+					label="Quiz Type"
+					description="Choose between a regular quiz or a container quiz with multiple quizzes"
+					data={[
+						{ value: "regular", label: "Regular Quiz" },
+						{ value: "container", label: "Container Quiz (Multiple Quizzes)" },
+					]}
+				/>
+				<Button type="submit" loading={isLoading} disabled={!form.isDirty()}>
+					Save Quiz Type
+				</Button>
+			</Stack>
+		</form>
+	);
 }

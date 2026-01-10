@@ -91,6 +91,8 @@ describe("Quiz Module Management", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create a regular quiz module for testing with known page ID
@@ -905,11 +907,26 @@ describe("Quiz Module Management", () => {
 			expect(addPageResult.ok).toBe(true);
 			if (!addPageResult.ok) return;
 
+			// Get the page ID from the result
+			const addedQuiz = addPageResult.value;
+			if (
+				!addedQuiz.rawQuizConfig ||
+				addedQuiz.rawQuizConfig.type !== "regular"
+			) {
+				throw new Error("Expected regular quiz");
+			}
+			const pageToRemove =
+				addedQuiz.rawQuizConfig.pages[addedQuiz.rawQuizConfig.pages.length - 1];
+			if (!pageToRemove) {
+				throw new Error("Page not found");
+			}
+			const pageId = pageToRemove.id;
+
 			// Now remove it
 			const args: RemovePageArgs = {
 				payload,
 				activityModuleId: regularQuizModuleId,
-				pageId: "page-to-remove",
+				pageId,
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -928,9 +945,7 @@ describe("Quiz Module Management", () => {
 				updatedQuiz.rawQuizConfig.type === "regular"
 			) {
 				expect(
-					updatedQuiz.rawQuizConfig.pages.some(
-						(p) => p.id === "page-to-remove",
-					),
+					updatedQuiz.rawQuizConfig.pages.some((p) => p.id === pageId),
 				).toBe(false);
 			}
 		});
@@ -987,11 +1002,28 @@ describe("Quiz Module Management", () => {
 			expect(addNestedResult.ok).toBe(true);
 			if (!addNestedResult.ok) return;
 
+			// Get the nested quiz ID from the result
+			const addedQuiz = addNestedResult.value;
+			if (
+				!addedQuiz.rawQuizConfig ||
+				addedQuiz.rawQuizConfig.type !== "container"
+			) {
+				throw new Error("Expected container quiz");
+			}
+			const nestedQuizToRemove =
+				addedQuiz.rawQuizConfig.nestedQuizzes[
+					addedQuiz.rawQuizConfig.nestedQuizzes.length - 1
+				];
+			if (!nestedQuizToRemove) {
+				throw new Error("Nested quiz not found");
+			}
+			const nestedQuizId = nestedQuizToRemove.id;
+
 			// Now remove it
 			const args: RemoveNestedQuizArgs = {
 				payload,
 				activityModuleId: containerQuizModuleId,
-				nestedQuizId: "nested-to-remove",
+				nestedQuizId,
 				req: createLocalReq({
 					request: mockRequest,
 					user: testUser as TypedUser,
@@ -1011,7 +1043,7 @@ describe("Quiz Module Management", () => {
 			) {
 				expect(
 					updatedQuiz.rawQuizConfig.nestedQuizzes.some(
-						(nq) => nq.id === "nested-to-remove",
+						(nq) => nq.id === nestedQuizId,
 					),
 				).toBe(false);
 			}

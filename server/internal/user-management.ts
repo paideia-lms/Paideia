@@ -450,7 +450,7 @@ export function tryFindAllUsers(args: FindAllUsersArgs) {
 export function tryLogin(args: LoginArgs) {
 	return Result.try(
 		async () => {
-			const { payload, email, password, req } = args;
+			const { payload, email, password, req, overrideAccess = false } = args;
 
 			const loginResult = await payload.login({
 				collection: "users",
@@ -459,6 +459,7 @@ export function tryLogin(args: LoginArgs) {
 					email,
 					password,
 				},
+				overrideAccess,
 			});
 
 			const { exp, token, user } = loginResult;
@@ -498,6 +499,7 @@ export function tryRegisterFirstUser(args: RegisterFirstUserArgs) {
 				limit: 1,
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
+				req,
 			});
 
 			if (existingUsers.docs.length > 0) {

@@ -1,4 +1,13 @@
-import { Button, Checkbox, Container, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import {
+	Button,
+	Checkbox,
+	Container,
+	Group,
+	Paper,
+	Stack,
+	Text,
+	Title,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
@@ -86,7 +95,6 @@ const createNoteAction = createCreateNoteActionRpc.createAction(
 				createdBy: currentUser.id,
 			},
 			req: payloadRequest,
-
 		});
 
 		if (!result.ok) {
@@ -97,9 +105,11 @@ const createNoteAction = createCreateNoteActionRpc.createAction(
 
 		// redirect on the server side
 		return redirect(href("/user/notes/:id?", { id: "" }));
-	});
+	},
+);
 
-const useCreateNote = createCreateNoteActionRpc.createHook<typeof createNoteAction>();
+const useCreateNote =
+	createCreateNoteActionRpc.createHook<typeof createNoteAction>();
 
 const [action] = createActionMap({
 	[Action.CreateNote]: createNoteAction,
@@ -178,12 +188,18 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 							)}
 
 							<Group justify="flex-end" gap="md">
-								<Button variant="subtle" onClick={() => navigate("/user/notes")} type="button">
+								<Button
+									variant="subtle"
+									onClick={() => navigate("/user/notes")}
+									type="button"
+								>
 									Cancel
 								</Button>
 								<Button
 									type="submit"
-									disabled={!form.values.content.trim() || fetcher.state !== "idle"}
+									disabled={
+										!form.values.content.trim() || fetcher.state !== "idle"
+									}
 									loading={fetcher.state !== "idle"}
 								>
 									Create Note

@@ -119,7 +119,7 @@ export const loader = createRouteLoader({
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-				createdBy.email
+					createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -143,7 +143,8 @@ export const loader = createRouteLoader({
 		totalPages: coursesResult.totalPages,
 		currentPage: coursesResult.page,
 		categories: flatCategories,
-		searchParams, params
+		searchParams,
+		params,
 	};
 });
 
@@ -206,8 +207,14 @@ function CourseSearchInput({ query }: CourseSearchInputProps) {
 }
 
 export default function CoursesPage({ loaderData }: Route.ComponentProps) {
-	const { courses, totalCourses, totalPages, currentPage, categories, searchParams } =
-		loaderData;
+	const {
+		courses,
+		totalCourses,
+		totalPages,
+		currentPage,
+		categories,
+		searchParams,
+	} = loaderData;
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	// Handle page change
@@ -375,8 +382,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																	(id) => id !== course.id,
-																),
+																		(id) => id !== course.id,
+																	),
 														)
 													}
 												/>

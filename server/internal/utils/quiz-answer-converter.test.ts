@@ -120,7 +120,7 @@ describe("Quiz Answer Converter Utilities", () => {
 
 	describe("convertQuestionAnswerToDatabaseFormat", () => {
 		test("should convert multiple-choice answer", () => {
-			const question = regularQuizConfig.pages[0].questions[0];
+			const question = regularQuizConfig.pages[0]!.questions[0]!;
 			const answer: TypedQuestionAnswer = {
 				type: "multiple-choice",
 				value: "b",
@@ -136,7 +136,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should convert short-answer", () => {
-			const question = regularQuizConfig.pages[0].questions[1];
+			const question = regularQuizConfig.pages[0]!.questions[1]!;
 			const answer: TypedQuestionAnswer = {
 				type: "short-answer",
 				value: "Paris",
@@ -150,7 +150,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should convert long-answer", () => {
-			const question = regularQuizConfig.pages[0].questions[2];
+			const question = regularQuizConfig.pages[0]!.questions[2]!;
 			const answer: TypedQuestionAnswer = {
 				type: "long-answer",
 				value: "Education is important for personal development",
@@ -160,11 +160,13 @@ describe("Quiz Answer Converter Utilities", () => {
 
 			expect(result.questionId).toBe("q3");
 			expect(result.questionType).toBe("essay");
-			expect(result.selectedAnswer).toBe("Education is important for personal development");
+			expect(result.selectedAnswer).toBe(
+				"Education is important for personal development",
+			);
 		});
 
 		test("should convert article", () => {
-			const question = regularQuizConfig.pages[0].questions[3];
+			const question = regularQuizConfig.pages[0]!.questions[3]!;
 			const answer: TypedQuestionAnswer = {
 				type: "article",
 				value: "<p>Technology article content</p>",
@@ -178,7 +180,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should convert choice (multiple selection)", () => {
-			const question = regularQuizConfig.pages[0].questions[4];
+			const question = regularQuizConfig.pages[0]!.questions[4]!;
 			const answer: TypedQuestionAnswer = {
 				type: "choice",
 				value: ["a", "b", "d"],
@@ -190,7 +192,9 @@ describe("Quiz Answer Converter Utilities", () => {
 			expect(result.questionType).toBe("multiple_choice");
 			expect(result.multipleChoiceAnswers).toBeDefined();
 			expect(result.multipleChoiceAnswers?.length).toBe(3);
-			expect(result.multipleChoiceAnswers?.every((opt) => opt.isSelected)).toBe(true);
+			expect(result.multipleChoiceAnswers?.every((opt) => opt.isSelected)).toBe(
+				true,
+			);
 			expect(result.multipleChoiceAnswers?.map((opt) => opt.option)).toEqual([
 				"a",
 				"b",
@@ -199,7 +203,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should convert ranking", () => {
-			const question = regularQuizConfig.pages[0].questions[5];
+			const question = regularQuizConfig.pages[0]!.questions[5]!;
 			const answer: TypedQuestionAnswer = {
 				type: "ranking",
 				value: ["a", "b", "c"],
@@ -214,7 +218,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should convert fill-in-the-blank", () => {
-			const question = regularQuizConfig.pages[0].questions[6];
+			const question = regularQuizConfig.pages[0]!.questions[6]!;
 			const answer: TypedQuestionAnswer = {
 				type: "fill-in-the-blank",
 				value: { country: "France", capital: "Paris" },
@@ -224,11 +228,13 @@ describe("Quiz Answer Converter Utilities", () => {
 
 			expect(result.questionId).toBe("q7");
 			expect(result.questionType).toBe("fill_blank");
-			expect(result.selectedAnswer).toBe('{"country":"France","capital":"Paris"}');
+			expect(result.selectedAnswer).toBe(
+				'{"country":"France","capital":"Paris"}',
+			);
 		});
 
 		test("should convert single-selection-matrix", () => {
-			const question = regularQuizConfig.pages[0].questions[7];
+			const question = regularQuizConfig.pages[0]!.questions[7]!;
 			const answer: TypedQuestionAnswer = {
 				type: "single-selection-matrix",
 				value: { r1: "c1", r2: "c2" },
@@ -238,13 +244,16 @@ describe("Quiz Answer Converter Utilities", () => {
 
 			expect(result.questionId).toBe("q8");
 			expect(result.questionType).toBe("fill_blank");
-			const parsed = JSON.parse(result.selectedAnswer || "{}");
+			const parsed = JSON.parse(result.selectedAnswer || "{}") as Record<
+				string,
+				string
+			>;
 			expect(parsed.r1).toBe("c1");
 			expect(parsed.r2).toBe("c2");
 		});
 
 		test("should convert multiple-selection-matrix", () => {
-			const question = regularQuizConfig.pages[0].questions[8];
+			const question = regularQuizConfig.pages[0]!.questions[8]!;
 			const answer: TypedQuestionAnswer = {
 				type: "multiple-selection-matrix",
 				value: { r1: "c1", r2: "c2" },
@@ -254,13 +263,16 @@ describe("Quiz Answer Converter Utilities", () => {
 
 			expect(result.questionId).toBe("q9");
 			expect(result.questionType).toBe("fill_blank");
-			const parsed = JSON.parse(result.selectedAnswer || "{}");
+			const parsed = JSON.parse(result.selectedAnswer || "{}") as Record<
+				string,
+				string
+			>;
 			expect(parsed.r1).toBe("c1");
 			expect(parsed.r2).toBe("c2");
 		});
 
 		test("should convert whiteboard", () => {
-			const question = regularQuizConfig.pages[0].questions[9];
+			const question = regularQuizConfig.pages[0]!.questions[9]!;
 			const answer: TypedQuestionAnswer = {
 				type: "whiteboard",
 				value: '{"type":"excalidraw","elements":[]}',
@@ -274,7 +286,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should throw error if answer type doesn't match question type", () => {
-			const question = regularQuizConfig.pages[0].questions[0]; // multiple-choice
+			const question = regularQuizConfig.pages[0]!.questions[0]!; // multiple-choice
 			const answer: TypedQuestionAnswer = {
 				type: "short-answer",
 				value: "some text",
@@ -288,7 +300,7 @@ describe("Quiz Answer Converter Utilities", () => {
 
 	describe("convertDatabaseAnswerToQuestionAnswer", () => {
 		test("should reconstruct multiple-choice answer", () => {
-			const question = regularQuizConfig.pages[0].questions[0];
+			const question = regularQuizConfig.pages[0]!.questions[0]!;
 			const dbAnswer = {
 				questionId: "q1",
 				questionText: "What is 2 + 2?",
@@ -303,7 +315,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should reconstruct short-answer", () => {
-			const question = regularQuizConfig.pages[0].questions[1];
+			const question = regularQuizConfig.pages[0]!.questions[1]!;
 			const dbAnswer = {
 				questionId: "q2",
 				questionText: "What is the capital of France?",
@@ -318,7 +330,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should reconstruct choice answer", () => {
-			const question = regularQuizConfig.pages[0].questions[4];
+			const question = regularQuizConfig.pages[0]!.questions[4]!;
 			const dbAnswer = {
 				questionId: "q5",
 				questionText: "Select all prime numbers",
@@ -338,7 +350,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should reconstruct ranking answer", () => {
-			const question = regularQuizConfig.pages[0].questions[5];
+			const question = regularQuizConfig.pages[0]!.questions[5]!;
 			const dbAnswer = {
 				questionId: "q6",
 				questionText: "Rank these items",
@@ -357,7 +369,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should reconstruct fill-in-the-blank answer", () => {
-			const question = regularQuizConfig.pages[0].questions[6];
+			const question = regularQuizConfig.pages[0]!.questions[6]!;
 			const dbAnswer = {
 				questionId: "q7",
 				questionText: "The capital of {{country}} is {{capital}}",
@@ -372,7 +384,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should handle fill-in-the-blank with invalid JSON (fallback)", () => {
-			const question = regularQuizConfig.pages[0].questions[6];
+			const question = regularQuizConfig.pages[0]!.questions[6]!;
 			const dbAnswer = {
 				questionId: "q7",
 				questionText: "The capital of {{country}} is {{capital}}",
@@ -387,7 +399,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should reconstruct single-selection-matrix answer", () => {
-			const question = regularQuizConfig.pages[0].questions[7];
+			const question = regularQuizConfig.pages[0]!.questions[7]!;
 			const dbAnswer = {
 				questionId: "q8",
 				questionText: "Select one option per row",
@@ -402,7 +414,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should throw error for single-selection-matrix with invalid JSON", () => {
-			const question = regularQuizConfig.pages[0].questions[7];
+			const question = regularQuizConfig.pages[0]!.questions[7]!;
 			const dbAnswer = {
 				questionId: "q8",
 				questionText: "Select one option per row",
@@ -416,7 +428,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should throw error if required field is missing", () => {
-			const question = regularQuizConfig.pages[0].questions[0];
+			const question = regularQuizConfig.pages[0]!.questions[0]!;
 			const dbAnswer = {
 				questionId: "q1",
 				questionText: "What is 2 + 2?",
@@ -472,7 +484,7 @@ describe("Quiz Answer Converter Utilities", () => {
 
 	describe("validateAnswerTypeMatchesQuestion", () => {
 		test("should return true for matching types", () => {
-			const question = regularQuizConfig.pages[0].questions[0];
+			const question = regularQuizConfig.pages[0]!.questions[0]!;
 			const answer: TypedQuestionAnswer = {
 				type: "multiple-choice",
 				value: "b",
@@ -482,7 +494,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should return false for non-matching types", () => {
-			const question = regularQuizConfig.pages[0].questions[0];
+			const question = regularQuizConfig.pages[0]!.questions[0]!;
 			const answer: TypedQuestionAnswer = {
 				type: "short-answer",
 				value: "some text",
@@ -588,10 +600,7 @@ describe("Quiz Answer Converter Utilities", () => {
 		});
 
 		test("should handle empty answers array", () => {
-			const result = convertDatabaseAnswersToQuizAnswers(
-				regularQuizConfig,
-				[],
-			);
+			const result = convertDatabaseAnswersToQuizAnswers(regularQuizConfig, []);
 
 			expect(Object.keys(result).length).toBe(0);
 		});

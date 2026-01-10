@@ -852,6 +852,8 @@ export function tryCalculateUserFinalGrade(args: CalculateUserFinalGradeArgs) {
 						? await payload.findByID({
 								collection: "gradebook-items",
 								id: grade.gradebookItem,
+								req,
+								overrideAccess,
 							})
 						: grade.gradebookItem;
 
@@ -895,6 +897,8 @@ export function tryCalculateUserFinalGrade(args: CalculateUserFinalGradeArgs) {
 					const category = await payload.findByID({
 						collection: "gradebook-categories",
 						id: categoryId,
+						req,
+						overrideAccess,
 					});
 
 					if (category?.weight) {

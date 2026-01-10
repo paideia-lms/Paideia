@@ -4,7 +4,6 @@ import type { Route } from "../../+types/route";
 import { useForm } from "@mantine/form";
 import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
-
 interface ModuleInfoFormProps {
 	module: Extract<
 		Route.ComponentProps["loaderData"]["module"],
@@ -42,11 +41,7 @@ export function ModuleInfoForm({ module }: ModuleInfoFormProps) {
 		>
 			<Stack gap="md">
 				<Title order={4}>Module Information</Title>
-				<TextInput
-					{...form.getInputProps("title")}
-					label="Title"
-					required
-				/>
+				<TextInput {...form.getInputProps("title")} label="Title" required />
 				<Textarea
 					{...form.getInputProps("description")}
 					label="Description"
@@ -59,9 +54,7 @@ export function ModuleInfoForm({ module }: ModuleInfoFormProps) {
 					minRows={3}
 					autosize
 				/>
-				<Button type="submit" loading={isLoading}
-					disabled={!form.isDirty()}
-				>
+				<Button type="submit" loading={isLoading} disabled={!form.isDirty()}>
 					Save Module Information
 				</Button>
 			</Stack>

@@ -38,10 +38,7 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
-import {
-	parseAsInteger,
-	parseAsStringEnum,
-} from "nuqs";
+import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
 import React, {
 	forwardRef,
@@ -102,8 +99,6 @@ export const loaderSearchParams = {
 	viewMode: parseAsStringEnum(["card", "table"]).withDefault("card"),
 };
 
-
-
 enum Action {
 	RenameMedia = "renameMedia",
 	UpdateMedia = "updateMedia",
@@ -111,7 +106,6 @@ enum Action {
 	DeleteOrphanedMedia = "deleteOrphanedMedia",
 	PruneAllOrphanedMedia = "pruneAllOrphanedMedia",
 }
-
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/admin/media",
@@ -159,7 +153,6 @@ const pruneAllOrphanedMediaRpc = createActionRpc({
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams }) => {
@@ -182,41 +175,45 @@ export const loader = createRouteLoader({
 	const { userId, page, orphanedPage } = searchParams;
 	const limit = 20;
 
-	const mediaResult = (userId ? await tryFindMediaByUser({
-		payload,
-		userId,
-		limit,
-		page,
-		depth: 1, // Include createdBy user info
-		req: payloadRequest,
-		overrideAccess: true,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to fetch media");
-	}) : await tryGetAllMedia({
-		payload,
-		limit,
-		page,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to fetch media");
-	}));
+	const mediaResult = userId
+		? await tryFindMediaByUser({
+				payload,
+				userId,
+				limit,
+				page,
+				depth: 1, // Include createdBy user info
+				req: payloadRequest,
+				overrideAccess: true,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch media");
+			})
+		: await tryGetAllMedia({
+				payload,
+				limit,
+				page,
+				req: payloadRequest,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch media");
+			});
 	const mediaWithPermissions = mediaResult.docs.map((file) => ({
 		...file,
 		deletePermission: { allowed: true, reason: "" },
 	}));
 
-	const stats = userId ? await tryGetUserMediaStats({
-		payload,
-		userId,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to fetch user media stats");
-	}) : await tryGetSystemMediaStats({
-		payload,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to fetch system media stats");
-	});
+	const stats = userId
+		? await tryGetUserMediaStats({
+				payload,
+				userId,
+				req: payloadRequest,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch user media stats");
+			})
+		: await tryGetSystemMediaStats({
+				payload,
+				req: payloadRequest,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch system media stats");
+			});
 
 	const systemStats = await tryGetSystemMediaStats({
 		payload,
@@ -225,8 +222,6 @@ export const loader = createRouteLoader({
 		throw new ForbiddenResponse("Failed to fetch system media stats");
 	});
 
-
-
 	// Fetch users for the filter dropdown
 	const userOptions = await tryFindAllUsers({
 		payload,
@@ -234,17 +229,17 @@ export const loader = createRouteLoader({
 		page: 1,
 		sort: "-createdAt",
 		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new InternalServerErrorResponse("Failed to get users");
-	}).then(
-		(users) => {
+	})
+		.getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get users");
+		})
+		.then((users) => {
 			return users.docs.map((user) => ({
 				value: user.id.toString(),
 				label:
 					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
 			}));
-		}
-	)
+		});
 
 	// Fetch orphaned media files
 	const orphanedMediaResult = await tryGetOrphanedMedia({
@@ -314,7 +309,7 @@ const renameMediaAction = renameMediaRpc.createAction(
 		return ok({
 			message: "Media renamed successfully",
 		});
-	}
+	},
 );
 
 const useRenameMedia = renameMediaRpc.createHook<typeof renameMediaAction>();
@@ -334,7 +329,6 @@ const updateMediaAction = updateMediaRpc.createAction(
 		if (!currentUser || currentUser.role !== "admin") {
 			return unauthorized({ error: "Only admins can perform this action" });
 		}
-
 
 		await payload.update({
 			collection: "media",
@@ -435,8 +429,7 @@ const useDeleteMedia = deleteMediaRpc.createHook<typeof deleteMediaAction>();
 
 const deleteOrphanedMediaAction = deleteOrphanedMediaRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, s3Client, payloadRequest } =
-			context.get(globalContextKey);
+		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -451,10 +444,7 @@ const deleteOrphanedMediaAction = deleteOrphanedMediaRpc.createAction(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(
 			async ({ reqWithTransaction }) => {
@@ -499,8 +489,7 @@ const useDeleteOrphanedMedia =
 
 const pruneAllOrphanedMediaAction = pruneAllOrphanedMediaRpc.createAction(
 	async ({ context }) => {
-		const { payload, s3Client, payloadRequest } =
-			context.get(globalContextKey);
+		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -558,7 +547,7 @@ const [action] = createActionMap({
 	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction,
 });
 
-export { action }
+export { action };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
@@ -585,11 +574,10 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 };
 
 export function useDownloadMedia() {
-	const downloadMedia = (file: {
-		filename: string;
-		id: number;
-	}) => {
-		const url = href(`/api/media/file/:mediaId`, { mediaId: file.id.toString() }) + "?download=true";
+	const downloadMedia = (file: { filename: string; id: number }) => {
+		const url =
+			href(`/api/media/file/:mediaId`, { mediaId: file.id.toString() }) +
+			"?download=true";
 		const link = document.createElement("a");
 		link.href = url;
 		// Normalize filename to only allow ASCII and remove unsafe characters, fallback to "download.jpg"
@@ -613,7 +601,6 @@ function MediaHeader({
 	userOptions: Array<{ value: string; label: string }>;
 }) {
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
-
 
 	return (
 		<Stack gap="md">
@@ -673,11 +660,11 @@ function MediaHeader({
 interface MediaSelectionProviderProps {
 	media: Route.ComponentProps["loaderData"]["media"];
 	children:
-	| React.ReactNode
-	| ((props: {
-		selectedCardIds: number[];
-		selectedRecords: Route.ComponentProps["loaderData"]["media"];
-	}) => React.ReactNode);
+		| React.ReactNode
+		| ((props: {
+				selectedCardIds: number[];
+				selectedRecords: Route.ComponentProps["loaderData"]["media"];
+		  }) => React.ReactNode);
 }
 
 interface UseMediaSelectionValueProps {
@@ -725,18 +712,18 @@ function MediaSelectionProvider({
 		<MediaSelectionContext.Provider value={values}>
 			{typeof children === "function"
 				? children({
-					selectedCardIds: values.selectedCardIds,
-					selectedRecords: values.selectedRecords,
-				})
+						selectedCardIds: values.selectedCardIds,
+						selectedRecords: values.selectedRecords,
+					})
 				: React.Children.map(children, (child) => {
-					if (React.isValidElement(child)) {
-						return React.cloneElement(child as React.ReactElement<any>, {
-							selectedCardIds: values.selectedCardIds,
-							selectedRecords: values.selectedRecords,
-						});
-					}
-					return child;
-				})}
+						if (React.isValidElement(child)) {
+							return React.cloneElement(child as React.ReactElement<any>, {
+								selectedCardIds: values.selectedCardIds,
+								selectedRecords: values.selectedRecords,
+							});
+						}
+						return child;
+					})}
 		</MediaSelectionContext.Provider>
 	);
 }
@@ -753,7 +740,9 @@ function BatchActions({
 	const { submit: deleteMedia } = useDeleteMedia();
 
 	const selectedCount =
-		selectedRecords.length > 0 ? selectedRecords.length : selectedCardIds.length;
+		selectedRecords.length > 0
+			? selectedRecords.length
+			: selectedCardIds.length;
 
 	if (selectedCount === 0) return null;
 
@@ -1045,8 +1034,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1233,8 +1222,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1337,8 +1326,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	// Get creator info
@@ -1349,7 +1338,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-			"Unknown"
+				"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1360,13 +1349,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: creatorAvatarId.toString(),
-		})
+				mediaId: creatorAvatarId.toString(),
+			})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-			id: creatorId.toString(),
-		})
+				id: creatorId.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1567,7 +1556,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-						"Unknown"
+							"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1578,13 +1567,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:mediaId`, {
-						mediaId: creatorAvatarId.toString(),
-					})
+							mediaId: creatorAvatarId.toString(),
+						})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-						id: creatorId.toString(),
-					})
+							id: creatorId.toString(),
+						})
 					: undefined;
 
 				return (
@@ -1642,9 +1631,7 @@ function MediaTableView({
 			accessor: "actions",
 			title: "",
 			textAlign: "right" as const,
-			render: (
-				file: Route.ComponentProps["loaderData"]["media"][number],
-			) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<MediaActionMenu file={file} />
 			),
 		},
@@ -1673,7 +1660,6 @@ function MediaPagination({
 	totalPages: number;
 	currentPage: number;
 }) {
-
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	const handlePageChange = (page: number) => {
@@ -1725,7 +1711,9 @@ function OrphanedMediaPagination({
 }
 
 // Orphaned Media File Type
-type OrphanedMediaFile = NonNullable<Route.ComponentProps["loaderData"]["orphanedMedia"]>['files'][number];
+type OrphanedMediaFile = NonNullable<
+	Route.ComponentProps["loaderData"]["orphanedMedia"]
+>["files"][number];
 
 // Orphaned Media Selection Context
 interface UseOrphanedMediaSelectionValueProps {
@@ -1759,10 +1747,8 @@ function useOrphanedMediaSelectionValue({
 	};
 }
 
-const [
-	OrphanedMediaSelectionContext,
-	useOrphanedMediaSelection,
-] = createContext(useOrphanedMediaSelectionValue);
+const [OrphanedMediaSelectionContext, useOrphanedMediaSelection] =
+	createContext(useOrphanedMediaSelectionValue);
 
 // Orphaned Media Table Component
 function OrphanedMediaTable({
@@ -1896,9 +1882,16 @@ function PruneAllOrphanedButton({ totalFiles }: { totalFiles: number }) {
 function OrphanedMediaSection({
 	orphanedMedia,
 }: {
-	orphanedMedia: NonNullable<Route.ComponentProps["loaderData"]["orphanedMedia"]>;
+	orphanedMedia: NonNullable<
+		Route.ComponentProps["loaderData"]["orphanedMedia"]
+	>;
 }) {
-	const { selectedOrphanedIds, setSelectedOrphanedIds, handleTableSelectionChange, clearSelection } = useOrphanedMediaSelectionValue({
+	const {
+		selectedOrphanedIds,
+		setSelectedOrphanedIds,
+		handleTableSelectionChange,
+		clearSelection,
+	} = useOrphanedMediaSelectionValue({
 		orphanedPage: orphanedMedia.page,
 	});
 
@@ -1921,11 +1914,13 @@ function OrphanedMediaSection({
 						No orphaned media files found.
 					</Text>
 				) : (
-					<OrphanedMediaSelectionContext.Provider value={{
-						setSelectedOrphanedIds,
-						handleTableSelectionChange,
-						clearSelection,
-					}}>
+					<OrphanedMediaSelectionContext.Provider
+						value={{
+							setSelectedOrphanedIds,
+							handleTableSelectionChange,
+							clearSelection,
+						}}
+					>
 						<OrphanedMediaTable
 							files={orphanedMedia.files}
 							pagination={{
@@ -1956,9 +1951,7 @@ function StatsSection({
 		<Card withBorder padding="lg" radius="md">
 			<Stack gap="lg">
 				<Title order={3}>
-					{currentUserId
-						? "User Media Statistics"
-						: "System Media Statistics"}
+					{currentUserId ? "User Media Statistics" : "System Media Statistics"}
 				</Title>
 				<Grid>
 					<Grid.Col span={{ base: 12, md: 6 }}>
@@ -2124,14 +2117,10 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 		selectedUserId: initialUserId,
 		userOptions,
 		orphanedMedia,
-		searchParams: {
-			userId,
-			viewMode,
-		},
+		searchParams: { userId, viewMode },
 	} = loaderData;
 	// Sync userId from loader data
 	const currentUserId = userId ?? initialUserId;
-
 
 	return (
 		<Container size="lg" py="xl">
@@ -2183,9 +2172,7 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 
 				{/* Orphaned Media Section */}
 				{orphanedMedia && (
-					<OrphanedMediaSection
-						orphanedMedia={orphanedMedia}
-					/>
+					<OrphanedMediaSection orphanedMedia={orphanedMedia} />
 				)}
 			</Stack>
 		</Container>

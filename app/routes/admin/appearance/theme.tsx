@@ -52,7 +52,7 @@ enum Action {
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -68,13 +68,12 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		payload,
 		// ! this is a system request, we don't care about access control
 		overrideAccess: true,
+		req: payloadRequest,
+	}).getOrElse(() => {
+		throw new ForbiddenResponse("Failed to get appearance settings");
 	});
 
-	if (!settings.ok) {
-		throw new ForbiddenResponse("Failed to get appearance settings");
-	}
-
-	return { settings: settings.value };
+	return { settings };
 });
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

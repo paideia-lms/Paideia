@@ -16,11 +16,13 @@ import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetLatestVersion } from "server/internal/version-management";
-import { detectSystemResources, getServerTimezone } from "server/utils/bun-system-resources";
+import {
+	detectSystemResources,
+	getServerTimezone,
+} from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import type { Route } from "./+types/system";
-
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -49,7 +51,9 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	const serverTimezone = getServerTimezone();
 
 	// Check for latest version from Docker Hub
-	const versionInfo = await tryGetLatestVersion({ currentVersion: packageVersion }).getOrNull();
+	const versionInfo = await tryGetLatestVersion({
+		currentVersion: packageVersion,
+	}).getOrNull();
 
 	return {
 		platformInfo,
@@ -63,8 +67,9 @@ export const loader = createRouteLoader()(async ({ context }) => {
 });
 
 // Type definitions for client-side use
-type PlatformDetectionResult = Route.ComponentProps['loaderData']['platformInfo'];
-type SystemResources = Route.ComponentProps['loaderData']['systemResources'];
+type PlatformDetectionResult =
+	Route.ComponentProps["loaderData"]["platformInfo"];
+type SystemResources = Route.ComponentProps["loaderData"]["systemResources"];
 // Utility functions for client-side use
 function formatBytes(bytes: number): string {
 	if (bytes === 0) return "0 B";
@@ -93,8 +98,6 @@ function PlatformInfoSection({
 }: {
 	platformInfo: PlatformDetectionResult;
 }) {
-
-
 	return (
 		<Paper withBorder shadow="sm" p="md" radius="md">
 			<Stack gap="md">
@@ -186,7 +189,6 @@ const statusColorMap = {
 	error: "red",
 };
 
-
 function SystemResourcesSection({
 	systemResources,
 	serverTimezone,
@@ -198,8 +200,6 @@ function SystemResourcesSection({
 	const diskStatus = systemResources.disk
 		? getResourceStatus(systemResources.disk.percentage)
 		: "good";
-
-
 
 	const formatUptime = (seconds: number): string => {
 		const days = Math.floor(seconds / 86400);
@@ -463,7 +463,7 @@ const useAutoRefresh = (interval: number = 1000) => {
 	);
 
 	return { state: revalidator.state };
-}
+};
 
 export default function SystemPage({ loaderData }: Route.ComponentProps) {
 	const {

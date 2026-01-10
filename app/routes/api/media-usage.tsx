@@ -11,42 +11,38 @@ const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>({
 
 const loaderRpc = createLoaderRpc({});
 
-export const loader = loaderRpc.createLoader(
-	async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+export const loader = loaderRpc.createLoader(async ({ context, params }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			// throw new NotFoundResponse("Unauthorized");
-			return unauthorized("Unauthorized");
-		}
+	if (!userSession?.isAuthenticated) {
+		// throw new NotFoundResponse("Unauthorized");
+		return unauthorized("Unauthorized");
+	}
 
-		const currentUser =
-			userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-		if (!currentUser) {
-			return unauthorized("Unauthorized");
-		}
+	if (!currentUser) {
+		return unauthorized("Unauthorized");
+	}
 
-		const { mediaId } = params;
+	const { mediaId } = params;
 
-		const result = await tryFindMediaUsages({
-			payload,
-			mediaId,
-			req: payloadRequest,
-		});
+	const result = await tryFindMediaUsages({
+		payload,
+		mediaId,
+		req: payloadRequest,
+	});
 
-		if (!result.ok) {
-			return badRequest({ error: result.error.message });
-		}
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
 
-		return ok({
-			usages: result.value.usages,
-			totalUsages: result.value.totalUsages,
-		});
-	},
-);
+	return ok({
+		usages: result.value.usages,
+		totalUsages: result.value.totalUsages,
+	});
+});
 
 export const useMediaUsageData = loaderRpc.createHook<typeof loader>();
-
-

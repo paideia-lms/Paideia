@@ -1,10 +1,7 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import {
-	parseAsInteger,
-	parseAsStringEnum,
-} from "nuqs/server";
+import { parseAsInteger, parseAsStringEnum } from "nuqs/server";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -33,9 +30,7 @@ import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion-grading-view";
 import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
 import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
-import {
-	AssignmentSubmissionTable,
-} from "app/routes/course/module.$id.submissions/components/submission-tables/assignment-submission-table";
+import { AssignmentSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/assignment-submission-table";
 import { QuizSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/quiz-submission-table";
 import { DiscussionSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/discussion-submission-table";
 import {
@@ -61,7 +56,6 @@ export enum Action {
 	GradeSubmission = "gradeSubmission",
 	ReleaseGrade = "releaseGrade",
 }
-
 
 // Define search params
 export const loaderSearchParams = {
@@ -178,18 +172,18 @@ export const loader = createRouteLoader({
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
-				baseGrade: submission.grade,
-				maxGrade,
-				feedback: submission.feedback || null,
-			}
+					baseGrade: submission.grade,
+					maxGrade,
+					feedback: submission.feedback || null,
+				}
 			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 
 		return {
@@ -235,20 +229,20 @@ export const loader = createRouteLoader({
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+			submissionWithGrade.grade !== undefined
 				? {
-					baseGrade: submissionWithGrade.grade,
-					maxGrade,
-					feedback: submissionWithGrade.feedback || null,
-				}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						feedback: submissionWithGrade.feedback || null,
+					}
 				: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 
 		return {
@@ -296,7 +290,7 @@ export const loader = createRouteLoader({
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+					subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -307,12 +301,12 @@ export const loader = createRouteLoader({
 				const author =
 					typeof student === "object" && student !== null
 						? {
-							id: student.id,
-							firstName: student.firstName ?? null,
-							lastName: student.lastName ?? null,
-							email: student.email ?? null,
-							avatar: student.avatar ?? null,
-						}
+								id: student.id,
+								firstName: student.firstName ?? null,
+								lastName: student.lastName ?? null,
+								email: student.email ?? null,
+								avatar: student.avatar ?? null,
+							}
 						: null;
 
 				return [
@@ -349,7 +343,7 @@ export const loader = createRouteLoader({
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+					subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -412,12 +406,12 @@ export const loader = createRouteLoader({
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+			submissionWithGrade.grade !== undefined
 				? {
-					baseGrade: submissionWithGrade.grade,
-					maxGrade,
-					feedback: submissionWithGrade.feedback || null,
-				}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						feedback: submissionWithGrade.feedback || null,
+					}
 				: null;
 
 		// Add student submissions to gradingSubmission for display
@@ -435,9 +429,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 
 		return {
@@ -460,8 +454,8 @@ export const loader = createRouteLoader({
 	// Not in grading mode - return list view data
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-			courseModuleContext.type === "quiz" ||
-			courseModuleContext.type === "discussion"
+		courseModuleContext.type === "quiz" ||
+		courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -476,13 +470,13 @@ export const loader = createRouteLoader({
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-					submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 					? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						gradedAt: submissionWithGrade.gradedAt || null,
-						feedback: submissionWithGrade.feedback || null,
-					}
+							baseGrade: submissionWithGrade.grade,
+							maxGrade,
+							gradedAt: submissionWithGrade.gradedAt || null,
+							feedback: submissionWithGrade.feedback || null,
+						}
 					: null,
 		};
 	});
@@ -491,9 +485,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -515,9 +509,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -539,9 +533,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -595,10 +589,7 @@ const deleteSubmissionAction = deleteSubmissionRpc.createAction(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const id = formData.submissionId;
@@ -659,10 +650,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 		const moduleType = courseModuleContext.type;
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(
 			async ({ reqWithTransaction }) => {

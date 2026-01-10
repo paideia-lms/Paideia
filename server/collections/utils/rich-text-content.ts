@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest, TextareaField } from "payload";
 import { Result } from "typescript-result";
 import { tryParseMediaFromHtml } from "server/internal/utils/parse-media-from-html";
 import {
+	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
 } from "server/internal/utils/internal-function-utils";
@@ -21,10 +22,10 @@ export function richTextContent<T extends TextareaField>(o: T) {
 	] as const;
 }
 
-export interface ExtractMediaIdsFromRichTextArgs {
+export interface ExtractMediaIdsFromRichTextArgs
+	extends BaseInternalFunctionArgs {
 	payload: Payload;
 	htmlContent: string[];
-	req?: Partial<PayloadRequest>;
 }
 
 /**

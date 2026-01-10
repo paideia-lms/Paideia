@@ -43,8 +43,6 @@ import { getRouteUrl } from "app/utils/search-params-utils";
 
 type Course = Route.ComponentProps["loaderData"]["course"];
 
-
-
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/course/:courseId/settings",
 });
@@ -438,8 +436,13 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 						<ThumbnailDropzone
 							form={form}
 							initialPreviewUrl={
-								course.thumbnail ?
-									getRouteUrl("/api/media/file/:mediaId", { params: { mediaId: course.thumbnail.id.toString() }, searchParams: {} }) : null}
+								course.thumbnail
+									? getRouteUrl("/api/media/file/:mediaId", {
+											params: { mediaId: course.thumbnail.id.toString() },
+											searchParams: {},
+										})
+									: null
+							}
 						/>
 
 						<Input.Wrapper label="Description" required>

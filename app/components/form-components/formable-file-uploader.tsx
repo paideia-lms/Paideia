@@ -7,25 +7,25 @@ import type { ComponentProps } from "react";
 import type { Path } from "node_modules/@mantine/form/lib/paths.types";
 
 type FileUploaderValue = {
-    files: File[];
-    mediaIds: number[];
+	files: File[];
+	mediaIds: number[];
 };
 
 type FileUploaderProps = Omit<
-    ComponentProps<typeof FileUploader>,
-    "onChange" | "value" | "defaultValue" | "existingMedia"
+	ComponentProps<typeof FileUploader>,
+	"onChange" | "value" | "defaultValue" | "existingMedia"
 >;
 
 interface FormableFileUploaderProps<T> extends FileUploaderProps {
-    form: UseFormReturnType<T>;
-    formKey: Path<T>;
-    label: string;
-    existingMedia?: Array<{
-        id: number;
-        filename?: string | null;
-        mimeType?: string | null;
-        filesize?: number | null;
-    }>;
+	form: UseFormReturnType<T>;
+	formKey: Path<T>;
+	label: string;
+	existingMedia?: Array<{
+		id: number;
+		filename?: string | null;
+		mimeType?: string | null;
+		filesize?: number | null;
+	}>;
 }
 
 /**
@@ -46,43 +46,42 @@ interface FormableFileUploaderProps<T> extends FileUploaderProps {
  * ```
  */
 export function FormableFileUploader<T>({
-    form,
-    formKey,
-    label,
-    existingMedia = [],
-    ...fileUploaderProps
+	form,
+	formKey,
+	label,
+	existingMedia = [],
+	...fileUploaderProps
 }: FormableFileUploaderProps<T>) {
-    const filesValue = useFormWatchForceUpdate(
-        form,
-        formKey,
-        ({ value, previousValue }) => {
-            return JSON.stringify(value) !== JSON.stringify(previousValue);
-        },
-    );
+	const filesValue = useFormWatchForceUpdate(
+		form,
+		formKey,
+		({ value, previousValue }) => {
+			return JSON.stringify(value) !== JSON.stringify(previousValue);
+		},
+	);
 
-    return (
-        <Input.Wrapper label={label}>
-            <FileUploader
-                existingMedia={existingMedia.map((media) => ({
-                    ...media,
-                    previewUrl: getRouteUrl("/api/media/file/:mediaId", {
-                        params: { mediaId: media.id.toString() },
-                        searchParams: {},
-                    }),
-                }))}
-                onChange={({ files: newFiles, mediaIds: newMediaIds }) => {
-                    // console.log("newFiles", newFiles);
-                    // console.log("newMediaIds", newMediaIds);
-                    // console.log("formKey", formKey);
-                    form.setFieldValue(
-                        formKey,
-                        { files: newFiles, mediaIds: newMediaIds } as any,
-                    );
-                }}
-                value={filesValue as FileUploaderValue | undefined}
-                {...fileUploaderProps}
-            />
-        </Input.Wrapper>
-    );
+	return (
+		<Input.Wrapper label={label}>
+			<FileUploader
+				existingMedia={existingMedia.map((media) => ({
+					...media,
+					previewUrl: getRouteUrl("/api/media/file/:mediaId", {
+						params: { mediaId: media.id.toString() },
+						searchParams: {},
+					}),
+				}))}
+				onChange={({ files: newFiles, mediaIds: newMediaIds }) => {
+					// console.log("newFiles", newFiles);
+					// console.log("newMediaIds", newMediaIds);
+					// console.log("formKey", formKey);
+					form.setFieldValue(formKey, {
+						files: newFiles,
+						mediaIds: newMediaIds,
+					} as any);
+				}}
+				value={filesValue as FileUploaderValue | undefined}
+				{...fileUploaderProps}
+			/>
+		</Input.Wrapper>
+	);
 }
-

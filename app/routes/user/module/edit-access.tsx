@@ -155,8 +155,6 @@ const revokeAccessAction = revokeAccessRpc.createAction(
 
 const useRevokeAccess = revokeAccessRpc.createHook<typeof revokeAccessAction>();
 
-
-
 const [action] = createActionMap({
 	[Action.GrantAccess]: grantAccessAction,
 	[Action.RevokeAccess]: revokeAccessAction,

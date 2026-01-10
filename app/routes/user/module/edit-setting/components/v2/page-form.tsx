@@ -21,11 +21,10 @@ export function PageForm({
 	nestedQuizId,
 	totalPages,
 }: PageFormProps) {
-
 	return (
 		<Stack gap="md">
-			<Title order={5}>Page {pageIndex + 1}
-
+			<Title order={5}>
+				Page {pageIndex + 1}
 				<RemovePageButton
 					moduleId={moduleId}
 					pageId={page.id}

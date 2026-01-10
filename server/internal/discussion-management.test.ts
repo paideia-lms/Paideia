@@ -68,6 +68,8 @@ describe("Discussion Management - Full Workflow", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -79,6 +81,8 @@ describe("Discussion Management - Full Workflow", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -95,6 +99,8 @@ describe("Discussion Management - Full Workflow", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment
@@ -105,6 +111,8 @@ describe("Discussion Management - Full Workflow", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create activity module with discussion
@@ -168,6 +176,8 @@ describe("Discussion Management - Full Workflow", () => {
 				description: "Test section for discussion submissions",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create course-activity-module-link
@@ -839,6 +849,8 @@ describe("Discussion Management - Full Workflow", () => {
 			payload,
 			courseModuleLinkId: courseActivityModuleLink.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -857,6 +869,8 @@ describe("Discussion Management - Full Workflow", () => {
 			payload,
 			postType: "thread",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(threadListResult.ok).toBe(true);
@@ -872,6 +886,8 @@ describe("Discussion Management - Full Workflow", () => {
 			payload,
 			studentId: student.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(studentListResult.ok).toBe(true);

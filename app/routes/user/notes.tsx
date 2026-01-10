@@ -54,74 +54,72 @@ const createRouteLoader = createLoaderInstance({
 	searchParams: loaderSearchParams,
 });
 
-export const loader = createRouteLoader(async ({
-	context,
-	params,
-	searchParams,
-}) => {
-	const { hints } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const userProfileContext = context.get(userProfileContextKey);
-	const { id } = params;
+export const loader = createRouteLoader(
+	async ({ context, params, searchParams }) => {
+		const { hints } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const userProfileContext = context.get(userProfileContextKey);
+		const { id } = params;
 
-	if (!userProfileContext) {
-		throw new NotFoundResponse("User not found");
-	}
+		if (!userProfileContext) {
+			throw new NotFoundResponse("User not found");
+		}
 
-	// Get client hints for timezone
-	const timeZone = hints.timeZone;
+		// Get client hints for timezone
+		const timeZone = hints.timeZone;
 
-	if (!userSession?.isAuthenticated) {
-		throw new NotFoundResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new NotFoundResponse("Unauthorized");
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (!currentUser) {
-		throw new NotFoundResponse("Unauthorized");
-	}
+		if (!currentUser) {
+			throw new NotFoundResponse("Unauthorized");
+		}
 
-	// Get user ID from route params, or use current user
-	const userId = id ?? currentUser.id;
+		// Get user ID from route params, or use current user
+		const userId = id ?? currentUser.id;
 
-	// Get user profile context
+		// Get user profile context
 
-	// user can create notes if he is the user of this profile
-	const canCreateNotes = userId === currentUser.id;
+		// user can create notes if he is the user of this profile
+		const canCreateNotes = userId === currentUser.id;
 
-	// Get selected date from search params
-	const dateParam = searchParams.date;
+		// Get selected date from search params
+		const dateParam = searchParams.date;
 
-	// Filter notes by date if date parameter is provided
-	let filteredNotes = userProfileContext.notes;
-	if (dateParam) {
-		// The dateParam is a date string like "2025-10-31" which represents a date in the client's timezone
-		// We should use it directly for comparison without parsing and converting
-		const selectedDateStr = dateParam; // Already in YYYY-MM-DD format
+		// Filter notes by date if date parameter is provided
+		let filteredNotes = userProfileContext.notes;
+		if (dateParam) {
+			// The dateParam is a date string like "2025-10-31" which represents a date in the client's timezone
+			// We should use it directly for comparison without parsing and converting
+			const selectedDateStr = dateParam; // Already in YYYY-MM-DD format
 
-		// Filter notes by matching the date in client's timezone
-		filteredNotes = userProfileContext.notes.filter((note) => {
-			const noteDate = formatDateInTimeZone(note.createdAt, timeZone);
-			return noteDate === selectedDateStr;
-		});
-	}
+			// Filter notes by matching the date in client's timezone
+			filteredNotes = userProfileContext.notes.filter((note) => {
+				const noteDate = formatDateInTimeZone(note.createdAt, timeZone);
+				return noteDate === selectedDateStr;
+			});
+		}
 
-	return {
-		user: userProfileContext.profileUser,
-		isOwnProfile: userId === currentUser.id,
-		canCreateNotes,
-		currentUserId: currentUser.id,
-		currentUserRole: currentUser.role,
-		notes: userProfileContext.notes,
-		filteredNotes,
-		heatmapData: userProfileContext.heatmapData,
-		availableYears: userProfileContext.availableYears,
-		timeZone: timeZone,
-		searchParams,
-		params,
-	};
-})!;
+		return {
+			user: userProfileContext.profileUser,
+			isOwnProfile: userId === currentUser.id,
+			canCreateNotes,
+			currentUserId: currentUser.id,
+			currentUserRole: currentUser.role,
+			notes: userProfileContext.notes,
+			filteredNotes,
+			heatmapData: userProfileContext.heatmapData,
+			availableYears: userProfileContext.availableYears,
+			timeZone: timeZone,
+			searchParams,
+			params,
+		};
+	},
+)!;
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/user/notes/:id?",
@@ -164,7 +162,8 @@ const deleteNoteAction = createDeleteNoteActionRpc.createAction(
 	},
 );
 
-const useDeleteNote = createDeleteNoteActionRpc.createHook<typeof deleteNoteAction>();
+const useDeleteNote =
+	createDeleteNoteActionRpc.createHook<typeof deleteNoteAction>();
 
 // Export hook for use in components
 export { useDeleteNote };
@@ -234,9 +233,10 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
-							? "No notes"
-							: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${
+							value === null || value === 0
+								? "No notes"
+								: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}
@@ -529,11 +529,14 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 
 	// Regenerate heatmap data mapping using client timezone
 	// Server-generated heatmap data uses server timezone, so we need to remap it
-	const clientHeatmapData = notes.reduce((acc, note) => {
-		const dateKey = formatDateInTimeZone(note.createdAt, timeZone);
-		acc[dateKey] = (acc[dateKey] || 0) + 1;
-		return acc;
-	}, {} as Record<string, number>);
+	const clientHeatmapData = notes.reduce(
+		(acc, note) => {
+			const dateKey = formatDateInTimeZone(note.createdAt, timeZone);
+			acc[dateKey] = (acc[dateKey] || 0) + 1;
+			return acc;
+		},
+		{} as Record<string, number>,
+	);
 
 	// Filter heatmap data for selected year using client timezone
 	const yearHeatmapData = Object.fromEntries(

@@ -28,33 +28,35 @@ export const loaderSearchParams = {
 
 const createRouteLoader = createLoader({ searchParams: loaderSearchParams });
 
-export const loader = createRouteLoader(async ({ context, params, searchParams }) => {
-	const { pageInfo } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const courseContext = context.get(courseContextKey);
+export const loader = createRouteLoader(
+	async ({ context, params, searchParams }) => {
+		const { pageInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	// Get course view data for tab context
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found or access denied");
-	}
+		// Get course view data for tab context
+		if (!courseContext) {
+			throw new ForbiddenResponse("Course not found or access denied");
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-	return {
-		course: courseContext.course,
-		currentUser: currentUser,
-		pageInfo: pageInfo,
-		enrolment: courseContext.enrolment,
-		permissions: courseContext.permissions,
-		params,
-		searchParams,
-	};
-})!;
+		return {
+			course: courseContext.course,
+			currentUser: currentUser,
+			pageInfo: pageInfo,
+			enrolment: courseContext.enrolment,
+			permissions: courseContext.permissions,
+			params,
+			searchParams,
+		};
+	},
+)!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -62,11 +64,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 export default function CourseLayout({ loaderData }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const {
-		course,
-		pageInfo,
-		permissions,
-	} = loaderData;
+	const { course, pageInfo, permissions } = loaderData;
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {

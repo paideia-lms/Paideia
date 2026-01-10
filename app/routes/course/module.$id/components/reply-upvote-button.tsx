@@ -14,7 +14,8 @@ export function ReplyUpvoteButton({
 	moduleLinkId,
 }: ReplyUpvoteButtonProps) {
 	const { submit: upvoteReply, isLoading: isUpvotingReply } = useUpvoteReply();
-	const { submit: removeUpvoteReply, isLoading: isRemovingUpvoteReply } = useRemoveUpvoteReply();
+	const { submit: removeUpvoteReply, isLoading: isRemovingUpvoteReply } =
+		useRemoveUpvoteReply();
 
 	const handleUpvote = (e?: React.MouseEvent) => {
 		if (e) {

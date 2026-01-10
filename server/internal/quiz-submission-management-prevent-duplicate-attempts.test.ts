@@ -54,6 +54,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -65,6 +66,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -81,6 +83,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment
@@ -91,6 +94,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create activity module with quiz
@@ -119,6 +123,8 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 				description: "Test section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create course-activity-module-link

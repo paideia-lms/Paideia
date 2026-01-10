@@ -55,6 +55,7 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -66,6 +67,8 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -82,6 +85,8 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment
@@ -92,6 +97,8 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create activity module with quiz
@@ -120,6 +127,8 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 				description: "Test section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create course-activity-module-link
@@ -171,6 +180,8 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 			payload,
 			id: startedSubmission.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(getResult.ok).toBe(true);

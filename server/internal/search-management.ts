@@ -72,7 +72,7 @@ export interface SearchResult {
 export function tryGlobalSearch(args: SearchArgs) {
 	return Result.try(
 		async () => {
-			const { payload, query, limit = 10, page = 1 } = args;
+			const { payload, query, limit = 10, page = 1, req } = args;
 
 			const { text, in: collections } = parseQuery(query ?? "");
 
@@ -114,6 +114,8 @@ export function tryGlobalSearch(args: SearchArgs) {
 					page,
 					sort: "-createdAt",
 					depth: 1,
+					req,
+					overrideAccess: true,
 				})
 				.then(stripDepth<1, "find">());
 

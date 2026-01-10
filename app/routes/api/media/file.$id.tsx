@@ -1,4 +1,3 @@
-
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import type { Route } from "./+types/file.$id";
@@ -18,14 +17,8 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
-})(async ({
-	searchParams,
-	params,
-	context,
-	request,
-}) => {
+})(async ({ searchParams, params, context, request }) => {
 	const id = params.mediaId;
-
 
 	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 

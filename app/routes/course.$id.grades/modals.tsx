@@ -13,12 +13,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconPencil } from "@tabler/icons-react";
-import {
-	forwardRef,
-	useImperativeHandle,
-	useRef,
-	useState,
-} from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import {
 	useCreateCategory,
@@ -526,7 +521,7 @@ export interface UpdateGradeCategoryModalHandle {
 }
 
 type UpdateGradeCategoryButtonProps = {
-	category: Route.ComponentProps["loaderData"]["gradebook"]["categories"][number]
+	category: Route.ComponentProps["loaderData"]["gradebook"]["categories"][number];
 	courseId: number;
 };
 
@@ -569,13 +564,12 @@ export const UpdateGradeCategoryModal = forwardRef<
 
 	// Calculate if category has nested items (subcategories or items)
 	// Handle both array format and Payload query result format
-	const subcategoriesLength =
-		Array.isArray(category.subcategories)
-			? category.subcategories.length
-			: category.subcategories?.docs?.length ?? 0;
+	const subcategoriesLength = Array.isArray(category.subcategories)
+		? category.subcategories.length
+		: (category.subcategories?.docs?.length ?? 0);
 	const itemsLength = Array.isArray(category.items)
 		? category.items.length
-		: category.items?.docs?.length ?? 0;
+		: (category.items?.docs?.length ?? 0);
 	const hasNestedItems = subcategoriesLength > 0 || itemsLength > 0;
 
 	const form = useForm({

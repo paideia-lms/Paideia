@@ -36,9 +36,7 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
-import {
-	createLoader,
-} from "nuqs/server";
+import { createLoader } from "nuqs/server";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
 import {
@@ -536,7 +534,6 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-
 export function useDownloadMedia() {
 	const downloadMedia = (file: Media) => {
 		if (!file.id) return;
@@ -760,7 +757,7 @@ function useMediaSelectionValue({ media }: UseMediaSelectionValueProps) {
 	);
 
 	const handleTableSelectionChange = (
-		records: Route.ComponentProps['loaderData']['media']
+		records: Route.ComponentProps["loaderData"]["media"],
 	) => {
 		setSelectedCardIds(records.map((r) => r.id));
 	};
@@ -790,13 +787,15 @@ function BatchActions({
 }: {
 	userId: number;
 	selectedCardIds: number[];
-	selectedRecords: Route.ComponentProps['loaderData']['media']
+	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
 	const { submit: deleteMedia } = useDelete();
 	const { clearSelection } = useMediaSelection();
 
 	const selectedCount =
-		selectedRecords.length > 0 ? selectedRecords.length : selectedCardIds.length;
+		selectedRecords.length > 0
+			? selectedRecords.length
+			: selectedCardIds.length;
 
 	if (selectedCount === 0) return null;
 
@@ -1163,7 +1162,7 @@ export interface MediaPreviewModalHandle {
 	open: () => void;
 }
 
-type Media = Route.ComponentProps['loaderData']['media'][number]
+type Media = Route.ComponentProps["loaderData"]["media"][number];
 
 interface MediaPreviewModalProps {
 	file: Media;
@@ -1183,8 +1182,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1262,7 +1261,7 @@ function MediaActionMenu({
 	file,
 	userId,
 }: {
-	file: Route.ComponentProps['loaderData']['media'][number]
+	file: Route.ComponentProps["loaderData"]["media"][number];
 	userId: number;
 }) {
 	const { downloadMedia } = useDownloadMedia();
@@ -1276,8 +1275,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1372,7 +1371,7 @@ function MediaCard({
 	userId,
 	selectedCardIds,
 }: {
-	file: Route.ComponentProps['loaderData']['media'][number]
+	file: Route.ComponentProps["loaderData"]["media"][number];
 	userId: number;
 	selectedCardIds: number[];
 }) {
@@ -1389,8 +1388,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1502,7 +1501,7 @@ function MediaCardView({
 	userId,
 	selectedCardIds,
 }: {
-	media: Route.ComponentProps['loaderData']['media']
+	media: Route.ComponentProps["loaderData"]["media"];
 	userId: number;
 	selectedCardIds: number[];
 }) {
@@ -1526,7 +1525,7 @@ function MediaTableView({
 	userId,
 	selectedRecords,
 }: {
-	media: Route.ComponentProps['loaderData']['media']
+	media: Route.ComponentProps["loaderData"]["media"];
 	userId: number;
 	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
@@ -1535,7 +1534,7 @@ function MediaTableView({
 		{
 			accessor: "filename",
 			title: "Name",
-			render: (file: Route.ComponentProps['loaderData']['media'][number]) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<Group gap="xs">
 					{file.mimeType?.startsWith("image/") ? (
 						<IconPhoto size={20} />
@@ -1551,7 +1550,7 @@ function MediaTableView({
 		{
 			accessor: "filesize",
 			title: "Size",
-			render: (file: Route.ComponentProps['loaderData']['media'][number]) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<Text size="sm" c="dimmed">
 					{prettyBytes(file.filesize || 0)}
 				</Text>
@@ -1560,7 +1559,7 @@ function MediaTableView({
 		{
 			accessor: "createdAt",
 			title: "Created",
-			render: (file: Route.ComponentProps['loaderData']['media'][number]) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<Text size="sm" c="dimmed">
 					{dayjs(file.createdAt).format("MMM DD, YYYY")}
 				</Text>
@@ -1570,9 +1569,7 @@ function MediaTableView({
 			accessor: "actions",
 			title: "",
 			textAlign: "right" as const,
-			render: (
-				file: Route.ComponentProps['loaderData']['media'][number]
-			) => (
+			render: (file: Route.ComponentProps["loaderData"]["media"][number]) => (
 				<MediaActionMenu file={file} userId={userId} />
 			),
 		},

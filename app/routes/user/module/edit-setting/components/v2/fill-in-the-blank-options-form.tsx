@@ -1,8 +1,6 @@
 import { Button, Stack, Text, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateFillInTheBlankQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateFillInTheBlankQuestion } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 
@@ -45,7 +43,8 @@ export function FillInTheBlankOptionsForm({
 			<Stack gap="md">
 				<Title order={5}>Correct Answers for Blanks</Title>
 				<Text size="sm" c="dimmed">
-					Use <code>{"{{blank_id}}"}</code> in the prompt to mark blank positions.
+					Use <code>{"{{blank_id}}"}</code> in the prompt to mark blank
+					positions.
 				</Text>
 				{parsed.uniqueBlankIds.length > 0 ? (
 					<Stack gap="xs">

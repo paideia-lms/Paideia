@@ -27,7 +27,10 @@ import {
 import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
-import { useDeleteCategory, useDeleteItem } from "app/routes/course.$id.grades/route";
+import {
+	useDeleteCategory,
+	useDeleteItem,
+} from "app/routes/course.$id.grades/route";
 import {
 	CreateCategoryModal,
 	type CreateCategoryModalHandle,
@@ -44,7 +47,8 @@ import type { Route } from "app/routes/course.$id.grades/route";
 // Recursive Gradebook Item Renderer
 // ============================================================================
 
-type GradebookSetupItem = Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
+type GradebookSetupItem =
+	Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
 
 // Helper function to recursively sum overall weights of all leaf items in a category
 const sumCategoryOverallWeights = (items: GradebookSetupItem[]): number => {
@@ -86,7 +90,10 @@ function GradebookItemRow({
 	onToggleCategory: (categoryId: number) => void;
 	categoryOptions: Array<{ value: string; label: string }>;
 	courseId: number;
-	categoryMap: Map<number, Route.ComponentProps["loaderData"]["gradebook"]["categories"][number]>;
+	categoryMap: Map<
+		number,
+		Route.ComponentProps["loaderData"]["gradebook"]["categories"][number]
+	>;
 }) {
 	const isCategory = item.type === "category";
 	const isLeafItem = !isCategory;
@@ -190,15 +197,15 @@ function GradebookItemRow({
 							extraCredit={item.extra_credit}
 						/>
 					) : // For categories, show sum of children's overall weights when collapsed
-						!isExpanded &&
-							categoryOverallWeight !== null &&
-							categoryOverallWeight > 0 ? (
-							<Text size="sm" fw={500} c="dimmed">
-								{categoryOverallWeight.toFixed(2)}%
-							</Text>
-						) : (
-							<Text size="sm">-</Text>
-						)}
+					!isExpanded &&
+						categoryOverallWeight !== null &&
+						categoryOverallWeight > 0 ? (
+						<Text size="sm" fw={500} c="dimmed">
+							{categoryOverallWeight.toFixed(2)}%
+						</Text>
+					) : (
+						<Text size="sm">-</Text>
+					)}
 				</Table.Td>
 				<Table.Td>
 					{isLeafItem ? (
@@ -206,13 +213,13 @@ function GradebookItemRow({
 							{item.max_grade !== null ? item.max_grade : "-"}
 						</Text>
 					) : // calculate the max grade of all leaf items
-						!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
-							<Text size="sm" c="dimmed">
-								{categoryMaxGrade ?? "-"}
-							</Text>
-						) : (
-							<Text size="sm">-</Text>
-						)}
+					!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
+						<Text size="sm" c="dimmed">
+							{categoryMaxGrade ?? "-"}
+						</Text>
+					) : (
+						<Text size="sm">-</Text>
+					)}
 				</Table.Td>
 				<Table.Td>
 					<Group gap="xs" wrap="nowrap">
@@ -531,7 +538,7 @@ export function GradebookSetupView({
 															Extra Credit Contributions:
 														</Text>
 														{extraCreditCategories.length > 0 ||
-															extraCreditItems.length > 0 ? (
+														extraCreditItems.length > 0 ? (
 															<>
 																{extraCreditCategories.map((category) => (
 																	<Text key={category.id} size="xs">

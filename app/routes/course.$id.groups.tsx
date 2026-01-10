@@ -216,7 +216,6 @@ const useDeleteGroup = deleteGroupRpc.createHook<typeof deleteGroupAction>();
 // Export hooks for use in components
 export { useCreateGroup, useDeleteGroup };
 
-
 const [action] = createActionMap({
 	[Action.CreateGroup]: createGroupAction,
 	[Action.DeleteGroup]: deleteGroupAction,
@@ -233,7 +232,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,
@@ -254,10 +256,8 @@ interface CreateGroupModalProps {
 
 function CreateGroupModal({ courseId, groups }: CreateGroupModalProps) {
 	const { submit: createGroup, isLoading: isCreatingGroup } = useCreateGroup();
-	const [
-		opened,
-		{ open: openCreateModal, close: closeCreateModal },
-	] = useDisclosure(false);
+	const [opened, { open: openCreateModal, close: closeCreateModal }] =
+		useDisclosure(false);
 
 	// Form states
 	const [groupName, setGroupName] = useState("");
@@ -303,7 +303,12 @@ function CreateGroupModal({ courseId, groups }: CreateGroupModalProps) {
 				Create Group
 			</Button>
 
-			<Modal opened={opened} onClose={closeCreateModal} title="Create Group" size="md">
+			<Modal
+				opened={opened}
+				onClose={closeCreateModal}
+				title="Create Group"
+				size="md"
+			>
 				<Stack gap="md">
 					<TextInput
 						label="Group Name"
@@ -369,12 +374,18 @@ interface DeleteGroupActionIconProps {
 	courseId: number;
 }
 
-function DeleteGroupActionIcon({ groupId, courseId }: DeleteGroupActionIconProps) {
-
+function DeleteGroupActionIcon({
+	groupId,
+	courseId,
+}: DeleteGroupActionIconProps) {
 	const { submit: deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
 
 	const handleDeleteGroup = async () => {
-		if (window.confirm("Are you sure you want to delete this group? This action cannot be undone.")) {
+		if (
+			window.confirm(
+				"Are you sure you want to delete this group? This action cannot be undone.",
+			)
+		) {
 			await deleteGroup({
 				values: {
 					groupId,
@@ -384,7 +395,12 @@ function DeleteGroupActionIcon({ groupId, courseId }: DeleteGroupActionIconProps
 		}
 	};
 	return (
-		<ActionIcon color="red" variant="subtle" onClick={handleDeleteGroup} loading={isDeletingGroup}>
+		<ActionIcon
+			color="red"
+			variant="subtle"
+			onClick={handleDeleteGroup}
+			loading={isDeletingGroup}
+		>
 			<IconTrash size={16} />
 		</ActionIcon>
 	);
@@ -458,7 +474,10 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 									</Table.Td>
 									{canManage && (
 										<Table.Td>
-											<DeleteGroupActionIcon groupId={group.id} courseId={course.id} />
+											<DeleteGroupActionIcon
+												groupId={group.id}
+												courseId={course.id}
+											/>
 										</Table.Td>
 									)}
 								</Table.Tr>

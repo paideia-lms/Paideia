@@ -60,6 +60,7 @@ describe("Search Management Functions", () => {
 					lastName: "Doe",
 					role: "student",
 				},
+				req: undefined,
 				overrideAccess: true,
 			}),
 			tryCreateUser({
@@ -71,6 +72,7 @@ describe("Search Management Functions", () => {
 					lastName: "Smith",
 					role: "student",
 				},
+				req: undefined,
 				overrideAccess: true,
 			}),
 		]);
@@ -88,6 +90,7 @@ describe("Search Management Functions", () => {
 				slug: "intro-javascript",
 				status: "published",
 			},
+			req: undefined,
 			overrideAccess: true,
 		});
 
@@ -100,6 +103,7 @@ describe("Search Management Functions", () => {
 				slug: "advanced-python",
 				status: "published",
 			},
+			req: undefined,
 			overrideAccess: true,
 		});
 
@@ -121,6 +125,7 @@ describe("Search Management Functions", () => {
 			const result = await tryGlobalSearch({
 				payload,
 				query: "",
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -135,6 +140,7 @@ describe("Search Management Functions", () => {
 			const result = await tryGlobalSearch({
 				payload,
 				query: "John in:users",
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -149,6 +155,7 @@ describe("Search Management Functions", () => {
 			const result = await tryGlobalSearch({
 				payload,
 				query: "in:users",
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -163,6 +170,7 @@ describe("Search Management Functions", () => {
 			const result = await tryGlobalSearch({
 				payload,
 				query: "in:courses",
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -172,6 +180,7 @@ describe("Search Management Functions", () => {
 			const result = await tryGlobalSearch({
 				payload,
 				query: "Pattern in:courses",
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -201,6 +210,7 @@ describe("Search Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+				req: undefined,
 			});
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
@@ -216,6 +226,7 @@ describe("Search Management Functions", () => {
 			const searchBefore = await tryGlobalSearch({
 				payload,
 				query: `Temporary in:courses`,
+				req: undefined,
 			});
 			expect(searchBefore.ok).toBe(true);
 			if (!searchBefore.ok) {
@@ -235,6 +246,7 @@ describe("Search Management Functions", () => {
 				payload,
 				courseId,
 				overrideAccess: true,
+				req: undefined,
 			});
 			expect(deleteResult.ok).toBe(true);
 
@@ -245,6 +257,7 @@ describe("Search Management Functions", () => {
 			const searchAfter = await tryGlobalSearch({
 				payload,
 				query: `Temporary in:courses`,
+				req: undefined,
 			});
 			expect(searchAfter.ok).toBe(true);
 			if (!searchAfter.ok) {
@@ -273,6 +286,7 @@ describe("Search Management Functions", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			});
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
@@ -288,6 +302,7 @@ describe("Search Management Functions", () => {
 			const searchBefore = await tryGlobalSearch({
 				payload,
 				query: `TempUser in:users`,
+				req: undefined,
 			});
 			expect(searchBefore.ok).toBe(true);
 			if (!searchBefore.ok) {
@@ -316,6 +331,7 @@ describe("Search Management Functions", () => {
 			const searchAfter = await tryGlobalSearch({
 				payload,
 				query: `TempUser in:users`,
+				req: undefined,
 			});
 			expect(searchAfter.ok).toBe(true);
 			if (!searchAfter.ok) {
@@ -392,6 +408,7 @@ describe("Search Management Functions", () => {
 			const searchAfterUpdate = await tryGlobalSearch({
 				payload,
 				query: `Updated in:courses`,
+				req: undefined,
 			});
 			expect(searchAfterUpdate.ok).toBe(true);
 			if (!searchAfterUpdate.ok) {
@@ -413,6 +430,7 @@ describe("Search Management Functions", () => {
 			const searchForOld = await tryGlobalSearch({
 				payload,
 				query: `Original in:courses`,
+				req: undefined,
 			});
 			expect(searchForOld.ok).toBe(true);
 			if (!searchForOld.ok) {

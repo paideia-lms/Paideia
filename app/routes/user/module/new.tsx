@@ -1,4 +1,13 @@
-import { Button, Container, Paper, Select, Stack, Textarea, TextInput, Title } from "@mantine/core";
+import {
+	Button,
+	Container,
+	Paper,
+	Select,
+	Stack,
+	Textarea,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { parseAsStringEnum } from "nuqs";
 import { href } from "react-router";
@@ -180,7 +189,8 @@ const createPageAction = createCreatePageActionRpc.createAction(
 	},
 );
 
-const useCreatePage = createCreatePageActionRpc.createHook<typeof createPageAction>();
+const useCreatePage =
+	createCreatePageActionRpc.createHook<typeof createPageAction>();
 
 const createWhiteboardAction = createCreateWhiteboardActionRpc.createAction(
 	async ({ context, formData }) => {
@@ -208,7 +218,8 @@ const createWhiteboardAction = createCreateWhiteboardActionRpc.createAction(
 	},
 );
 
-const useCreateWhiteboard = createCreateWhiteboardActionRpc.createHook<typeof createWhiteboardAction>();
+const useCreateWhiteboard =
+	createCreateWhiteboardActionRpc.createHook<typeof createWhiteboardAction>();
 
 const createFileAction = createCreateFileActionRpc.createAction(
 	async ({ context, formData }) => {
@@ -236,7 +247,8 @@ const createFileAction = createCreateFileActionRpc.createAction(
 	},
 );
 
-const useCreateFile = createCreateFileActionRpc.createHook<typeof createFileAction>();
+const useCreateFile =
+	createCreateFileActionRpc.createHook<typeof createFileAction>();
 
 const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
 	async ({ context, formData }) => {
@@ -244,7 +256,7 @@ const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
 
 		const allowedFileTypes =
 			formData.assignmentAllowedFileTypes &&
-				formData.assignmentAllowedFileTypes.length > 0
+			formData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 				: undefined;
 
@@ -275,7 +287,8 @@ const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
 	},
 );
 
-const useCreateAssignment = createCreateAssignmentActionRpc.createHook<typeof createAssignmentAction>();
+const useCreateAssignment =
+	createCreateAssignmentActionRpc.createHook<typeof createAssignmentAction>();
 
 const createQuizAction = createCreateQuizActionRpc.createAction(
 	async ({ context, formData }) => {
@@ -302,7 +315,8 @@ const createQuizAction = createCreateQuizActionRpc.createAction(
 	},
 );
 
-const useCreateQuiz = createCreateQuizActionRpc.createHook<typeof createQuizAction>();
+const useCreateQuiz =
+	createCreateQuizActionRpc.createHook<typeof createQuizAction>();
 
 const createDiscussionAction = createCreateDiscussionActionRpc.createAction(
 	async ({ context, formData }) => {
@@ -334,7 +348,8 @@ const createDiscussionAction = createCreateDiscussionActionRpc.createAction(
 	},
 );
 
-const useCreateDiscussion = createCreateDiscussionActionRpc.createHook<typeof createDiscussionAction>();
+const useCreateDiscussion =
+	createCreateDiscussionActionRpc.createHook<typeof createDiscussionAction>();
 
 const [action] = createActionMap({
 	[Action.CreatePage]: createPageAction,
@@ -526,11 +541,15 @@ function CreateQuizForm() {
 			title: (value) =>
 				value.trim().length === 0 ? "Title is required" : null,
 		},
-	})
+	});
 	return (
-		<form onSubmit={form.onSubmit((values) => createQuiz({ values: { title: values.title, description: values.description } }))}>
-
-
+		<form
+			onSubmit={form.onSubmit((values) =>
+				createQuiz({
+					values: { title: values.title, description: values.description },
+				}),
+			)}
+		>
 			<TextInput
 				{...form.getInputProps("title")}
 				key={form.key("title")}

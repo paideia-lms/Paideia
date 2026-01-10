@@ -16,10 +16,7 @@ import {
 	Title,
 	Tooltip,
 } from "@mantine/core";
-import {
-	IconClock,
-	IconFlag,
-} from "@tabler/icons-react";
+import { IconClock, IconFlag } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type {
 	GradingConfig,
@@ -190,10 +187,10 @@ function QuizNavigation({
 										style={
 											isCurrent
 												? {
-													borderWidth: 3,
-													borderStyle: "solid",
-													borderColor: "var(--mantine-color-blue-6)",
-												}
+														borderWidth: 3,
+														borderStyle: "solid",
+														borderColor: "var(--mantine-color-blue-6)",
+													}
 												: undefined
 										}
 									>
@@ -415,9 +412,7 @@ export function SingleQuizPreview({
 	flaggedQuestions = [],
 }: SingleQuizPreviewProps) {
 	// Create a Set for efficient lookup of flagged question IDs
-	const flaggedQuestionIds = new Set(
-		flaggedQuestions.map((f) => f.questionId),
-	);
+	const flaggedQuestionIds = new Set(flaggedQuestions.map((f) => f.questionId));
 
 	// Helper function to check if a question is flagged
 	const isQuestionFlagged = (questionId: string): boolean => {
@@ -823,21 +818,21 @@ export function QuizAttemptComponent({
 					initialAnswers={
 						isViewingCompletedQuiz && initialAnswers
 							? (() => {
-								// Extract answers for this specific nested quiz from initialAnswers
-								const nestedQuizAnswers: QuizAnswers = {};
-								const activeQuiz = nestedQuizState.activeNestedQuiz;
-								if (activeQuiz?.pages) {
-									for (const page of activeQuiz.pages) {
-										for (const question of page.questions) {
-											const answer = initialAnswers[question.id];
-											if (answer !== undefined && answer !== null) {
-												nestedQuizAnswers[question.id] = answer;
+									// Extract answers for this specific nested quiz from initialAnswers
+									const nestedQuizAnswers: QuizAnswers = {};
+									const activeQuiz = nestedQuizState.activeNestedQuiz;
+									if (activeQuiz?.pages) {
+										for (const page of activeQuiz.pages) {
+											for (const question of page.questions) {
+												const answer = initialAnswers[question.id];
+												if (answer !== undefined && answer !== null) {
+													nestedQuizAnswers[question.id] = answer;
+												}
 											}
 										}
 									}
-								}
-								return nestedQuizAnswers;
-							})()
+									return nestedQuizAnswers;
+								})()
 							: undefined
 					}
 					onSubmit={() => {
@@ -860,4 +855,3 @@ export function QuizAttemptComponent({
 		</Stack>
 	);
 }
-

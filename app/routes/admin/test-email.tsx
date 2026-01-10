@@ -187,7 +187,8 @@ const sendTestEmailAction = sendTestEmailRpc.createAction(
 	},
 );
 
-const useSendTestEmail = sendTestEmailRpc.createHook<typeof sendTestEmailAction>();
+const useSendTestEmail =
+	sendTestEmailRpc.createHook<typeof sendTestEmailAction>();
 
 // Export hook for use in components
 export { useSendTestEmail };
@@ -250,15 +251,15 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 				values:
 					values.messageType === "custom"
 						? {
-							messageType: "custom",
-							recipient: values.recipient,
-							subject: values.subject,
-							body: values.body,
-						}
+								messageType: "custom",
+								recipient: values.recipient,
+								subject: values.subject,
+								body: values.body,
+							}
 						: {
-							messageType: "predefined",
-							recipient: values.recipient,
-						},
+								messageType: "predefined",
+								recipient: values.recipient,
+							},
 			});
 		}
 		// If email is not configured, show confirmation modal

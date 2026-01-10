@@ -249,7 +249,12 @@ function BatchEmailButton({
 			>
 				Email Selected
 			</Button>
-			<Modal opened={opened} onClose={() => setOpened(false)} title="Send Email" size="lg">
+			<Modal
+				opened={opened}
+				onClose={() => setOpened(false)}
+				title="Send Email"
+				size="lg"
+			>
 				<form onSubmit={handleSubmit}>
 					<Stack gap="md">
 						<Box>
@@ -508,18 +513,14 @@ export function EnrollmentsSection({
 									<Table.Th>Status</Table.Th>
 									<Table.Th>Groups</Table.Th>
 									<Table.Th>Last Access</Table.Th>
-									{currentUserRole === "admin" && (
-										<Table.Th>Actions</Table.Th>
-									)}
+									{currentUserRole === "admin" && <Table.Th>Actions</Table.Th>}
 								</Table.Tr>
 							</Table.Thead>
 							<Table.Tbody>
 								{enrollments.map((enrollment) => {
 									const email = enrollment.user.email || "Unknown";
 									const fullName =
-										enrollment.user.firstName +
-										" " +
-										enrollment.user.lastName;
+										enrollment.user.firstName + " " + enrollment.user.lastName;
 									const isSelected = selectedRows.includes(enrollment.id);
 
 									return (
@@ -551,7 +552,13 @@ export function EnrollmentsSection({
 													<Text
 														fw={500}
 														component={Link}
-														to={getRouteUrl("/course/:courseId/participants/profile", { params: { courseId: courseId.toString() }, searchParams: { userId: enrollment.user.id } })}
+														to={getRouteUrl(
+															"/course/:courseId/participants/profile",
+															{
+																params: { courseId: courseId.toString() },
+																searchParams: { userId: enrollment.user.id },
+															},
+														)}
 													>
 														{fullName}
 													</Text>

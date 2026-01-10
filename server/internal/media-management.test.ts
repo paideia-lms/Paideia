@@ -67,6 +67,8 @@ describe("Media Management", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!userResult.ok) {
@@ -93,6 +95,8 @@ describe("Media Management", () => {
 			filename: "",
 			mimeType: "image/jpeg",
 			userId: testUserId,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -107,6 +111,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -126,6 +132,8 @@ describe("Media Management", () => {
 			limit: 100, // Get a large number to get all media
 			page: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -165,6 +173,8 @@ describe("Media Management", () => {
 			caption: "This is a test",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -186,6 +196,8 @@ describe("Media Management", () => {
 			payload,
 			filenames: [createdMedia.filename],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -206,6 +218,8 @@ describe("Media Management", () => {
 		const result = await tryGetMediaByFilenames({
 			payload,
 			filenames: ["non-existent-file-12345.png"],
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -215,6 +229,8 @@ describe("Media Management", () => {
 		const result = await tryGetMediaByFilenames({
 			payload,
 			filenames: [""],
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -233,6 +249,8 @@ describe("Media Management", () => {
 			alt: "Test buffer gem",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -257,6 +275,8 @@ describe("Media Management", () => {
 			filename: createdMedia.filename,
 
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -289,6 +309,8 @@ describe("Media Management", () => {
 			s3Client,
 			filename: "non-existent-buffer-file.png",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -301,6 +323,8 @@ describe("Media Management", () => {
 			filename: "",
 
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -317,6 +341,8 @@ describe("Media Management", () => {
 			alt: "Test media 1",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult1.ok).toBe(true);
@@ -330,6 +356,8 @@ describe("Media Management", () => {
 			alt: "Test media 2",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult2.ok).toBe(true);
@@ -342,6 +370,8 @@ describe("Media Management", () => {
 			page: 1,
 
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -370,6 +400,8 @@ describe("Media Management", () => {
 			page: 1,
 
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -392,6 +424,8 @@ describe("Media Management", () => {
 			alt: "Test delete single",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -408,6 +442,8 @@ describe("Media Management", () => {
 			s3Client,
 			id: createdMedia.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(true);
@@ -423,6 +459,8 @@ describe("Media Management", () => {
 			payload,
 			id: createdMedia.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(getResult.ok).toBe(false);
@@ -437,6 +475,8 @@ describe("Media Management", () => {
 			filename: createdMedia.filename,
 
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(bufferResult.ok).toBe(false);
 	});
@@ -452,6 +492,8 @@ describe("Media Management", () => {
 			alt: "Test delete with usage",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -477,6 +519,8 @@ describe("Media Management", () => {
 			s3Client,
 			id: testMediaId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(false);
@@ -490,6 +534,8 @@ describe("Media Management", () => {
 			payload,
 			id: testMediaId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(getResult.ok).toBe(true);
 	});
@@ -505,6 +551,8 @@ describe("Media Management", () => {
 			alt: "Test batch delete 1",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult1.ok).toBe(true);
@@ -517,6 +565,8 @@ describe("Media Management", () => {
 			alt: "Test batch delete 2",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult2.ok).toBe(true);
@@ -529,6 +579,8 @@ describe("Media Management", () => {
 			alt: "Test batch delete 3",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult3.ok).toBe(true);
@@ -549,6 +601,8 @@ describe("Media Management", () => {
 			s3Client,
 			id: mediaIds,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(true);
@@ -570,6 +624,8 @@ describe("Media Management", () => {
 				payload,
 				id: mediaId,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(getResult.ok).toBe(false);
@@ -581,6 +637,8 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: [],
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -595,6 +653,8 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			id: 999999,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -611,6 +671,8 @@ describe("Media Management", () => {
 			alt: "Test partial delete",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -628,6 +690,8 @@ describe("Media Management", () => {
 			s3Client,
 			id: [existingId, nonExistentId],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -637,6 +701,8 @@ describe("Media Management", () => {
 			payload,
 			id: existingId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -653,6 +719,8 @@ describe("Media Management", () => {
 			alt: "Test batch delete usage 1",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const createResult2 = await tryCreateMedia({
@@ -663,6 +731,8 @@ describe("Media Management", () => {
 			alt: "Test batch delete usage 2",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult1.ok).toBe(true);
@@ -691,6 +761,8 @@ describe("Media Management", () => {
 			s3Client,
 			id: [mediaId1, mediaId2],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -700,11 +772,15 @@ describe("Media Management", () => {
 			payload,
 			id: mediaId1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		const getResult2 = await tryGetMediaById({
 			payload,
 			id: mediaId2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(getResult1.ok).toBe(true);
@@ -721,6 +797,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		await tryCreateMedia({
@@ -730,6 +808,8 @@ describe("Media Management", () => {
 			mimeType: "image/jpeg",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		await tryCreateMedia({
@@ -739,6 +819,8 @@ describe("Media Management", () => {
 			mimeType: "application/pdf",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// Get stats
@@ -746,6 +828,8 @@ describe("Media Management", () => {
 			payload,
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -775,6 +859,8 @@ describe("Media Management", () => {
 		const result = await tryGetSystemMediaStats({
 			payload,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -810,6 +896,8 @@ describe("Media Management", () => {
 			alt: "Test rename original",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -835,6 +923,8 @@ describe("Media Management", () => {
 			newFilename,
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(renameResult.ok).toBe(true);
@@ -850,6 +940,8 @@ describe("Media Management", () => {
 			payload,
 			filenames: [createdMedia.filename],
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		expect(getOldResult.length).toBe(0);
@@ -858,6 +950,8 @@ describe("Media Management", () => {
 			payload,
 			filenames: [newFilename],
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 		expect(getNewResult.length).toBe(1);
 	});
@@ -872,6 +966,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const createResult2 = await tryCreateMedia({
@@ -881,6 +977,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult1.ok).toBe(true);
@@ -898,6 +996,8 @@ describe("Media Management", () => {
 			newFilename: "test-rename-duplicate-1.png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(renameResult.ok).toBe(false);
@@ -913,6 +1013,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -935,6 +1037,8 @@ describe("Media Management", () => {
 			limit: 10,
 			page: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -985,6 +1089,8 @@ describe("Media Management", () => {
 			limit: 2,
 			page: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result1.ok).toBe(true);
@@ -1029,6 +1135,8 @@ describe("Media Management", () => {
 			s3Client,
 			filenames: orphanedFilenames,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -1067,6 +1175,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -1087,6 +1197,8 @@ describe("Media Management", () => {
 			s3Client,
 			filenames: [managedFilename],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1098,6 +1210,8 @@ describe("Media Management", () => {
 			s3Client,
 			filenames: [],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1114,6 +1228,8 @@ describe("Media Management", () => {
 			alt: "Test media for usages",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createMediaResult.ok).toBe(true);
@@ -1146,6 +1262,8 @@ describe("Media Management", () => {
 				thumbnail: testMediaId,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(courseResult.ok).toBe(true);
@@ -1181,6 +1299,8 @@ describe("Media Management", () => {
 				description: "A test section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -1241,6 +1361,8 @@ describe("Media Management", () => {
 			content: "Test submission content",
 			attachments: [],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(assignmentSubmissionResult.ok).toBe(true);
@@ -1319,6 +1441,8 @@ describe("Media Management", () => {
 			title: "Test Discussion Thread",
 			content: "This is a test discussion thread",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(discussionSubmissionResult.ok).toBe(true);
@@ -1355,6 +1479,8 @@ describe("Media Management", () => {
 				createdBy: testUserId,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(noteResult.ok).toBe(true);
@@ -1376,6 +1502,8 @@ describe("Media Management", () => {
 			content: pageHtml,
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(pageResult.ok).toBe(true);
@@ -1398,6 +1526,8 @@ describe("Media Management", () => {
 				createdBy: testUserId,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(courseWithMediaResult.ok).toBe(true);
@@ -1415,6 +1545,8 @@ describe("Media Management", () => {
 			payload,
 			mediaId: testMediaId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(findUsagesResult.ok).toBe(true);
@@ -1501,6 +1633,8 @@ describe("Media Management", () => {
 			mimeType: "image/png",
 			userId: testUserId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createMediaResult.ok).toBe(true);
@@ -1515,6 +1649,8 @@ describe("Media Management", () => {
 			payload,
 			mediaId: testMediaId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(findUsagesResult.ok).toBe(true);
@@ -1531,6 +1667,8 @@ describe("Media Management", () => {
 		const result = await tryFindMediaUsages({
 			payload,
 			mediaId: 999999,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1540,6 +1678,8 @@ describe("Media Management", () => {
 		const result = await tryFindMediaUsages({
 			payload,
 			mediaId: NaN,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(false);

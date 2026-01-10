@@ -96,6 +96,7 @@ describe("User Grade Management", () => {
 					role: "admin",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -107,6 +108,7 @@ describe("User Grade Management", () => {
 					role: "instructor",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -118,6 +120,7 @@ describe("User Grade Management", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -135,6 +138,7 @@ describe("User Grade Management", () => {
 				createdBy: instructor.id,
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment for student in the course
@@ -145,6 +149,7 @@ describe("User Grade Management", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Get the gradebook created by the course
@@ -1212,7 +1217,10 @@ describe("User Grade Management", () => {
 		// Create discussion submissions (thread, reply, comment)
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1231,7 +1239,10 @@ describe("User Grade Management", () => {
 
 		const replyArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1249,7 +1260,10 @@ describe("User Grade Management", () => {
 
 		const commentArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,

@@ -16,9 +16,7 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import {
-	parseAsStringEnum,
-} from "nuqs/server";
+import { parseAsStringEnum } from "nuqs/server";
 import { useState } from "react";
 import { redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
@@ -51,29 +49,31 @@ export const userSearchParams = {
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
-export const loader = createRouteLoader()(async ({ context, params, searchParams }) => {
-	const userSession = context.get(userContextKey);
+export const loader = createRouteLoader()(
+	async ({ context, params, searchParams }) => {
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	if (!currentUser) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!currentUser) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can create users");
-	}
+		if (currentUser.role !== "admin") {
+			throw new ForbiddenResponse("Only admins can create users");
+		}
 
-	return {
-		searchParams,
-		params,
-	};
-});
+		return {
+			searchParams,
+			params,
+		};
+	},
+);
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/admin/user/new",
@@ -383,13 +383,15 @@ export default function NewUserPage() {
 							label="Role"
 							placeholder="Select role"
 							required
-							data={[
-								{ value: "admin", label: "Admin" },
-								{ value: "content-manager", label: "Content Manager" },
-								{ value: "analytics-viewer", label: "Analytics Viewer" },
-								{ value: "instructor", label: "Instructor" },
-								{ value: "student", label: "Student" },
-							] satisfies typeof Users["fields"][3]['options']}
+							data={
+								[
+									{ value: "admin", label: "Admin" },
+									{ value: "content-manager", label: "Content Manager" },
+									{ value: "analytics-viewer", label: "Analytics Viewer" },
+									{ value: "instructor", label: "Instructor" },
+									{ value: "student", label: "Student" },
+								] satisfies (typeof Users)["fields"][3]["options"]
+							}
 						/>
 
 						<Textarea

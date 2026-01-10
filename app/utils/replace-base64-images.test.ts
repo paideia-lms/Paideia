@@ -34,6 +34,7 @@ describe("replaceBase64MediaWithMediaUrlsV2", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 	});
 

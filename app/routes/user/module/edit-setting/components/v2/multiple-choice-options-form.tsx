@@ -10,9 +10,7 @@ import {
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateMultipleChoiceQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateMultipleChoiceQuestion } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface MultipleChoiceOptionsFormProps {

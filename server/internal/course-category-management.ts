@@ -41,7 +41,7 @@ export interface CategoryTreeNode {
 export function tryCreateCategory(args: CreateCategoryArgs) {
 	return Result.try(
 		async () => {
-			const { payload, name, parent, req } = args;
+			const { payload, name, parent, req, overrideAccess = false } = args;
 
 			if (!name) {
 				throw new InvalidArgumentError("Category name is required");
@@ -58,6 +58,7 @@ export function tryCreateCategory(args: CreateCategoryArgs) {
 							parent,
 						},
 						req: txInfo.reqWithTransaction,
+						overrideAccess,
 						depth: 1,
 					})
 					.then(stripDepth<1, "create">())
@@ -85,7 +86,14 @@ export function tryCreateCategory(args: CreateCategoryArgs) {
 export function tryUpdateCategory(args: UpdateCategoryArgs) {
 	return Result.try(
 		async () => {
-			const { payload, categoryId, name, parent, req } = args;
+			const {
+				payload,
+				categoryId,
+				name,
+				parent,
+				req,
+				overrideAccess = false,
+			} = args;
 
 			if (!categoryId) {
 				throw new InvalidArgumentError("Category ID is required");
@@ -103,6 +111,7 @@ export function tryUpdateCategory(args: UpdateCategoryArgs) {
 							parent,
 						},
 						req: txInfo.reqWithTransaction,
+						overrideAccess,
 						depth: 0,
 					})
 					.then(stripDepth<0, "update">())
@@ -135,7 +144,7 @@ export interface DeleteCategoryArgs extends BaseInternalFunctionArgs {
 export function tryDeleteCategory(args: DeleteCategoryArgs) {
 	return Result.try(
 		async () => {
-			const { payload, categoryId, req } = args;
+			const { payload, categoryId, req, overrideAccess = false } = args;
 
 			if (!categoryId) {
 				throw new InvalidArgumentError("Category ID is required");
@@ -154,6 +163,7 @@ export function tryDeleteCategory(args: DeleteCategoryArgs) {
 					},
 					limit: 1,
 					req: txInfo.reqWithTransaction,
+					overrideAccess,
 				});
 
 				if (subcategories.docs.length > 0) {
@@ -174,6 +184,7 @@ export function tryDeleteCategory(args: DeleteCategoryArgs) {
 						limit: 1,
 						depth: 1,
 						req: txInfo.reqWithTransaction,
+						overrideAccess,
 					})
 					.then(stripDepth<0, "find">())
 					.catch((error) => {
@@ -195,6 +206,7 @@ export function tryDeleteCategory(args: DeleteCategoryArgs) {
 					collection: CourseCategories.slug,
 					id: categoryId,
 					req: txInfo.reqWithTransaction,
+					overrideAccess,
 				});
 
 				return deletedCategory;

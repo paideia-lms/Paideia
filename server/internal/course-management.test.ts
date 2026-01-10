@@ -47,6 +47,8 @@ describe("Course Management Functions", () => {
 				role: "instructor",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create test media file
@@ -60,6 +62,8 @@ describe("Course Management Functions", () => {
 			userId: instructor.id,
 			// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!createMediaResult.ok) {
@@ -91,6 +95,8 @@ describe("Course Management Functions", () => {
 					tags: [{ tag: "javascript" }, { tag: "programming" }],
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateCourse(courseArgs);
@@ -118,6 +124,7 @@ describe("Course Management Functions", () => {
 					slug: "basic-html",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateCourse(courseArgs);
@@ -138,6 +145,7 @@ describe("Course Management Functions", () => {
 					slug: "non-existent-instructor-course",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateCourse(courseArgs);
@@ -158,6 +166,7 @@ describe("Course Management Functions", () => {
 					slug: "original-title",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateCourse(createArgs);
@@ -201,6 +210,8 @@ describe("Course Management Functions", () => {
 					status: "draft",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateCourse(courseArgs);
@@ -228,6 +239,8 @@ describe("Course Management Functions", () => {
 					slug: "original-title-media-update",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const createResult = await tryCreateCourse(createArgs);
@@ -270,6 +283,8 @@ describe("Course Management Functions", () => {
 						slug: "course-for-file-update",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				};
 
 				const createResult = await tryCreateCourse(createArgs);
@@ -366,6 +381,8 @@ describe("Course Management Functions", () => {
 						slug: "course-for-description-images-only",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				};
 
 				const createResult = await tryCreateCourse(createArgs);
@@ -454,6 +471,8 @@ describe("Course Management Functions", () => {
 						slug: "course-for-thumbnail-only",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				};
 
 				const createResult = await tryCreateCourse(createArgs);
@@ -522,6 +541,8 @@ describe("Course Management Functions", () => {
 						slug: "course-for-error-test",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				};
 
 				const createResult = await tryCreateCourse(createArgs);
@@ -550,6 +571,8 @@ describe("Course Management Functions", () => {
 					},
 					// No req provided, so no user
 					overrideAccess: false,
+
+					req: undefined,
 				};
 
 				const updateResult = await tryUpdateCourse(updateArgs);
@@ -569,6 +592,7 @@ describe("Course Management Functions", () => {
 					slug: "course-with-category",
 				},
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const createResult = await tryCreateCourse(createArgs);
@@ -576,11 +600,11 @@ describe("Course Management Functions", () => {
 			if (!createResult.ok) throw new Error("Failed to create course");
 
 			// create a category to assign
-			const req = new Request("http://localhost/test");
 			const catResult = await tryCreateCategory({
 				payload,
-				req,
 				name: "Test Category",
+				overrideAccess: true,
+				req: undefined,
 			});
 			expect(catResult.ok).toBe(true);
 			if (!catResult.ok) throw new Error("Failed to create category");
@@ -605,6 +629,7 @@ describe("Course Management Functions", () => {
 				payload,
 				courseId: createResult.value.id,
 				overrideAccess: true,
+				req: undefined,
 			});
 			expect(findResult.ok).toBe(true);
 			if (findResult.ok) {
@@ -624,6 +649,8 @@ describe("Course Management Functions", () => {
 					slug: "find-by-id-test",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const createResult = await tryCreateCourse(courseArgs);
@@ -635,6 +662,8 @@ describe("Course Management Functions", () => {
 				payload,
 				courseId: createResult.value.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(findResult.ok).toBe(true);
@@ -650,6 +679,8 @@ describe("Course Management Functions", () => {
 				payload,
 				courseId: 99999,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -661,6 +692,8 @@ describe("Course Management Functions", () => {
 			const result = await trySearchCourses({
 				payload,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -683,6 +716,8 @@ describe("Course Management Functions", () => {
 					slug: "react-fundamentals",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			await tryCreateCourse({
@@ -694,12 +729,16 @@ describe("Course Management Functions", () => {
 					slug: "vue-js-basics",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			const result = await trySearchCourses({
 				payload,
 				filters: { title: "React" },
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -725,6 +764,8 @@ describe("Course Management Functions", () => {
 					slug: "course-to-delete",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const createResult = await tryCreateCourse(courseArgs);
@@ -737,6 +778,8 @@ describe("Course Management Functions", () => {
 				payload,
 				courseId: createResult.value.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(deleteResult.ok).toBe(true);
@@ -750,6 +793,8 @@ describe("Course Management Functions", () => {
 				payload,
 				courseId: createResult.value.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			expect(findResult.ok).toBe(false);
 		});
@@ -834,6 +879,8 @@ describe("Course Management Functions", () => {
 					status: "draft",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const createResult = await tryCreateCourse(createArgs);
@@ -847,6 +894,8 @@ describe("Course Management Functions", () => {
 					payload,
 					courseId,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 				expect(findResult.ok).toBe(true);
 
@@ -869,6 +918,8 @@ describe("Course Management Functions", () => {
 					payload,
 					filters: { status: "published" },
 					overrideAccess: true,
+
+					req: undefined,
 				});
 				expect(searchResult.ok).toBe(true);
 
@@ -877,6 +928,8 @@ describe("Course Management Functions", () => {
 					payload,
 					courseId,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 				expect(deleteResult.ok).toBe(true);
 
@@ -885,6 +938,8 @@ describe("Course Management Functions", () => {
 					payload,
 					courseId,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 				expect(findAfterDeleteResult.ok).toBe(false);
 			}
@@ -913,6 +968,8 @@ describe("Course Management Functions", () => {
 							role: "admin",
 						},
 						overrideAccess: true,
+
+						req: undefined,
 					}).getOrThrow(),
 					tryCreateUser({
 						payload,
@@ -924,6 +981,8 @@ describe("Course Management Functions", () => {
 							role: "content-manager",
 						},
 						overrideAccess: true,
+
+						req: undefined,
 					}).getOrThrow(),
 					tryCreateUser({
 						payload,
@@ -935,6 +994,8 @@ describe("Course Management Functions", () => {
 							role: "student",
 						},
 						overrideAccess: true,
+
+						req: undefined,
 					}).getOrThrow(),
 				]);
 
@@ -953,6 +1014,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 
 			course2 = await tryCreateCourse({
@@ -965,6 +1028,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 
 			course3 = await tryCreateCourse({
@@ -977,6 +1042,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 
 			// Create enrollment for regular user in course2
@@ -987,6 +1054,8 @@ describe("Course Management Functions", () => {
 				role: "student",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 		});
 
@@ -1002,6 +1071,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const adminCourseResult = await tryCreateCourse(adminCourseArgs);
@@ -1015,6 +1086,8 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: adminUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1045,6 +1118,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const contentManagerCourseResult = await tryCreateCourse(
@@ -1060,6 +1135,8 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: contentManagerUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1090,6 +1167,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const regularUserCourseResult = await tryCreateCourse(
@@ -1105,6 +1184,8 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: regularUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1137,6 +1218,7 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: regularUser.id,
 				overrideAccess: true,
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1154,6 +1236,8 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: regularUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1176,6 +1260,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const ownedCourseResult = await tryCreateCourse(ownedCourseArgs);
@@ -1193,6 +1279,8 @@ describe("Course Management Functions", () => {
 				role: "teacher",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			expect(enrollmentResult.ok).toBe(true);
 
@@ -1200,6 +1288,8 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: regularUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1239,6 +1329,8 @@ describe("Course Management Functions", () => {
 					payload,
 					userId: regularUser.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -1253,8 +1345,7 @@ describe("Course Management Functions", () => {
 		});
 
 		test("should handle user with no course access", async () => {
-			// Create a user with no enrollments or category roles
-			const noAccessUserArgs = {
+			const noAccessUserResult = await tryCreateUser({
 				payload,
 				data: {
 					email: "noaccess@test.com",
@@ -1264,9 +1355,8 @@ describe("Course Management Functions", () => {
 					role: "student" as const,
 				},
 				overrideAccess: true,
-			};
-
-			const noAccessUserResult = await tryCreateUser(noAccessUserArgs);
+				req: undefined,
+			});
 			expect(noAccessUserResult.ok).toBe(true);
 
 			if (noAccessUserResult.ok) {
@@ -1274,6 +1364,8 @@ describe("Course Management Functions", () => {
 					payload,
 					userId: noAccessUserResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -1314,6 +1406,8 @@ describe("Course Management Functions", () => {
 						role: "student",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				}).getOrThrow(),
 				tryCreateUser({
 					payload,
@@ -1325,6 +1419,8 @@ describe("Course Management Functions", () => {
 						role: "student",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				}).getOrThrow(),
 			]);
 
@@ -1342,6 +1438,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 
 			course2 = await tryCreateCourse({
@@ -1354,6 +1452,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 
 			course3 = await tryCreateCourse({
@@ -1366,6 +1466,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 
 			// Enroll test user in course3
@@ -1376,6 +1478,8 @@ describe("Course Management Functions", () => {
 				role: "student",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			}).getOrThrow();
 		});
 
@@ -1446,6 +1550,8 @@ describe("Course Management Functions", () => {
 				payload,
 				userId: otherUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			// This should work because overrideAccess bypasses access control
@@ -1465,7 +1571,7 @@ describe("Course Management Functions", () => {
 
 		test("should handle user with no courses gracefully", async () => {
 			// Create a user with no courses or enrollments
-			const noCoursesUserArgs = {
+			const noCoursesUserResult = await tryCreateUser({
 				payload,
 				data: {
 					email: "nocourses@access.com",
@@ -1475,9 +1581,9 @@ describe("Course Management Functions", () => {
 					role: "student" as const,
 				},
 				overrideAccess: true,
-			};
+				req: undefined,
+			});
 
-			const noCoursesUserResult = await tryCreateUser(noCoursesUserArgs);
 			expect(noCoursesUserResult.ok).toBe(true);
 
 			if (noCoursesUserResult.ok) {
@@ -1485,6 +1591,8 @@ describe("Course Management Functions", () => {
 					collection: "users",
 					id: noCoursesUserResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				const result = await tryGetUserAccessibleCourses({
@@ -1520,6 +1628,8 @@ describe("Course Management Functions", () => {
 					status: "published",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const ownedCourseResult = await tryCreateCourse(ownedCourseArgs);
@@ -1537,6 +1647,8 @@ describe("Course Management Functions", () => {
 				role: "teacher",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			expect(enrollmentResult.ok).toBe(true);
 

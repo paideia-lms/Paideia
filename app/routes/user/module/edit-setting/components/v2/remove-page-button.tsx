@@ -1,8 +1,6 @@
 import { Button } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import {
-	useRemovePage,
-} from "app/routes/user/module/edit-setting/route";
+import { useRemovePage } from "app/routes/user/module/edit-setting/route";
 
 interface RemovePageButtonProps {
 	moduleId: number;

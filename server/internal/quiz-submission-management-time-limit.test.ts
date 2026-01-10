@@ -60,6 +60,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 			tryCreateUser({
 				payload,
@@ -71,6 +72,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+				req: undefined,
 			}).getOrThrow(),
 		]);
 
@@ -87,6 +89,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 				createdBy: teacher.id,
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create enrollment
@@ -97,6 +100,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 			role: "student",
 			status: "active",
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 
 		// Create a section for the course
@@ -108,6 +112,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 				description: "Test section",
 			},
 			overrideAccess: true,
+			req: undefined,
 		}).getOrThrow();
 	});
 
@@ -257,6 +262,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 			payload,
 			submissionId: quickSubmissionId,
 			overrideAccess: true,
+			req: undefined,
 		});
 		expect(submitResult.ok).toBe(false);
 		if (submitResult.ok) return;

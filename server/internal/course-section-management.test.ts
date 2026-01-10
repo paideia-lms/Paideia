@@ -68,6 +68,8 @@ describe("Course Section Management Functions", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const userResult = await tryCreateUser(userArgs);
@@ -87,6 +89,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!courseResult.ok) {
@@ -103,6 +107,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test assignment instructions",
 			overrideAccess: true,
+
+			req: undefined,
 		} satisfies CreateAssignmentModuleArgs);
 
 		if (!activityModuleResult.ok) {
@@ -126,6 +132,8 @@ describe("Course Section Management Functions", () => {
 				description: "First chapter",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(parentResult.ok).toBe(true);
@@ -141,6 +149,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -160,6 +170,8 @@ describe("Course Section Management Functions", () => {
 				description: "Advanced course topics",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootResult.ok).toBe(true);
@@ -175,6 +187,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: rootResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(level2Result.ok).toBe(true);
@@ -190,6 +204,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: level2Result.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(level3Result.ok).toBe(true);
@@ -208,6 +224,8 @@ describe("Course Section Management Functions", () => {
 				description: "Testing self reference",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -221,6 +239,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: result.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(updateResult.ok).toBe(false);
@@ -241,6 +261,8 @@ describe("Course Section Management Functions", () => {
 				description: "Grandparent section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(grandparentResult.ok).toBe(true);
 		if (!grandparentResult.ok) return;
@@ -255,6 +277,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: grandparentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(parentResult.ok).toBe(true);
 		if (!parentResult.ok) return;
@@ -269,6 +293,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(childResult.ok).toBe(true);
 		if (!childResult.ok) return;
@@ -281,6 +307,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: childResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(updateResult.ok).toBe(false);
@@ -300,6 +328,8 @@ describe("Course Section Management Functions", () => {
 				description: "Original description",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -314,6 +344,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 5,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(updateResult.ok).toBe(true);
@@ -333,6 +365,8 @@ describe("Course Section Management Functions", () => {
 				description: "This section will be deleted",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -342,6 +376,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: createResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(true);
@@ -357,6 +393,8 @@ describe("Course Section Management Functions", () => {
 				description: "Parent with children",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(parentResult.ok).toBe(true);
@@ -372,6 +410,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -382,6 +422,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: parentResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(false);
@@ -402,6 +444,8 @@ describe("Course Section Management Functions", () => {
 				description: "Section that will have modules",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -413,6 +457,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkResult.ok).toBe(true);
@@ -423,6 +469,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(false);
@@ -438,6 +486,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: testCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -452,6 +502,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: testCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -474,6 +526,8 @@ describe("Course Section Management Functions", () => {
 				description: "Parent section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(parentResult.ok).toBe(true);
@@ -489,6 +543,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const child2Result = await tryCreateSection({
@@ -500,6 +556,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(child1Result.ok).toBe(true);
@@ -510,6 +568,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			parentSectionId: parentResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -530,6 +590,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: testCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -553,6 +615,8 @@ describe("Course Section Management Functions", () => {
 				description: "Root section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootResult.ok).toBe(true);
@@ -567,6 +631,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: rootResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -581,6 +647,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: childResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(grandchildResult.ok).toBe(true);
@@ -591,6 +659,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: grandchildResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(result.ok).toBe(true);
@@ -612,6 +682,8 @@ describe("Course Section Management Functions", () => {
 				description: "Root for depth test",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootResult.ok).toBe(true);
@@ -626,6 +698,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: rootResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -636,12 +710,16 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: rootResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const childDepthResult = await tryGetSectionDepth({
 			payload,
 			sectionId: childResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootDepthResult.ok).toBe(true);
@@ -664,6 +742,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const section2Result = await tryCreateSection({
@@ -675,6 +755,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(section1Result.ok).toBe(true);
@@ -688,6 +770,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: section1Result.value.id,
 			newContentOrder: 2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(reorderResult.ok).toBe(true);
@@ -709,6 +793,8 @@ describe("Course Section Management Functions", () => {
 					contentOrder: i,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -723,6 +809,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionIds,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(reorderResult.ok).toBe(true);
@@ -742,6 +830,8 @@ describe("Course Section Management Functions", () => {
 				description: "Root section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootResult.ok).toBe(true);
@@ -756,6 +846,8 @@ describe("Course Section Management Functions", () => {
 				description: "Section to be nested",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -767,6 +859,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionResult.value.id,
 			newParentSectionId: rootResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(nestResult.ok).toBe(true);
@@ -789,6 +883,8 @@ describe("Course Section Management Functions", () => {
 				description: "Parent section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(parentResult.ok).toBe(true);
@@ -804,6 +900,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parentResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -814,6 +912,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: childResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(unnestResult.ok).toBe(true);
@@ -832,6 +932,8 @@ describe("Course Section Management Functions", () => {
 				description: "First parent",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const parent2Result = await tryCreateSection({
@@ -842,6 +944,8 @@ describe("Course Section Management Functions", () => {
 				description: "Second parent",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(parent1Result.ok).toBe(true);
@@ -859,6 +963,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: parent1Result.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -871,6 +977,8 @@ describe("Course Section Management Functions", () => {
 			newParentSectionId: parent2Result.value.id,
 			newOrder: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(moveResult.ok).toBe(true);
@@ -894,6 +1002,8 @@ describe("Course Section Management Functions", () => {
 				description: "Section for modules",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -905,6 +1015,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkResult.ok).toBe(true);
@@ -932,6 +1044,8 @@ describe("Course Section Management Functions", () => {
 				description: "Section for removal test",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -943,6 +1057,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkResult.ok).toBe(true);
@@ -953,6 +1069,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			linkId: linkResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(removeResult.ok).toBe(true);
@@ -968,6 +1086,8 @@ describe("Course Section Management Functions", () => {
 				description: "Section for reorder test",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -981,6 +1101,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test quiz instructions",
 			overrideAccess: true,
+
+			req: undefined,
 		} satisfies CreateQuizModuleArgs);
 
 		expect(activityModule2Result.ok).toBe(true);
@@ -992,6 +1114,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const link2Result = await tryAddActivityModuleToSection({
@@ -999,6 +1123,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule2Result.value.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link1Result.ok).toBe(true);
@@ -1012,6 +1138,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionResult.value.id,
 			linkIds: [link2Result.value.id, link1Result.value.id],
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(reorderResult.ok).toBe(true);
@@ -1031,6 +1159,8 @@ describe("Course Section Management Functions", () => {
 				description: "Source section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const section2Result = await tryCreateSection({
@@ -1041,6 +1171,8 @@ describe("Course Section Management Functions", () => {
 				description: "Target section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(section1Result.ok).toBe(true);
@@ -1054,6 +1186,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: section1Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkResult.ok).toBe(true);
@@ -1065,6 +1199,8 @@ describe("Course Section Management Functions", () => {
 			linkId: linkResult.value.id,
 			newSectionId: section2Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(moveResult.ok).toBe(true);
@@ -1087,6 +1223,8 @@ describe("Course Section Management Functions", () => {
 				description: "Section for counting",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -1097,6 +1235,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(initialCountResult.ok).toBe(true);
@@ -1110,6 +1250,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkResult.ok).toBe(true);
@@ -1120,6 +1262,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(finalCountResult.ok).toBe(true);
@@ -1138,6 +1282,8 @@ describe("Course Section Management Functions", () => {
 				description: "Root for validation",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootResult.ok).toBe(true);
@@ -1152,6 +1298,8 @@ describe("Course Section Management Functions", () => {
 				parentSection: rootResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootResult.ok).toBe(true);
@@ -1164,6 +1312,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: childResult.value.id,
 			newParentSectionId: rootResult.value.id,
+
+			req: undefined,
 		});
 
 		expect(validResult.ok).toBe(true);
@@ -1176,6 +1326,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: rootResult.value.id,
 			newParentSectionId: childResult.value.id,
+
+			req: undefined,
 		});
 
 		expect(invalidResult.ok).toBe(true);
@@ -1195,6 +1347,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureTestCourseResult.ok).toBe(true);
@@ -1213,6 +1367,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(introResult.ok).toBe(true);
@@ -1228,6 +1384,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(mainResult.ok).toBe(true);
@@ -1244,6 +1402,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(chapter1Result.ok).toBe(true);
@@ -1260,6 +1420,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(chapter2Result.ok).toBe(true);
@@ -1276,6 +1438,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(section11Result.ok).toBe(true);
@@ -1289,6 +1453,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test quiz instructions",
 			overrideAccess: true,
+
+			req: undefined,
 		} satisfies CreateQuizModuleArgs);
 
 		const activityModule3Result = await tryCreateDiscussionModule({
@@ -1298,6 +1464,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test discussion instructions",
 			overrideAccess: true,
+
+			req: undefined,
 		} satisfies CreateDiscussionModuleArgs);
 
 		expect(activityModule2Result.ok).toBe(true);
@@ -1311,6 +1479,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: introResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const link2Result = await tryAddActivityModuleToSection({
@@ -1318,6 +1488,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule2Result.value.id,
 			sectionId: chapter1Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const link3Result = await tryAddActivityModuleToSection({
@@ -1325,6 +1497,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule3Result.value.id,
 			sectionId: section11Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link1Result.ok).toBe(true);
@@ -1338,6 +1512,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: structureTestCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureResult.ok).toBe(true);
@@ -1434,6 +1610,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(emptyCourseResult.ok).toBe(true);
@@ -1444,6 +1622,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: emptyCourseResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureResult.ok).toBe(true);
@@ -1467,6 +1647,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const section2Result = await tryCreateSection({
@@ -1478,6 +1660,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(section1Result.ok).toBe(true);
@@ -1490,6 +1674,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: testCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureResult.ok).toBe(true);
@@ -1528,6 +1714,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(level1Result.ok).toBe(true);
@@ -1543,6 +1731,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(level2Result.ok).toBe(true);
@@ -1558,6 +1748,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(level3Result.ok).toBe(true);
@@ -1573,6 +1765,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(level4Result.ok).toBe(true);
@@ -1584,6 +1778,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: level4Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkResult.ok).toBe(true);
@@ -1594,6 +1790,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: testCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureResult.ok).toBe(true);
@@ -1648,6 +1846,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(newCourseResult.ok).toBe(true);
@@ -1660,6 +1860,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: newCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionsResult.ok).toBe(true);
@@ -1673,6 +1875,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: defaultSection.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(false);
@@ -1694,6 +1898,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(newCourseResult.ok).toBe(true);
@@ -1711,6 +1917,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(secondSectionResult.ok).toBe(true);
@@ -1721,6 +1929,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: newCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionsResult.ok).toBe(true);
@@ -1734,6 +1944,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			sectionId: defaultSection.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(deleteResult.ok).toBe(true);
@@ -1750,6 +1962,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(treeTestCourseResult.ok).toBe(true);
@@ -1767,6 +1981,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const mainResult = await tryCreateSection({
@@ -1778,6 +1994,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(introResult.ok).toBe(true);
@@ -1795,6 +2013,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(chapter1Result.ok).toBe(true);
@@ -1806,6 +2026,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: testActivityModule.id,
 			sectionId: introResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link1Result.ok).toBe(true);
@@ -1816,6 +2038,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: treeTestCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureResult.ok).toBe(true);
@@ -1855,6 +2079,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(complexCourseResult.ok).toBe(true);
@@ -1872,6 +2098,8 @@ describe("Course Section Management Functions", () => {
 				userId: testUser.id,
 				instructions: `Instructions for activity module ${i}`,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(moduleResult.ok).toBe(true);
@@ -1890,6 +2118,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionAResult.ok).toBe(true);
@@ -1902,6 +2132,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionAResult.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA1Result.ok).toBe(true);
@@ -1918,6 +2150,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionA1Result.ok).toBe(true);
@@ -1930,6 +2164,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA1Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA11Result.ok).toBe(true);
@@ -1946,6 +2182,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionA11Result.ok).toBe(true);
@@ -1958,6 +2196,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA11Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// Add Activity Module A1.1.2 (contentOrder: 2)
@@ -1967,6 +2207,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA11Result.value.id,
 			order: 2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA111Result.ok).toBe(true);
@@ -1980,6 +2222,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA1Result.value.id,
 			order: 3,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA12Result.ok).toBe(true);
@@ -1992,6 +2236,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionAResult.value.id,
 			order: 3,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA2Result.ok).toBe(true);
@@ -2008,6 +2254,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionA2Result.ok).toBe(true);
@@ -2020,6 +2268,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA2Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA21Result.ok).toBe(true);
@@ -2036,6 +2286,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionA21Result.ok).toBe(true);
@@ -2048,6 +2300,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA21Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// Add Activity Module A2.1.2 (contentOrder: 2)
@@ -2057,6 +2311,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionA21Result.value.id,
 			order: 2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkA211Result.ok).toBe(true);
@@ -2073,6 +2329,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 2,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionBResult.ok).toBe(true);
@@ -2089,6 +2347,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionB1Result.ok).toBe(true);
@@ -2101,6 +2361,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionB1Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkB11Result.ok).toBe(true);
@@ -2117,6 +2379,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionB11Result.ok).toBe(true);
@@ -2129,6 +2393,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionB11Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// Add Activity Module B1.1.2 (contentOrder: 2)
@@ -2138,6 +2404,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionB11Result.value.id,
 			order: 2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkB111Result.ok).toBe(true);
@@ -2151,6 +2419,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionBResult.value.id,
 			order: 2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkB1Result.ok).toBe(true);
@@ -2166,6 +2436,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 0,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionCResult.ok).toBe(true);
@@ -2178,6 +2450,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionCResult.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkC1Result.ok).toBe(true);
@@ -2194,6 +2468,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionC1Result.ok).toBe(true);
@@ -2206,6 +2482,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionC1Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkC11Result.ok).toBe(true);
@@ -2222,6 +2500,8 @@ describe("Course Section Management Functions", () => {
 				contentOrder: 1,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionC11Result.ok).toBe(true);
@@ -2234,6 +2514,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionC11Result.value.id,
 			order: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// Add Activity Module C1.1.2 (contentOrder: 2)
@@ -2243,6 +2525,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionC11Result.value.id,
 			order: 2,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkC111Result.ok).toBe(true);
@@ -2256,6 +2540,8 @@ describe("Course Section Management Functions", () => {
 			sectionId: sectionCResult.value.id,
 			order: 3,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(linkC2Result.ok).toBe(true);
@@ -2266,6 +2552,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: complexCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(structureResult.ok).toBe(true);
@@ -2339,6 +2627,8 @@ describe("Course Section Management Functions", () => {
 				newSectionId: sectionA1Result.value.id, // Stay in the same section
 				newOrder: 2, // This will place it at contentOrder 2, before Section A.1.1
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(moveResult.ok).toBe(true);
@@ -2358,6 +2648,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(structureResult2.ok).toBe(true);
@@ -2386,6 +2678,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!complexCourseResult.ok) {
@@ -2468,6 +2762,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test assignment 1",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const activityModule2Result = await tryCreateQuizModule({
@@ -2477,6 +2773,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test quiz 1",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!activityModule1Result.ok || !activityModule2Result.ok) {
@@ -2529,6 +2827,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: complexCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		if (structure.ok) {
 			console.log(
@@ -2554,6 +2854,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (structure.ok) {
 				console.log(
@@ -2586,6 +2888,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (structure.ok) {
 				console.log(
@@ -2617,6 +2921,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (structure.ok) {
 				console.log(
@@ -2652,6 +2958,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (structure.ok) {
 				console.log(
@@ -2685,6 +2993,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (structure.ok) {
 				console.log(
@@ -2719,6 +3029,8 @@ describe("Course Section Management Functions", () => {
 				payload,
 				courseId: complexCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (structure.ok) {
 				console.log(
@@ -2804,6 +3116,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(moveTestCourseResult.ok).toBe(true);
@@ -2820,6 +3134,8 @@ describe("Course Section Management Functions", () => {
 				description: "First section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// create a section 2
@@ -2831,6 +3147,8 @@ describe("Course Section Management Functions", () => {
 				description: "Second section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// crea
@@ -2842,6 +3160,8 @@ describe("Course Section Management Functions", () => {
 				description: "Third section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!section3Result.ok || !section1Result.ok || !section2Result.ok) return;
@@ -2855,6 +3175,8 @@ describe("Course Section Management Functions", () => {
 				description: "Discussion section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -2868,6 +3190,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test discussion 1",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(module1Result.ok).toBe(true);
@@ -2881,6 +3205,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test discussion 2",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(module2Result.ok).toBe(true);
@@ -2894,6 +3220,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test discussion 3",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const activityModule4Result = await tryCreateDiscussionModule({
@@ -2903,6 +3231,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Test discussion 4",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(activityModule3Result.ok).toBe(true);
@@ -2915,6 +3245,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: module1Result.value.id,
 			sectionId: section1Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link1Result.ok).toBe(true);
@@ -2926,6 +3258,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: module2Result.value.id,
 			sectionId: section2Result.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link2Result.ok).toBe(true);
@@ -2937,6 +3271,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule4Result.value.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const link3Result = await tryAddActivityModuleToSection({
@@ -2944,6 +3280,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule3Result.value.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link4Result.ok).toBe(true);
@@ -2955,6 +3293,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: moveTestCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(initialStructureResult.ok).toBe(true);
@@ -2982,6 +3322,8 @@ describe("Course Section Management Functions", () => {
 			target: { id: link4Result.value.id, type: "activity-module" },
 			location: "above",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(moveResult.ok).toBe(true);
@@ -2992,6 +3334,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: moveTestCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(finalStructureResult.ok).toBe(true);
@@ -3050,6 +3394,8 @@ describe("Course Section Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(customNameCourseResult.ok).toBe(true);
@@ -3066,6 +3412,8 @@ describe("Course Section Management Functions", () => {
 				description: "First week content",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(sectionResult.ok).toBe(true);
@@ -3079,6 +3427,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Complete the assignment",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const quizResult = await tryCreateQuizModule({
@@ -3088,6 +3438,8 @@ describe("Course Section Management Functions", () => {
 			userId: testUser.id,
 			instructions: "Complete the quiz",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(assignmentResult.ok).toBe(true);
@@ -3100,6 +3452,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: assignmentResult.value.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const link2Result = await tryAddActivityModuleToSection({
@@ -3107,6 +3461,8 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: quizResult.value.id,
 			sectionId: sectionResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(link1Result.ok).toBe(true);
@@ -3118,6 +3474,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: customNameCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(initialStructureResult.ok).toBe(true);
@@ -3192,6 +3550,8 @@ describe("Course Section Management Functions", () => {
 			payload,
 			courseId: customNameCourse.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(updatedStructureResult.ok).toBe(true);

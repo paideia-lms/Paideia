@@ -164,7 +164,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-
 export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 	const { submit: createCourse, isLoading } = useCreateCourse();
 

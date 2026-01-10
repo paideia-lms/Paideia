@@ -71,8 +71,6 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	};
 })!;
 
-
-
 // Button component for profile page
 export function StopImpersonatingButton({
 	size = "xs",
@@ -125,7 +123,6 @@ const StopImpersonatingMenuItem = forwardRef<
 });
 
 StopImpersonatingMenuItem.displayName = "StopImpersonatingMenuItem";
-
 
 export default function UserLayout({
 	loaderData,
@@ -199,7 +196,6 @@ export function HeaderTabs({
 	const isAdmin = isImpersonating
 		? authenticatedUser?.role === "admin"
 		: currentUser?.role === "admin";
-
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -310,7 +306,11 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={getRouteUrl("/api/user/:id/avatar", { params: { id: authenticatedUser.id.toString() } })}
+																src={getRouteUrl("/api/user/:id/avatar", {
+																	params: {
+																		id: authenticatedUser.id.toString(),
+																	},
+																})}
 																alt={
 																	`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
 																	"Admin"
@@ -327,7 +327,9 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={getRouteUrl("/api/user/:id/avatar", { params: { id: currentUser.id.toString() } })}
+																src={getRouteUrl("/api/user/:id/avatar", {
+																	params: { id: currentUser.id.toString() },
+																})}
 																alt={
 																	`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 																	"Anonymous"
@@ -340,7 +342,9 @@ export function HeaderTabs({
 												</Tooltip.Group>
 											) : (
 												<Avatar
-													src={getRouteUrl("/api/user/:id/avatar", { params: { id: currentUser.id.toString() } })}
+													src={getRouteUrl("/api/user/:id/avatar", {
+														params: { id: currentUser.id.toString() },
+													})}
 													alt={
 														`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 														"Anonymous"
@@ -357,7 +361,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+													"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -403,8 +407,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+											// component={Link}
+											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

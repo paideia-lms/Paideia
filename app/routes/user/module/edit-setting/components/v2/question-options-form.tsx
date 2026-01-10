@@ -9,86 +9,86 @@ import { SingleSelectionMatrixOptionsForm } from "./single-selection-matrix-opti
 import { MultipleSelectionMatrixOptionsForm } from "./multiple-selection-matrix-options-form";
 
 interface QuestionOptionsFormProps {
-    moduleId: number;
-    question: Question;
-    nestedQuizId?: string;
+	moduleId: number;
+	question: Question;
+	nestedQuizId?: string;
 }
 
 export function QuestionOptionsForm({
-    moduleId,
-    question,
-    nestedQuizId,
+	moduleId,
+	question,
+	nestedQuizId,
 }: QuestionOptionsFormProps) {
-    switch (question.type) {
-        case "multiple-choice":
-            return (
-                <MultipleChoiceOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "choice":
-            return (
-                <ChoiceOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "short-answer":
-            return (
-                <ShortAnswerOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "long-answer":
-            return (
-                <LongAnswerOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "fill-in-the-blank":
-            return (
-                <FillInTheBlankOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "ranking":
-            return (
-                <RankingOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "single-selection-matrix":
-            return (
-                <SingleSelectionMatrixOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "multiple-selection-matrix":
-            return (
-                <MultipleSelectionMatrixOptionsForm
-                    moduleId={moduleId}
-                    question={question}
-                    nestedQuizId={nestedQuizId}
-                />
-            );
-        case "article":
-        case "whiteboard":
-            // Article and Whiteboard don't need options
-            return null;
-        default:
-            return null;
-    }
+	switch (question.type) {
+		case "multiple-choice":
+			return (
+				<MultipleChoiceOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "choice":
+			return (
+				<ChoiceOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "short-answer":
+			return (
+				<ShortAnswerOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "long-answer":
+			return (
+				<LongAnswerOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "fill-in-the-blank":
+			return (
+				<FillInTheBlankOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "ranking":
+			return (
+				<RankingOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "single-selection-matrix":
+			return (
+				<SingleSelectionMatrixOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "multiple-selection-matrix":
+			return (
+				<MultipleSelectionMatrixOptionsForm
+					moduleId={moduleId}
+					question={question}
+					nestedQuizId={nestedQuizId}
+				/>
+			);
+		case "article":
+		case "whiteboard":
+			// Article and Whiteboard don't need options
+			return null;
+		default:
+			return null;
+	}
 }

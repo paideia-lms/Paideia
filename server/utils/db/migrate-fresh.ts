@@ -128,6 +128,7 @@ export async function migrateFresh({
 					batch: 1,
 				},
 				req,
+				overrideAccess: true,
 			});
 			await commitTransaction(req);
 			payload.logger.info({

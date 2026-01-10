@@ -43,9 +43,7 @@ const deleteActivityModuleAction = deleteActivityModuleRpc.createAction(
 		}
 
 		// Redirect to user modules page after successful deletion
-		return redirect(
-			href("/user/modules/:id?", { id: String(currentUser.id) }),
-		);
+		return redirect(href("/user/modules/:id?", { id: String(currentUser.id) }));
 	},
 );
 

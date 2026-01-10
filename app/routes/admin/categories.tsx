@@ -32,10 +32,7 @@ import {
 	IconLibraryPlus,
 } from "@tabler/icons-react";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
-import {
-	parseAsInteger,
-	parseAsStringEnum,
-} from "nuqs/server";
+import { parseAsInteger, parseAsStringEnum } from "nuqs/server";
 import { useEffect } from "react";
 import { href, Link } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
@@ -110,7 +107,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -126,17 +123,18 @@ export const loader = createRouteLoader({
 	const treeResult = await tryGetCategoryTree({
 		payload,
 		overrideAccess: true,
-	});
-	if (!treeResult.ok) {
+		req: payloadRequest,
+	}).getOrElse(() => {
 		throw new ForbiddenResponse("Failed to get categories");
-	}
+	});
 
-	const flat = flattenCategories(treeResult.value);
+	const flat = flattenCategories(treeResult);
 	// count courses without category (uncategorized)
 	const uncategorizedCountRes = await payload.count({
 		collection: "courses",
 		where: { category: { exists: false } },
 		overrideAccess: true,
+		req: payloadRequest,
 	});
 	const uncategorizedCount = uncategorizedCountRes.totalDocs;
 	// selected category details
@@ -157,6 +155,7 @@ export const loader = createRouteLoader({
 				payload,
 				categoryId: idNum,
 				overrideAccess: true,
+				req: payloadRequest,
 			});
 			if (catRes.ok) {
 				const directCoursesCountRes = await payload.count({
@@ -169,16 +168,19 @@ export const loader = createRouteLoader({
 						payload,
 						parentId: idNum,
 						overrideAccess: true,
+						req: payloadRequest,
 					}),
 					tryGetTotalNestedCoursesCount({
 						payload,
 						categoryId: idNum,
 						overrideAccess: true,
+						req: payloadRequest,
 					}),
 					tryGetCategoryAncestors({
 						payload,
 						categoryId: idNum,
 						overrideAccess: true,
+						req: payloadRequest,
 					}),
 				]);
 				const parentField = catRes.value.parent;
@@ -279,7 +281,8 @@ const deleteCategoryAction = deleteCategoryRpc.createAction(
 	},
 );
 
-const useDeleteCategory = deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
+const useDeleteCategory =
+	deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
 
 // Export hooks for use in components
 export { useEditCategory, useDeleteCategory };
@@ -316,7 +319,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export default function AdminCategoriesPage({
 	loaderData,
 }: Route.ComponentProps) {
-	const { flat, selectedCategory, uncategorizedCount, searchParams } = loaderData
+	const { flat, selectedCategory, uncategorizedCount, searchParams } =
+		loaderData;
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 	const categoryId = searchParams.categoryId;
 	const setCategoryId = (id: number | null) => {
@@ -481,11 +485,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent("category:none")
+								"?query=" +
+								encodeURIComponent("category:none")
 							: href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent(`category:"${d.name}"`);
+								"?query=" +
+								encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">
@@ -733,12 +737,13 @@ function EditCategoryButton({
 		setQueryParams({ edit: null });
 	};
 
-	const handleSubmit = async (values: { name: string; parent?: string | null }) => {
+	const handleSubmit = async (values: {
+		name: string;
+		parent?: string | null;
+	}) => {
 		const parentValue = values.parent;
 		const parent =
-			parentValue == null || parentValue === ""
-				? null
-				: Number(parentValue);
+			parentValue == null || parentValue === "" ? null : Number(parentValue);
 		await editCategory({
 			values: {
 				categoryId,
@@ -763,11 +768,7 @@ function EditCategoryButton({
 
 	return (
 		<>
-			<Button
-				size="xs"
-				variant="light"
-				onClick={handleOpen}
-			>
+			<Button size="xs" variant="light" onClick={handleOpen}>
 				Edit
 			</Button>
 
@@ -797,11 +798,7 @@ function EditCategoryButton({
 							<Button variant="default" onClick={handleClose} type="button">
 								Cancel
 							</Button>
-							<Button
-								type="submit"
-								loading={isEditing}
-								disabled={isEditing}
-							>
+							<Button type="submit" loading={isEditing} disabled={isEditing}>
 								Save
 							</Button>
 						</Group>
@@ -812,11 +809,7 @@ function EditCategoryButton({
 	);
 }
 
-function DeleteCategoryButton({
-	categoryId,
-}: {
-	categoryId: number;
-}) {
+function DeleteCategoryButton({ categoryId }: { categoryId: number }) {
 	const { submit: deleteCategory, isLoading: isDeleting } = useDeleteCategory();
 
 	const handleDelete = async () => {

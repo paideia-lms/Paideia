@@ -80,6 +80,7 @@ export function tryGrantAccessToActivityModule(args: GrantAccessArgs) {
 				id: activityModuleId,
 				depth: 0,
 				overrideAccess: true,
+				req,
 			});
 
 			if (!activityModule) {
@@ -94,11 +95,13 @@ export function tryGrantAccessToActivityModule(args: GrantAccessArgs) {
 					collection: "users",
 					id: grantedToUserId,
 					overrideAccess: true,
+					req,
 				}),
 				payload.findByID({
 					collection: "users",
 					id: grantedByUserId,
 					overrideAccess: true,
+					req,
 				}),
 			]);
 
@@ -137,6 +140,7 @@ export function tryGrantAccessToActivityModule(args: GrantAccessArgs) {
 				},
 				depth: 0,
 				overrideAccess: true,
+				req,
 			});
 
 			if (existingGrant.docs.length > 0) {
@@ -297,7 +301,7 @@ export function tryFindInstructorsForActivityModule(
 ) {
 	return Result.try(
 		async () => {
-			const { payload, activityModuleId } = args;
+			const { payload, activityModuleId, req } = args;
 
 			// Find all course links for this activity module
 			const links = await payload
@@ -308,6 +312,7 @@ export function tryFindInstructorsForActivityModule(
 					},
 					depth: 0,
 					overrideAccess: true,
+					req,
 				})
 				.then(stripDepth<0, "find">());
 
@@ -334,6 +339,7 @@ export function tryFindInstructorsForActivityModule(
 					depth: 1, // Populate user data
 					pagination: false,
 					overrideAccess: true,
+					req,
 				})
 				.then(stripDepth<1, "find">())
 				.then((result) => result.docs)
