@@ -839,18 +839,13 @@ export function tryUpdatePageModuleSettings(
 			const { payload, linkId, name, req, overrideAccess = false } = args;
 
 			// Verify link exists and is a page module
-			const linkResult = await tryFindCourseActivityModuleLinkById({
+			const link = await tryFindCourseActivityModuleLinkById({
 				payload,
 				linkId,
 				req,
 				overrideAccess,
-			});
+			}).getOrThrow();
 
-			if (!linkResult.ok) {
-				throw linkResult.error;
-			}
-
-			const link = linkResult.value;
 			if (link.activityModule.type !== "page") {
 				throw new InvalidArgumentError(
 					`Cannot update page settings for a ${link.activityModule.type} module`,

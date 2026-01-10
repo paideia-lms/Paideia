@@ -14,7 +14,7 @@ import {
 import { IconArrowBack, IconMessage, IconPin } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useQueryState } from "nuqs";
+// import { useQueryState } from "nuqs";
 import { href, Link } from "react-router";
 import type {
 	DiscussionData,
@@ -22,8 +22,11 @@ import type {
 	DiscussionThread,
 } from "~/components/activity-modules-preview/discussion-preview";
 import { ReplyCardWithUpvote } from "./reply-card";
-import { ReplyFormWrapper } from "./reply-form-wrapper";
-import { ThreadUpvoteButton } from "./thread-upvote-button";
+import { ReplyForm } from "./reply-form";
+import { ThreadUpvoteDownVoteButton } from "./thread-upvote-button";
+import type { inferParserType } from "nuqs";
+import { loaderSearchParams } from "../route";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
 dayjs.extend(relativeTime);
 
@@ -32,9 +35,9 @@ interface DiscussionThreadDetailViewProps {
 	replies: DiscussionReply[];
 	discussion: DiscussionData;
 	moduleLinkId: number;
-	threadId: string;
+	threadId: number;
 	courseId: number;
-	onBack: () => void;
+	replyTo: inferParserType<typeof loaderSearchParams>["replyTo"];
 }
 
 export function DiscussionThreadDetailView({
@@ -44,16 +47,24 @@ export function DiscussionThreadDetailView({
 	moduleLinkId,
 	threadId,
 	courseId,
-	onBack,
+	replyTo,
 }: DiscussionThreadDetailViewProps) {
-	const [replyTo, setReplyTo] = useQueryState("replyTo");
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	return (
 		<Paper withBorder p="xl" radius="md">
 			<Stack gap="lg">
 				{/* Header */}
 				<Group>
-					<ActionIcon variant="subtle" onClick={onBack}>
+					<ActionIcon
+						variant="subtle"
+						onClick={() => {
+							setQueryParams({
+								threadId: null,
+								replyTo: null,
+							});
+						}}
+					>
 						<IconArrowBack size={20} />
 					</ActionIcon>
 					<Text size="sm" c="dimmed">
@@ -76,8 +87,8 @@ export function DiscussionThreadDetailView({
 								to={
 									courseId && thread.authorId
 										? href("/course/:courseId/participants/profile", {
-												courseId: String(courseId),
-											}) + `?userId=${thread.authorId}`
+											courseId: String(courseId),
+										}) + `?userId=${thread.authorId}`
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}
@@ -97,10 +108,9 @@ export function DiscussionThreadDetailView({
 								{dayjs(thread.publishedAt).fromNow()}
 							</Text>
 						</Group>
-						<ThreadUpvoteButton
+						<ThreadUpvoteDownVoteButton
 							thread={thread}
 							moduleLinkId={moduleLinkId}
-							threadId={threadId}
 						/>
 					</Group>
 
@@ -115,7 +125,7 @@ export function DiscussionThreadDetailView({
 						<Button
 							variant="light"
 							leftSection={<IconMessage size={16} />}
-							onClick={() => setReplyTo("thread")}
+							onClick={() => setQueryParams({ replyTo: "thread" })}
 						>
 							Reply
 						</Button>
@@ -126,13 +136,10 @@ export function DiscussionThreadDetailView({
 
 				{/* Reply Form - Only show when replying to thread (replyTo=thread) */}
 				{replyTo === "thread" && (
-					<ReplyFormWrapper
+					<ReplyForm
 						moduleLinkId={moduleLinkId}
 						threadId={threadId}
-						replyTo={null}
-						onCancel={() => {
-							setReplyTo(null);
-						}}
+						replyTo={replyTo}
 					/>
 				)}
 
@@ -149,14 +156,8 @@ export function DiscussionThreadDetailView({
 							moduleLinkId={moduleLinkId}
 							threadId={threadId}
 							courseId={courseId}
-							onReply={(id) => {
-								setReplyTo(id);
-							}}
 							level={0}
 							replyTo={replyTo}
-							onCancelReply={() => {
-								setReplyTo(null);
-							}}
 						/>
 					))}
 				</Stack>

@@ -13,13 +13,16 @@ import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useState } from "react";
-import { href, Link } from "react-router";
+import { Link } from "react-router";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import { SimpleRichTextEditor } from "app/components/rich-text/simple-rich-text-editor";
+import { FormableSimpleRichTextEditor } from "app/components/form-components/formable-simple-rich-text-editor";
 import { useCreateReply } from "../route";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl, useNuqsSearchParams } from "app/utils/search-params-utils";
+import type { inferParserType } from "nuqs";
+import { loaderSearchParams } from "../route";
+import { useForm } from "@mantine/form";
+import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
 dayjs.extend(relativeTime);
 
@@ -27,12 +30,10 @@ interface ReplyCardWithUpvoteProps {
 	reply: DiscussionReply;
 	allReplies: DiscussionReply[];
 	moduleLinkId: number;
-	threadId: string;
+	threadId: number;
 	courseId: number;
-	onReply: (id: string) => void;
 	level: number;
-	replyTo?: string | null;
-	onCancelReply?: () => void;
+	replyTo?: inferParserType<typeof loaderSearchParams>["replyTo"];
 }
 
 export function ReplyCardWithUpvote({
@@ -41,14 +42,17 @@ export function ReplyCardWithUpvote({
 	moduleLinkId,
 	threadId,
 	courseId,
-	onReply,
 	level,
 	replyTo,
-	onCancelReply,
 }: ReplyCardWithUpvoteProps) {
 	const [opened, { toggle }] = useDisclosure(true); // Open by default to show nested replies
-	const [replyContent, setReplyContent] = useState("");
+	const initialValues = {
+		content: "",
+	};
+	const form = useForm({ initialValues });
+	useFormWithSyncedInitialValues(form, initialValues);
 	const { submit: createReply, isLoading: isSubmitting } = useCreateReply();
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	// Use nested replies from the reply object itself (nested structure)
 	const nestedReplies = reply.replies || [];
@@ -63,28 +67,6 @@ export function ReplyCardWithUpvote({
 
 	const totalNestedCount = countNestedReplies(nestedReplies);
 	const isReplyingToThis = replyTo === reply.id;
-
-	const handleReplySubmit = () => {
-		if (replyContent.trim()) {
-			const threadIdNum = Number.parseInt(threadId, 10);
-			if (!Number.isNaN(threadIdNum)) {
-				createReply({
-					params: { moduleLinkId },
-					values: {
-						content: replyContent.trim(),
-						parentThread: threadIdNum,
-					},
-					searchParams: {
-						replyTo: Number(reply.id),
-					},
-				});
-				setReplyContent("");
-				if (onCancelReply) {
-					onCancelReply();
-				}
-			}
-		}
-	};
 
 	return (
 		<Box>
@@ -138,7 +120,7 @@ export function ReplyCardWithUpvote({
 						<Button
 							variant="subtle"
 							size="xs"
-							onClick={() => onReply(reply.id)}
+							onClick={() => setQueryParams({ replyTo: reply.id })}
 						>
 							Reply
 						</Button>
@@ -167,34 +149,46 @@ export function ReplyCardWithUpvote({
 			{/* Inline Reply Form */}
 			{isReplyingToThis && (
 				<Paper withBorder p="md" radius="sm" bg="gray.0" mt="sm">
-					<Stack gap="md">
-						<Text size="sm" fw={500}>
-							Replying to {reply.author}...
-						</Text>
-						<SimpleRichTextEditor
-							content={replyContent}
-							onChange={setReplyContent}
-							placeholder="Write your reply..."
-							readonly={isSubmitting}
-						/>
-						<Group justify="flex-end">
-							<Button
-								variant="default"
-								onClick={() => {
-									setReplyContent("");
-									if (onCancelReply) {
-										onCancelReply();
-									}
-								}}
-								disabled={isSubmitting}
-							>
-								Cancel
-							</Button>
-							<Button onClick={handleReplySubmit} loading={isSubmitting}>
-								Post Reply
-							</Button>
-						</Group>
-					</Stack>
+					<form onSubmit={form.onSubmit(async ({ content }) => {
+						await createReply({
+							params: { moduleLinkId },
+							values: {
+								content: content.trim(),
+								parentThread: threadId,
+							},
+							searchParams: {
+								replyTo: Number(reply.id),
+							},
+						});
+						setQueryParams({ replyTo: null });
+					})}>
+						<Stack gap="md">
+							<Text size="sm" fw={500}>
+								Replying to {reply.author}...
+							</Text>
+							<FormableSimpleRichTextEditor
+								form={form}
+								formKey="content"
+								key={form.key("content")}
+								label="Reply"
+								placeholder="Write your reply..."
+							/>
+							<Group justify="flex-end">
+								<Button
+									variant="default"
+									onClick={() => {
+										setQueryParams({ replyTo: null });
+									}}
+									disabled={isSubmitting}
+								>
+									Cancel
+								</Button>
+								<Button type="submit" loading={isSubmitting}>
+									Post Reply
+								</Button>
+							</Group>
+						</Stack>
+					</form>
 				</Paper>
 			)}
 
@@ -219,10 +213,8 @@ export function ReplyCardWithUpvote({
 											moduleLinkId={moduleLinkId}
 											threadId={threadId}
 											courseId={courseId}
-											onReply={onReply}
 											level={level + 1}
 											replyTo={replyTo}
-											onCancelReply={onCancelReply}
 										/>
 									))}
 								</Stack>

@@ -93,7 +93,7 @@ const impersonateAction = createImpersonateActionRpc.createAction(
 			});
 		}
 
-		if (params.id === userProfileContext.profileUserId) {
+		if (params.id === userProfileContext.currentUser.id) {
 			return badRequest({ error: "You cannot impersonate yourself" });
 		}
 

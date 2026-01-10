@@ -1173,6 +1173,118 @@ const astPatterns = {
 
 		return false;
 	},
+
+	/**
+	 * Matches rpc.createAction(...) calls
+	 * Returns the variable name the action is assigned to, or null
+	 */
+	rpcCreateActionCall: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): string | null => {
+		if (!ts.isCallExpression(node)) {
+			return null;
+		}
+
+		const expression = node.expression;
+		if (
+			!ts.isPropertyAccessExpression(expression) ||
+			expression.name.text !== "createAction"
+		) {
+			return null;
+		}
+
+		// Check if parent is a variable declaration
+		const parent = node.parent;
+		if (parent && ts.isVariableDeclaration(parent)) {
+			if (ts.isIdentifier(parent.name)) {
+				return parent.name.text;
+			}
+		}
+
+		return null;
+	},
+
+	/**
+	 * Matches createActionMap({ ... }) calls
+	 * Returns the object literal with action mappings
+	 */
+	createActionMapCall: (node: ts.Node): ts.ObjectLiteralExpression | null => {
+		if (!ts.isCallExpression(node)) {
+			return null;
+		}
+
+		const expression = node.expression;
+		if (!ts.isIdentifier(expression) || expression.text !== "createActionMap") {
+			return null;
+		}
+
+		// Get the first argument (should be the object literal)
+		const args = node.arguments;
+		if (args.length === 0) {
+			return null;
+		}
+
+		const firstArg = args[0];
+		if (ts.isObjectLiteralExpression(firstArg)) {
+			return firstArg;
+		}
+
+		return null;
+	},
+
+	/**
+	 * Checks if all RPC actions are included in createActionMap
+	 * Returns true if there's a violation (action not in map)
+	 */
+	missingActionInMap: (
+		node: ts.Node,
+		sourceFile: ts.SourceFile,
+	): boolean => {
+		// Only check on createActionMap calls
+		const actionMapObj = astPatterns.createActionMapCall(node);
+		if (!actionMapObj) {
+			return false;
+		}
+
+		// Collect all action variable names from the file
+		const actionVariables = new Set<string>();
+		function collectActions(n: ts.Node) {
+			const actionName = astPatterns.rpcCreateActionCall(n, sourceFile);
+			if (actionName) {
+				actionVariables.add(actionName);
+			}
+			ts.forEachChild(n, collectActions);
+		}
+
+		collectActions(sourceFile);
+
+		// If no actions found, no violation
+		if (actionVariables.size === 0) {
+			return false;
+		}
+
+		// Extract values from the action map object literal
+		const mapValues = new Set<string>();
+		for (const property of actionMapObj.properties) {
+			if (ts.isPropertyAssignment(property)) {
+				const value = property.initializer;
+				if (ts.isIdentifier(value)) {
+					mapValues.add(value.text);
+				}
+			}
+		}
+
+		// Check if all action variables are in the map
+		for (const actionVar of actionVariables) {
+			if (!mapValues.has(actionVar)) {
+				// Found an action not in the map - violation
+				return true;
+			}
+		}
+
+		return false;
+	},
 };
 
 /**
@@ -1532,6 +1644,18 @@ export const rules: LintRule[] = [
 			{
 				name: "z.any() call",
 				matcher: astPatterns.zAnyCall,
+			},
+		],
+	},
+	{
+		name: "Require all RPC actions in createActionMap",
+		description: "All RPC actions created with rpc.createAction() must be included in the createActionMap. Missing actions will cause 'Action is required' errors.",
+		includes: ["app/routes/**/*.tsx", "!app/root.tsx"],
+		mode: "ast", // Use AST for more accurate detection (ignores comments/strings)
+		astPatterns: [
+			{
+				name: "RPC action missing from createActionMap",
+				matcher: astPatterns.missingActionInMap,
 			},
 		],
 	},

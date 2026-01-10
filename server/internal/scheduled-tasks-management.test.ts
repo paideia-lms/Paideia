@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import sanitizedConfig, { JobQueue } from "../payload.config";
+import sanitizedConfig from "../payload.config";
+import { JobQueue } from "../utils/job-queue";
 import { tryGetScheduledTasks } from "./scheduled-tasks-management";
 
 describe("Scheduled Tasks Management", () => {

@@ -68,7 +68,14 @@ function CourseInfo({ course }: CourseInfoProps) {
 			<Stack gap="xl">
 				{course.thumbnail && (
 					<Image
-						src={`/api/media/file/${typeof course.thumbnail === "object" ? course.thumbnail.filename : course.thumbnail}`}
+						src={getRouteUrl("/api/media/file/:mediaId", {
+							params: {
+								mediaId: course.thumbnail.id.toString(),
+							},
+							searchParams: {
+
+							},
+						})}
 						alt={course.title}
 						radius="md"
 						h={200}

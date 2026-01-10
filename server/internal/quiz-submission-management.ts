@@ -1,8 +1,14 @@
 import { QuizSubmissions } from "server/collections";
 import type { LatestCourseQuizSettings } from "server/json/course-module-settings/version-resolver";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
+import {
+	convertQuestionAnswerToDatabaseFormat,
+	findQuestionInConfig,
+	validateAnswerTypeMatchesQuestion,
+} from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
-import { JobQueue } from "../payload.config";
+import { JobQueue } from "../utils/job-queue";
 import type { QuizSubmission } from "server/payload-types";
 import { Result } from "typescript-result";
 import {
@@ -15,10 +21,113 @@ import {
 import { tryCreateUserGrade } from "./user-grade-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
+	assertTimeLimit,
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
+
+/**
+ * Common arguments for quiz question operations
+ */
+interface TryValidateQuizQuestionOperationArgs
+	extends BaseInternalFunctionArgs {
+	submissionId: number;
+	questionId: string;
+}
+
+/**
+ * Validates and fetches all necessary data for quiz question operations
+ * This is a common utility used by tryAnswerQuizQuestion, tryRemoveAnswerFromQuizQuestion,
+ * tryFlagQuizQuestion, and tryUnflagQuizQuestion
+ */
+function tryValidateQuizQuestionOperation(
+	args: TryValidateQuizQuestionOperationArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate required fields
+			if (!submissionId) {
+				throw new InvalidArgumentError("Submission ID is required");
+			}
+			if (!questionId) {
+				throw new InvalidArgumentError("Question ID is required");
+			}
+
+			// Get the current submission (read operation - outside transaction)
+			const currentSubmission = await payload
+				.findByID({
+					collection: "quiz-submissions",
+					id: submissionId,
+					req,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (currentSubmission.status !== "in_progress") {
+				throw new InvalidArgumentError(
+					"Only in-progress submissions can be updated",
+				);
+			}
+
+			// Get course module link to access quiz config (read operation - outside transaction)
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: currentSubmission.courseModuleLink.id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			if (courseModuleLink.activityModule.type !== "quiz") {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const rawConfig = courseModuleLink.activityModule.rawQuizConfig;
+
+			if (!rawConfig) {
+				throw new InvalidArgumentError("Quiz configuration not found");
+			}
+
+			// Check time limit if quiz has one
+			assertTimeLimit({
+				startedAt: currentSubmission.startedAt,
+				globalTimer: rawConfig?.globalTimer,
+			});
+
+			// Find the question in the quiz config (in-memory operation)
+			// Verify the question exists in the quiz
+			const question = findQuestionInConfig(rawConfig, questionId);
+
+			if (!question) {
+				throw new InvalidArgumentError(
+					`Question with id '${questionId}' not found in quiz`,
+				);
+			}
+
+			return {
+				currentSubmission,
+				courseModuleLink,
+				rawConfig,
+				question,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to validate quiz question operation", {
+				cause: error,
+			}),
+	);
+}
 
 export interface CreateQuizArgs extends BaseInternalFunctionArgs {
 	title: string;
@@ -36,29 +145,6 @@ export interface UpdateQuizArgs extends BaseInternalFunctionArgs {
 	rawQuizConfig?: unknown;
 }
 
-export interface CreateQuizSubmissionArgs extends BaseInternalFunctionArgs {
-	courseModuleLinkId: number;
-	studentId: number;
-	enrollmentId: number;
-	attemptNumber?: number;
-	answers: Array<{
-		questionId: string;
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-		selectedAnswer?: string;
-		multipleChoiceAnswers?: Array<{
-			option: string;
-			isSelected: boolean;
-		}>;
-	}>;
-	timeSpent?: number;
-}
-
 export interface StartQuizAttemptArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
@@ -66,25 +152,26 @@ export interface StartQuizAttemptArgs extends BaseInternalFunctionArgs {
 	attemptNumber?: number;
 }
 
-export interface UpdateQuizSubmissionArgs extends BaseInternalFunctionArgs {
-	id: number;
-	status?: "in_progress" | "completed" | "graded" | "returned";
-	answers?: Array<{
-		questionId: string;
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-		selectedAnswer?: string;
-		multipleChoiceAnswers?: Array<{
-			option: string;
-			isSelected: boolean;
-		}>;
-	}>;
-	timeSpent?: number;
+export interface AnswerQuizQuestionArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	questionId: string;
+	answer: TypedQuestionAnswer;
+}
+
+export interface RemoveAnswerFromQuizQuestionArgs
+	extends BaseInternalFunctionArgs {
+	submissionId: number;
+	questionId: string;
+}
+
+export interface FlagQuizQuestionArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	questionId: string;
+}
+
+export interface UnflagQuizQuestionArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	questionId: string;
 }
 
 export interface GradeQuizSubmissionArgs extends BaseInternalFunctionArgs {
@@ -129,22 +216,22 @@ export interface GetNextAttemptNumberArgs extends BaseInternalFunctionArgs {
 export interface MarkQuizAttemptAsCompleteArgs
 	extends BaseInternalFunctionArgs {
 	submissionId: number;
-	answers?: Array<{
-		questionId: string;
-		questionText: string;
-		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-		selectedAnswer?: string;
-		multipleChoiceAnswers?: Array<{
-			option: string;
-			isSelected: boolean;
-		}>;
-	}>;
-	timeSpent?: number;
+	// answers?: Array<{
+	// 	questionId: string;
+	// 	questionText: string;
+	// 	questionType:
+	// 		| "multiple_choice"
+	// 		| "true_false"
+	// 		| "short_answer"
+	// 		| "essay"
+	// 		| "fill_blank";
+	// 	selectedAnswer?: string;
+	// 	multipleChoiceAnswers?: Array<{
+	// 		option: string;
+	// 		isSelected: boolean;
+	// 	}>;
+	// }>;
+	// timeSpent?: number;
 	/**
 	 * If true, bypasses the time limit check (useful for auto-submit)
 	 */
@@ -601,168 +688,73 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 }
 
 /**
- * Creates a new quiz submission
+ * Answers a quiz question by updating the submission's answers array
+ * This function handles validation, time limit checking, and atomic updates
  */
-export function tryCreateQuizSubmission(args: CreateQuizSubmissionArgs) {
+export function tryAnswerQuizQuestion(args: AnswerQuizQuestionArgs) {
 	return Result.try(
 		async () => {
 			const {
 				payload,
-				courseModuleLinkId,
-				studentId,
-				enrollmentId,
-				attemptNumber = 1,
-				answers,
-				timeSpent,
+				submissionId,
+				questionId,
+				answer,
 				req,
 				overrideAccess = false,
 			} = args;
 
-			// Validate required fields
-			if (!courseModuleLinkId) {
-				throw new InvalidArgumentError("Course module link ID is required");
-			}
-			if (!studentId) {
-				throw new InvalidArgumentError("Student ID is required");
-			}
-			if (!enrollmentId) {
-				throw new InvalidArgumentError("Enrollment ID is required");
-			}
-			if (!answers || answers.length === 0) {
+			// Validate and fetch common data
+			const { currentSubmission, question } =
+				await tryValidateQuizQuestionOperation({
+					payload,
+					submissionId,
+					questionId,
+					req,
+					overrideAccess,
+				}).getOrThrow();
+
+			// Validate answer type matches question type (in-memory operation)
+			if (!validateAnswerTypeMatchesQuestion(question, answer)) {
 				throw new InvalidArgumentError(
-					"Quiz submission must have at least one answer",
+					`Answer type "${answer.type}" does not match question type "${question.type}"`,
 				);
 			}
 
-			// Check if submission already exists for this attempt
-			const existingSubmission = await payload
-				.find({
-					collection: "quiz-submissions",
-					where: {
-						and: [
-							{ courseModuleLink: { equals: courseModuleLinkId } },
-							{ student: { equals: studentId } },
-							{ attemptNumber: { equals: attemptNumber } },
-						],
-					},
+			// Convert answer to database format (in-memory operation)
+			// Pass questionId to preserve nested quiz format (e.g., "nestedQuizId:questionId")
+			const dbAnswer = convertQuestionAnswerToDatabaseFormat(
+				question,
+				answer,
+				questionId,
+			);
 
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "find">());
+			// Get current answers array
+			const currentAnswers = currentSubmission.answers || [];
 
-			if (existingSubmission.docs.length > 0) {
-				throw new InvalidArgumentError(
-					`Submission already exists for attempt ${attemptNumber}`,
-				);
+			// Find existing answer for this question (if any)
+			const existingAnswerIndex = currentAnswers.findIndex(
+				(a) => a.questionId === questionId,
+			);
+
+			// Update or insert the answer
+			const updatedAnswers = [...currentAnswers];
+			if (existingAnswerIndex >= 0) {
+				// Update existing answer
+				updatedAnswers[existingAnswerIndex] = dbAnswer;
+			} else {
+				// Add new answer
+				updatedAnswers.push(dbAnswer);
 			}
 
-			// Get course module link to access quiz
-			const courseModuleLink = await payload
-				.findByID({
-					collection: "course-activity-module-links",
-					id: courseModuleLinkId,
-					depth: 1, // Need to get activity module and quiz
-
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "findByID">());
-
-			if (!courseModuleLink) {
-				throw new InvalidArgumentError("Course module link not found");
-			}
-
-			const quizSettings =
-				courseModuleLink.settings as unknown as LatestCourseQuizSettings | null;
-
-			const isLate = quizSettings?.closingTime
-				? new Date() > new Date(quizSettings?.closingTime)
-				: false;
-
-			const submission = await payload
-				.create({
-					collection: "quiz-submissions",
-					data: {
-						courseModuleLink: courseModuleLinkId,
-						student: studentId,
-						enrollment: enrollmentId,
-						attemptNumber,
-						status: "in_progress",
-						answers,
-						isLate,
-						timeSpent,
-					},
-
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "create">());
-
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			return {
-				...submission,
-				courseModuleLink: submission.courseModuleLink.id,
-			};
-		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to create quiz submission", {
-				cause: error,
-			}),
-	);
-}
-
-/**
- * Updates a quiz submission
- */
-export function tryUpdateQuizSubmission(args: UpdateQuizSubmissionArgs) {
-	return Result.try(
-		async () => {
-			const {
-				payload,
-				id,
-				status,
-				answers,
-				timeSpent,
-
-				req,
-				overrideAccess = false,
-			} = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Quiz submission ID is required");
-			}
-
-			// Build update data object
-			const updateData: Record<string, unknown> = {};
-			if (status !== undefined) updateData.status = status;
-			if (answers !== undefined) updateData.answers = answers;
-			if (timeSpent !== undefined) updateData.timeSpent = timeSpent;
-
-			// If status is being changed to completed, set submittedAt
-			if (status === "completed") {
-				updateData.submittedAt = new Date().toISOString();
-			}
-
-			// Validate that at least one field is being updated
-			if (Object.keys(updateData).length === 0) {
-				throw new InvalidArgumentError(
-					"At least one field must be provided for update",
-				);
-			}
-
+			// Update the submission with new answers array (only mutation - single operation, no transaction needed)
 			const updatedSubmission = await payload
 				.update({
 					collection: "quiz-submissions",
-					id,
-					data: updateData,
+					id: submissionId,
+					data: {
+						answers: updatedAnswers,
+					},
 					depth: 1,
-
 					req,
 					overrideAccess,
 				})
@@ -775,7 +767,227 @@ export function tryUpdateQuizSubmission(args: UpdateQuizSubmissionArgs) {
 		},
 		(error) =>
 			transformError(error) ??
-			new UnknownError("Failed to update quiz submission", {
+			new UnknownError("Failed to answer quiz question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Removes an answer from a quiz question by removing it from the submission's answers array
+ * This function allows users to manually remove/unanswer a question, effectively marking it as unanswered
+ * It performs the same validations as tryAnswerQuizQuestion but removes the answer instead of adding/updating it
+ */
+export function tryRemoveAnswerFromQuizQuestion(
+	args: RemoveAnswerFromQuizQuestionArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate and fetch common data
+			const { currentSubmission } = await tryValidateQuizQuestionOperation({
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			// Get current answers array
+			const currentAnswers = currentSubmission.answers || [];
+
+			// Find existing answer for this question (if any)
+			const existingAnswerIndex = currentAnswers.findIndex(
+				(a) => a.questionId === questionId,
+			);
+
+			// If no answer exists, there's nothing to remove - return success
+			if (existingAnswerIndex === -1) {
+				return {
+					...currentSubmission,
+					courseModuleLink: currentSubmission.courseModuleLink.id,
+				};
+			}
+
+			// Remove the answer from the array
+			const updatedAnswers = [...currentAnswers];
+			updatedAnswers.splice(existingAnswerIndex, 1);
+
+			// Update the submission with updated answers array (only mutation - single operation, no transaction needed)
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						answers: updatedAnswers,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to remove answer from quiz question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Flags a quiz question by adding it to the submission's flaggedQuestions array
+ * This function allows students to mark questions for review during the quiz attempt
+ * It performs the same validations as tryAnswerQuizQuestion but adds the question to flagged list
+ */
+export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate and fetch common data
+			const { currentSubmission } = await tryValidateQuizQuestionOperation({
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			// Get current flagged questions array
+			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
+
+			// Check if question is already flagged
+			const isAlreadyFlagged = currentFlaggedQuestions.some(
+				(flagged) => flagged.questionId === questionId,
+			);
+
+			// If already flagged, return success (idempotent)
+			if (isAlreadyFlagged) {
+				return {
+					...currentSubmission,
+					courseModuleLink: currentSubmission.courseModuleLink.id,
+				};
+			}
+
+			// Add the question to flagged list
+			const updatedFlaggedQuestions = [
+				...currentFlaggedQuestions,
+				{ questionId },
+			];
+
+			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						flaggedQuestions: updatedFlaggedQuestions,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to flag quiz question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Unflags a quiz question by removing it from the submission's flaggedQuestions array
+ * This function allows students to remove the flag from a question they previously flagged
+ * It performs the same validations as tryFlagQuizQuestion but removes the question from flagged list
+ */
+export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate and fetch common data
+			const { currentSubmission } = await tryValidateQuizQuestionOperation({
+				payload,
+				submissionId,
+				questionId,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			// Get current flagged questions array
+			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
+
+			// Find existing flagged question index (if any)
+			const existingFlaggedIndex = currentFlaggedQuestions.findIndex(
+				(flagged) => flagged.questionId === questionId,
+			);
+
+			// If no flag exists, there's nothing to remove - return success (idempotent)
+			if (existingFlaggedIndex === -1) {
+				return {
+					...currentSubmission,
+					courseModuleLink: currentSubmission.courseModuleLink.id,
+				};
+			}
+
+			// Remove the flag from the array
+			const updatedFlaggedQuestions = [...currentFlaggedQuestions];
+			updatedFlaggedQuestions.splice(existingFlaggedIndex, 1);
+
+			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						flaggedQuestions: updatedFlaggedQuestions,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to unflag quiz question", {
 				cause: error,
 			}),
 	);
@@ -865,12 +1077,6 @@ export function tryMarkQuizAttemptAsComplete(
 				})
 				.then(stripDepth<1, "findByID">());
 
-			if (!currentSubmission) {
-				throw new NonExistingQuizSubmissionError(
-					`Quiz submission with id '${submissionId}' not found`,
-				);
-			}
-
 			if (currentSubmission.status !== "in_progress") {
 				throw new InvalidArgumentError(
 					"Only in-progress submissions can be submitted",
@@ -878,56 +1084,36 @@ export function tryMarkQuizAttemptAsComplete(
 			}
 
 			// Check time limit if quiz has one (unless bypassed for auto-submit)
-			if (currentSubmission.startedAt && !bypassTimeLimit) {
+			if (!bypassTimeLimit) {
 				// Get course module link to access quiz time limit
-				const courseModuleLink = await payload
-					.findByID({
-						collection: "course-activity-module-links",
-						id: currentSubmission.courseModuleLink.id,
-						depth: 2,
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<2, "findByID">());
+				const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+					payload,
+					linkId: currentSubmission.courseModuleLink.id,
+					req,
+					overrideAccess,
+				}).getOrThrow();
 
-				const activityModule = courseModuleLink.activityModule;
-				const quiz = activityModule.quiz ?? null;
-
-				// Get globalTimer from rawQuizConfig (in seconds) and convert to minutes
-				const rawConfig = (quiz?.rawQuizConfig ??
-					null) as unknown as LatestQuizConfig | null;
-				const timeLimitMinutes = rawConfig?.globalTimer
-					? rawConfig.globalTimer / 60
-					: null;
-
-				if (timeLimitMinutes) {
-					const startedAt = new Date(currentSubmission.startedAt);
-					const now = new Date();
-					const timeElapsedMinutes =
-						(now.getTime() - startedAt.getTime()) / (1000 * 60);
-
-					if (timeElapsedMinutes > timeLimitMinutes) {
-						throw new QuizTimeLimitExceededError(
-							`Quiz time limit of ${timeLimitMinutes} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
-						);
-					}
+				if (courseModuleLink.activityModule.type !== "quiz") {
+					throw new InvalidArgumentError("Quiz not found");
 				}
+
+				// Get globalTimer from rawQuizConfig
+				const rawConfig = courseModuleLink.activityModule.rawQuizConfig;
+
+				// Use utility function to check time limit
+				assertTimeLimit({
+					startedAt: currentSubmission.startedAt,
+					globalTimer: rawConfig?.globalTimer,
+					bypassTimeLimit,
+				});
 			}
 
-			// Build update data
-			const updateData: Record<string, unknown> = {
-				status: "completed",
-				submittedAt: new Date().toISOString(),
-			};
-
-			// Add answers if provided
-			if (args.answers !== undefined) {
-				updateData.answers = args.answers;
-			}
-
-			// Add timeSpent if provided
-			if (args.timeSpent !== undefined) {
-				updateData.timeSpent = args.timeSpent;
+			// Calculate timeSpent automatically from startedAt to now
+			let timeSpent: number | undefined;
+			if (currentSubmission.startedAt) {
+				const startedAt = new Date(currentSubmission.startedAt);
+				const now = new Date();
+				timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
 			}
 
 			// Update status to completed
@@ -935,7 +1121,11 @@ export function tryMarkQuizAttemptAsComplete(
 				.update({
 					collection: "quiz-submissions",
 					id: submissionId,
-					data: updateData,
+					data: {
+						status: "completed",
+						submittedAt: new Date().toISOString(),
+						...(timeSpent !== undefined && { timeSpent }),
+					},
 
 					req,
 					overrideAccess,
@@ -1029,26 +1219,8 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 				gradedBy,
 				submittedAt,
 				req,
-
 				overrideAccess = false,
 			} = args;
-
-			// Validate ID
-			if (!id) {
-				throw new InvalidArgumentError("Quiz submission ID is required");
-			}
-
-			// Validate required gradebook fields
-			if (!enrollmentId) {
-				throw new InvalidArgumentError(
-					"Enrollment ID is required for gradebook integration",
-				);
-			}
-			if (!gradebookItemId) {
-				throw new InvalidArgumentError(
-					"Gradebook item ID is required for gradebook integration",
-				);
-			}
 
 			const transactionInfo = await handleTransactionId(payload, req);
 
@@ -1363,7 +1535,6 @@ export function tryGetNextAttemptNumber(args: GetNextAttemptNumberArgs) {
 				payload,
 				courseModuleLinkId,
 				studentId,
-
 				req,
 				overrideAccess = false,
 			} = args;
@@ -1380,7 +1551,9 @@ export function tryGetNextAttemptNumber(args: GetNextAttemptNumberArgs) {
 				payload,
 				courseModuleLinkId,
 				studentId,
-				limit: 100, // Get all submissions to find max attempt number
+				// Get all submissions to find max attempt number
+				// ! limit 100 should be fine because we're not expecting a lot of submissions from a student
+				limit: 100,
 				req,
 				overrideAccess,
 			});

@@ -199,6 +199,17 @@ export const QuizSubmissions = {
 			label: "Answers",
 		},
 		{
+			name: "flaggedQuestions",
+			type: "array",
+			fields: [
+				{
+					name: "questionId",
+					type: "text",
+				},
+			],
+			label: "Flagged Questions by student during the quiz attempt",
+		},
+		{
 			name: "totalScore",
 			type: "number",
 			label: "Total Score",

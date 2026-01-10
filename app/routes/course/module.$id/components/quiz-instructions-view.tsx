@@ -15,6 +15,7 @@ import {
 	IconPlayerPlay,
 } from "@tabler/icons-react";
 import prettyMs from "pretty-ms";
+import { useStartQuizAttempt } from "app/routes/course/module.$id/route";
 
 // ============================================================================
 // Types
@@ -36,13 +37,71 @@ interface QuizSubmissionData {
 	attemptNumber: number;
 }
 
+interface StartQuizButtonProps {
+	moduleLinkId: string | number;
+	hasInProgressAttempt: boolean;
+	attemptCount: number;
+	completedCount: number;
+	canStartMore: boolean;
+}
+
+function StartQuizButton({
+	moduleLinkId,
+	hasInProgressAttempt,
+	attemptCount,
+	completedCount,
+	canStartMore,
+}: StartQuizButtonProps) {
+	const { submit: startQuizAttempt, isLoading } = useStartQuizAttempt();
+
+	const handleStartQuiz = () => {
+		startQuizAttempt({
+			params: {
+				moduleLinkId:
+					typeof moduleLinkId === "number"
+						? moduleLinkId
+						: Number(moduleLinkId),
+			},
+		});
+	};
+
+	// Always show button if there's an in-progress attempt (to allow re-entering)
+	// Otherwise, only show if canStartMore is true
+	if (hasInProgressAttempt) {
+		return (
+			<Button
+				leftSection={<IconPlayerPlay size={16} />}
+				onClick={handleStartQuiz}
+				loading={isLoading}
+			>
+				Continue Quiz (Attempt {attemptCount})
+			</Button>
+		);
+	}
+
+	if (!canStartMore) {
+		return null;
+	}
+
+	return (
+		<Button
+			leftSection={<IconPlayerPlay size={16} />}
+			onClick={handleStartQuiz}
+			loading={isLoading}
+		>
+			{completedCount > 0 ? "Start New Attempt" : "Start Quiz"}
+		</Button>
+	);
+}
+
 interface QuizInstructionsViewProps {
 	quiz: QuizData | null;
 	allSubmissions: QuizSubmissionData[];
-	onStartQuiz: () => void;
+	onStartQuiz?: () => void; // Optional fallback if moduleLinkId is not provided
 	canStartAttempt?: boolean; // Whether user can start/continue quiz attempt
 	quizRemainingTime?: number; // Remaining time in seconds for in-progress attempts
 	canPreview?: boolean; // Whether user can preview the quiz
+	moduleLinkId?: string | number; // Module link ID for the start quiz button (required to use hook)
 }
 
 // ============================================================================
@@ -56,6 +115,7 @@ export function QuizInstructionsView({
 	canStartAttempt = true,
 	quizRemainingTime,
 	canPreview = false,
+	moduleLinkId,
 }: QuizInstructionsViewProps) {
 	if (!quiz) {
 		return (
@@ -117,17 +177,30 @@ export function QuizInstructionsView({
 								Preview Quiz
 							</Button>
 						)}
-						{canStartMore && (
-							<Button
-								leftSection={<IconPlayerPlay size={16} />}
-								onClick={onStartQuiz}
-							>
-								{hasInProgressAttempt
-									? `Continue Quiz (Attempt ${attemptCount})`
-									: completedCount > 0
-										? "Start New Attempt"
-										: "Start Quiz"}
-							</Button>
+						{moduleLinkId ? (
+							<StartQuizButton
+								moduleLinkId={moduleLinkId}
+								hasInProgressAttempt={hasInProgressAttempt}
+								attemptCount={attemptCount}
+								completedCount={completedCount}
+								canStartMore={canStartMore}
+							/>
+						) : (
+							// Always show button if there's an in-progress attempt (to allow re-entering)
+							// Otherwise, only show if canStartMore is true
+							(hasInProgressAttempt || canStartMore) &&
+							onStartQuiz && (
+								<Button
+									leftSection={<IconPlayerPlay size={16} />}
+									onClick={onStartQuiz}
+								>
+									{hasInProgressAttempt
+										? `Continue Quiz (Attempt ${attemptCount})`
+										: completedCount > 0
+											? "Start New Attempt"
+											: "Start Quiz"}
+								</Button>
+							)
 						)}
 					</Group>
 				</Group>
@@ -153,10 +226,10 @@ export function QuizInstructionsView({
 						</Text>
 					</Alert>
 				) : (
-					<Text c="dimmed">No time limit.</Text>
+					<Text c="dimmed">Time limit: N/A</Text>
 				)}
 
-				{quiz.points && (
+				{Boolean(quiz.points) && (
 					<Text size="sm" c="dimmed">
 						Total Points: {quiz.points}
 					</Text>

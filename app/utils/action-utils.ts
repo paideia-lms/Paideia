@@ -498,6 +498,23 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>({
 						isLoading: fetcher.state !== "idle",
 						data: fetcher.data,
 						fetcher,
+						/**
+						 * payload is the submitted form data as an object
+						 * it is useful for optimistic updates
+						 * @example
+						 * ```ts
+						 * const { payload } = useSubmit();
+						 * if (payload) {
+						 *   // do something with the payload
+						 * }
+						 * ```
+						 * see https://reactrouter.com/start/framework/pending-ui#optimistic-ui
+						 */
+						payload: fetcher.formData
+							? convertMyFormDataToObject<z.infer<FormDataSchema>>(
+									fetcher.formData,
+								)
+							: undefined,
 					};
 				};
 			},

@@ -1,6 +1,5 @@
 import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import {
-	ActionIcon,
 	Alert,
 	Badge,
 	Box,
@@ -20,8 +19,6 @@ import {
 import {
 	IconClock,
 	IconFlag,
-	IconFlagFilled,
-	IconInfoCircle,
 } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type {
@@ -36,17 +33,15 @@ import type {
 } from "server/json/raw-quiz-config/v2";
 import {
 	calculateTotalPoints,
-	getQuestionPoints,
-	getScoringDescription,
 	isContainerQuiz,
 	isRegularQuiz,
 } from "server/json/raw-quiz-config/v2";
-import { RichTextRenderer } from "../rich-text/rich-text-renderer";
-import { NestedQuizSelector } from "./nested-quiz-selector";
-import { QuestionRenderer } from "./question-renderer";
+import { RichTextRenderer } from "../../../../components/rich-text/rich-text-renderer";
+import { NestedQuizSelector } from "../../../../components/activity-modules-preview/nested-quiz-selector";
 import { useNestedQuizState } from "./use-nested-quiz-state";
 import { useQuizForm } from "./use-quiz-form";
 import { useQuizTimer } from "./use-quiz-timer";
+import { QuestionCard } from "./question-card";
 
 /**
  * Helper function to check if a question is truly answered
@@ -136,15 +131,273 @@ const TimerDisplay = memo(
 
 TimerDisplay.displayName = "TimerDisplay";
 
+interface QuizNavigationProps {
+	questionMap: Array<{
+		questionId: string;
+		questionNumber: number;
+		pageIndex: number;
+		questionIndex: number;
+		prompt: string;
+		question: Question;
+	}>;
+	answers: QuizAnswers;
+	isFlagged: (questionId: string) => boolean;
+	currentPageIndex: number;
+	goToPage: (pageIndex: number) => void;
+	isDisabled: boolean;
+}
+
+function QuizNavigation({
+	questionMap,
+	answers,
+	isFlagged,
+	currentPageIndex,
+	goToPage,
+	isDisabled,
+}: QuizNavigationProps) {
+	return (
+		<Paper withBorder p="md" radius="sm">
+			<Stack gap="sm">
+				<Text size="sm" fw={500}>
+					Question Navigation
+				</Text>
+				<Group gap="xs">
+					{questionMap.map((item) => {
+						const answerValue = answers[item.questionId];
+						const isAnswered = isQuestionAnswered(item.question, answerValue);
+						const isFlaggedValue = isFlagged(item.questionId);
+						const isCurrent = currentPageIndex === item.pageIndex;
+
+						return (
+							<Tooltip
+								key={item.questionId}
+								label={`Q${item.questionNumber}: ${item.prompt.slice(0, 50)}...`}
+							>
+								<Indicator
+									inline
+									label={<IconFlag size={10} />}
+									size={16}
+									disabled={!isFlaggedValue}
+									color="red"
+									offset={3}
+								>
+									<Button
+										size="compact-sm"
+										variant={isAnswered ? "light" : "default"}
+										color={isAnswered ? "green" : "gray"}
+										onClick={() => goToPage(item.pageIndex)}
+										disabled={isDisabled}
+										style={
+											isCurrent
+												? {
+													borderWidth: 3,
+													borderStyle: "solid",
+													borderColor: "var(--mantine-color-blue-6)",
+												}
+												: undefined
+										}
+									>
+										{item.questionNumber}
+									</Button>
+								</Indicator>
+							</Tooltip>
+						);
+					})}
+				</Group>
+				<Group gap="md">
+					<Group gap="xs">
+						<Box
+							w={20}
+							h={20}
+							style={{
+								borderWidth: 3,
+								borderStyle: "solid",
+								borderColor: "var(--mantine-color-blue-6)",
+								borderRadius: "var(--mantine-radius-sm)",
+								backgroundColor: "transparent",
+							}}
+						/>
+						<Text size="xs" c="dimmed">
+							Current
+						</Text>
+					</Group>
+					<Group gap="xs">
+						<Box
+							w={20}
+							h={20}
+							style={{
+								backgroundColor: "var(--mantine-color-green-light)",
+								borderRadius: "var(--mantine-radius-sm)",
+							}}
+						/>
+						<Text size="xs" c="dimmed">
+							Answered
+						</Text>
+					</Group>
+					<Group gap="xs">
+						<IconFlag size={16} color="var(--mantine-color-red-6)" />
+						<Text size="xs" c="dimmed">
+							Flagged
+						</Text>
+					</Group>
+				</Group>
+			</Stack>
+		</Paper>
+	);
+}
+
+interface QuizNavigationButtonsProps {
+	readonly?: boolean;
+	onExit?: () => void;
+	isFirstPage: boolean;
+	isLastPage: boolean;
+	goToPreviousPage: () => void;
+	goToNextPage: () => void;
+	isDisabled: boolean;
+	onSubmit: () => void;
+	isGlobalTimerExpired: boolean;
+}
+
+function QuizNavigationButtons({
+	readonly = false,
+	onExit,
+	isFirstPage,
+	isLastPage,
+	goToPreviousPage,
+	goToNextPage,
+	isDisabled,
+	onSubmit,
+	isGlobalTimerExpired,
+}: QuizNavigationButtonsProps) {
+	return (
+		<Group justify="space-between" mt="md">
+			{readonly ? (
+				<>
+					{onExit && (
+						<Button variant="default" onClick={onExit}>
+							Exit
+						</Button>
+					)}
+					<div style={{ flex: 1 }} />
+					<Group gap="sm">
+						<Button
+							variant="default"
+							onClick={goToPreviousPage}
+							disabled={isFirstPage}
+						>
+							Previous
+						</Button>
+						<Button onClick={goToNextPage} disabled={isLastPage}>
+							Next
+						</Button>
+					</Group>
+				</>
+			) : (
+				<>
+					<Button
+						variant="default"
+						onClick={goToPreviousPage}
+						disabled={isFirstPage || isDisabled}
+					>
+						Previous
+					</Button>
+
+					{isLastPage ? (
+						<Button onClick={onSubmit} disabled={isDisabled}>
+							{isGlobalTimerExpired ? "View Results" : "Submit Quiz"}
+						</Button>
+					) : (
+						<Button onClick={goToNextPage} disabled={isDisabled}>
+							Next
+						</Button>
+					)}
+				</>
+			)}
+		</Group>
+	);
+}
+
+interface QuizHeaderProps {
+	quizConfig: RegularQuizConfig | NestedQuizConfig;
+	grading?: GradingConfig;
+	currentPageIndex: number;
+	readonly?: boolean;
+	remainingTime?: number;
+	onGlobalTimerExpire: () => void;
+	progressValue: number;
+}
+
+function QuizHeader({
+	quizConfig,
+	grading,
+	currentPageIndex,
+	readonly = false,
+	remainingTime,
+	onGlobalTimerExpire,
+	progressValue,
+}: QuizHeaderProps) {
+	return (
+		<>
+			{/* Header */}
+			<Group justify="space-between" align="flex-start">
+				<div>
+					<Group gap="md" align="center">
+						<Title order={2}>{quizConfig.title}</Title>
+						{grading?.enabled && (
+							<Tooltip
+								label={`Total: ${calculateTotalPoints(quizConfig)} points${grading.passingScore ? ` • Passing: ${grading.passingScore}%` : ""}`}
+								position="bottom"
+								multiline
+								w={250}
+							>
+								<Badge size="lg" variant="light" color="grape">
+									Total: {calculateTotalPoints(quizConfig)} points
+								</Badge>
+							</Tooltip>
+						)}
+					</Group>
+					<Text size="sm" c="dimmed" mt="xs">
+						Page {currentPageIndex + 1} of {quizConfig.pages.length}
+					</Text>
+				</div>
+				{quizConfig.globalTimer && !readonly && (
+					<TimerDisplay
+						key={`timer-${remainingTime ?? quizConfig.globalTimer}`}
+						initialTime={quizConfig.globalTimer}
+						remainingTime={remainingTime}
+						onExpire={onGlobalTimerExpire}
+					/>
+				)}
+			</Group>
+
+			{/* Progress Bar with Tooltip */}
+			<Tooltip
+				label={`Progress: ${progressValue?.toFixed?.(0) ?? 0}% complete`}
+				position="bottom"
+			>
+				<Progress value={progressValue} size="sm" />
+			</Tooltip>
+		</>
+	);
+}
+
 interface SingleQuizPreviewProps {
 	quizConfig?: RegularQuizConfig | NestedQuizConfig;
 	readonly?: boolean;
+	/**
+	 * Initial answers from the submission.
+	 * if user has already answered some questions, they will be loaded here.
+	 */
 	initialAnswers?: QuizAnswers;
-	onSubmit?: (answers: QuizAnswers) => void;
+	onSubmit?: () => void; // Simplified - just marks complete
 	onExit?: () => void;
 	disableInteraction?: boolean;
 	remainingTime?: number; // Remaining time in seconds for resumed quizzes
 	grading?: GradingConfig; // Grading config from parent quiz
+	submissionId?: number; // Required for saving answers
+	currentPageIndex: number | undefined;
+	moduleLinkId?: number; // Required for flag/unflag actions
+	flaggedQuestions?: Array<{ questionId: string }>; // Flagged questions from server
 }
 
 export function SingleQuizPreview({
@@ -154,9 +407,22 @@ export function SingleQuizPreview({
 	onSubmit,
 	onExit,
 	disableInteraction = false,
+	currentPageIndex,
 	remainingTime,
 	grading,
+	submissionId,
+	moduleLinkId,
+	flaggedQuestions = [],
 }: SingleQuizPreviewProps) {
+	// Create a Set for efficient lookup of flagged question IDs
+	const flaggedQuestionIds = new Set(
+		flaggedQuestions.map((f) => f.questionId),
+	);
+
+	// Helper function to check if a question is flagged
+	const isQuestionFlagged = (questionId: string): boolean => {
+		return flaggedQuestionIds.has(questionId);
+	};
 	const [showResults, setShowResults] = useState(false);
 	const [submittedAnswers, setSubmittedAnswers] = useState<Record<
 		string,
@@ -176,23 +442,23 @@ export function SingleQuizPreview({
 
 	const quiz = useQuizForm({
 		quizConfig: quizConfig || defaultConfig,
+		currentPageIndex,
 		readonly,
 		initialAnswers,
 	});
 
 	const handleSubmit = () => {
 		if (!quizConfig) return;
-		const answers = quiz.answers;
 
-		// Call onSubmit callback if provided (for real submission)
+		// Call onSubmit callback if provided (for real submission - just marks complete)
 		if (onSubmit) {
-			onSubmit(answers);
+			onSubmit();
 			// Don't show results modal for real submission - redirect will happen
 			return;
 		}
 
 		// Only show mock results modal if no onSubmit callback (for testing/preview)
-		setSubmittedAnswers(answers);
+		setSubmittedAnswers(quiz.answers);
 		setShowResults(true);
 	};
 
@@ -200,12 +466,6 @@ export function SingleQuizPreview({
 		setIsGlobalTimerExpired(true);
 		if (!readonly) {
 			handleSubmit();
-		}
-	};
-
-	const handleExit = () => {
-		if (onExit) {
-			onExit();
 		}
 	};
 
@@ -287,40 +547,15 @@ export function SingleQuizPreview({
 						</Alert>
 					)}
 
-					{/* Header */}
-					<Group justify="space-between" align="flex-start">
-						<div>
-							<Group gap="md" align="center">
-								<Title order={2}>{quizConfig.title}</Title>
-								{grading?.enabled && (
-									<Tooltip
-										label={`Total: ${calculateTotalPoints(quizConfig)} points${grading.passingScore ? ` • Passing: ${grading.passingScore}%` : ""}`}
-										position="bottom"
-										multiline
-										w={250}
-									>
-										<Badge size="lg" variant="light" color="grape">
-											Total: {calculateTotalPoints(quizConfig)} points
-										</Badge>
-									</Tooltip>
-								)}
-							</Group>
-							<Text size="sm" c="dimmed" mt="xs">
-								Page {quiz.currentPageIndex + 1} of {quizConfig.pages.length}
-							</Text>
-						</div>
-						{quizConfig.globalTimer && !readonly && (
-							<TimerDisplay
-								key={`timer-${remainingTime ?? quizConfig.globalTimer}`}
-								initialTime={quizConfig.globalTimer}
-								remainingTime={remainingTime}
-								onExpire={handleGlobalTimerExpire}
-							/>
-						)}
-					</Group>
-
-					{/* Progress Bar */}
-					<Progress value={progressValue} size="sm" />
+					<QuizHeader
+						quizConfig={quizConfig}
+						grading={grading}
+						currentPageIndex={quiz.currentPageIndex}
+						readonly={readonly}
+						remainingTime={remainingTime}
+						onGlobalTimerExpire={handleGlobalTimerExpire}
+						progressValue={progressValue}
+					/>
 
 					{/* Timer Expired Warning */}
 					{isGlobalTimerExpired && !readonly && (
@@ -340,93 +575,14 @@ export function SingleQuizPreview({
 						</Paper>
 					)}
 
-					{/* Quiz Navigation */}
-					<Paper withBorder p="md" radius="sm">
-						<Stack gap="sm">
-							<Text size="sm" fw={500}>
-								Question Navigation
-							</Text>
-							<Group gap="xs">
-								{questionMap.map((item) => {
-									const answerValue = quiz.getAnswer(item.questionId);
-									const isAnswered = isQuestionAnswered(
-										item.question,
-										answerValue,
-									);
-									const isFlagged = quiz.isFlagged(item.questionId);
-									const isCurrent = quiz.currentPageIndex === item.pageIndex;
-
-									return (
-										<Tooltip
-											key={item.questionId}
-											label={`Q${item.questionNumber}: ${item.prompt.slice(0, 50)}...`}
-										>
-											<Indicator
-												inline
-												label={<IconFlag size={10} />}
-												size={16}
-												disabled={!isFlagged}
-												color="red"
-												offset={3}
-											>
-												<Button
-													size="compact-sm"
-													variant={
-														isCurrent
-															? "filled"
-															: isAnswered
-																? "light"
-																: "default"
-													}
-													color={
-														isCurrent ? "blue" : isAnswered ? "green" : "gray"
-													}
-													onClick={() => quiz.goToPage(item.pageIndex)}
-													disabled={isDisabled}
-												>
-													{item.questionNumber}
-												</Button>
-											</Indicator>
-										</Tooltip>
-									);
-								})}
-							</Group>
-							<Group gap="md">
-								<Group gap="xs">
-									<Box
-										w={20}
-										h={20}
-										style={{
-											backgroundColor: "var(--mantine-color-blue-filled)",
-											borderRadius: "var(--mantine-radius-sm)",
-										}}
-									/>
-									<Text size="xs" c="dimmed">
-										Current
-									</Text>
-								</Group>
-								<Group gap="xs">
-									<Box
-										w={20}
-										h={20}
-										style={{
-											backgroundColor: "var(--mantine-color-green-light)",
-											borderRadius: "var(--mantine-radius-sm)",
-										}}
-									/>
-									<Text size="xs" c="dimmed">
-										Answered
-									</Text>
-								</Group>
-								<Group gap="xs">
-									<IconFlag size={16} color="var(--mantine-color-red-6)" />
-									<Text size="xs" c="dimmed">
-										Flagged
-									</Text>
-								</Group>
-							</Group>
-						</Stack>
-					</Paper>
+					<QuizNavigation
+						questionMap={questionMap}
+						answers={quiz.answers}
+						isFlagged={isQuestionFlagged}
+						currentPageIndex={quiz.currentPageIndex}
+						goToPage={quiz.goToPage}
+						isDisabled={isDisabled}
+					/>
 
 					{/* Current Page */}
 					<div>
@@ -471,139 +627,36 @@ export function SingleQuizPreview({
 										currentQuestionStartNumber + questionIndex;
 
 									return (
-										<Paper key={question.id} withBorder p="md" radius="sm">
-											<Stack gap="md">
-												{/* Question Header */}
-												<Group justify="space-between" align="flex-start">
-													<Group
-														gap="sm"
-														align="flex-start"
-														style={{ flex: 1 }}
-													>
-														<Badge size="lg" variant="outline">
-															Q{questionNumber}
-														</Badge>
-														{grading?.enabled && (
-															<Tooltip
-																label={getScoringDescription(question.scoring)}
-																position="top"
-																multiline
-																w={300}
-															>
-																<Badge
-																	size="lg"
-																	variant="light"
-																	color="blue"
-																	leftSection={<IconInfoCircle size={14} />}
-																>
-																	{getQuestionPoints(question)} pt
-																	{getQuestionPoints(question) !== 1 ? "s" : ""}
-																</Badge>
-															</Tooltip>
-														)}
-														<Text fw={500} style={{ flex: 1 }}>
-															{question.prompt}
-														</Text>
-													</Group>
-													<Group gap="xs">
-														{!readonly && (
-															<Tooltip
-																label={
-																	isDisabled
-																		? "Interaction disabled"
-																		: quiz.isFlagged(question.id)
-																			? "Remove flag"
-																			: "Flag for review"
-																}
-															>
-																<ActionIcon
-																	variant={
-																		quiz.isFlagged(question.id)
-																			? "filled"
-																			: "light"
-																	}
-																	color={
-																		quiz.isFlagged(question.id) ? "red" : "gray"
-																	}
-																	onClick={() => quiz.toggleFlag(question.id)}
-																	disabled={isDisabled}
-																>
-																	{quiz.isFlagged(question.id) ? (
-																		<IconFlagFilled size={18} />
-																	) : (
-																		<IconFlag size={18} />
-																	)}
-																</ActionIcon>
-															</Tooltip>
-														)}
-													</Group>
-												</Group>
-
-												{/* Question Renderer */}
-												<QuestionRenderer
-													question={question}
-													value={quiz.getAnswer(question.id) as unknown}
-													onChange={(value) =>
-														quiz.setAnswer(question.id, value as QuestionAnswer)
-													}
-													disabled={isDisabled}
-												/>
-											</Stack>
-										</Paper>
+										<QuestionCard
+											key={question.id}
+											question={question}
+											questionNumber={questionNumber}
+											grading={grading}
+											initialAnswers={initialAnswers}
+											readonly={readonly}
+											isDisabled={isDisabled}
+											isFlagged={isQuestionFlagged(question.id)}
+											answer={quiz.answers[question.id]}
+											moduleLinkId={moduleLinkId}
+											submissionId={submissionId}
+										/>
 									);
 								},
 							)}
 						</Stack>
 					</div>
 
-					{/* Navigation */}
-					<Group justify="space-between" mt="md">
-						{readonly ? (
-							<>
-								{onExit && (
-									<Button variant="default" onClick={handleExit}>
-										Exit
-									</Button>
-								)}
-								<div style={{ flex: 1 }} />
-								<Group gap="sm">
-									<Button
-										variant="default"
-										onClick={quiz.goToPreviousPage}
-										disabled={quiz.isFirstPage}
-									>
-										Previous
-									</Button>
-									<Button
-										onClick={quiz.goToNextPage}
-										disabled={quiz.isLastPage}
-									>
-										Next
-									</Button>
-								</Group>
-							</>
-						) : (
-							<>
-								<Button
-									variant="default"
-									onClick={quiz.goToPreviousPage}
-									disabled={quiz.isFirstPage || isDisabled}
-								>
-									Previous
-								</Button>
-
-								{quiz.isLastPage ? (
-									<Button onClick={handleSubmit} disabled={isDisabled}>
-										{isGlobalTimerExpired ? "View Results" : "Submit Quiz"}
-									</Button>
-								) : (
-									<Button onClick={quiz.goToNextPage} disabled={isDisabled}>
-										Next
-									</Button>
-								)}
-							</>
-						)}
-					</Group>
+					<QuizNavigationButtons
+						readonly={readonly}
+						onExit={onExit}
+						isFirstPage={quiz.isFirstPage}
+						isLastPage={quiz.isLastPage}
+						goToPreviousPage={quiz.goToPreviousPage}
+						goToNextPage={quiz.goToNextPage}
+						isDisabled={isDisabled}
+						onSubmit={handleSubmit}
+						isGlobalTimerExpired={isGlobalTimerExpired}
+					/>
 				</Stack>
 			</Paper>
 
@@ -635,22 +688,34 @@ export function SingleQuizPreview({
 }
 
 // Main QuizPreview component - handles both regular and nested quizzes
-interface QuizPreviewProps {
+interface QuizAttemptComponentProps {
 	quizConfig: QuizConfig;
-	submissionId?: number;
-	onSubmit?: (answers: QuizAnswers) => void;
+	submissionId: number; // Required for saving answers
+	onSubmit?: () => void; // Simplified - just marks complete
 	remainingTime?: number; // Remaining time in seconds for resumed quizzes
+	initialAnswers?: QuizAnswers; // Loaded answers from submission
+	currentPageIndex: number | undefined;
+	moduleLinkId?: number; // Required for flag/unflag actions
+	flaggedQuestions?: Array<{ questionId: string }>; // Flagged questions from server
 }
 
-export function QuizPreview({
+export function QuizAttemptComponent({
 	quizConfig,
+	submissionId,
 	onSubmit,
 	remainingTime,
-}: QuizPreviewProps) {
+	initialAnswers,
+	currentPageIndex,
+	moduleLinkId,
+	flaggedQuestions = [],
+}: QuizAttemptComponentProps) {
 	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
 
 	// For container quizzes, use nested quiz state
-	const nestedQuizState = useNestedQuizState({ quizConfig });
+	const nestedQuizState = useNestedQuizState({
+		quizConfig,
+		initialAnswers,
+	});
 
 	const handleParentTimerExpire = () => {
 		setIsParentTimerExpired(true);
@@ -668,6 +733,11 @@ export function QuizPreview({
 				onSubmit={onSubmit}
 				remainingTime={remainingTime}
 				grading={quizConfig.grading}
+				initialAnswers={initialAnswers}
+				submissionId={submissionId}
+				currentPageIndex={currentPageIndex}
+				moduleLinkId={moduleLinkId}
+				flaggedQuestions={flaggedQuestions}
 			/>
 		);
 	}
@@ -749,25 +819,42 @@ export function QuizPreview({
 				<SingleQuizPreview
 					quizConfig={nestedQuizState.activeNestedQuiz}
 					readonly={isViewingCompletedQuiz}
+					moduleLinkId={moduleLinkId}
 					initialAnswers={
-						isViewingCompletedQuiz
-							? nestedQuizState.submittedAnswers[
-							nestedQuizState.currentNestedQuizId
-							]
+						isViewingCompletedQuiz && initialAnswers
+							? (() => {
+								// Extract answers for this specific nested quiz from initialAnswers
+								const nestedQuizAnswers: QuizAnswers = {};
+								const activeQuiz = nestedQuizState.activeNestedQuiz;
+								if (activeQuiz?.pages) {
+									for (const page of activeQuiz.pages) {
+										for (const question of page.questions) {
+											const answer = initialAnswers[question.id];
+											if (answer !== undefined && answer !== null) {
+												nestedQuizAnswers[question.id] = answer;
+											}
+										}
+									}
+								}
+								return nestedQuizAnswers;
+							})()
 							: undefined
 					}
-					onSubmit={(answers: QuizAnswers) => {
+					onSubmit={() => {
 						if (nestedQuizState.currentNestedQuizId) {
-							nestedQuizState.completeNestedQuiz(
-								nestedQuizState.currentNestedQuizId,
-								answers,
-							);
+							// For nested quizzes, we still need to handle completion differently
+							// This is a simplified version - nested quiz handling may need more work
+							if (onSubmit) {
+								onSubmit();
+							}
 						}
 					}}
+					submissionId={submissionId}
 					onExit={nestedQuizState.exitToContainer}
 					disableInteraction={isParentTimerExpired}
 					remainingTime={remainingTime}
 					grading={quizConfig.grading}
+					currentPageIndex={currentPageIndex}
 				/>
 			) : null}
 		</Stack>

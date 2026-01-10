@@ -1,7 +1,7 @@
 {
 	"name": "paideia",
 	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
-	"version": "0.7.11",
+	"version": "0.7.12",
 	"keywords": [
 		"paideia",
 		"lms",
@@ -179,7 +179,7 @@
 		"postcss-preset-mantine": "^1.18.0",
 		"postcss-simple-vars": "^7.0.1",
 		"type-fest": "^5.3.1",
-		"typescript": "^5.9.3",
+		"typescript": "6.0.0-dev.20260105",
 		"vite": "^7.3.1",
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vite-tsconfig-paths": "^6.0.4"

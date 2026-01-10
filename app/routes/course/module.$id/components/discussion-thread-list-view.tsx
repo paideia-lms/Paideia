@@ -14,8 +14,6 @@ import {
 import { IconMessage, IconPin, IconPlus } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { parseAsString, useQueryState } from "nuqs";
-import { useState } from "react";
 import { href, Link } from "react-router";
 import type {
 	DiscussionData,
@@ -23,7 +21,10 @@ import type {
 } from "~/components/activity-modules-preview/discussion-preview";
 import { DiscussionActions } from "../route";
 import { CreateThreadFormWrapper } from "./create-thread-form-wrapper";
-import { ThreadUpvoteButton } from "./thread-upvote-button";
+import { ThreadUpvoteDownVoteButton } from "./thread-upvote-button";
+import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { loaderSearchParams } from "../route";
+import type { inferParserType } from "nuqs"
 
 dayjs.extend(relativeTime);
 
@@ -32,7 +33,8 @@ interface DiscussionThreadListViewProps {
 	discussion: DiscussionData;
 	moduleLinkId: number;
 	courseId: number;
-	onThreadClick: (id: string) => void;
+	view: inferParserType<typeof loaderSearchParams>["view"];
+	sortBy: inferParserType<typeof loaderSearchParams>["sortBy"];
 }
 
 export function DiscussionThreadListView({
@@ -40,15 +42,10 @@ export function DiscussionThreadListView({
 	discussion,
 	moduleLinkId,
 	courseId,
-	onThreadClick,
+	view,
+	sortBy,
 }: DiscussionThreadListViewProps) {
-	const [sortBy, setSortBy] = useState<string>("recent");
-	const [action, setAction] = useQueryState(
-		"action",
-		parseAsString.withDefault("").withOptions({
-			shallow: false,
-		}),
-	);
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	const sortedThreads = [...threads].sort((a, b) => {
 		switch (sortBy) {
@@ -63,11 +60,11 @@ export function DiscussionThreadListView({
 		}
 	});
 
-	if (action === DiscussionActions.CREATE_THREAD) {
+	if (view === DiscussionActions.CREATE_THREAD) {
 		return (
 			<CreateThreadFormWrapper
 				moduleLinkId={moduleLinkId}
-				onCancel={() => setAction(null)}
+				onCancel={() => setQueryParams({ view: null })}
 			/>
 		);
 	}
@@ -95,7 +92,7 @@ export function DiscussionThreadListView({
 					</div>
 					<Button
 						leftSection={<IconPlus size={16} />}
-						onClick={() => setAction(DiscussionActions.CREATE_THREAD)}
+						onClick={() => setQueryParams({ view: DiscussionActions.CREATE_THREAD })}
 					>
 						New Thread
 					</Button>
@@ -109,7 +106,13 @@ export function DiscussionThreadListView({
 					<Select
 						size="sm"
 						value={sortBy}
-						onChange={(value) => setSortBy(value || "recent")}
+						onChange={(value) => {
+							if (value === "recent" || value === "upvoted" || value === "active") {
+								setQueryParams({ sortBy: value });
+							} else {
+								setQueryParams({ sortBy: "recent" });
+							}
+						}}
 						data={[
 							{ value: "recent", label: "Most Recent" },
 							{ value: "upvoted", label: "Most Upvoted" },
@@ -130,11 +133,11 @@ export function DiscussionThreadListView({
 							p="md"
 							radius="sm"
 							style={{ cursor: "pointer" }}
-							onClick={() => onThreadClick(thread.id)}
+							onClick={() => setQueryParams({ threadId: Number(thread.id) })}
 						>
 							<Group align="flex-start" gap="md" wrap="nowrap">
 								{/* Upvote Section */}
-								<ThreadUpvoteButton
+								<ThreadUpvoteDownVoteButton
 									thread={thread}
 									moduleLinkId={moduleLinkId}
 								/>
