@@ -53,31 +53,7 @@ import { autoSubmitQuiz } from "./tasks/auto-submit-quiz";
 import { sandboxReset } from "./tasks/sandbox-reset";
 import { customTranslations } from "./utils/db/custom-translations";
 import { RouterContextProvider } from "react-router";
-
-
-/**
- * Queue names used for Payload job scheduling
- * These queues are configured in the jobs.autoRun section
- */
-
-export enum JobQueue {
-	/** Queue that runs every second - used for processing waitUntil jobs */
-	SECONDLY = "secondly",
-	/** Queue that runs every minute */
-	MINUTE = "minute",
-	/** Queue that runs every hour */
-	HOURLY = "hourly",
-	/** Queue that runs every 3 hours */
-	THREE_HOURLY = "3-hourly",
-	/** Queue that runs every 6 hours */
-	SIX_HOURLY = "6-hourly",
-	/** Queue that runs every 12 hours */
-	TWELVE_HOURLY = "12-hourly",
-	/** Queue that runs daily at midnight */
-	NIGHTLY = "nightly",
-	/** Default queue (not in autoRun, requires manual processing) */
-	DEFAULT = "default",
-}
+import { JobQueue } from "./utils/job-queue";
 
 
 // extends the RequestContext type from payload 

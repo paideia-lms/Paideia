@@ -65,6 +65,20 @@ function StartQuizButton({
 		});
 	};
 
+	// Always show button if there's an in-progress attempt (to allow re-entering)
+	// Otherwise, only show if canStartMore is true
+	if (hasInProgressAttempt) {
+		return (
+			<Button
+				leftSection={<IconPlayerPlay size={16} />}
+				onClick={handleStartQuiz}
+				loading={isLoading}
+			>
+				Continue Quiz (Attempt {attemptCount})
+			</Button>
+		);
+	}
+
 	if (!canStartMore) {
 		return null;
 	}
@@ -75,11 +89,7 @@ function StartQuizButton({
 			onClick={handleStartQuiz}
 			loading={isLoading}
 		>
-			{hasInProgressAttempt
-				? `Continue Quiz (Attempt ${attemptCount})`
-				: completedCount > 0
-					? "Start New Attempt"
-					: "Start Quiz"}
+			{completedCount > 0 ? "Start New Attempt" : "Start Quiz"}
 		</Button>
 	);
 }
@@ -176,7 +186,9 @@ export function QuizInstructionsView({
 								canStartMore={canStartMore}
 							/>
 						) : (
-							canStartMore &&
+							// Always show button if there's an in-progress attempt (to allow re-entering)
+							// Otherwise, only show if canStartMore is true
+							(hasInProgressAttempt || canStartMore) &&
 							onStartQuiz && (
 								<Button
 									leftSection={<IconPlayerPlay size={16} />}

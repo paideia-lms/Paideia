@@ -1,8 +1,14 @@
 import { QuizSubmissions } from "server/collections";
 import type { LatestCourseQuizSettings } from "server/json/course-module-settings/version-resolver";
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
+import {
+	convertQuestionAnswerToDatabaseFormat,
+	findQuestionInConfig,
+	validateAnswerTypeMatchesQuestion,
+} from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
-import { JobQueue } from "../payload.config";
+import { JobQueue } from "../utils/job-queue";
 import type { QuizSubmission } from "server/payload-types";
 import { Result } from "typescript-result";
 import {
@@ -15,10 +21,12 @@ import {
 import { tryCreateUserGrade } from "./user-grade-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
+	assertTimeLimit,
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
 
 export interface CreateQuizArgs extends BaseInternalFunctionArgs {
 	title: string;
@@ -64,6 +72,12 @@ export interface StartQuizAttemptArgs extends BaseInternalFunctionArgs {
 	studentId: number;
 	enrollmentId: number;
 	attemptNumber?: number;
+}
+
+export interface AnswerQuizQuestionArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	questionId: string;
+	answer: TypedQuestionAnswer;
 }
 
 export interface UpdateQuizSubmissionArgs extends BaseInternalFunctionArgs {
@@ -601,6 +615,135 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 }
 
 /**
+ * Answers a quiz question by updating the submission's answers array
+ * This function handles validation, time limit checking, and atomic updates
+ */
+export function tryAnswerQuizQuestion(args: AnswerQuizQuestionArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				questionId,
+				answer,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate required fields
+			if (!submissionId) {
+				throw new InvalidArgumentError("Submission ID is required");
+			}
+			if (!questionId) {
+				throw new InvalidArgumentError("Question ID is required");
+			}
+
+			// Get the current submission (read operation - outside transaction)
+			const currentSubmission = await payload
+				.findByID({
+					collection: "quiz-submissions",
+					id: submissionId,
+					req,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (currentSubmission.status !== "in_progress") {
+				throw new InvalidArgumentError(
+					"Only in-progress submissions can be updated",
+				);
+			}
+
+			// Get course module link to access quiz config (read operation - outside transaction)
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: currentSubmission.courseModuleLink.id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			if (courseModuleLink.activityModule.type !== "quiz") {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const rawConfig = courseModuleLink.activityModule.rawQuizConfig;
+
+			if (!rawConfig) {
+				throw new InvalidArgumentError("Quiz configuration not found");
+			}
+
+			// Check time limit if quiz has one
+			assertTimeLimit({
+				startedAt: currentSubmission.startedAt,
+				globalTimer: rawConfig?.globalTimer,
+			});
+
+			// Find the question in the quiz config (in-memory operation)
+			const question = findQuestionInConfig(rawConfig, questionId);
+
+			if (!question) {
+				throw new InvalidArgumentError(
+					`Question with id '${questionId}' not found in quiz`,
+				);
+			}
+
+			// Validate answer type matches question type (in-memory operation)
+			if (!validateAnswerTypeMatchesQuestion(question, answer)) {
+				throw new InvalidArgumentError(
+					`Answer type "${answer.type}" does not match question type "${question.type}"`,
+				);
+			}
+
+			// Convert answer to database format (in-memory operation)
+			const dbAnswer = convertQuestionAnswerToDatabaseFormat(question, answer);
+
+			// Get current answers array
+			const currentAnswers = currentSubmission.answers || [];
+
+			// Find existing answer for this question (if any)
+			const existingAnswerIndex = currentAnswers.findIndex(
+				(a) => a.questionId === questionId,
+			);
+
+			// Update or insert the answer
+			const updatedAnswers = [...currentAnswers];
+			if (existingAnswerIndex >= 0) {
+				// Update existing answer
+				updatedAnswers[existingAnswerIndex] = dbAnswer;
+			} else {
+				// Add new answer
+				updatedAnswers.push(dbAnswer);
+			}
+
+			// Update the submission with new answers array (only mutation - single operation, no transaction needed)
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						answers: updatedAnswers,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to answer quiz question", {
+				cause: error,
+			}),
+	);
+}
+
+/**
  * Creates a new quiz submission
  *
  * @deprecated this will be removed soon.
@@ -867,12 +1010,6 @@ export function tryMarkQuizAttemptAsComplete(
 				})
 				.then(stripDepth<1, "findByID">());
 
-			if (!currentSubmission) {
-				throw new NonExistingQuizSubmissionError(
-					`Quiz submission with id '${submissionId}' not found`,
-				);
-			}
-
 			if (currentSubmission.status !== "in_progress") {
 				throw new InvalidArgumentError(
 					"Only in-progress submissions can be submitted",
@@ -880,57 +1017,37 @@ export function tryMarkQuizAttemptAsComplete(
 			}
 
 			// Check time limit if quiz has one (unless bypassed for auto-submit)
-			if (currentSubmission.startedAt && !bypassTimeLimit) {
+			if (!bypassTimeLimit) {
 				// Get course module link to access quiz time limit
-				const courseModuleLink = await payload
-					.findByID({
-						collection: "course-activity-module-links",
-						id: currentSubmission.courseModuleLink.id,
-						depth: 2,
-						req,
-						overrideAccess,
-					})
-					.then(stripDepth<2, "findByID">());
+				const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+					payload,
+					linkId: currentSubmission.courseModuleLink.id,
+					req,
+					overrideAccess,
+				}).getOrThrow();
 
-				const activityModule = courseModuleLink.activityModule;
-				const quiz = activityModule.quiz ?? null;
-
-				// Get globalTimer from rawQuizConfig (in seconds) and convert to minutes
-				const rawConfig = (quiz?.rawQuizConfig ??
-					null) as unknown as LatestQuizConfig | null;
-				const timeLimitMinutes = rawConfig?.globalTimer
-					? rawConfig.globalTimer / 60
-					: null;
-
-				if (timeLimitMinutes) {
-					const startedAt = new Date(currentSubmission.startedAt);
-					const now = new Date();
-					const timeElapsedMinutes =
-						(now.getTime() - startedAt.getTime()) / (1000 * 60);
-
-					if (timeElapsedMinutes > timeLimitMinutes) {
-						throw new QuizTimeLimitExceededError(
-							`Quiz time limit of ${timeLimitMinutes} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
-						);
-					}
+				if (courseModuleLink.activityModule.type !== "quiz") {
+					throw new InvalidArgumentError("Quiz not found");
 				}
+
+				// Get globalTimer from rawQuizConfig
+				const rawConfig = courseModuleLink.activityModule.rawQuizConfig;
+
+				// Use utility function to check time limit
+				assertTimeLimit({
+					startedAt: currentSubmission.startedAt,
+					globalTimer: rawConfig?.globalTimer,
+					bypassTimeLimit,
+				});
 			}
 
-			// Build update data
-			// const updateData: Record<string, unknown> = {
-			// 	status: "completed",
-			// 	submittedAt: new Date().toISOString(),
-			// };
-
-			// Add answers if provided
-			// if (args.answers !== undefined) {
-			// 	updateData.answers = args.answers;
-			// }
-
-			// // Add timeSpent if provided
-			// if (args.timeSpent !== undefined) {
-			// 	updateData.timeSpent = args.timeSpent;
-			// }
+			// Calculate timeSpent automatically from startedAt to now
+			let timeSpent: number | undefined;
+			if (currentSubmission.startedAt) {
+				const startedAt = new Date(currentSubmission.startedAt);
+				const now = new Date();
+				timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
+			}
 
 			// Update status to completed
 			const updatedSubmission = await payload
@@ -940,6 +1057,7 @@ export function tryMarkQuizAttemptAsComplete(
 					data: {
 						status: "completed",
 						submittedAt: new Date().toISOString(),
+						...(timeSpent !== undefined && { timeSpent }),
 					},
 
 					req,

@@ -278,14 +278,27 @@ export interface ContainerQuizConfig {
 // Quiz Configuration - discriminated union of regular and container quizzes
 export type QuizConfig = Simplify<RegularQuizConfig | ContainerQuizConfig>;
 
-// Answer types for each question type
+// Answer types for each question type (legacy format for backward compatibility)
 export type QuestionAnswer =
 	| string // multiple-choice, short-answer, long-answer, article
 	| string[] // choice, ranking
 	| Record<string, string>; // fill-in-the-blank, single-selection-matrix, multiple-selection-matrix
 
-// Quiz Answers
+// Quiz Answers (legacy format)
 export type QuizAnswers = Record<string, QuestionAnswer>;
+
+// Discriminated union type for type-safe answer handling
+export type TypedQuestionAnswer =
+	| { type: "multiple-choice"; value: string } // Selected option key
+	| { type: "short-answer"; value: string }
+	| { type: "long-answer"; value: string }
+	| { type: "article"; value: string } // HTML content
+	| { type: "choice"; value: string[] } // Array of selected option keys
+	| { type: "ranking"; value: string[] } // Array of item keys in order
+	| { type: "fill-in-the-blank"; value: Record<string, string> } // Map of blank ID to answer
+	| { type: "single-selection-matrix"; value: Record<string, string> } // Map of row key to column key
+	| { type: "multiple-selection-matrix"; value: Record<string, string> } // Map of row key to column key
+	| { type: "whiteboard"; value: string }; // JSON string of Excalidraw data
 
 // Type guard: Check if a quiz is a container quiz with nested quizzes
 export function isContainerQuiz(

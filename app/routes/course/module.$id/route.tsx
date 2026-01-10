@@ -9,10 +9,10 @@ import { notifications } from "@mantine/notifications";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Link, redirect } from "react-router";
-import { courseModuleContextKey } from "server/contexts/course-module-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
-import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
+import { courseModuleContextKey } from "server/contexts/utils/context-keys";
+import { enrolmentContextKey } from "server/contexts/utils/context-keys";
+import { globalContextKey } from "server/contexts/utils/context-keys";
+import { userContextKey } from "server/contexts/utils/context-keys";
 import { tryCreateAssignmentSubmission } from "server/internal/assignment-submission-management";
 import {
 	tryCreateDiscussionSubmission,
@@ -20,11 +20,13 @@ import {
 	tryUpvoteDiscussionSubmission,
 } from "server/internal/discussion-management";
 import {
+	tryAnswerQuizQuestion,
 	tryCheckInProgressSubmission,
 	tryGetNextAttemptNumber,
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
 } from "server/internal/quiz-submission-management";
+import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { permissions } from "server/utils/permissions";
 import z from "zod";
 import {
@@ -47,17 +49,17 @@ import { ModuleDatesInfo } from "./components/module-dates-info";
 import { SubmissionHistory } from "app/components/submission-history";
 import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
 import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
-import { parseAsBoolean } from "nuqs";
 import {
-	createParser,
+	parseAsBoolean, createParser,
 	parseAsInteger,
 	parseAsStringEnum,
-} from "nuqs/server";
+} from "nuqs";
 import { typeCreateLoader } from "app/utils/loader-utils";
-import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
+import { serverOnly$ } from "vite-env-only/macros";
+
 
 export type { Route }
 
@@ -84,6 +86,7 @@ export const DiscussionActions = {
 
 export const QuizActions = {
 	START_ATTEMPT: "startattempt",
+	ANSWER_QUESTION: "answerquestion",
 	MARK_QUIZ_ATTEMPT_AS_COMPLETE: "markquizattemptascomplete",
 	// GRADE_SUBMISSION: "gradesubmission",
 } as const;
@@ -232,6 +235,17 @@ const markQuizAttemptAsCompleteRpc = createActionRpc({
 const startQuizAttemptRpc = createActionRpc({
 	method: "POST",
 	action: QuizActions.START_ATTEMPT,
+});
+
+const answerQuizQuestionRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		questionId: z.string().min(1),
+		answerType: z.string().min(1),
+		answerValue: z.string().min(1),
+	}),
+	method: "POST",
+	action: QuizActions.ANSWER_QUESTION,
 });
 
 const submitAssignmentRpc = createActionRpc({
@@ -720,6 +734,79 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 const useStartQuizAttempt =
 	startQuizAttemptRpc.createHook<typeof startQuizAttemptAction>();
 
+const answerQuizQuestionAction = answerQuizQuestionRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const { moduleLinkId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!enrolmentContext?.enrolment) {
+			return badRequest({ error: "Enrollment not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Only students can answer quiz questions
+		if (
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
+		) {
+			return forbidden({
+				error: courseModuleContext.permissions.quiz.canStartAttempt.reason,
+			});
+		}
+
+		// Reconstruct TypedQuestionAnswer from formData
+		let answer: TypedQuestionAnswer;
+		try {
+			const parsedValue = JSON.parse(formData.answerValue);
+			answer = {
+				type: formData.answerType as TypedQuestionAnswer["type"],
+				value: parsedValue,
+			} as TypedQuestionAnswer;
+		} catch {
+			// If parsing fails, treat as string value
+			answer = {
+				type: formData.answerType as TypedQuestionAnswer["type"],
+				value: formData.answerValue,
+			} as TypedQuestionAnswer;
+		}
+
+
+		const result = await tryAnswerQuizQuestion({
+			payload,
+			submissionId: formData.submissionId,
+			questionId: formData.questionId,
+			answer,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return ok({ success: true, message: "Question answered successfully" });
+	},
+);
+
+const useAnswerQuizQuestion =
+	answerQuizQuestionRpc.createHook<typeof answerQuizQuestionAction>();
+
 const submitAssignmentAction = submitAssignmentRpc.createAction(
 	async ({ context, formData, params, request }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
@@ -807,6 +894,7 @@ export {
 	useUpvoteReply,
 	useRemoveUpvoteReply,
 	useStartQuizAttempt,
+	useAnswerQuizQuestion,
 	useSubmitAssignment,
 	useCreateThread,
 	useCreateReply,
@@ -822,6 +910,7 @@ const [action] = createActionMap({
 	[DiscussionActions.REMOVE_UPVOTE_REPLY]: removeUpvoteReplyAction,
 	[QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE]: markQuizAttemptAsCompleteAction,
 	[QuizActions.START_ATTEMPT]: startQuizAttemptAction,
+	[QuizActions.ANSWER_QUESTION]: answerQuizQuestionAction,
 	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
 });
 
@@ -842,12 +931,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			,
 			color: "red",
 		});
-	} else if (actionData && "success" in actionData && actionData.success) {
+	} else if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
+
 		if (
 			"redirectTo" in actionData &&
 			typeof actionData.redirectTo === "string" &&
@@ -960,6 +1050,8 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 		isLoading: isMarkingQuizAttemptAsComplete,
 	} = useMarkQuizAttemptAsComplete();
 
+	const { submit: answerQuizQuestion } = useAnswerQuizQuestion();
+
 	const quizConfig = loaderData.quiz.rawQuizConfig;
 	if (!quizConfig) {
 		return (
@@ -990,20 +1082,8 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 				? loaderData.userSubmission
 				: null;
 
-		const handleQuizSubmit = async (answers: QuizAnswers) => {
+		const handleQuizSubmit = async () => {
 			if (!activeSubmission) return;
-
-			// Calculate time spent if startedAt exists
-			let _timeSpent: number | undefined;
-			if (
-				activeSubmission &&
-				"startedAt" in activeSubmission &&
-				activeSubmission.startedAt
-			) {
-				const startedAt = new Date(activeSubmission.startedAt);
-				const now = new Date();
-				_timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
-			}
 
 			await markQuizAttemptAsComplete({
 				params: { moduleLinkId: loaderData.id },
@@ -1013,14 +1093,37 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 			});
 		};
 
+		const handleAnswerSave = (
+			questionId: string,
+			answer: TypedQuestionAnswer,
+		) => {
+			if (!activeSubmission) return;
+
+			answerQuizQuestion({
+				params: { moduleLinkId: loaderData.id },
+				values: {
+					submissionId: activeSubmission.id,
+					questionId,
+					answerType: answer.type,
+					answerValue: JSON.stringify(answer.value),
+				},
+			});
+		};
+
+		if (!activeSubmission) {
+			return null;
+		}
+
 		return (
 			<>
 				<ModuleDatesInfo settings={loaderData.settings} />
 				<QuizPreview
 					quizConfig={quizConfig}
-					submissionId={activeSubmission?.id}
+					submissionId={activeSubmission.id}
 					onSubmit={handleQuizSubmit}
 					remainingTime={loaderData.quizRemainingTime}
+					initialAnswers={loaderData.initialAnswers}
+					onAnswerSave={handleAnswerSave}
 				/>
 			</>
 		);

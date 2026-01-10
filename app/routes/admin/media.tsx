@@ -551,11 +551,11 @@ export {
 };
 
 const [action] = createActionMap({
-	[Action.RenameMedia]: renameMediaAction as any,
-	[Action.UpdateMedia]: updateMediaAction as any,
-	[Action.DeleteMedia]: deleteMediaAction as any,
-	[Action.DeleteOrphanedMedia]: deleteOrphanedMediaAction as any,
-	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction as any,
+	[Action.RenameMedia]: renameMediaAction,
+	[Action.UpdateMedia]: updateMediaAction,
+	[Action.DeleteMedia]: deleteMediaAction,
+	[Action.DeleteOrphanedMedia]: deleteOrphanedMediaAction,
+	[Action.PruneAllOrphanedMedia]: pruneAllOrphanedMediaAction,
 });
 
 export { action }

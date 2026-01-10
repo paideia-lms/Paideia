@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
-import sanitizedConfig, { JobQueue } from "../payload.config";
+import sanitizedConfig from "../payload.config";
+import { JobQueue } from "../utils/job-queue";
 import {
 	type CreateActivityModuleArgs,
 	tryCreateQuizModule,
@@ -34,6 +35,7 @@ import {
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
+import { autoSubmitQuiz } from "../tasks/auto-submit-quiz";
 
 describe("Quiz Management - Full Workflow", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -1429,7 +1431,6 @@ describe("Quiz Management - Full Workflow", () => {
 		// This is needed in tests where automatic job processing might not be active
 		if (jobAfterWait && !jobAfterWait.completedAt) {
 			// Manually execute the job by calling the task handler
-			const { autoSubmitQuiz } = await import("../tasks/auto-submit-quiz");
 			const mockReq = {
 				payload,
 				user: null,

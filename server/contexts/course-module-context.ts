@@ -15,6 +15,8 @@ import {
 	type DiscussionReply,
 } from "../internal/discussion-management";
 import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
+import { convertDatabaseAnswersToQuizAnswers } from "../internal/utils/quiz-answer-converter";
+import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
 
 import { permissions } from "../utils/permissions";
 export { courseModuleContextKey } from "./utils/context-keys";
@@ -414,6 +416,25 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				// Transform quiz submissions for display
 				const allQuizSubmissionsForDisplay = quizSubmissionsForDisplay;
 
+				// Convert database answers to QuizAnswers format for active submission
+				let initialAnswers: QuizAnswers | undefined;
+				if (
+					userSubmission &&
+					userSubmission.status === "in_progress" &&
+					userSubmission.answers &&
+					rawQuizConfig
+				) {
+					try {
+						initialAnswers = convertDatabaseAnswersToQuizAnswers(
+							rawQuizConfig,
+							userSubmission.answers,
+						);
+					} catch {
+						// If conversion fails, just continue without initialAnswers
+						// The quiz will start fresh
+					}
+				}
+
 				return {
 					...moduleLink,
 					submissions: allSubmissions,
@@ -423,6 +444,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					allQuizSubmissionsForDisplay,
 					hasActiveQuizAttempt,
 					quizRemainingTime,
+					initialAnswers,
 					// formattedModuleSettings,
 					previousModule,
 					nextModule,
