@@ -1366,6 +1366,27 @@ export const quiz_submissions_answers = pgTable(
   ],
 );
 
+export const quiz_submissions_flagged_questions = pgTable(
+  "quiz_submissions_flagged_questions",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    questionId: varchar("question_id"),
+  },
+  (columns) => [
+    index("quiz_submissions_flagged_questions_order_idx").on(columns._order),
+    index("quiz_submissions_flagged_questions_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [quiz_submissions.id],
+      name: "quiz_submissions_flagged_questions_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const quiz_submissions = pgTable(
   "quiz_submissions",
   {
@@ -3111,6 +3132,16 @@ export const relations_quiz_submissions_answers = relations(
     ),
   }),
 );
+export const relations_quiz_submissions_flagged_questions = relations(
+  quiz_submissions_flagged_questions,
+  ({ one }) => ({
+    _parentID: one(quiz_submissions, {
+      fields: [quiz_submissions_flagged_questions._parentID],
+      references: [quiz_submissions.id],
+      relationName: "flaggedQuestions",
+    }),
+  }),
+);
 export const relations_quiz_submissions = relations(
   quiz_submissions,
   ({ one, many }) => ({
@@ -3131,6 +3162,9 @@ export const relations_quiz_submissions = relations(
     }),
     answers: many(quiz_submissions_answers, {
       relationName: "answers",
+    }),
+    flaggedQuestions: many(quiz_submissions_flagged_questions, {
+      relationName: "flaggedQuestions",
     }),
   }),
 );
@@ -3700,6 +3734,7 @@ type DatabaseSchema = {
   assignment_submissions: typeof assignment_submissions;
   quiz_submissions_answers_multiple_choice_answers: typeof quiz_submissions_answers_multiple_choice_answers;
   quiz_submissions_answers: typeof quiz_submissions_answers;
+  quiz_submissions_flagged_questions: typeof quiz_submissions_flagged_questions;
   quiz_submissions: typeof quiz_submissions;
   discussion_submissions_attachments: typeof discussion_submissions_attachments;
   discussion_submissions_upvotes: typeof discussion_submissions_upvotes;
@@ -3763,6 +3798,7 @@ type DatabaseSchema = {
   relations_assignment_submissions: typeof relations_assignment_submissions;
   relations_quiz_submissions_answers_multiple_choice_answers: typeof relations_quiz_submissions_answers_multiple_choice_answers;
   relations_quiz_submissions_answers: typeof relations_quiz_submissions_answers;
+  relations_quiz_submissions_flagged_questions: typeof relations_quiz_submissions_flagged_questions;
   relations_quiz_submissions: typeof relations_quiz_submissions;
   relations_discussion_submissions_attachments: typeof relations_discussion_submissions_attachments;
   relations_discussion_submissions_upvotes: typeof relations_discussion_submissions_upvotes;

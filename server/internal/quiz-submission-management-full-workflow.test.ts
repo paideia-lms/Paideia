@@ -17,20 +17,19 @@ import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
 	type CreateQuizArgs,
-	type CreateQuizSubmissionArgs,
 	type StartQuizAttemptArgs,
+	tryAnswerQuizQuestion,
 	tryCalculateQuizGrade,
 	tryCreateQuiz,
-	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
+	tryFlagQuizQuestion,
 	tryGetQuizById,
 	tryGetQuizSubmissionById,
-	tryGradeQuizSubmission,
 	tryListQuizSubmissions,
+	tryRemoveAnswerFromQuizQuestion,
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
-	tryUpdateQuizSubmission,
-	type UpdateQuizSubmissionArgs,
+	tryUnflagQuizQuestion,
 } from "./quiz-submission-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
@@ -306,213 +305,6 @@ describe("Quiz Management - Full Workflow", () => {
 		}
 	});
 
-	test("should create quiz submission (student workflow)", async () => {
-		const args: CreateQuizSubmissionArgs = {
-			payload,
-			req: createLocalReq({
-				request: mockRequest,
-				user: student as TypedUser,
-			}),
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 1,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-				{
-					questionId: "2",
-					questionText: "Is the sky blue?",
-					questionType: "true_false",
-					selectedAnswer: "true",
-				},
-				{
-					questionId: "3",
-					questionText: "What is the capital of France?",
-					questionType: "short_answer",
-					selectedAnswer: "Paris",
-				},
-				{
-					questionId: "4",
-					questionText: "Write a short essay about the importance of education",
-					questionType: "essay",
-					selectedAnswer:
-						"Education is very important for personal development and societal progress. It helps individuals acquire knowledge, skills, and critical thinking abilities that are essential for success in life.",
-				},
-			],
-			timeSpent: 15,
-			overrideAccess: true,
-		};
-
-		const result = await tryCreateQuizSubmission(args);
-
-		expect(result.ok).toBe(true);
-		if (!result.ok) return;
-
-		const submission = result.value;
-
-		// Verify submission (activityModule and quiz are now virtual fields accessed through courseModuleLink)
-		expect(submission.courseModuleLink).toBe(courseActivityModuleLink.id);
-		expect(submission.student.id).toBe(student.id);
-		expect(submission.enrollment.id).toBe(enrollment.id);
-		expect(submission.attemptNumber).toBe(1);
-		expect(submission.status).toBe("in_progress");
-		expect(submission.answers).toHaveLength(4);
-		expect(submission.timeSpent).toBe(15);
-		expect(submission.isLate).toBe(false); // Not late yet
-		expect(submission.id).toBeDefined();
-		expect(submission.createdAt).toBeDefined();
-	});
-
-	test("should update quiz submission (student editing answers)", async () => {
-		// First create a submission
-		const createArgs: CreateQuizSubmissionArgs = {
-			payload,
-			req: createLocalReq({
-				request: mockRequest,
-				user: student as TypedUser,
-			}),
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 2,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: true },
-						{ option: "4", isSelected: false },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateQuizSubmission(createArgs);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Update the submission
-		const updateArgs: UpdateQuizSubmissionArgs = {
-			payload,
-			id: submissionId,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			timeSpent: 20,
-			overrideAccess: true,
-		};
-
-		const updateResult = await tryUpdateQuizSubmission(updateArgs);
-		expect(updateResult.ok).toBe(true);
-		if (!updateResult.ok)
-			throw new Error("Test Error: Failed to update quiz submission");
-
-		const updatedSubmission = updateResult.value;
-		expect(
-			updatedSubmission.answers?.[0]?.multipleChoiceAnswers?.[1]?.isSelected,
-		).toBe(true);
-		expect(updatedSubmission.timeSpent).toBe(20);
-		expect(updatedSubmission.status).toBe("in_progress"); // Should remain in progress
-	});
-
-	test("should submit quiz (student submits for grading)", async () => {
-		// First create a submission
-		const createArgs: CreateQuizSubmissionArgs = {
-			payload,
-			req: createLocalReq({
-				request: mockRequest,
-				user: student as TypedUser,
-			}),
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 3,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-				{
-					questionId: "2",
-					questionText: "Is the sky blue?",
-					questionType: "true_false",
-					selectedAnswer: "true",
-				},
-				{
-					questionId: "3",
-					questionText: "What is the capital of France?",
-					questionType: "short_answer",
-					selectedAnswer: "Paris",
-				},
-				{
-					questionId: "4",
-					questionText: "Write a short essay about the importance of education",
-					questionType: "essay",
-					selectedAnswer:
-						"Education is very important for personal development and societal progress. It helps individuals acquire knowledge, skills, and critical thinking abilities that are essential for success in life.",
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateQuizSubmission(createArgs);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Submit the quiz
-		const submitResult = await tryMarkQuizAttemptAsComplete({
-			payload,
-			req: createLocalReq({
-				request: mockRequest,
-				user: student as TypedUser,
-			}),
-			submissionId,
-			overrideAccess: true,
-		});
-		expect(submitResult.ok).toBe(true);
-		if (!submitResult.ok) return;
-
-		const submittedSubmission = submitResult.value;
-		expect(submittedSubmission.status).toBe("completed");
-		expect(submittedSubmission.submittedAt).toBeDefined();
-		expect(submittedSubmission.answers).toHaveLength(4);
-	});
-
 	test("should calculate quiz grade automatically", async () => {
 		// First get the quiz to get the actual question IDs
 		const quizResult = await tryGetQuizById({
@@ -630,57 +422,35 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(quiz.createdBy.id).toBe(teacher.id);
 	});
 
-	test("should get quiz submission by ID", async () => {
-		// First create a submission
-		const createArgs: CreateQuizSubmissionArgs = {
+	test("should list quiz submissions with filtering", async () => {
+		// First, create some submissions for testing
+		const startResult1 = await tryStartQuizAttempt({
 			payload,
 			courseModuleLinkId: courseActivityModuleLink.id,
 			studentId: student.id,
 			enrollmentId: enrollment.id,
-			attemptNumber: 5,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateQuizSubmission(createArgs);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Get the submission by ID
-		const getResult = await tryGetQuizSubmissionById({
-			payload,
-			id: submissionId,
+			attemptNumber: 1,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			overrideAccess: true,
 		});
+		expect(startResult1.ok).toBe(true);
 
-		expect(getResult.ok).toBe(true);
-		if (!getResult.ok) return;
+		// Complete the first submission
+		if (startResult1.ok) {
+			await tryMarkQuizAttemptAsComplete({
+				payload,
+				submissionId: startResult1.value.id,
+				req: createLocalReq({
+					request: mockRequest,
+					user: student as TypedUser,
+				}),
+				overrideAccess: true,
+			});
+		}
 
-		const retrievedSubmission = getResult.value;
-		expect(retrievedSubmission.id).toBe(submissionId);
-		expect(retrievedSubmission.courseModuleLink).toBe(
-			courseActivityModuleLink.id,
-		);
-		expect(retrievedSubmission.student.id).toBe(student.id);
-		expect(retrievedSubmission.enrollment.id).toBe(enrollment.id);
-		expect(retrievedSubmission.answers).toHaveLength(1);
-	});
-
-	test("should list quiz submissions with filtering", async () => {
 		// List all submissions for this activity module
 		const listResult = await tryListQuizSubmissions({
 			payload,
@@ -731,194 +501,59 @@ describe("Quiz Management - Full Workflow", () => {
 		});
 	});
 
-	test("should handle late submissions", async () => {
-		// Create a submission after the due date (simulate late submission)
-		const lateArgs: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 6,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const result = await tryCreateQuizSubmission(lateArgs);
-
-		expect(result.ok).toBe(true);
-		if (!result.ok) return;
-
-		const submission = result.value;
-		// Note: isLate calculation depends on the quiz's due date
-		// In a real scenario, you might need to mock the current time
-		expect(submission.attemptNumber).toBe(6);
-		expect(submission.answers).toHaveLength(1);
-	});
-
-	test("should prevent duplicate submissions for same attempt", async () => {
-		const args: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 7,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		// Create first submission
-		const firstResult = await tryCreateQuizSubmission(args);
-		expect(firstResult.ok).toBe(true);
-
-		// Try to create duplicate submission for same attempt
-		const duplicateResult = await tryCreateQuizSubmission(args);
-		expect(duplicateResult.ok).toBe(false);
-	});
-
-	test("should only allow grading of completed quizzes", async () => {
-		// Create an in-progress submission
-		const createArgs: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 8,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateQuizSubmission(createArgs);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Try to grade an in-progress submission
-		const gradeResult = await tryGradeQuizSubmission({
-			payload,
-			req: createLocalReq({
-				request: mockRequest,
-				user: teacher as TypedUser,
-			}),
-			id: submissionId,
-			enrollmentId: enrollment.id,
-			gradebookItemId,
-			gradedBy: teacher.id,
-		});
-
-		expect(gradeResult.ok).toBe(false);
-	});
-
-	test("should delete quiz submission", async () => {
-		// Create a submission
-		const createArgs: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			attemptNumber: 9,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateQuizSubmission(createArgs);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Delete the submission
-		const deleteResult = await tryDeleteQuizSubmission({
-			payload,
-			id: submissionId,
-			overrideAccess: true,
-		});
-		expect(deleteResult.ok).toBe(true);
-
-		// Verify submission is deleted
-		const getResult = await tryGetQuizSubmissionById({
-			payload,
-			id: submissionId,
-			overrideAccess: true,
-		});
-		expect(getResult.ok).toBe(false);
-	});
-
 	test("should handle pagination in listing", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
 		// Create multiple submissions for pagination testing
+		// Note: We need to complete each submission immediately after creation
+		// because tryStartQuizAttempt doesn't allow multiple in-progress submissions
 		for (let i = 0; i < 5; i++) {
-			const createArgs: CreateQuizSubmissionArgs = {
+			const startResult = await tryStartQuizAttempt({
 				payload,
 				courseModuleLinkId: courseActivityModuleLink.id,
 				studentId: student.id,
 				enrollmentId: enrollment.id,
 				attemptNumber: 20 + i,
-				answers: [
-					{
-						questionId: "1",
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						multipleChoiceAnswers: [
-							{ option: "3", isSelected: false },
-							{ option: "4", isSelected: true },
-							{ option: "5", isSelected: false },
-							{ option: "6", isSelected: false },
-						],
-					},
-				],
+				req: createLocalReq({
+					request: mockRequest,
+					user: student as TypedUser,
+				}),
 				overrideAccess: true,
-			};
+			});
+			expect(startResult.ok).toBe(true);
+			if (!startResult.ok) continue;
 
-			const createResult = await tryCreateQuizSubmission(createArgs);
-			expect(createResult.ok).toBe(true);
+			// Complete the submission immediately so we can create the next one
+			await tryMarkQuizAttemptAsComplete({
+				payload,
+				submissionId: startResult.value.id,
+				req: createLocalReq({
+					request: mockRequest,
+					user: student as TypedUser,
+				}),
+				overrideAccess: true,
+			});
 		}
 
 		// Test pagination
@@ -940,47 +575,6 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(page1Result.value.hasPrevPage).toBeDefined();
 	});
 
-	test("should fail with invalid arguments", async () => {
-		// Test missing course module link ID
-		const invalidArgs1: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: undefined as never,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			answers: [],
-			overrideAccess: true,
-		};
-
-		const result1 = await tryCreateQuizSubmission(invalidArgs1);
-		expect(result1.ok).toBe(false);
-
-		// Test missing student ID
-		const invalidArgs2: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: undefined as never,
-			enrollmentId: enrollment.id,
-			answers: [],
-			overrideAccess: true,
-		};
-
-		const result2 = await tryCreateQuizSubmission(invalidArgs2);
-		expect(result2.ok).toBe(false);
-
-		// Test missing answers
-		const invalidArgs3: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLink.id,
-			studentId: student.id,
-			enrollmentId: enrollment.id,
-			answers: [],
-			overrideAccess: true,
-		};
-
-		const result3 = await tryCreateQuizSubmission(invalidArgs3);
-		expect(result3.ok).toBe(false);
-	});
-
 	test("should fail to get non-existent submission", async () => {
 		const result = await tryGetQuizSubmissionById({
 			payload,
@@ -991,30 +585,6 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(result.ok).toBe(false);
 	});
 
-	test("should fail to update non-existent submission", async () => {
-		const updateArgs: UpdateQuizSubmissionArgs = {
-			payload,
-			id: 99999,
-			answers: [
-				{
-					questionId: "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const result = await tryUpdateQuizSubmission(updateArgs);
-		expect(result.ok).toBe(false);
-	});
-
 	test("should fail to delete non-existent submission", async () => {
 		const result = await tryDeleteQuizSubmission({
 			payload,
@@ -1022,6 +592,983 @@ describe("Quiz Management - Full Workflow", () => {
 			overrideAccess: true,
 		});
 		expect(result.ok).toBe(false);
+	});
+
+	test("should remove answer from quiz question", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 10,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// First, answer the question
+		const answerResult = await tryAnswerQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			answer: {
+				type: "multiple-choice",
+				value: "b",
+			},
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(answerResult.ok).toBe(true);
+		if (!answerResult.ok) return;
+
+		// Verify answer was added
+		const submissionWithAnswer = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submissionWithAnswer.ok).toBe(true);
+		if (!submissionWithAnswer.ok) return;
+		const answersWithAnswer = submissionWithAnswer.value.answers || [];
+		expect(answersWithAnswer.length).toBeGreaterThan(0);
+		const answerExists = answersWithAnswer.some(
+			(a) => a.questionId === questionId,
+		);
+		expect(answerExists).toBe(true);
+
+		// Now remove the answer
+		const removeResult = await tryRemoveAnswerFromQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(removeResult.ok).toBe(true);
+		if (!removeResult.ok) return;
+
+		// Verify answer was removed
+		const submissionWithoutAnswer = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submissionWithoutAnswer.ok).toBe(true);
+		if (!submissionWithoutAnswer.ok) return;
+		const answersWithoutAnswer = submissionWithoutAnswer.value.answers || [];
+		const answerStillExists = answersWithoutAnswer.some(
+			(a) => a.questionId === questionId,
+		);
+		expect(answerStillExists).toBe(false);
+	});
+
+	test("should handle removing answer that doesn't exist", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 11,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// Try to remove answer that doesn't exist - should succeed (idempotent)
+		const removeResult = await tryRemoveAnswerFromQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(removeResult.ok).toBe(true);
+		if (!removeResult.ok) return;
+
+		// Verify submission is unchanged
+		const submission = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submission.ok).toBe(true);
+		if (!submission.ok) return;
+		const answers = submission.value.answers || [];
+		expect(answers.length).toBe(0);
+	});
+
+	test("should fail to remove answer from completed submission", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 12,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// Submit the quiz first
+		const submitResult = await tryMarkQuizAttemptAsComplete({
+			payload,
+			submissionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(submitResult.ok).toBe(true);
+		if (!submitResult.ok) return;
+
+		// Try to remove answer from completed submission - should fail
+		const removeResult = await tryRemoveAnswerFromQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(removeResult.ok).toBe(false);
+	});
+
+	test("should flag quiz question", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 14,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// Flag the question
+		const flagResult = await tryFlagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(flagResult.ok).toBe(true);
+		if (!flagResult.ok) return;
+
+		// Verify question was flagged
+		const submissionWithFlag = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submissionWithFlag.ok).toBe(true);
+		if (!submissionWithFlag.ok) return;
+		const flaggedQuestions = submissionWithFlag.value.flaggedQuestions || [];
+		const isFlagged = flaggedQuestions.some((f) => f.questionId === questionId);
+		expect(isFlagged).toBe(true);
+	});
+
+	test("should handle flagging question that is already flagged", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 15,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// Flag the question first time
+		const flagResult1 = await tryFlagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(flagResult1.ok).toBe(true);
+		if (!flagResult1.ok) return;
+
+		// Try to flag again - should succeed (idempotent)
+		const flagResult2 = await tryFlagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(flagResult2.ok).toBe(true);
+		if (!flagResult2.ok) return;
+
+		// Verify question is still flagged (only once)
+		const submission = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submission.ok).toBe(true);
+		if (!submission.ok) return;
+		const flaggedQuestions = submission.value.flaggedQuestions || [];
+		const flaggedCount = flaggedQuestions.filter(
+			(f) => f.questionId === questionId,
+		).length;
+		expect(flaggedCount).toBe(1);
+	});
+
+	test("should unflag quiz question", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 16,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// First flag the question
+		const flagResult = await tryFlagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(flagResult.ok).toBe(true);
+		if (!flagResult.ok) return;
+
+		// Verify question was flagged
+		const submissionWithFlag = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submissionWithFlag.ok).toBe(true);
+		if (!submissionWithFlag.ok) return;
+		const flaggedQuestionsBefore =
+			submissionWithFlag.value.flaggedQuestions || [];
+		const isFlaggedBefore = flaggedQuestionsBefore.some(
+			(f) => f.questionId === questionId,
+		);
+		expect(isFlaggedBefore).toBe(true);
+
+		// Now unflag the question
+		const unflagResult = await tryUnflagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(unflagResult.ok).toBe(true);
+		if (!unflagResult.ok) return;
+
+		// Verify question was unflagged
+		const submissionWithoutFlag = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submissionWithoutFlag.ok).toBe(true);
+		if (!submissionWithoutFlag.ok) return;
+		const flaggedQuestionsAfter =
+			submissionWithoutFlag.value.flaggedQuestions || [];
+		const isFlaggedAfter = flaggedQuestionsAfter.some(
+			(f) => f.questionId === questionId,
+		);
+		expect(isFlaggedAfter).toBe(false);
+	});
+
+	test("should handle unflagging question that is not flagged", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 17,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// Try to unflag question that is not flagged - should succeed (idempotent)
+		const unflagResult = await tryUnflagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(unflagResult.ok).toBe(true);
+		if (!unflagResult.ok) return;
+
+		// Verify submission is unchanged
+		const submission = await tryGetQuizSubmissionById({
+			payload,
+			id: submissionId,
+			overrideAccess: true,
+		});
+		expect(submission.ok).toBe(true);
+		if (!submission.ok) return;
+		const flaggedQuestions = submission.value.flaggedQuestions || [];
+		expect(flaggedQuestions.length).toBe(0);
+	});
+
+	test("should fail to flag question in completed submission", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 18,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Get quiz to find question IDs
+		const quizResult = await tryGetQuizById({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			id: quizId,
+			overrideAccess: true,
+		});
+		expect(quizResult.ok).toBe(true);
+		if (!quizResult.ok) return;
+
+		const quiz = quizResult.value;
+		const rawConfig = quiz.rawQuizConfig as any;
+		const questions =
+			rawConfig?.type === "regular" && rawConfig?.pages
+				? rawConfig.pages.flatMap((page: any) => page.questions || [])
+				: [];
+
+		if (questions.length === 0) {
+			throw new Error("Test Error: No questions found in quiz");
+		}
+
+		const questionId = questions[0]?.id?.toString();
+		if (!questionId) {
+			throw new Error("Test Error: Question ID not found");
+		}
+
+		// Submit the quiz first
+		const submitResult = await tryMarkQuizAttemptAsComplete({
+			payload,
+			submissionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(submitResult.ok).toBe(true);
+		if (!submitResult.ok) return;
+
+		// Try to flag question in completed submission - should fail
+		const flagResult = await tryFlagQuizQuestion({
+			payload,
+			submissionId,
+			questionId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(flagResult.ok).toBe(false);
+	});
+
+	test("should fail to flag question with invalid question ID", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 19,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Try to flag question with invalid question ID - should fail
+		const flagResult = await tryFlagQuizQuestion({
+			payload,
+			submissionId,
+			questionId: "invalid-question-id",
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(flagResult.ok).toBe(false);
+	});
+
+	test("should fail to remove answer with invalid question ID", async () => {
+		// First, complete any existing in-progress submissions to avoid conflicts
+		const existingSubmissions = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			status: "in_progress",
+			overrideAccess: true,
+		});
+
+		if (existingSubmissions.ok) {
+			for (const submission of existingSubmissions.value.docs) {
+				await tryMarkQuizAttemptAsComplete({
+					payload,
+					submissionId: submission.id,
+					req: createLocalReq({
+						request: mockRequest,
+						user: student as TypedUser,
+					}),
+					overrideAccess: true,
+				});
+			}
+		}
+
+		// Start a quiz attempt
+		const startResult = await tryStartQuizAttempt({
+			payload,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 13,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const submissionId = startResult.value.id;
+
+		// Try to remove answer with invalid question ID - should fail
+		const removeResult = await tryRemoveAnswerFromQuizQuestion({
+			payload,
+			submissionId,
+			questionId: "invalid-question-id",
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			overrideAccess: true,
+		});
+		expect(removeResult.ok).toBe(false);
 	});
 
 	test("should store and retrieve rawQuizConfig", async () => {

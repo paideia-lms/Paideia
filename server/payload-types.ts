@@ -791,6 +791,12 @@ export interface QuizSubmission {
         id?: string | null;
       }[]
     | null;
+  flaggedQuestions?:
+    | {
+        questionId?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   totalScore?: number | null;
   maxScore?: number | null;
   percentage?: number | null;
@@ -1684,6 +1690,12 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
         pointsEarned?: T;
         maxPoints?: T;
         feedback?: T;
+        id?: T;
+      };
+  flaggedQuestions?:
+    | T
+    | {
+        questionId?: T;
         id?: T;
       };
   totalScore?: T;

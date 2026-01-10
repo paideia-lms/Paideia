@@ -53,10 +53,14 @@ function getQuestionText(question: Question): string {
 
 /**
  * Converts TypedQuestionAnswer discriminated union to database format
+ * @param question - The question object (used for type validation and text extraction)
+ * @param answer - The typed answer to convert
+ * @param questionId - The full question ID (may include nested quiz prefix, e.g., "nestedQuizId:questionId")
  */
 export function convertQuestionAnswerToDatabaseFormat(
 	question: Question,
 	answer: TypedQuestionAnswer,
+	questionId?: string,
 ): DatabaseAnswer {
 	// Validate answer type matches question type
 	if (answer.type !== question.type) {
@@ -68,6 +72,9 @@ export function convertQuestionAnswerToDatabaseFormat(
 	const questionType = mapV2QuestionTypeToLegacy(question.type);
 	const questionText = getQuestionText(question);
 
+	// Use provided questionId if available (for nested quizzes), otherwise use question.id
+	const finalQuestionId = questionId ?? (question.id?.toString() || "");
+
 	// Convert based on answer type
 	switch (answer.type) {
 		case "multiple-choice":
@@ -77,7 +84,7 @@ export function convertQuestionAnswerToDatabaseFormat(
 		case "whiteboard": {
 			// String values go to selectedAnswer
 			return {
-				questionId: question.id?.toString() || "",
+				questionId: finalQuestionId,
 				questionText,
 				questionType,
 				selectedAnswer: answer.value,
@@ -88,7 +95,7 @@ export function convertQuestionAnswerToDatabaseFormat(
 		case "ranking": {
 			// Array values go to multipleChoiceAnswers
 			return {
-				questionId: question.id?.toString() || "",
+				questionId: finalQuestionId,
 				questionText,
 				questionType,
 				multipleChoiceAnswers: answer.value.map((option) => ({
@@ -103,7 +110,7 @@ export function convertQuestionAnswerToDatabaseFormat(
 		case "multiple-selection-matrix": {
 			// Record values go to selectedAnswer as JSON string
 			return {
-				questionId: question.id?.toString() || "",
+				questionId: finalQuestionId,
 				questionText,
 				questionType,
 				selectedAnswer: JSON.stringify(answer.value),

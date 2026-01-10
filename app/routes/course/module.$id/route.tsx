@@ -25,6 +25,9 @@ import {
 	tryGetNextAttemptNumber,
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
+	tryRemoveAnswerFromQuizQuestion,
+	tryFlagQuizQuestion,
+	tryUnflagQuizQuestion,
 } from "server/internal/quiz-submission-management";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { permissions } from "server/utils/permissions";
@@ -47,8 +50,8 @@ import { FilePreview } from "app/components/activity-modules-preview/file-previe
 import { DiscussionThreadView } from "./components/discussion-thread-view";
 import { ModuleDatesInfo } from "./components/module-dates-info";
 import { SubmissionHistory } from "app/components/submission-history";
-import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
-import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
+import { QuizAttemptComponent } from "app/routes/course/module.$id/components/quiz-attempt-component";
+import { QuizInstructionsView } from "app/routes/course/module.$id/components/quiz-instructions-view";
 import {
 	parseAsBoolean, createParser,
 	parseAsInteger,
@@ -58,7 +61,6 @@ import { typeCreateLoader } from "app/utils/loader-utils";
 import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
-import { serverOnly$ } from "vite-env-only/macros";
 
 
 export type { Route }
@@ -87,6 +89,9 @@ export const DiscussionActions = {
 export const QuizActions = {
 	START_ATTEMPT: "startattempt",
 	ANSWER_QUESTION: "answerquestion",
+	UNANSWER_QUESTION: "unanswerquestion",
+	FLAG_QUESTION: "flagquestion",
+	UNFLAG_QUESTION: "unflagquestion",
 	MARK_QUIZ_ATTEMPT_AS_COMPLETE: "markquizattemptascomplete",
 	// GRADE_SUBMISSION: "gradesubmission",
 } as const;
@@ -128,6 +133,7 @@ export const loaderSearchParams = {
 	showQuiz: parseAsBoolean.withDefault(false),
 	replyTo: parseAsReplyTo,
 	sortBy: parseAsStringEnum(["recent", "upvoted", "active"]).withDefault("recent"),
+	quizPageIndex: parseAsInteger.withDefault(0),
 };
 
 
@@ -246,6 +252,33 @@ const answerQuizQuestionRpc = createActionRpc({
 	}),
 	method: "POST",
 	action: QuizActions.ANSWER_QUESTION,
+});
+
+const unanswerQuizQuestionRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		questionId: z.string().min(1),
+	}),
+	method: "POST",
+	action: QuizActions.UNANSWER_QUESTION,
+});
+
+const flagQuizQuestionRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		questionId: z.string().min(1),
+	}),
+	method: "POST",
+	action: QuizActions.FLAG_QUESTION,
+});
+
+const unflagQuizQuestionRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		questionId: z.string().min(1),
+	}),
+	method: "POST",
+	action: QuizActions.UNFLAG_QUESTION,
 });
 
 const submitAssignmentRpc = createActionRpc({
@@ -807,6 +840,172 @@ const answerQuizQuestionAction = answerQuizQuestionRpc.createAction(
 const useAnswerQuizQuestion =
 	answerQuizQuestionRpc.createHook<typeof answerQuizQuestionAction>();
 
+const unanswerQuizQuestionAction = unanswerQuizQuestionRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const { moduleLinkId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!enrolmentContext?.enrolment) {
+			return badRequest({ error: "Enrollment not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Only students can unanswer quiz questions
+		if (
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
+		) {
+			return forbidden({
+				error: courseModuleContext.permissions.quiz.canStartAttempt.reason,
+			});
+		}
+
+		const result = await tryRemoveAnswerFromQuizQuestion({
+			payload,
+			submissionId: formData.submissionId,
+			questionId: formData.questionId,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return ok({ success: true, message: "Question answer removed successfully" });
+	},
+);
+
+const useUnanswerQuizQuestion =
+	unanswerQuizQuestionRpc.createHook<typeof unanswerQuizQuestionAction>();
+
+const flagQuizQuestionAction = flagQuizQuestionRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const { moduleLinkId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!enrolmentContext?.enrolment) {
+			return badRequest({ error: "Enrollment not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Only students can flag quiz questions
+		if (
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
+		) {
+			return forbidden({
+				error: courseModuleContext.permissions.quiz.canStartAttempt.reason,
+			});
+		}
+
+		const result = await tryFlagQuizQuestion({
+			payload,
+			submissionId: formData.submissionId,
+			questionId: formData.questionId,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return ok({ success: true, message: "Question flagged successfully" });
+	},
+);
+
+const useFlagQuizQuestion =
+	flagQuizQuestionRpc.createHook<typeof flagQuizQuestionAction>();
+
+const unflagQuizQuestionAction = unflagQuizQuestionRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const { moduleLinkId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!enrolmentContext?.enrolment) {
+			return badRequest({ error: "Enrollment not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Only students can unflag quiz questions
+		if (
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
+		) {
+			return forbidden({
+				error: courseModuleContext.permissions.quiz.canStartAttempt.reason,
+			});
+		}
+
+		const result = await tryUnflagQuizQuestion({
+			payload,
+			submissionId: formData.submissionId,
+			questionId: formData.questionId,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return ok({ success: true, message: "Question unflagged successfully" });
+	},
+);
+
+const useUnflagQuizQuestion =
+	unflagQuizQuestionRpc.createHook<typeof unflagQuizQuestionAction>();
+
+
 const submitAssignmentAction = submitAssignmentRpc.createAction(
 	async ({ context, formData, params, request }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
@@ -895,6 +1094,9 @@ export {
 	useRemoveUpvoteReply,
 	useStartQuizAttempt,
 	useAnswerQuizQuestion,
+	useUnanswerQuizQuestion,
+	useFlagQuizQuestion,
+	useUnflagQuizQuestion,
 	useSubmitAssignment,
 	useCreateThread,
 	useCreateReply,
@@ -911,6 +1113,9 @@ const [action] = createActionMap({
 	[QuizActions.MARK_QUIZ_ATTEMPT_AS_COMPLETE]: markQuizAttemptAsCompleteAction,
 	[QuizActions.START_ATTEMPT]: startQuizAttemptAction,
 	[QuizActions.ANSWER_QUESTION]: answerQuizQuestionAction,
+	[QuizActions.UNANSWER_QUESTION]: unanswerQuizQuestionAction,
+	[QuizActions.FLAG_QUESTION]: flagQuizQuestionAction,
+	[QuizActions.UNFLAG_QUESTION]: unflagQuizQuestionAction,
 	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
 });
 
@@ -1050,8 +1255,6 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 		isLoading: isMarkingQuizAttemptAsComplete,
 	} = useMarkQuizAttemptAsComplete();
 
-	const { submit: answerQuizQuestion } = useAnswerQuizQuestion();
-
 	const quizConfig = loaderData.quiz.rawQuizConfig;
 	if (!quizConfig) {
 		return (
@@ -1093,37 +1296,29 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 			});
 		};
 
-		const handleAnswerSave = (
-			questionId: string,
-			answer: TypedQuestionAnswer,
-		) => {
-			if (!activeSubmission) return;
-
-			answerQuizQuestion({
-				params: { moduleLinkId: loaderData.id },
-				values: {
-					submissionId: activeSubmission.id,
-					questionId,
-					answerType: answer.type,
-					answerValue: JSON.stringify(answer.value),
-				},
-			});
-		};
-
 		if (!activeSubmission) {
 			return null;
 		}
 
+		// Get flagged questions from the active submission
+		// Filter out any entries with null/undefined questionId and ensure type safety
+		const flaggedQuestions = (activeSubmission.flaggedQuestions || [])
+			.filter((f): f is { questionId: string } =>
+				f?.questionId != null && typeof f.questionId === "string"
+			);
+
 		return (
 			<>
 				<ModuleDatesInfo settings={loaderData.settings} />
-				<QuizPreview
+				<QuizAttemptComponent
 					quizConfig={quizConfig}
 					submissionId={activeSubmission.id}
 					onSubmit={handleQuizSubmit}
 					remainingTime={loaderData.quizRemainingTime}
 					initialAnswers={loaderData.initialAnswers}
-					onAnswerSave={handleAnswerSave}
+					currentPageIndex={loaderData.searchParams.quizPageIndex}
+					moduleLinkId={loaderData.id}
+					flaggedQuestions={flaggedQuestions}
 				/>
 			</>
 		);

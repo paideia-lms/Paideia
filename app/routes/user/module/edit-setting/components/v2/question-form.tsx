@@ -11,7 +11,7 @@ import { IconChevronDown, IconChevronUp, IconEye, IconGripVertical } from "@tabl
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { useState } from "react";
-import { QuestionRenderer } from "~/components/activity-modules-preview/question-renderer";
+import { QuestionRenderer } from "app/components/question-renderer";
 import type { Question, QuizConfig } from "./types";
 import { QuestionOptionsForm } from "./question-options-form";
 import { QuestionScoringForm } from "./question-scoring-form";
