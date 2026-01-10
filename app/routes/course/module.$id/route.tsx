@@ -772,7 +772,6 @@ const answerQuizQuestionAction = answerQuizQuestionRpc.createAction(
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
 
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "Unauthorized" });
@@ -845,7 +844,6 @@ const unanswerQuizQuestionAction = unanswerQuizQuestionRpc.createAction(
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
 
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "Unauthorized" });
@@ -900,7 +898,6 @@ const flagQuizQuestionAction = flagQuizQuestionRpc.createAction(
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
 
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "Unauthorized" });
@@ -955,7 +952,6 @@ const unflagQuizQuestionAction = unflagQuizQuestionRpc.createAction(
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
-		const { moduleLinkId } = params;
 
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "Unauthorized" });
@@ -1391,14 +1387,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 
 			<Stack gap="xl">
 				{loaderData.type === "assignment" ? (
-					<>
-						<ModuleDatesInfo settings={loaderData.settings} />
-						<AssignmentPreview
-							assignment={loaderData.assignment}
-							submission={loaderData.assignmentSubmission}
-							allSubmissions={loaderData.allSubmissionsForDisplay}
-						/>
-					</>
+					<AssignmentModuleView loaderData={loaderData} />
 				) : loaderData.type === "quiz" ? (
 					<QuizModuleView loaderData={loaderData} showQuiz={loaderData.searchParams.showQuiz} />
 				) : loaderData.type === "discussion" ? (

@@ -1225,7 +1225,6 @@ export function tryGetDiscussionThreadWithReplies(
 			const isUpvoted =
 				thread.upvotes?.some(
 					(upvote: { user: number | { id: number }; upvotedAt: string }) => {
-						console.log(upvote);
 						const upvoteUser =
 							typeof upvote.user === "object" && upvote.user !== null
 								? upvote.user

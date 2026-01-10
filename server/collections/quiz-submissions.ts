@@ -207,7 +207,7 @@ export const QuizSubmissions = {
 					type: "text",
 				},
 			],
-			label: "Flagged Questions by student durring the quiz attempt",
+			label: "Flagged Questions by student during the quiz attempt",
 		},
 		{
 			name: "totalScore",
