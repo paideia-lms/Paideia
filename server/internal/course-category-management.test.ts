@@ -47,6 +47,7 @@ describe("Course Category Management Functions", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+			req: undefined,
 		};
 
 		const userResult = await tryCreateUser(userArgs);
@@ -366,6 +367,8 @@ describe("Course Category Management Functions", () => {
 				category: categoryResult.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(courseResult.ok).toBe(true);
 
@@ -399,6 +402,8 @@ describe("Course Category Management Functions", () => {
 			payload,
 			categoryId: createResult.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(findResult.ok).toBe(true);
@@ -444,6 +449,8 @@ describe("Course Category Management Functions", () => {
 		const treeResult = await tryGetCategoryTree({
 			payload,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(treeResult.ok).toBe(true);
@@ -490,6 +497,8 @@ describe("Course Category Management Functions", () => {
 			payload,
 			categoryId: level3.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(ancestorsResult.ok).toBe(true);
@@ -532,6 +541,8 @@ describe("Course Category Management Functions", () => {
 			payload,
 			categoryId: root.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(rootDepth.ok).toBe(true);
 		if (rootDepth.ok) {
@@ -542,6 +553,8 @@ describe("Course Category Management Functions", () => {
 			payload,
 			categoryId: child.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(childDepth.ok).toBe(true);
 		if (childDepth.ok) {
@@ -552,6 +565,8 @@ describe("Course Category Management Functions", () => {
 			payload,
 			categoryId: grandchild.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(grandchildDepth.ok).toBe(true);
 		if (grandchildDepth.ok) {
@@ -596,6 +611,8 @@ describe("Course Category Management Functions", () => {
 				category: parent.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		await tryCreateCourse({
@@ -608,6 +625,8 @@ describe("Course Category Management Functions", () => {
 				category: child1.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		await tryCreateCourse({
@@ -620,12 +639,16 @@ describe("Course Category Management Functions", () => {
 				category: child2.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		const countResult = await tryGetTotalNestedCoursesCount({
 			payload,
 			categoryId: parent.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(countResult.ok).toBe(true);
@@ -645,6 +668,8 @@ describe("Course Category Management Functions", () => {
 		const rootsResult = await tryFindRootCategories({
 			payload,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(rootsResult.ok).toBe(true);
@@ -684,6 +709,8 @@ describe("Course Category Management Functions", () => {
 			payload,
 			parentId: parent.value.id,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(subsResult.ok).toBe(true);
@@ -711,6 +738,8 @@ describe("Course Category Management Functions", () => {
 				category: category.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(course.ok).toBe(true);
@@ -749,6 +778,8 @@ describe("Course Category Management Functions", () => {
 				category: cat1.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!course.ok) return;

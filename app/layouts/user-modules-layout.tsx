@@ -39,53 +39,55 @@ const createRouteLoader = createLoader({
 	searchParams: loaderSearchParams,
 });
 
-export const loader = createRouteLoader(async ({ context, params, searchParams }) => {
-	const userSession = context.get(userContextKey);
-	const userProfileContext = context.get(userProfileContextKey);
+export const loader = createRouteLoader(
+	async ({ context, params, searchParams }) => {
+		const userSession = context.get(userContextKey);
+		const userProfileContext = context.get(userProfileContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	if (!userProfileContext) {
-		throw new NotFoundResponse("User profile context not found");
-	}
+		if (!userProfileContext) {
+			throw new NotFoundResponse("User profile context not found");
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Get user ID from route params, or use current user
-	const userId = params.id ? Number(params.id) : currentUser.id;
+		// Get user ID from route params, or use current user
+		const userId = params.id ? Number(params.id) : currentUser.id;
 
-	// Check if user can access this data
-	if (userId !== currentUser.id && currentUser.role !== "admin") {
-		throw new ForbiddenResponse("You can only view your own data");
-	}
+		// Check if user can access this data
+		if (userId !== currentUser.id && currentUser.role !== "admin") {
+			throw new ForbiddenResponse("You can only view your own data");
+		}
 
-	if (!userSession.permissions.canSeeUserModules) {
-		throw new ForbiddenResponse(
-			"You don't have permission to access this page",
-		);
-	}
+		if (!userSession.permissions.canSeeUserModules) {
+			throw new ForbiddenResponse(
+				"You don't have permission to access this page",
+			);
+		}
 
-	const targetUser = userProfileContext.profileUser;
+		const targetUser = userProfileContext.profileUser;
 
-	const modules = userProfileContext.activityModules;
+		const modules = userProfileContext.activityModules;
 
-	return {
-		user: {
-			id: targetUser.id,
-			firstName: targetUser.firstName ?? "",
-			lastName: targetUser.lastName ?? "",
-		},
-		isOwnProfile: userId === currentUser.id,
-		modules: modules,
-		canCreateModules: userProfileContext.permissions.canCreateModules.allowed,
-		canManageModules: userProfileContext.permissions.canManageModules.allowed,
-		searchParams,
-		params,
-	};
-});
+		return {
+			user: {
+				id: targetUser.id,
+				firstName: targetUser.firstName ?? "",
+				lastName: targetUser.lastName ?? "",
+			},
+			isOwnProfile: userId === currentUser.id,
+			modules: modules,
+			canCreateModules: userProfileContext.permissions.canCreateModules.allowed,
+			canManageModules: userProfileContext.permissions.canManageModules.allowed,
+			searchParams,
+			params,
+		};
+	},
+);
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -125,7 +127,8 @@ function ModuleSearchInput({ search }: ModuleSearchInputProps) {
 export default function UserModulesLayout({
 	loaderData,
 }: Route.ComponentProps) {
-	const { modules, canCreateModules, canManageModules, searchParams, params } = loaderData;
+	const { modules, canCreateModules, canManageModules, searchParams, params } =
+		loaderData;
 
 	// Helper function to format type display
 	const formatType = (type: string) => {
@@ -221,13 +224,8 @@ export default function UserModulesLayout({
 														<Badge
 															size="xs"
 															variant="light"
-															color={getModuleColor(
-																module.type,
-															)}
-															leftSection={getModuleIcon(
-																module.type,
-																12,
-															)}
+															color={getModuleColor(module.type)}
+															leftSection={getModuleIcon(module.type, 12)}
 														>
 															{formatType(module.type)}
 														</Badge>

@@ -42,8 +42,6 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 		throw new ForbiddenResponse("Section not found or access denied");
 	}
 
-
-
 	return {
 		section: courseSectionContext,
 		course: courseContext.course,
@@ -94,7 +92,6 @@ export default function CourseSectionLayout({
 				break;
 		}
 	};
-
 
 	return (
 		<div>

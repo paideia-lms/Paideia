@@ -106,7 +106,7 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 		module: userModuleContext.module,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit ?? undefined,
 		hasLinkedCourses,
-		params
+		params,
 	};
 })!;
 
@@ -198,7 +198,6 @@ const createUpdateAssignmentActionRpc = createActionRpc({
 	method: "POST",
 	action: Action.UpdateAssignment,
 });
-
 
 const createUpdateQuizActionRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -612,7 +611,8 @@ const updatePageAction = createUpdatePageActionRpc.createAction(
 	},
 );
 
-const useUpdatePage = createUpdatePageActionRpc.createHook<typeof updatePageAction>();
+const useUpdatePage =
+	createUpdatePageActionRpc.createHook<typeof updatePageAction>();
 
 const updateWhiteboardAction = createUpdateWhiteboardActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -642,7 +642,8 @@ const updateWhiteboardAction = createUpdateWhiteboardActionRpc.createAction(
 	},
 );
 
-const useUpdateWhiteboard = createUpdateWhiteboardActionRpc.createHook<typeof updateWhiteboardAction>();
+const useUpdateWhiteboard =
+	createUpdateWhiteboardActionRpc.createHook<typeof updateWhiteboardAction>();
 
 const updateFileAction = createUpdateFileActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -675,7 +676,8 @@ const updateFileAction = createUpdateFileActionRpc.createAction(
 	},
 );
 
-const useUpdateFile = createUpdateFileActionRpc.createHook<typeof updateFileAction>();
+const useUpdateFile =
+	createUpdateFileActionRpc.createHook<typeof updateFileAction>();
 
 const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -683,7 +685,7 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 
 		const allowedFileTypes =
 			formData.assignmentAllowedFileTypes &&
-				formData.assignmentAllowedFileTypes.length > 0
+			formData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 				: undefined;
 
@@ -715,8 +717,8 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 	},
 );
 
-const useUpdateAssignment = createUpdateAssignmentActionRpc.createHook<typeof updateAssignmentAction>();
-
+const useUpdateAssignment =
+	createUpdateAssignmentActionRpc.createHook<typeof updateAssignmentAction>();
 
 const updateQuizAction = createUpdateQuizActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -745,7 +747,8 @@ const updateQuizAction = createUpdateQuizActionRpc.createAction(
 	},
 );
 
-const useUpdateQuiz = createUpdateQuizActionRpc.createHook<typeof updateQuizAction>();
+const useUpdateQuiz =
+	createUpdateQuizActionRpc.createHook<typeof updateQuizAction>();
 
 const updateDiscussionAction = createUpdateDiscussionActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -778,7 +781,8 @@ const updateDiscussionAction = createUpdateDiscussionActionRpc.createAction(
 	},
 );
 
-const useUpdateDiscussion = createUpdateDiscussionActionRpc.createHook<typeof updateDiscussionAction>();
+const useUpdateDiscussion =
+	createUpdateDiscussionActionRpc.createHook<typeof updateDiscussionAction>();
 
 const toggleQuizTypeAction = createToggleQuizTypeActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -805,7 +809,8 @@ const toggleQuizTypeAction = createToggleQuizTypeActionRpc.createAction(
 	},
 );
 
-const useToggleQuizType = createToggleQuizTypeActionRpc.createHook<typeof toggleQuizTypeAction>();
+const useToggleQuizType =
+	createToggleQuizTypeActionRpc.createHook<typeof toggleQuizTypeAction>();
 
 const updateGlobalTimerAction = createUpdateGlobalTimerActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -832,62 +837,71 @@ const updateGlobalTimerAction = createUpdateGlobalTimerActionRpc.createAction(
 	},
 );
 
-const useUpdateGlobalTimer = createUpdateGlobalTimerActionRpc.createHook<typeof updateGlobalTimerAction>();
+const useUpdateGlobalTimer =
+	createUpdateGlobalTimerActionRpc.createHook<typeof updateGlobalTimerAction>();
 
-const updateNestedQuizTimerAction = createUpdateNestedQuizTimerActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+const updateNestedQuizTimerAction =
+	createUpdateNestedQuizTimerActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-		const result = await tryUpdateNestedQuizTimer({
-			payload,
-			activityModuleId: params.moduleId,
-			nestedQuizId: formData.nestedQuizId,
-			seconds: formData.seconds,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			const result = await tryUpdateNestedQuizTimer({
+				payload,
+				activityModuleId: params.moduleId,
+				nestedQuizId: formData.nestedQuizId,
+				seconds: formData.seconds,
+				req: payloadRequest,
 			});
-		}
 
-		return ok({
-			success: true,
-			message: "Nested quiz timer updated successfully",
-		});
-	},
-);
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
 
-const useUpdateNestedQuizTimer = createUpdateNestedQuizTimerActionRpc.createHook<typeof updateNestedQuizTimerAction>();
-
-const updateGradingConfigAction = createUpdateGradingConfigActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		const result = await tryUpdateGradingConfig({
-			payload,
-			activityModuleId: params.moduleId,
-			gradingConfig: formData.gradingConfig,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			return ok({
+				success: true,
+				message: "Nested quiz timer updated successfully",
 			});
-		}
+		},
+	);
 
-		return ok({
-			success: true,
-			message: "Grading config updated successfully",
-		});
-	},
-);
+const useUpdateNestedQuizTimer =
+	createUpdateNestedQuizTimerActionRpc.createHook<
+		typeof updateNestedQuizTimerAction
+	>();
 
-const useUpdateGradingConfig = createUpdateGradingConfigActionRpc.createHook<typeof updateGradingConfigAction>();
+const updateGradingConfigAction =
+	createUpdateGradingConfigActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+
+			const result = await tryUpdateGradingConfig({
+				payload,
+				activityModuleId: params.moduleId,
+				gradingConfig: formData.gradingConfig,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Grading config updated successfully",
+			});
+		},
+	);
+
+const useUpdateGradingConfig =
+	createUpdateGradingConfigActionRpc.createHook<
+		typeof updateGradingConfigAction
+	>();
 
 const addQuizResourceAction = createAddQuizResourceActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -920,7 +934,8 @@ const addQuizResourceAction = createAddQuizResourceActionRpc.createAction(
 	},
 );
 
-const useAddQuizResource = createAddQuizResourceActionRpc.createHook<typeof addQuizResourceAction>();
+const useAddQuizResource =
+	createAddQuizResourceActionRpc.createHook<typeof addQuizResourceAction>();
 
 const removeQuizResourceAction = createRemoveQuizResourceActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -948,7 +963,10 @@ const removeQuizResourceAction = createRemoveQuizResourceActionRpc.createAction(
 	},
 );
 
-const useRemoveQuizResource = createRemoveQuizResourceActionRpc.createHook<typeof removeQuizResourceAction>();
+const useRemoveQuizResource =
+	createRemoveQuizResourceActionRpc.createHook<
+		typeof removeQuizResourceAction
+	>();
 
 const updateQuizResourceAction = createUpdateQuizResourceActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -977,7 +995,10 @@ const updateQuizResourceAction = createUpdateQuizResourceActionRpc.createAction(
 	},
 );
 
-const useUpdateQuizResource = createUpdateQuizResourceActionRpc.createHook<typeof updateQuizResourceAction>();
+const useUpdateQuizResource =
+	createUpdateQuizResourceActionRpc.createHook<
+		typeof updateQuizResourceAction
+	>();
 
 const addQuestionAction = createAddQuestionActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1007,7 +1028,8 @@ const addQuestionAction = createAddQuestionActionRpc.createAction(
 	},
 );
 
-const useAddQuestion = createAddQuestionActionRpc.createHook<typeof addQuestionAction>();
+const useAddQuestion =
+	createAddQuestionActionRpc.createHook<typeof addQuestionAction>();
 
 const removeQuestionAction = createRemoveQuestionActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1035,7 +1057,8 @@ const removeQuestionAction = createRemoveQuestionActionRpc.createAction(
 	},
 );
 
-const useRemoveQuestion = createRemoveQuestionActionRpc.createHook<typeof removeQuestionAction>();
+const useRemoveQuestion =
+	createRemoveQuestionActionRpc.createHook<typeof removeQuestionAction>();
 
 const updateQuestionAction = createUpdateQuestionActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1064,7 +1087,8 @@ const updateQuestionAction = createUpdateQuestionActionRpc.createAction(
 	},
 );
 
-const useUpdateQuestion = createUpdateQuestionActionRpc.createHook<typeof updateQuestionAction>();
+const useUpdateQuestion =
+	createUpdateQuestionActionRpc.createHook<typeof updateQuestionAction>();
 
 const addPageAction = createAddPageActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1119,7 +1143,8 @@ const removePageAction = createRemovePageActionRpc.createAction(
 	},
 );
 
-const useRemovePage = createRemovePageActionRpc.createHook<typeof removePageAction>();
+const useRemovePage =
+	createRemovePageActionRpc.createHook<typeof removePageAction>();
 
 const addNestedQuizAction = createAddNestedQuizActionRpc.createAction(
 	async ({ context, params }) => {
@@ -1145,7 +1170,8 @@ const addNestedQuizAction = createAddNestedQuizActionRpc.createAction(
 	},
 );
 
-const useAddNestedQuiz = createAddNestedQuizActionRpc.createHook<typeof addNestedQuizAction>();
+const useAddNestedQuiz =
+	createAddNestedQuizActionRpc.createHook<typeof addNestedQuizAction>();
 
 const removeNestedQuizAction = createRemoveNestedQuizActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1172,90 +1198,102 @@ const removeNestedQuizAction = createRemoveNestedQuizActionRpc.createAction(
 	},
 );
 
-const useRemoveNestedQuiz = createRemoveNestedQuizActionRpc.createHook<typeof removeNestedQuizAction>();
+const useRemoveNestedQuiz =
+	createRemoveNestedQuizActionRpc.createHook<typeof removeNestedQuizAction>();
 
-const updateNestedQuizInfoAction = createUpdateNestedQuizInfoActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+const updateNestedQuizInfoAction =
+	createUpdateNestedQuizInfoActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-		const result = await tryUpdateNestedQuizInfo({
-			payload,
-			activityModuleId: params.moduleId,
-			nestedQuizId: formData.nestedQuizId,
-			updates: formData.updates,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			const result = await tryUpdateNestedQuizInfo({
+				payload,
+				activityModuleId: params.moduleId,
+				nestedQuizId: formData.nestedQuizId,
+				updates: formData.updates,
+				req: payloadRequest,
 			});
-		}
 
-		return ok({
-			success: true,
-			message: "Nested quiz info updated successfully",
-		});
-	},
-);
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
 
-const useUpdateNestedQuizInfo = createUpdateNestedQuizInfoActionRpc.createHook<typeof updateNestedQuizInfoAction>();
-
-const reorderNestedQuizzesAction = createReorderNestedQuizzesActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		const result = await tryReorderNestedQuizzes({
-			payload,
-			activityModuleId: params.moduleId,
-			nestedQuizIds: formData.nestedQuizIds,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			return ok({
+				success: true,
+				message: "Nested quiz info updated successfully",
 			});
-		}
+		},
+	);
 
-		return ok({
-			success: true,
-			message: "Nested quizzes reordered successfully",
-		});
-	},
-);
+const useUpdateNestedQuizInfo =
+	createUpdateNestedQuizInfoActionRpc.createHook<
+		typeof updateNestedQuizInfoAction
+	>();
 
-const useReorderNestedQuizzes = createReorderNestedQuizzesActionRpc.createHook<typeof reorderNestedQuizzesAction>();
+const reorderNestedQuizzesAction =
+	createReorderNestedQuizzesActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-const updateContainerSettingsAction = createUpdateContainerSettingsActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-
-		const result = await tryUpdateContainerSettings({
-			payload,
-			activityModuleId: params.moduleId,
-			settings: formData.settings,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			const result = await tryReorderNestedQuizzes({
+				payload,
+				activityModuleId: params.moduleId,
+				nestedQuizIds: formData.nestedQuizIds,
+				req: payloadRequest,
 			});
-		}
 
-		return ok({
-			success: true,
-			message: "Container settings updated successfully",
-		});
-	},
-);
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
 
-const useUpdateContainerSettings = createUpdateContainerSettingsActionRpc.createHook<typeof updateContainerSettingsAction>();
+			return ok({
+				success: true,
+				message: "Nested quizzes reordered successfully",
+			});
+		},
+	);
 
+const useReorderNestedQuizzes =
+	createReorderNestedQuizzesActionRpc.createHook<
+		typeof reorderNestedQuizzesAction
+	>();
+
+const updateContainerSettingsAction =
+	createUpdateContainerSettingsActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+
+			const result = await tryUpdateContainerSettings({
+				payload,
+				activityModuleId: params.moduleId,
+				settings: formData.settings,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Container settings updated successfully",
+			});
+		},
+	);
+
+const useUpdateContainerSettings =
+	createUpdateContainerSettingsActionRpc.createHook<
+		typeof updateContainerSettingsAction
+	>();
 
 const updatePageInfoAction = createUpdatePageInfoActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1284,7 +1322,8 @@ const updatePageInfoAction = createUpdatePageInfoActionRpc.createAction(
 	},
 );
 
-const useUpdatePageInfo = createUpdatePageInfoActionRpc.createHook<typeof updatePageInfoAction>();
+const useUpdatePageInfo =
+	createUpdatePageInfoActionRpc.createHook<typeof updatePageInfoAction>();
 
 const reorderPagesAction = createReorderPagesActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1312,7 +1351,8 @@ const reorderPagesAction = createReorderPagesActionRpc.createAction(
 	},
 );
 
-const useReorderPages = createReorderPagesActionRpc.createHook<typeof reorderPagesAction>();
+const useReorderPages =
+	createReorderPagesActionRpc.createHook<typeof reorderPagesAction>();
 
 const moveQuestionToPageAction = createMoveQuestionToPageActionRpc.createAction(
 	async ({ context, params, formData }) => {
@@ -1342,36 +1382,43 @@ const moveQuestionToPageAction = createMoveQuestionToPageActionRpc.createAction(
 	},
 );
 
-const useMoveQuestionToPage = createMoveQuestionToPageActionRpc.createHook<typeof moveQuestionToPageAction>();
+const useMoveQuestionToPage =
+	createMoveQuestionToPageActionRpc.createHook<
+		typeof moveQuestionToPageAction
+	>();
 
-const updateQuestionScoringAction = createUpdateQuestionScoringActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+const updateQuestionScoringAction =
+	createUpdateQuestionScoringActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-		const result = await tryUpdateQuestionScoring({
-			payload,
-			activityModuleId: params.moduleId,
-			questionId: formData.questionId,
-			scoring: formData.scoring,
-			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			const result = await tryUpdateQuestionScoring({
+				payload,
+				activityModuleId: params.moduleId,
+				questionId: formData.questionId,
+				scoring: formData.scoring,
+				nestedQuizId: formData.nestedQuizId,
+				req: payloadRequest,
 			});
-		}
 
-		return ok({
-			success: true,
-			message: "Question scoring updated successfully",
-		});
-	},
-);
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
 
-const useUpdateQuestionScoring = createUpdateQuestionScoringActionRpc.createHook<typeof updateQuestionScoringAction>();
+			return ok({
+				success: true,
+				message: "Question scoring updated successfully",
+			});
+		},
+	);
+
+const useUpdateQuestionScoring =
+	createUpdateQuestionScoringActionRpc.createHook<
+		typeof updateQuestionScoringAction
+	>();
 
 const updateMultipleChoiceQuestionAction =
 	createUpdateMultipleChoiceQuestionActionRpc.createAction(
@@ -1406,32 +1453,33 @@ const useUpdateMultipleChoiceQuestion =
 		typeof updateMultipleChoiceQuestionAction
 	>();
 
-const updateChoiceQuestionAction = createUpdateChoiceQuestionActionRpc.createAction(
-	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+const updateChoiceQuestionAction =
+	createUpdateChoiceQuestionActionRpc.createAction(
+		async ({ context, params, formData }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
 
-		const result = await tryUpdateChoiceQuestion({
-			payload,
-			activityModuleId: params.moduleId,
-			questionId: formData.questionId,
-			options: formData.options,
-			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
-		});
-
-		if (!result.ok) {
-			return badRequest({
-				success: false,
-				error: result.error.message,
+			const result = await tryUpdateChoiceQuestion({
+				payload,
+				activityModuleId: params.moduleId,
+				questionId: formData.questionId,
+				options: formData.options,
+				nestedQuizId: formData.nestedQuizId,
+				req: payloadRequest,
 			});
-		}
 
-		return ok({
-			success: true,
-			message: "Choice question updated successfully",
-		});
-	},
-);
+			if (!result.ok) {
+				return badRequest({
+					success: false,
+					error: result.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Choice question updated successfully",
+			});
+		},
+	);
 
 const useUpdateChoiceQuestion =
 	createUpdateChoiceQuestionActionRpc.createHook<
@@ -1943,9 +1991,8 @@ function FileFormWrapper({
 						description: values.description,
 						fileMedia: [...values.files.mediaIds, ...values.files.files],
 					},
-				})
-			}
-			}
+				});
+			}}
 			uploadLimit={uploadLimit}
 			existingMedia={module.media ?? []}
 			isLoading={isLoading}
@@ -2011,9 +2058,6 @@ function AssignmentFormWrapper({
 		/>
 	);
 }
-
-
-
 
 function getDiscussionFormInitialValues(
 	module: Extract<

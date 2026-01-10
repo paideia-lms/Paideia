@@ -1,7 +1,7 @@
 import { Paper, Typography } from "@mantine/core";
 
 interface PagePreviewProps {
-	/** 
+	/**
 	 * html rich text content
 	 */
 	content: string;

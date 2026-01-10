@@ -1,8 +1,13 @@
-import { Button, Checkbox, NumberInput, Paper, Stack, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import {
-	useUpdateGradingConfig,
-} from "app/routes/user/module/edit-setting/route";
+	Button,
+	Checkbox,
+	NumberInput,
+	Paper,
+	Stack,
+	Title,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { useUpdateGradingConfig } from "app/routes/user/module/edit-setting/route";
 import type { QuizConfig } from "./types";
 import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 

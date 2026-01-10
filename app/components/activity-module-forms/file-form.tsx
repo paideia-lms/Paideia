@@ -30,7 +30,6 @@ export function FileForm({
 	existingMedia = [],
 	isLoading,
 }: FileFormProps) {
-
 	const form = useForm({
 		mode: "uncontrolled",
 		cascadeUpdates: true,

@@ -19,7 +19,7 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { parseAsInteger, } from "nuqs";
+import { parseAsInteger } from "nuqs";
 import { useState } from "react";
 import { href, Link } from "react-router";
 import { typeCreateLoader } from "app/utils/loader-utils";
@@ -33,7 +33,8 @@ import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
-type GradebookSetupItem = Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
+type GradebookSetupItem =
+	Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -54,62 +55,60 @@ const createRouteLoader = createLoader({
 	searchParams: loaderSearchParams,
 });
 
-export const loader = createRouteLoader(async ({
-	context,
-	searchParams,
-	params,
-}) => {
-	const { payload, hints, payloadRequest } = context.get(globalContextKey);
-	const courseContext = context.get(courseContextKey);
-	const userSession = context.get(userContextKey);
-	const timeZone = hints.timeZone;
+export const loader = createRouteLoader(
+	async ({ context, searchParams, params }) => {
+		const { payload, hints, payloadRequest } = context.get(globalContextKey);
+		const courseContext = context.get(courseContextKey);
+		const userSession = context.get(userContextKey);
+		const timeZone = hints.timeZone;
 
-	// Get course view data using the course context
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found or access denied");
-	}
+		// Get course view data using the course context
+		if (!courseContext) {
+			throw new ForbiddenResponse("Course not found or access denied");
+		}
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	const _currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+		const _currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	// Prepare user object for internal functions
-	// Get selected user from search params
-	const userId = searchParams.userId;
+		// Prepare user object for internal functions
+		// Get selected user from search params
+		const userId = searchParams.userId;
 
-	// Filter to only student enrollments
-	const studentEnrollments = courseContext.course.enrollments.filter(
-		(e) => e.role === "student",
-	);
+		// Filter to only student enrollments
+		const studentEnrollments = courseContext.course.enrollments.filter(
+			(e) => e.role === "student",
+		);
 
-	// Find enrollment for the selected user (only from students)
-	const enrollment = studentEnrollments.find((e) => e.user.id === userId);
+		// Find enrollment for the selected user (only from students)
+		const enrollment = studentEnrollments.find((e) => e.user.id === userId);
 
-	const singleUserGradesResult =
-		userId && enrollment
-			? await tryGetAdjustedSingleUserGrades({
-				payload,
-				req: payloadRequest,
-				courseId: courseContext.course.id,
-				enrollmentId: enrollment.id,
-			}).getOrDefault(defaultSingleUserGradesResult)
-			: defaultSingleUserGradesResult;
+		const singleUserGradesResult =
+			userId && enrollment
+				? await tryGetAdjustedSingleUserGrades({
+						payload,
+						req: payloadRequest,
+						courseId: courseContext.course.id,
+						enrollmentId: enrollment.id,
+					}).getOrDefault(defaultSingleUserGradesResult)
+				: defaultSingleUserGradesResult;
 
-	return {
-		course: courseContext.course,
-		enrollments: studentEnrollments,
-		singleUserGrades: singleUserGradesResult.json,
-		singleUserGradesYaml: singleUserGradesResult.yaml,
-		singleUserGradesMarkdown: singleUserGradesResult.markdown,
-		timeZone,
-		gradebookSetupForUI: courseContext.gradebookSetupForUI,
-		searchParams,
-		params,
-	};
-})!;
+		return {
+			course: courseContext.course,
+			enrollments: studentEnrollments,
+			singleUserGrades: singleUserGradesResult.json,
+			singleUserGradesYaml: singleUserGradesResult.yaml,
+			singleUserGradesMarkdown: singleUserGradesResult.markdown,
+			timeZone,
+			gradebookSetupForUI: courseContext.gradebookSetupForUI,
+			searchParams,
+			params,
+		};
+	},
+)!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -122,9 +121,7 @@ export default function CourseGradesSingleViewPage({
 		enrollments,
 		singleUserGrades,
 		course,
-		searchParams: {
-			userId: selectedUserId,
-		},
+		searchParams: { userId: selectedUserId },
 	} = loaderData;
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
@@ -483,15 +480,15 @@ function matchItemsToStructure(
 				weight: gradeData?.weight ?? item.weight,
 				gradeData: gradeData
 					? {
-						base_grade: gradeData.base_grade ?? null,
-						override_grade: gradeData.override_grade ?? null,
-						is_overridden: gradeData.is_overridden,
-						feedback: gradeData.feedback ?? null,
-						graded_at: gradeData.graded_at ?? null,
-						submitted_at: gradeData.submitted_at ?? null,
-						status: gradeData.status,
-						adjustments: gradeData.adjustments ?? [],
-					}
+							base_grade: gradeData.base_grade ?? null,
+							override_grade: gradeData.override_grade ?? null,
+							is_overridden: gradeData.is_overridden,
+							feedback: gradeData.feedback ?? null,
+							graded_at: gradeData.graded_at ?? null,
+							submitted_at: gradeData.submitted_at ?? null,
+							status: gradeData.status,
+							adjustments: gradeData.adjustments ?? [],
+						}
 					: undefined,
 			});
 		}
@@ -605,7 +602,7 @@ function SingleUserGradeTableView({
 							</Text>
 							<Text size="lg" fw={700}>
 								{enrollment.final_grade !== null &&
-									enrollment.final_grade !== undefined
+								enrollment.final_grade !== undefined
 									? enrollment.final_grade.toFixed(2)
 									: "-"}
 							</Text>

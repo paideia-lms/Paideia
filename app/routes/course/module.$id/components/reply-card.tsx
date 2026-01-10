@@ -18,7 +18,10 @@ import type { DiscussionReply } from "~/components/activity-modules-preview/disc
 import { FormableSimpleRichTextEditor } from "app/components/form-components/formable-simple-rich-text-editor";
 import { useCreateReply } from "../route";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
-import { getRouteUrl, useNuqsSearchParams } from "app/utils/search-params-utils";
+import {
+	getRouteUrl,
+	useNuqsSearchParams,
+} from "app/utils/search-params-utils";
 import type { inferParserType } from "nuqs";
 import { loaderSearchParams } from "../route";
 import { useForm } from "@mantine/form";
@@ -78,12 +81,13 @@ export function ReplyCardWithUpvote({
 								to={
 									courseId && reply.authorId
 										? getRouteUrl("/course/:courseId/participants/profile", {
-											params: {
-												courseId: courseId.toString(),
-											}, searchParams: {
-												userId: reply.authorId,
-											}
-										})
+												params: {
+													courseId: courseId.toString(),
+												},
+												searchParams: {
+													userId: reply.authorId,
+												},
+											})
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}
@@ -149,19 +153,21 @@ export function ReplyCardWithUpvote({
 			{/* Inline Reply Form */}
 			{isReplyingToThis && (
 				<Paper withBorder p="md" radius="sm" bg="gray.0" mt="sm">
-					<form onSubmit={form.onSubmit(async ({ content }) => {
-						await createReply({
-							params: { moduleLinkId },
-							values: {
-								content: content.trim(),
-								parentThread: threadId,
-							},
-							searchParams: {
-								replyTo: Number(reply.id),
-							},
-						});
-						setQueryParams({ replyTo: null });
-					})}>
+					<form
+						onSubmit={form.onSubmit(async ({ content }) => {
+							await createReply({
+								params: { moduleLinkId },
+								values: {
+									content: content.trim(),
+									parentThread: threadId,
+								},
+								searchParams: {
+									replyTo: Number(reply.id),
+								},
+							});
+							setQueryParams({ replyTo: null });
+						})}
+					>
 						<Stack gap="md">
 							<Text size="sm" fw={500}>
 								Replying to {reply.author}...

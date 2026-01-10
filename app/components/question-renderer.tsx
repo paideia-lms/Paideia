@@ -48,7 +48,14 @@ import {
 	IconMaximize,
 	IconMinimize,
 } from "@tabler/icons-react";
-import { lazy, Suspense, useLayoutEffect, useRef, useState, useMemo } from "react";
+import {
+	lazy,
+	Suspense,
+	useLayoutEffect,
+	useRef,
+	useState,
+	useMemo,
+} from "react";
 import type {
 	ArticleQuestion,
 	ChoiceQuestion,
@@ -121,9 +128,12 @@ export function QuestionRenderer({
 		controlledOnChange?.(newValue);
 	};
 
-	useEffectForAnyObject(() => {
-		setValue(initialValue ?? defaultValue);
-	}, { initialValue, defaultValue });
+	useEffectForAnyObject(
+		() => {
+			setValue(initialValue ?? defaultValue);
+		},
+		{ initialValue, defaultValue },
+	);
 
 	switch (question.type) {
 		case "multiple-choice":

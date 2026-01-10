@@ -108,7 +108,6 @@ export function getChildrenIds(
 	return item?.children || [];
 }
 
-
 // Calculate move operation from drag and drop parameters
 
 export function calculateMoveOperation(

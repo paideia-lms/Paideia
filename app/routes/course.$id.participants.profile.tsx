@@ -36,17 +36,11 @@ export const loaderSearchParams = {
 	userId: parseAsInteger,
 };
 
-
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createLoader({
 	searchParams: loaderSearchParams,
-})(async ({
-	request,
-	context,
-	params,
-	searchParams,
-}) => {
+})(async ({ request, context, params, searchParams }) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -65,18 +59,17 @@ export const loader = createLoader({
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-
 	// Check if user can impersonate the selected user
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? permissions.admin.canImpersonateUser(
-			userSession.authenticatedUser,
-			{
-				id: userId,
-				role: "student", // Enrolled users are not admins
-			},
-			userSession.isImpersonating,
-		).allowed
+				userSession.authenticatedUser,
+				{
+					id: userId,
+					role: "student", // Enrolled users are not admins
+				},
+				userSession.isImpersonating,
+			).allowed
 		: false;
 
 	return {
@@ -97,9 +90,7 @@ export default function CourseParticipantsProfilePage({
 }: Route.ComponentProps) {
 	const {
 		course,
-		searchParams: {
-			userId: selectedUserId,
-		},
+		searchParams: { userId: selectedUserId },
 		canImpersonate,
 	} = loaderData;
 	const { submit: impersonate, isLoading } = useImpersonate();
@@ -184,8 +175,8 @@ export default function CourseParticipantsProfilePage({
 								src={
 									selectedEnrollment.user.avatar
 										? href(`/api/media/file/:mediaId`, {
-											mediaId: selectedEnrollment.user.avatar.toString(),
-										})
+												mediaId: selectedEnrollment.user.avatar.toString(),
+											})
 										: undefined
 								}
 								alt={

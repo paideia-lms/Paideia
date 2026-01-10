@@ -2,13 +2,17 @@ import { createContext as createReactContext, useContext } from "react";
 import type { Simplify } from "type-fest";
 const NO_PROVIDER = Symbol("NO_PROVIDER");
 
-/** 
+/**
  * only pick the keys that are functions and not optional
  */
-type ExtractFunctionKeys<T extends object> = Simplify<Pick<T, {
-    [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
-}[keyof T]>>;
-
+type ExtractFunctionKeys<T extends object> = Simplify<
+	Pick<
+		T,
+		{
+			[K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
+		}[keyof T]
+	>
+>;
 
 /**
  * Creates a context and hook pair from a custom hook.
@@ -25,8 +29,8 @@ type ExtractFunctionKeys<T extends object> = Simplify<Pick<T, {
  * // In provider component:
  * function MyProvider({ children, ...props }: MyProps & { children: React.ReactNode }) {
  *   const values = useMyHook(props);
- *   return <MyContext.Provider value={{ 
- * 
+ *   return <MyContext.Provider value={{
+ *
  * }}>{children}</MyContext.Provider>;
  * }
  *
@@ -39,29 +43,31 @@ type ExtractFunctionKeys<T extends object> = Simplify<Pick<T, {
  * ```
  */
 export function createContext<Value extends object>(
-    useHook: (...args: any[]) => Value,
-    displayName?: string,
+	useHook: (...args: any[]) => Value,
+	displayName?: string,
 ): [
-        React.Context<ExtractFunctionKeys<Value> | typeof NO_PROVIDER>,
-        () => ExtractFunctionKeys<Value>,
-    ] {
-    const context = createReactContext<ExtractFunctionKeys<Value> | typeof NO_PROVIDER>(NO_PROVIDER);
+	React.Context<ExtractFunctionKeys<Value> | typeof NO_PROVIDER>,
+	() => ExtractFunctionKeys<Value>,
+] {
+	const context = createReactContext<
+		ExtractFunctionKeys<Value> | typeof NO_PROVIDER
+	>(NO_PROVIDER);
 
-    if (displayName) {
-        context.displayName = displayName;
-    }
+	if (displayName) {
+		context.displayName = displayName;
+	}
 
-    const useContextValue = () => {
-        const value = useContext(context);
-        if (value === NO_PROVIDER) {
-            const hookName = useHook.name || "Unknown";
-            const contextName = hookName.replace(/^use/, "") || "Context";
-            throw new Error(
-                `${contextName} must be used within its corresponding Provider`,
-            );
-        }
-        return value;
-    };
+	const useContextValue = () => {
+		const value = useContext(context);
+		if (value === NO_PROVIDER) {
+			const hookName = useHook.name || "Unknown";
+			const contextName = hookName.replace(/^use/, "") || "Context";
+			throw new Error(
+				`${contextName} must be used within its corresponding Provider`,
+			);
+		}
+		return value;
+	};
 
-    return [context, useContextValue];
+	return [context, useContextValue];
 }

@@ -105,9 +105,8 @@ const updateMaintenanceAction = updateMaintenanceRpc.createAction(
 	},
 );
 
-const useUpdateMaintenance = updateMaintenanceRpc.createHook<
-	typeof updateMaintenanceAction
->();
+const useUpdateMaintenance =
+	updateMaintenanceRpc.createHook<typeof updateMaintenanceAction>();
 
 // Export hook for use in component
 export { useUpdateMaintenance };

@@ -55,6 +55,8 @@ describe("Category Role Management Functions", () => {
 						role: "admin",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				}),
 				tryCreateUser({
 					payload,
@@ -66,6 +68,8 @@ describe("Category Role Management Functions", () => {
 						role: "student",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				}),
 				tryCreateUser({
 					payload,
@@ -77,6 +81,8 @@ describe("Category Role Management Functions", () => {
 						role: "student",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				}),
 				tryCreateUser({
 					payload,
@@ -88,6 +94,8 @@ describe("Category Role Management Functions", () => {
 						role: "student",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				}),
 			]);
 
@@ -665,6 +673,8 @@ describe("Category Role Management Functions", () => {
 				category: category.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		await tryCreateCourse({
@@ -677,6 +687,8 @@ describe("Category Role Management Functions", () => {
 				category: subcategory.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		// Assign role on parent category
@@ -731,6 +743,8 @@ describe("Category Role Management Functions", () => {
 				category: category.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!course.ok) return;
@@ -800,6 +814,8 @@ describe("Category Role Management Functions", () => {
 				category: childCat.value.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!course.ok) return;

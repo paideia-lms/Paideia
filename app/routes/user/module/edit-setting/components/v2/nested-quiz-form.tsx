@@ -28,20 +28,17 @@ export function NestedQuizForm({
 		pages: nestedQuiz.pages,
 		resources: nestedQuiz.resources,
 		globalTimer: nestedQuiz.globalTimer,
-		grading: parentQuizConfig.type === "container" ? parentQuizConfig.grading : undefined,
+		grading:
+			parentQuizConfig.type === "container"
+				? parentQuizConfig.grading
+				: undefined,
 	};
 
 	return (
 		<Stack gap="md">
-			<UpdateNestedQuizInfoForm
-				moduleId={moduleId}
-				nestedQuiz={nestedQuiz}
-			/>
+			<UpdateNestedQuizInfoForm moduleId={moduleId} nestedQuiz={nestedQuiz} />
 
-			<UpdateNestedQuizTimerForm
-				moduleId={moduleId}
-				nestedQuiz={nestedQuiz}
-			/>
+			<UpdateNestedQuizTimerForm moduleId={moduleId} nestedQuiz={nestedQuiz} />
 
 			<ResourcesList
 				moduleId={moduleId}

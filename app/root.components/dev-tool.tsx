@@ -20,7 +20,10 @@ interface DevToolProps {
 
 type AffixPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
-const POSITION_MAP: Record<AffixPosition, { top?: number; bottom?: number; left?: number; right?: number }> = {
+const POSITION_MAP: Record<
+	AffixPosition,
+	{ top?: number; bottom?: number; left?: number; right?: number }
+> = {
 	"top-left": { top: 20, left: 20 },
 	"top-right": { top: 20, right: 20 },
 	"bottom-left": { bottom: 20, left: 20 },
@@ -50,7 +53,13 @@ export function DevTool({ data }: DevToolProps) {
 
 	// Get the data to display based on selection
 	const displayData = useMemo(() => {
-		if (!selectedKey || selectedKey === "all" || !data || typeof data !== "object" || Array.isArray(data)) {
+		if (
+			!selectedKey ||
+			selectedKey === "all" ||
+			!data ||
+			typeof data !== "object" ||
+			Array.isArray(data)
+		) {
 			return data;
 		}
 		return (data as Record<string, unknown>)[selectedKey];
@@ -89,19 +98,32 @@ export function DevTool({ data }: DevToolProps) {
 					<Tabs defaultValue="data">
 						<Tabs.List>
 							<Tabs.Tab value="data">Data</Tabs.Tab>
-							<Tabs.Tab value="settings" leftSection={<IconSettings size={16} />}>
+							<Tabs.Tab
+								value="settings"
+								leftSection={<IconSettings size={16} />}
+							>
 								Settings
 							</Tabs.Tab>
 						</Tabs.List>
 
-						<Tabs.Panel value="data" pt="md" style={{ height: "500px", display: "flex", flexDirection: "column" }}>
+						<Tabs.Panel
+							value="data"
+							pt="md"
+							style={{
+								height: "500px",
+								display: "flex",
+								flexDirection: "column",
+							}}
+						>
 							<Stack gap="md" style={{ flex: 1, minHeight: 0 }}>
 								{dataKeys.length > 0 && (
 									<NativeSelect
 										label="Select Data to Display"
 										data={selectOptions}
 										value={selectedKey ?? "all"}
-										onChange={(event) => setSelectedKey(event.currentTarget.value)}
+										onChange={(event) =>
+											setSelectedKey(event.currentTarget.value)
+										}
 									/>
 								)}
 								<ScrollArea style={{ flex: 1 }}>
@@ -109,7 +131,11 @@ export function DevTool({ data }: DevToolProps) {
 										data={displayData}
 										defaultExpanded
 										maxDepth={3}
-										title={selectedKey && selectedKey !== "all" ? selectedKey : "Loader Data"}
+										title={
+											selectedKey && selectedKey !== "all"
+												? selectedKey
+												: "Loader Data"
+										}
 										showIndentGuides
 										withCopyToClipboard
 										withExpandAll

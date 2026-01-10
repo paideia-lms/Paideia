@@ -16,10 +16,7 @@ import { useForm } from "@mantine/form";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import { IconTrash } from "@tabler/icons-react";
-import {
-	createLoader,
-	parseAsStringEnum,
-} from "nuqs/server";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
 import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
 import { typeCreateLoader } from "app/utils/loader-utils";
@@ -84,11 +81,11 @@ export const loader = createRouteLoader(async ({ context }) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-				{
-					userId: enrolmentContext.enrolment.user.id,
-					role: enrolmentContext.enrolment.role,
-				},
-			]
+					{
+						userId: enrolmentContext.enrolment.user.id,
+						role: enrolmentContext.enrolment.role,
+					},
+				]
 			: undefined,
 	);
 
@@ -247,7 +244,9 @@ const updateWhiteboardSettingsAction = updateWhiteboardSettingsRpc.createAction(
 );
 
 const useUpdateWhiteboardSettings =
-	updateWhiteboardSettingsRpc.createHook<typeof updateWhiteboardSettingsAction>();
+	updateWhiteboardSettingsRpc.createHook<
+		typeof updateWhiteboardSettingsAction
+	>();
 
 const updateFileSettingsAction = updateFileSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
@@ -315,7 +314,9 @@ const updateAssignmentSettingsAction = updateAssignmentSettingsRpc.createAction(
 );
 
 const useUpdateAssignmentSettings =
-	updateAssignmentSettingsRpc.createHook<typeof updateAssignmentSettingsAction>();
+	updateAssignmentSettingsRpc.createHook<
+		typeof updateAssignmentSettingsAction
+	>();
 
 const updateQuizSettingsAction = updateQuizSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
@@ -384,7 +385,9 @@ const updateDiscussionSettingsAction = updateDiscussionSettingsRpc.createAction(
 );
 
 const useUpdateDiscussionSettings =
-	updateDiscussionSettingsRpc.createHook<typeof updateDiscussionSettingsAction>();
+	updateDiscussionSettingsRpc.createHook<
+		typeof updateDiscussionSettingsAction
+	>();
 
 // Export hooks for use in components
 export {

@@ -31,7 +31,6 @@ import {
 } from "app/utils/course-view-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
 
-
 // Define search params
 export const usersSearchParams = {
 	query: parseAsString.withDefault(""),
@@ -82,8 +81,8 @@ export const loader = createRouteLoader({
 	const users = usersResult.value.docs.map((user) => {
 		const avatarUrl = user.avatar
 			? href(`/api/media/file/:mediaId`, {
-				mediaId: user.avatar.id.toString(),
-			})
+					mediaId: user.avatar.id.toString(),
+				})
 			: null;
 
 		return {

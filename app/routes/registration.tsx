@@ -98,7 +98,8 @@ const registerRpc = createActionRpc({
 
 const registerAction = registerRpc.createAction(
 	async ({ context, formData, request }) => {
-		const { payload, requestInfo, envVars, payloadRequest } = context.get(globalContextKey);
+		const { payload, requestInfo, envVars, payloadRequest } =
+			context.get(globalContextKey);
 
 		// Determine if first user
 		const userCountResult = await tryGetUserCount({

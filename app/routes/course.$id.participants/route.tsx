@@ -32,8 +32,6 @@ enum Action {
 	DeleteEnrollment = "deleteEnrollment",
 }
 
-
-
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/course/:courseId/participants",
 });
@@ -98,7 +96,7 @@ export const loader = createLoaderRpc({
 });
 
 // Shared authorization check
-// TODO: this should be moved to payload collection level 
+// TODO: this should be moved to payload collection level
 const checkAuthorization = async (
 	context: Route.ActionArgs["context"],
 	courseId: number,
@@ -194,7 +192,8 @@ const editEnrollmentAction = editEnrollmentRpc.createAction(
 	},
 );
 
-const useEditEnrollment = editEnrollmentRpc.createHook<typeof editEnrollmentAction>();
+const useEditEnrollment =
+	editEnrollmentRpc.createHook<typeof editEnrollmentAction>();
 
 const deleteEnrollmentAction = deleteEnrollmentRpc.createAction(
 	async ({ context, formData, params }) => {
@@ -241,7 +240,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData && "success" in actionData && actionData.success) {
 		notifications.show({
 			title: "Success",
-			message: "message" in actionData ? actionData.message : "Operation completed successfully",
+			message:
+				"message" in actionData
+					? actionData.message
+					: "Operation completed successfully",
 			color: "green",
 		});
 	} else if (actionData && "error" in actionData) {

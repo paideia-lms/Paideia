@@ -1,59 +1,58 @@
 import { Button, NumberInput, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-    useUpdateQuestionScoring,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateQuestionScoring } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface ManualScoringFormProps {
-    moduleId: number;
-    question: Question;
-    scoring: Extract<Question["scoring"], { type: "manual" }>;
-    nestedQuizId?: string;
+	moduleId: number;
+	question: Question;
+	scoring: Extract<Question["scoring"], { type: "manual" }>;
+	nestedQuizId?: string;
 }
 
 export function ManualScoringForm({
-    moduleId,
-    question,
-    scoring,
-    nestedQuizId,
+	moduleId,
+	question,
+	scoring,
+	nestedQuizId,
 }: ManualScoringFormProps) {
-    const { submit: updateQuestionScoring, isLoading } = useUpdateQuestionScoring();
+	const { submit: updateQuestionScoring, isLoading } =
+		useUpdateQuestionScoring();
 
-    const form = useForm({
-        initialValues: {
-            maxPoints: scoring.maxPoints,
-        },
-    });
+	const form = useForm({
+		initialValues: {
+			maxPoints: scoring.maxPoints,
+		},
+	});
 
-    return (
-        <form
-            onSubmit={form.onSubmit((values) => {
-                updateQuestionScoring({
-                    params: { moduleId },
-                    values: {
-                        questionId: question.id,
-                        scoring: {
-                            type: "manual",
-                            maxPoints: values.maxPoints,
-                        },
-                        nestedQuizId,
-                    },
-                });
-            })}
-        >
-            <Stack gap="md">
-                <Title order={5}>Scoring</Title>
-                <NumberInput
-                    {...form.getInputProps("maxPoints")}
-                    label="Maximum Points"
-                    description="Maximum points for manual grading"
-                    min={0}
-                />
-                <Button type="submit" loading={isLoading}>
-                    Save Scoring
-                </Button>
-            </Stack>
-        </form>
-    );
+	return (
+		<form
+			onSubmit={form.onSubmit((values) => {
+				updateQuestionScoring({
+					params: { moduleId },
+					values: {
+						questionId: question.id,
+						scoring: {
+							type: "manual",
+							maxPoints: values.maxPoints,
+						},
+						nestedQuizId,
+					},
+				});
+			})}
+		>
+			<Stack gap="md">
+				<Title order={5}>Scoring</Title>
+				<NumberInput
+					{...form.getInputProps("maxPoints")}
+					label="Maximum Points"
+					description="Maximum points for manual grading"
+					min={0}
+				/>
+				<Button type="submit" loading={isLoading}>
+					Save Scoring
+				</Button>
+			</Stack>
+		</form>
+	);
 }

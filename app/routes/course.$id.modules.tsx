@@ -161,9 +161,9 @@ const checkAuthorization = async (
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 
@@ -232,7 +232,8 @@ const createAction = createModuleLinkRpc.createAction(
 	},
 );
 
-const useCreateModuleLink = createModuleLinkRpc.createHook<typeof createAction>();
+const useCreateModuleLink =
+	createModuleLinkRpc.createHook<typeof createAction>();
 
 const deleteAction = deleteModuleLinkRpc.createAction(
 	async ({ context, formData, params }) => {
@@ -262,14 +263,14 @@ const deleteAction = deleteModuleLinkRpc.createAction(
 	},
 );
 
-const useDeleteModuleLink = deleteModuleLinkRpc.createHook<typeof deleteAction>();
+const useDeleteModuleLink =
+	deleteModuleLinkRpc.createHook<typeof deleteAction>();
 
 // Export hooks for use in components
 export { useCreateModuleLink, useDeleteModuleLink };
 
-
 interface ActivityModulesSectionProps {
-	existingLinks: Route.ComponentProps["loaderData"]["course"]["moduleLinks"]
+	existingLinks: Route.ComponentProps["loaderData"]["course"]["moduleLinks"];
 	availableModules: Route.ComponentProps["loaderData"]["availableModules"];
 	canEdit: boolean;
 	courseId: number;
@@ -280,10 +281,7 @@ interface AddModuleButtonProps {
 	courseId: number;
 }
 
-function AddModuleButton({
-	availableModules,
-	courseId,
-}: AddModuleButtonProps) {
+function AddModuleButton({ availableModules, courseId }: AddModuleButtonProps) {
 	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 	const { submit: createModuleLink, isLoading: isCreating } =
 		useCreateModuleLink();
@@ -428,7 +426,10 @@ function ActivityModulesSection({
 										</Table.Td>
 										{canEdit && (
 											<Table.Td>
-												<DeleteModuleButton linkId={link.id} courseId={courseId} />
+												<DeleteModuleButton
+													linkId={link.id}
+													courseId={courseId}
+												/>
 											</Table.Td>
 										)}
 									</Table.Tr>
@@ -458,7 +459,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,

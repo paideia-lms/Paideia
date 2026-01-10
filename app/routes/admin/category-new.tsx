@@ -96,7 +96,8 @@ const createCategoryAction = createCategoryRpc.createAction(
 	},
 );
 
-const useCreateCategory = createCategoryRpc.createHook<typeof createCategoryAction>();
+const useCreateCategory =
+	createCategoryRpc.createHook<typeof createCategoryAction>();
 
 // Export hook for use in components
 export { useCreateCategory };

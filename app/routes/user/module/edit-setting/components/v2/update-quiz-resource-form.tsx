@@ -30,8 +30,7 @@ function RemoveQuizResourceButton({
 	resourceId,
 	nestedQuizId,
 }: RemoveQuizResourceButtonProps) {
-	const { submit: removeQuizResource, isLoading } =
-		useRemoveQuizResource();
+	const { submit: removeQuizResource, isLoading } = useRemoveQuizResource();
 
 	return (
 		<Button
@@ -54,7 +53,6 @@ function RemoveQuizResourceButton({
 	);
 }
 
-
 interface UpdateQuizResourceFormProps {
 	moduleId: number;
 	resource: QuizResource;
@@ -70,8 +68,7 @@ export function UpdateQuizResourceForm({
 	availablePages,
 	nestedQuizId,
 }: UpdateQuizResourceFormProps) {
-	const { submit: updateQuizResource, isLoading } =
-		useUpdateQuizResource();
+	const { submit: updateQuizResource, isLoading } = useUpdateQuizResource();
 	const [isExpanded, setIsExpanded] = useState(false);
 
 	const form = useForm({
@@ -161,7 +158,10 @@ export function UpdateQuizResourceForm({
 												onChange={(e) => {
 													const currentPages = form.values.pages;
 													if (e.currentTarget.checked) {
-														form.setFieldValue("pages", [...currentPages, page.id]);
+														form.setFieldValue("pages", [
+															...currentPages,
+															page.id,
+														]);
 													} else {
 														form.setFieldValue(
 															"pages",

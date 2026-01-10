@@ -30,7 +30,7 @@ import { parseAsBoolean } from "nuqs";
 
 export const loaderSearchParams = {
 	reload: parseAsBoolean.withDefault(false),
-}
+};
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -59,10 +59,14 @@ export const loader = createRouteLoader({
 });
 
 type CourseInfoProps = {
-	course: Route.ComponentProps["loaderData"]['course']
-}
+	course: Route.ComponentProps["loaderData"]["course"];
+};
 function CourseInfo({ course }: CourseInfoProps) {
-	const instructors = course.enrollments.filter(enrollment => (enrollment.role === "teacher" || enrollment.role === "ta") && enrollment.status === "active");
+	const instructors = course.enrollments.filter(
+		(enrollment) =>
+			(enrollment.role === "teacher" || enrollment.role === "ta") &&
+			enrollment.status === "active",
+	);
 	return (
 		<Paper withBorder shadow="sm" p="xl" radius="md">
 			<Stack gap="xl">
@@ -72,9 +76,7 @@ function CourseInfo({ course }: CourseInfoProps) {
 							params: {
 								mediaId: course.thumbnail.id.toString(),
 							},
-							searchParams: {
-
-							},
+							searchParams: {},
 						})}
 						alt={course.title}
 						radius="md"
@@ -128,13 +130,17 @@ function CourseInfo({ course }: CourseInfoProps) {
 											src={
 												instructor.user.avatar
 													? getRouteUrl("/api/user/:id/avatar", {
-														params: {
-															id: instructor.user.id.toString(),
-														}
-													})
+															params: {
+																id: instructor.user.id.toString(),
+															},
+														})
 													: undefined
 											}
-											name={instructor.user.firstName + " " + instructor.user.lastName}
+											name={
+												instructor.user.firstName +
+												" " +
+												instructor.user.lastName
+											}
 											style={{ cursor: "pointer" }}
 										/>
 									</Tooltip>
@@ -211,9 +217,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 					)}
 				</Group>
 
-				<CourseInfo
-					course={course}
-				/>
+				<CourseInfo course={course} />
 
 				<Paper shadow="sm" p="md" withBorder>
 					<Stack gap="md">

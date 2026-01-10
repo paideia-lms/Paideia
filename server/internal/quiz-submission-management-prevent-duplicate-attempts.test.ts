@@ -123,6 +123,8 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 				description: "Test section",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create course-activity-module-link

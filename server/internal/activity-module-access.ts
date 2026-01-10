@@ -299,7 +299,7 @@ export function tryFindGrantsByActivityModule(
 export function tryFindInstructorsForActivityModule(
 	args: FindInstructorsForActivityModuleArgs,
 ) {
-		return Result.try(
+	return Result.try(
 		async () => {
 			const { payload, activityModuleId, req } = args;
 

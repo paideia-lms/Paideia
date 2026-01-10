@@ -481,6 +481,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			payload,
 			studentId,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(studentListResult.ok).toBe(true);
@@ -496,6 +498,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			payload,
 			status: "draft",
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(draftListResult.ok).toBe(true);
@@ -691,6 +695,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			limit: 2,
 			page: 1,
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(page1Result.ok).toBe(true);

@@ -70,7 +70,7 @@ export interface SearchResult {
  * "John" in:users,courses -> will search for "John" in the users and courses collections
  */
 export function tryGlobalSearch(args: SearchArgs) {
-		return Result.try(
+	return Result.try(
 		async () => {
 			const { payload, query, limit = 10, page = 1, req } = args;
 

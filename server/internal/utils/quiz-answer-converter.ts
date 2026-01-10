@@ -379,10 +379,7 @@ export function convertDatabaseAnswersToQuizAnswers(
 					quizAnswers[dbAnswer.questionId] = typedAnswer.value;
 					break;
 			}
-		} catch (error) {
-			// Skip invalid answers
-			continue;
-		}
+		} catch (error) {}
 	}
 
 	return quizAnswers;

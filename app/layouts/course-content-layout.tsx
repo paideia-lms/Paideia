@@ -5,9 +5,16 @@ import {
 	Container,
 	Grid,
 	Tooltip,
-	Button, Group, Paper, Text
+	Button,
+	Group,
+	Paper,
+	Text,
 } from "@mantine/core";
-import { useDisclosure, useClickOutside, useIsFirstRender } from "@mantine/hooks";
+import {
+	useDisclosure,
+	useClickOutside,
+	useIsFirstRender,
+} from "@mantine/hooks";
 import {
 	IconLayoutSidebarLeftCollapse,
 	IconLayoutSidebarLeftExpand,
@@ -40,7 +47,12 @@ import { useEffect } from "react";
 import { Link } from "react-router";
 import { useUpdateCourseStructure } from "~/routes/api/course-structure-tree";
 import { getModuleIcon } from "~/utils/module-helper";
-import { calculateMoveOperation, convertCourseStructureToFlatData, getChildrenIds, type TreeNode } from "app/utils/course-structure-tree-utils";
+import {
+	calculateMoveOperation,
+	convertCourseStructureToFlatData,
+	getChildrenIds,
+	type TreeNode,
+} from "app/utils/course-structure-tree-utils";
 import { getRouteUrl } from "app/utils/search-params-utils";
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
@@ -253,7 +265,10 @@ function CourseStructureTree({
 					<Button
 						size="compact-xs"
 						component={Link}
-						to={getRouteUrl("/course/:courseId", { params: { courseId: courseId.toString() }, searchParams: {} })}
+						to={getRouteUrl("/course/:courseId", {
+							params: { courseId: courseId.toString() },
+							searchParams: {},
+						})}
 						variant="light"
 					>
 						Root
@@ -419,16 +434,10 @@ function CourseStructureTree({
 	);
 }
 
-
 export default function CourseContentLayout({
 	loaderData,
 }: Route.ComponentProps) {
-	const {
-		course,
-		courseStructure,
-		canEdit,
-		currentItemId,
-	} = loaderData;
+	const { course, courseStructure, canEdit, currentItemId } = loaderData;
 
 	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
 

@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest, TextareaField } from "payload";
 import { Result } from "typescript-result";
 import { tryParseMediaFromHtml } from "server/internal/utils/parse-media-from-html";
 import {
-	BaseInternalFunctionArgs,
+	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
 } from "server/internal/utils/internal-function-utils";

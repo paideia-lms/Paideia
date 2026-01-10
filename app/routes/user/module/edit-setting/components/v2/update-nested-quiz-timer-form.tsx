@@ -1,8 +1,6 @@
 import { Button, NumberInput, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateNestedQuizTimer,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateNestedQuizTimer } from "app/routes/user/module/edit-setting/route";
 import type { NestedQuizConfig } from "./types";
 import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
@@ -46,7 +44,11 @@ export function UpdateNestedQuizTimerForm({
 					label="Time Limit (seconds)"
 					min={0}
 				/>
-				<Button type="submit" loading={isUpdatingTimer} disabled={!form.isDirty()}>
+				<Button
+					type="submit"
+					loading={isUpdatingTimer}
+					disabled={!form.isDirty()}
+				>
 					Save Time Limit
 				</Button>
 			</Stack>

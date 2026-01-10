@@ -60,6 +60,8 @@ describe("Note Management Functions", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const userArgs2: CreateUserArgs = {
@@ -72,6 +74,8 @@ describe("Note Management Functions", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const adminArgs: CreateUserArgs = {
@@ -84,6 +88,8 @@ describe("Note Management Functions", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const userResult1 = await tryCreateUser(userArgs1);
@@ -166,6 +172,8 @@ describe("Note Management Functions", () => {
 			userId: testUser.id,
 			// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		if (!createMediaResult.ok) {
@@ -194,6 +202,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -219,6 +229,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -239,6 +251,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -255,6 +269,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -268,6 +284,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -281,6 +299,8 @@ describe("Note Management Functions", () => {
 					createdBy: 99999, // Non-existent user ID
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -302,6 +322,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (result.ok) {
 				testNote = result.value;
@@ -316,6 +338,8 @@ describe("Note Management Functions", () => {
 					content: "Updated content",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -340,6 +364,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -363,6 +389,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(createResult.ok).toBe(true);
@@ -381,6 +409,8 @@ describe("Note Management Functions", () => {
 					content: updatedHtml,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(updateResult.ok).toBe(true);
@@ -403,6 +433,8 @@ describe("Note Management Functions", () => {
 					content: "   Updated with spaces   ",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -419,6 +451,8 @@ describe("Note Management Functions", () => {
 					content: "",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -432,6 +466,8 @@ describe("Note Management Functions", () => {
 					content: "   \n\t   ",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -445,6 +481,8 @@ describe("Note Management Functions", () => {
 					content: "This should fail",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -463,6 +501,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			if (result.ok) {
 				testNote = result.value;
@@ -474,6 +514,8 @@ describe("Note Management Functions", () => {
 				payload,
 				noteId: testNote.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -488,6 +530,8 @@ describe("Note Management Functions", () => {
 			const result = await tryFindNoteById({
 				payload,
 				noteId: 99999,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -524,6 +568,8 @@ describe("Note Management Functions", () => {
 					payload,
 					data: noteData,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 			}
 		});
@@ -536,6 +582,8 @@ describe("Note Management Functions", () => {
 					limit: 10,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -560,6 +608,8 @@ describe("Note Management Functions", () => {
 					limit: 10,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -579,6 +629,8 @@ describe("Note Management Functions", () => {
 					limit: 10,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -598,6 +650,8 @@ describe("Note Management Functions", () => {
 					page: 1,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -618,6 +672,8 @@ describe("Note Management Functions", () => {
 					limit: 10,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -634,6 +690,8 @@ describe("Note Management Functions", () => {
 				userId: testUser.id,
 				limit: 10,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -656,6 +714,8 @@ describe("Note Management Functions", () => {
 				userId: testUser.id,
 				limit: 1,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -676,6 +736,8 @@ describe("Note Management Functions", () => {
 					role: "student",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const userResult = await tryCreateUser(userArgs);
@@ -685,6 +747,8 @@ describe("Note Management Functions", () => {
 					userId: userResult.value.id,
 					limit: 10,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -705,6 +769,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 			expect(createResult.ok).toBe(true);
 
@@ -713,6 +779,8 @@ describe("Note Management Functions", () => {
 					payload,
 					noteId: createResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(deleteResult.ok).toBe(true);
@@ -725,6 +793,8 @@ describe("Note Management Functions", () => {
 				const findResult = await tryFindNoteById({
 					payload,
 					noteId: createResult.value.id,
+
+					req: undefined,
 				});
 				expect(findResult.ok).toBe(false);
 			}
@@ -735,6 +805,8 @@ describe("Note Management Functions", () => {
 				payload,
 				noteId: 99999,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -758,6 +830,8 @@ describe("Note Management Functions", () => {
 					isPublic: false,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			if (privateNote1.ok) {
@@ -772,6 +846,8 @@ describe("Note Management Functions", () => {
 					isPublic: false,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			if (privateNote2.ok) {
@@ -784,12 +860,16 @@ describe("Note Management Functions", () => {
 				payload,
 				noteId: user1PrivateNote.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			const result2 = await tryFindNoteById({
 				payload,
 				noteId: user2PrivateNote.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result1.ok).toBe(true);
@@ -804,6 +884,8 @@ describe("Note Management Functions", () => {
 					content: "Updated with overrideAccess",
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -821,6 +903,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(createResult.ok).toBe(true);
@@ -830,6 +914,8 @@ describe("Note Management Functions", () => {
 					payload,
 					noteId: createResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(deleteResult.ok).toBe(true);
@@ -843,6 +929,8 @@ describe("Note Management Functions", () => {
 					limit: 100,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -907,6 +995,8 @@ describe("Note Management Functions", () => {
 					isPublic: false,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			if (privateNote1.ok) {
@@ -921,6 +1011,8 @@ describe("Note Management Functions", () => {
 					isPublic: true,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			if (publicNote1.ok) {
@@ -935,6 +1027,8 @@ describe("Note Management Functions", () => {
 					isPublic: false,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			if (privateNote2.ok) {
@@ -983,6 +1077,8 @@ describe("Note Management Functions", () => {
 					payload,
 					noteId: user2PrivateNote.id,
 					overrideAccess: false,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(false);
@@ -1014,6 +1110,8 @@ describe("Note Management Functions", () => {
 					payload,
 					noteId: user1PrivateNote.id,
 					overrideAccess: false,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(false);
@@ -1029,6 +1127,8 @@ describe("Note Management Functions", () => {
 						content: "Trying to update without auth",
 					},
 					overrideAccess: false,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(false);
@@ -1041,6 +1141,8 @@ describe("Note Management Functions", () => {
 					payload,
 					noteId: user1PublicNote.id,
 					overrideAccess: false,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(false);
@@ -1055,6 +1157,8 @@ describe("Note Management Functions", () => {
 						limit: 10,
 					},
 					overrideAccess: false,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(false);
@@ -1070,6 +1174,8 @@ describe("Note Management Functions", () => {
 						createdBy: testUser.id,
 					},
 					overrideAccess: false,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(false);
@@ -1084,6 +1190,8 @@ describe("Note Management Functions", () => {
 				payload,
 				userId: testUser.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -1151,6 +1259,8 @@ describe("Note Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);

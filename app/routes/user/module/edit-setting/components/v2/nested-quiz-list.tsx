@@ -56,7 +56,11 @@ function ContainerSettingsForm({
 					label="Sequential Order (Quizzes must be completed in order)"
 				/>
 
-				<Button type="submit" loading={isUpdatingSettings} disabled={!form.isDirty()}>
+				<Button
+					type="submit"
+					loading={isUpdatingSettings}
+					disabled={!form.isDirty()}
+				>
 					Save Container Settings
 				</Button>
 			</Stack>

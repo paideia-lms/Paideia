@@ -422,9 +422,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 
 					{!canEdit.allowed && (
 						<Alert color="red" title="Editing Restricted" mb="xl">
-							<Text size="sm">
-								{canEdit.reason}
-							</Text>
+							<Text size="sm">{canEdit.reason}</Text>
 						</Alert>
 					)}
 

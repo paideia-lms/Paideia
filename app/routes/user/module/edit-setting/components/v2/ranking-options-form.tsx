@@ -9,9 +9,7 @@ import {
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateRankingQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateRankingQuestion } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface RankingOptionsFormProps {
@@ -36,9 +34,8 @@ export function RankingOptionsForm({
 	});
 
 	const itemKeys = Object.keys(form.values.items);
-	const orderedKeys = form.values.correctOrder.length > 0
-		? form.values.correctOrder
-		: itemKeys;
+	const orderedKeys =
+		form.values.correctOrder.length > 0 ? form.values.correctOrder : itemKeys;
 
 	return (
 		<form

@@ -126,7 +126,8 @@ const updatePreferenceAction = createUpdatePreferenceActionRpc.createAction(
 	},
 );
 
-const useUpdateUserPreference = createUpdatePreferenceActionRpc.createHook<typeof updatePreferenceAction>();
+const useUpdateUserPreference =
+	createUpdatePreferenceActionRpc.createHook<typeof updatePreferenceAction>();
 
 // Export hook for use in components
 export { useUpdateUserPreference };

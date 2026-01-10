@@ -28,34 +28,36 @@ const createRouteLoader = createLoader({
 	},
 });
 
-export const loader = createRouteLoader(async ({ context, searchParams, params }) => {
-	const { pageInfo } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const courseContext = context.get(courseContextKey);
+export const loader = createRouteLoader(
+	async ({ context, searchParams, params }) => {
+		const { pageInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	// Get course view data using the course context
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found or access denied");
-	}
+		// Get course view data using the course context
+		if (!courseContext) {
+			throw new ForbiddenResponse("Course not found or access denied");
+		}
 
-	// Check if user can see course grades
-	if (!courseContext.permissions.canSeeGrades.allowed) {
-		throw new ForbiddenResponse(
-			"You don't have permission to view course grades",
-		);
-	}
+		// Check if user can see course grades
+		if (!courseContext.permissions.canSeeGrades.allowed) {
+			throw new ForbiddenResponse(
+				"You don't have permission to view course grades",
+			);
+		}
 
-	return {
-		...courseContext,
-		pageInfo,
-		searchParams,
-		params,
-	};
-})!;
+		return {
+			...courseContext,
+			pageInfo,
+			searchParams,
+			params,
+		};
+	},
+)!;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;

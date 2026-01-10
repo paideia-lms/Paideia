@@ -1,8 +1,6 @@
 import { Button, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-	useAddQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useAddQuestion } from "app/routes/user/module/edit-setting/route";
 
 interface AddQuestionFormProps {
 	moduleId: number;

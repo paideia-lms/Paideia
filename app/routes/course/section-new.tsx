@@ -99,7 +99,8 @@ const createSectionAction = createSectionRpc.createAction(
 	},
 );
 
-const useCreateSection = createSectionRpc.createHook<typeof createSectionAction>();
+const useCreateSection =
+	createSectionRpc.createHook<typeof createSectionAction>();
 
 // Export hook for use in component
 export { useCreateSection };
@@ -135,7 +136,6 @@ export const loader = createRouteLoader({
 	if (!editPermission.allowed) {
 		throw new ForbiddenResponse(editPermission.reason);
 	}
-
 
 	// Fetch all sections for parent dropdown
 	const { payload, payloadRequest } = context.get(globalContextKey);
@@ -277,7 +277,7 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 									onClick={() =>
 										navigate(
 											getRouteUrl("/course/:courseId", {
-												params: { courseId: course.id.toString(), },
+												params: { courseId: course.id.toString() },
 												searchParams: {},
 											}),
 										)

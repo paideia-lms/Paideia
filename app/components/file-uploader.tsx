@@ -113,10 +113,12 @@ export function FileUploader({
 	};
 
 	// Initialize state with FileWithStatus[]
-	const [filesWithStatus, setFilesWithStatus] = useState<FileWithStatus[]>(() => {
-		const initialValue = isControlled ? value : defaultValue;
-		return valueToFilesWithStatus(initialValue, existingMedia);
-	});
+	const [filesWithStatus, setFilesWithStatus] = useState<FileWithStatus[]>(
+		() => {
+			const initialValue = isControlled ? value : defaultValue;
+			return valueToFilesWithStatus(initialValue, existingMedia);
+		},
+	);
 
 	// Use useEffectEvent to create a stable onChange handler
 	const stableOnChange = useEffectEvent(onChange);
@@ -130,7 +132,9 @@ export function FileUploader({
 	}, [isControlled, value, existingMedia]);
 
 	// Helper to convert FileWithStatus[] back to FileUploaderValue
-	const filesWithStatusToValue = (files: FileWithStatus[]): FileUploaderValue => {
+	const filesWithStatusToValue = (
+		files: FileWithStatus[],
+	): FileUploaderValue => {
 		const mediaIds: number[] = [];
 		const fileObjects: File[] = [];
 
@@ -165,7 +169,9 @@ export function FileUploader({
 		}
 
 		// Remove items marked for deletion, then add new files
-		const filteredFiles = filesWithStatus.filter((item) => item.status !== "will-be-deleted");
+		const filteredFiles = filesWithStatus.filter(
+			(item) => item.status !== "will-be-deleted",
+		);
 		const newFilesWithStatus: FileWithStatus[] = validFiles.map((file) => ({
 			file,
 			status: "will-be-uploaded",
@@ -279,7 +285,9 @@ export function FileUploader({
 						const isWillBeUploaded = item.status === "will-be-uploaded";
 
 						// Get display info
-						const displayName = item.filename || (item.mediaId ? `File ${item.mediaId}` : "Unknown");
+						const displayName =
+							item.filename ||
+							(item.mediaId ? `File ${item.mediaId}` : "Unknown");
 						const fileType = item.mediaId
 							? getFileType(item.filename, item.mimeType)
 							: getFileType(item.file?.name, undefined);
@@ -298,7 +306,9 @@ export function FileUploader({
 									border: `1px solid ${isMarkedForDeletion ? "var(--mantine-color-red-6)" : "var(--mantine-color-gray-3)"}`,
 									borderRadius: "var(--mantine-radius-sm)",
 									opacity: isMarkedForDeletion ? 0.6 : 1,
-									backgroundColor: isMarkedForDeletion ? "var(--mantine-color-red-0)" : undefined,
+									backgroundColor: isMarkedForDeletion
+										? "var(--mantine-color-red-0)"
+										: undefined,
 								}}
 							>
 								<Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
@@ -323,7 +333,9 @@ export function FileUploader({
 												overflow: "hidden",
 												textOverflow: "ellipsis",
 												whiteSpace: "nowrap",
-												textDecoration: isMarkedForDeletion ? "line-through" : undefined,
+												textDecoration: isMarkedForDeletion
+													? "line-through"
+													: undefined,
 											}}
 										>
 											{displayName}
@@ -337,7 +349,9 @@ export function FileUploader({
 												overflow: "hidden",
 												textOverflow: "ellipsis",
 												whiteSpace: "nowrap",
-												textDecoration: isMarkedForDeletion ? "line-through" : undefined,
+												textDecoration: isMarkedForDeletion
+													? "line-through"
+													: undefined,
 											}}
 										>
 											{displayName}
@@ -358,7 +372,9 @@ export function FileUploader({
 									)}
 									{item.filesize && (
 										<Text size="xs" c="dimmed">
-											{item.mediaId ? formatFileSize(item.filesize) : prettyBytes(item.filesize)}
+											{item.mediaId
+												? formatFileSize(item.filesize)
+												: prettyBytes(item.filesize)}
 										</Text>
 									)}
 								</Group>
@@ -370,7 +386,7 @@ export function FileUploader({
 									>
 										<IconRestore size={16} />
 									</ActionIcon>
-								) : ((isUploaded && allowDeleteUploaded) || isWillBeUploaded) ? (
+								) : (isUploaded && allowDeleteUploaded) || isWillBeUploaded ? (
 									<ActionIcon
 										variant="subtle"
 										color="red"

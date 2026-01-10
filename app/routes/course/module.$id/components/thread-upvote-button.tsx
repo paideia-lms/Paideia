@@ -12,8 +12,10 @@ export function ThreadUpvoteDownVoteButton({
 	thread,
 	moduleLinkId,
 }: ThreadUpvoteDownButtonProps) {
-	const { submit: upvoteThread, isLoading: isUpvotingThread } = useUpvoteThread();
-	const { submit: removeUpvoteThread, isLoading: isRemovingUpvoteThread } = useRemoveUpvoteThread();
+	const { submit: upvoteThread, isLoading: isUpvotingThread } =
+		useUpvoteThread();
+	const { submit: removeUpvoteThread, isLoading: isRemovingUpvoteThread } =
+		useRemoveUpvoteThread();
 
 	const handleUpvote = (e?: React.MouseEvent) => {
 		if (e) {

@@ -26,7 +26,10 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { isHtmlEmpty } from "../rich-text/rich-text-editor";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { SubmissionData } from "../submission-history";
-import { AssignmentActions, loaderSearchParams } from "app/routes/course/module.$id/route";
+import {
+	AssignmentActions,
+	loaderSearchParams,
+} from "app/routes/course/module.$id/route";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import type { inferParserType } from "nuqs";
 // ============================================================================
@@ -444,8 +447,9 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
-							} used`
+							? `${submittedCount} of ${maxAttempts} attempt${
+									maxAttempts !== 1 ? "s" : ""
+								} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
@@ -481,9 +485,9 @@ export function AssignmentPreview({
 	isSubmitting = false,
 	canSubmit = true,
 	isStudent = false,
-	view
+	view,
 }: AssignmentPreviewProps) {
-	const setQueryParams = useNuqsSearchParams(loaderSearchParams)
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	const handleSubmit = async (data: { textContent: string; files: File[] }) => {
 		if (onSubmit) {
@@ -519,7 +523,9 @@ export function AssignmentPreview({
 			allSubmissions={allSubmissions}
 			submission={submission}
 			// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
-			onAddSubmission={() => setQueryParams({ view: AssignmentActions.SUBMIT_ASSIGNMENT })}
+			onAddSubmission={() =>
+				setQueryParams({ view: AssignmentActions.SUBMIT_ASSIGNMENT })
+			}
 			canSubmit={canSubmit}
 			isStudent={isStudent}
 		/>

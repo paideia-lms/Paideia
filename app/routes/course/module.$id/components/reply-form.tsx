@@ -18,31 +18,31 @@ export function ReplyForm({
 	threadId,
 	replyTo: _replyTo,
 }: ReplyFormProps) {
-
 	const initialValues = {
 		content: "",
-	}
-	const form = useForm({ initialValues })
-	useFormWithSyncedInitialValues(form, initialValues)
+	};
+	const form = useForm({ initialValues });
+	useFormWithSyncedInitialValues(form, initialValues);
 	const { submit: createReply, isLoading: isSubmitting } = useCreateReply();
-	const setQueryParams = useNuqsSearchParams(loaderSearchParams)
+	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 
 	return (
 		<Paper withBorder p="md" radius="sm" bg="gray.0">
-			<form onSubmit={form.onSubmit(async ({ content }) => {
-				await createReply({
-					params: { moduleLinkId },
-					searchParams: {
-						replyTo: _replyTo ? Number(_replyTo) : "thread",
-					},
-					values: {
-						content: content.trim(),
-						parentThread: threadId,
-					}
-				});
-				setQueryParams({ replyTo: null });
-			})}>
-
+			<form
+				onSubmit={form.onSubmit(async ({ content }) => {
+					await createReply({
+						params: { moduleLinkId },
+						searchParams: {
+							replyTo: _replyTo ? Number(_replyTo) : "thread",
+						},
+						values: {
+							content: content.trim(),
+							parentThread: threadId,
+						},
+					});
+					setQueryParams({ replyTo: null });
+				})}
+			>
 				<Stack gap="md">
 					<Text size="sm" fw={500}>
 						Write a reply
@@ -55,7 +55,11 @@ export function ReplyForm({
 						placeholder="Write your reply..."
 					/>
 					<Group justify="flex-end">
-						<Button variant="default" onClick={() => setQueryParams({ replyTo: null })} loading={isSubmitting}>
+						<Button
+							variant="default"
+							onClick={() => setQueryParams({ replyTo: null })}
+							loading={isSubmitting}
+						>
 							Cancel
 						</Button>
 						<Button type="submit" loading={isSubmitting}>

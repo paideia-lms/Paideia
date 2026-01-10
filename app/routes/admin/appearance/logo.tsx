@@ -54,10 +54,9 @@ export const logoSearchParams = {
 	field: parseAsStringEnum(Object.values(Field)),
 };
 
-type LogoData = Route.ComponentProps["loaderData"]["logos"]
+type LogoData = Route.ComponentProps["loaderData"]["logos"];
 
-type Media = NonNullable<LogoData[keyof LogoData]>
-
+type Media = NonNullable<LogoData[keyof LogoData]>;
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -144,43 +143,41 @@ const uploadRpc = createActionRpc({
 	action: Action.Upload,
 });
 
-const clearAction = clearRpc.createAction(
-	async ({ context, searchParams }) => {
-		const { field } = searchParams;
-		if (!field) {
-			return badRequest({ error: "Field is required" });
-		}
+const clearAction = clearRpc.createAction(async ({ context, searchParams }) => {
+	const { field } = searchParams;
+	if (!field) {
+		return badRequest({ error: "Field is required" });
+	}
 
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 
-		if (!userSession?.isAuthenticated) {
-			return unauthorized({ error: "Unauthorized" });
-		}
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
 
-		const currentUser =
-			userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (currentUser.role !== "admin") {
-			return forbidden({ error: "Only admins can access this area" });
-		}
+	if (currentUser.role !== "admin") {
+		return forbidden({ error: "Only admins can access this area" });
+	}
 
-		const clearResult = await tryClearLogo({
-			payload,
-			req: payloadRequest,
-			field,
-		});
+	const clearResult = await tryClearLogo({
+		payload,
+		req: payloadRequest,
+		field,
+	});
 
-		if (!clearResult.ok) {
-			return badRequest({ error: clearResult.error.message });
-		}
+	if (!clearResult.ok) {
+		return badRequest({ error: clearResult.error.message });
+	}
 
-		return ok({
-			message: "Logo cleared successfully",
-			logoField: field,
-		});
-	},
-);
+	return ok({
+		message: "Logo cleared successfully",
+		logoField: field,
+	});
+});
 
 const useClearLogoRpc = clearRpc.createHook<typeof clearAction>();
 
@@ -304,8 +301,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: logo.id.toString(),
-		})
+				mediaId: logo.id.toString(),
+			})
 		: null;
 
 	return (

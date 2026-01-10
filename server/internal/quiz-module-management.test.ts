@@ -91,6 +91,8 @@ describe("Quiz Module Management", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		}).getOrThrow();
 
 		// Create a regular quiz module for testing with known page ID

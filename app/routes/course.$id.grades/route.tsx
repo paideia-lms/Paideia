@@ -1,7 +1,5 @@
 import { notifications } from "@mantine/notifications";
-import {
-	parseAsStringEnum,
-} from "nuqs";
+import { parseAsStringEnum } from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
@@ -47,7 +45,7 @@ export const loaderSearchParams = {
 };
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
-	route: "/course/:courseId/grades"
+	route: "/course/:courseId/grades",
 });
 
 const createItemRpc = createActionRpc({
@@ -174,8 +172,8 @@ export const loader = createRouteLoader({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0 ||
-			gradebookSetupForUI.extraCreditCategories.length > 0
+				gradebookSetupForUI.extraCreditItems.length > 0 ||
+				gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -292,7 +290,8 @@ const createCategoryAction = createCategoryRpc.createAction(
 	})!,
 );
 
-const useCreateCategory = createCategoryRpc.createHook<typeof createCategoryAction>();
+const useCreateCategory =
+	createCategoryRpc.createHook<typeof createCategoryAction>();
 
 const updateItemAction = updateItemRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
@@ -349,7 +348,8 @@ const updateCategoryAction = updateCategoryRpc.createAction(
 	})!,
 );
 
-const useUpdateCategory = updateCategoryRpc.createHook<typeof updateCategoryAction>();
+const useUpdateCategory =
+	updateCategoryRpc.createHook<typeof updateCategoryAction>();
 
 const getItemAction = getItemRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
@@ -368,9 +368,7 @@ const getItemAction = getItemRpc.createAction(
 		const item = itemResult.value;
 
 		// Handle category as number or object
-		const categoryId =
-			item.category
-			?? null;
+		const categoryId = item.category ?? null;
 
 		return ok({
 			success: true,
@@ -469,7 +467,8 @@ const deleteCategoryAction = deleteCategoryRpc.createAction(
 	})!,
 );
 
-const useDeleteCategory = deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
+const useDeleteCategory =
+	deleteCategoryRpc.createHook<typeof deleteCategoryAction>();
 
 // Export hooks for use in components
 export {
@@ -483,8 +482,6 @@ export {
 	useDeleteCategory,
 };
 
-
-
 const [action] = createActionMap({
 	[Action.CreateItem]: createItemAction,
 	[Action.CreateCategory]: createCategoryAction,
@@ -495,7 +492,6 @@ const [action] = createActionMap({
 	[Action.GetItem]: getItemAction,
 	[Action.GetCategory]: getCategoryAction,
 });
-
 
 export { action };
 

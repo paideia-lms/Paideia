@@ -13,7 +13,6 @@ import { useDebouncedCallback } from "@mantine/hooks";
 import { useState, useEffect } from "react";
 import { getRouteUrl } from "~/utils/search-params-utils";
 
-
 enum AdminTab {
 	General = "general",
 	Users = "users",
@@ -37,28 +36,30 @@ const createRouteLoader = createLoader({
 	searchParams: loaderSearchParams,
 });
 
-export const loader = createRouteLoader(async ({ context, searchParams, params }) => {
-	const { pageInfo } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+export const loader = createRouteLoader(
+	async ({ context, searchParams, params }) => {
+		const { pageInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+		if (!userSession?.isAuthenticated) {
+			throw new ForbiddenResponse("Unauthorized");
+		}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can access this area");
-	}
+		if (currentUser.role !== "admin") {
+			throw new ForbiddenResponse("Only admins can access this area");
+		}
 
-	return {
-		user: currentUser,
-		pageInfo,
-		searchParams,
-		params,
-	};
-})!;
+		return {
+			user: currentUser,
+			pageInfo,
+			searchParams,
+			params,
+		};
+	},
+)!;
 
 export const ErrorBoundary = ({ error }: { error: Error }) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -101,7 +102,6 @@ export default function ServerAdminLayout({
 	const { pageInfo, searchParams } = loaderData;
 	const navigate = useNavigate();
 
-
 	// Determine current tab based on route matches or query param
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/admin/users"]) return AdminTab.Users;
@@ -129,7 +129,12 @@ export default function ServerAdminLayout({
 			pageInfo.is["routes/admin/appearance/logo"]
 		)
 			return AdminTab.Appearance;
-		if (pageInfo.is["routes/admin/sitepolicies"] || pageInfo.is["routes/admin/analytics"] || pageInfo.is["routes/admin/registration"]) return AdminTab.General;
+		if (
+			pageInfo.is["routes/admin/sitepolicies"] ||
+			pageInfo.is["routes/admin/analytics"] ||
+			pageInfo.is["routes/admin/registration"]
+		)
+			return AdminTab.General;
 		// Default to query param or 'general'
 		return searchParams.tab ?? AdminTab.General;
 	};
@@ -147,7 +152,12 @@ export default function ServerAdminLayout({
 			case AdminTab.Reports:
 			case AdminTab.Development:
 				// Navigate to index with query param
-				navigate(getRouteUrl("/admin/*", { params: { "*": "" }, searchParams: { tab: value } }));
+				navigate(
+					getRouteUrl("/admin/*", {
+						params: { "*": "" },
+						searchParams: { tab: value },
+					}),
+				);
 				break;
 			case AdminTab.Users:
 				navigate(getRouteUrl("/admin/users", {}));
@@ -158,9 +168,8 @@ export default function ServerAdminLayout({
 			case AdminTab.Server:
 				navigate(getRouteUrl("/admin/system", {}));
 				break;
-		};
-
-	}
+		}
+	};
 	return (
 		<div>
 			<div className={classes.header}>

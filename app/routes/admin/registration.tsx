@@ -117,9 +117,8 @@ const updateRegistrationAction = updateRegistrationRpc.createAction(
 	},
 );
 
-const useUpdateRegistration = updateRegistrationRpc.createHook<
-	typeof updateRegistrationAction
->();
+const useUpdateRegistration =
+	updateRegistrationRpc.createHook<typeof updateRegistrationAction>();
 
 // Export hook for use in component
 export { useUpdateRegistration };
@@ -170,7 +169,6 @@ export default function AdminRegistration({
 		},
 	});
 
-
 	return (
 		<Stack gap="md" my="lg">
 			<title>Registration Settings | Admin | Paideia LMS</title>
@@ -187,14 +185,16 @@ export default function AdminRegistration({
                 {JSON.stringify(loaderData, null, 2)}
             </pre> */}
 			<Title order={2}>Registration</Title>
-			<form onSubmit={form.onSubmit(async (values) => {
-				await updateRegistration({
-					values: {
-						disableRegistration: values.disableRegistration,
-						showRegistrationButton: values.showRegistrationButton,
-					},
-				});
-			})}>
+			<form
+				onSubmit={form.onSubmit(async (values) => {
+					await updateRegistration({
+						values: {
+							disableRegistration: values.disableRegistration,
+							showRegistrationButton: values.showRegistrationButton,
+						},
+					});
+				})}
+			>
 				<Stack gap="sm">
 					<Switch
 						{...form.getInputProps("disableRegistration", { type: "checkbox" })}

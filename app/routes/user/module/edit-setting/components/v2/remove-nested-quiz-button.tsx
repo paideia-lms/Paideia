@@ -1,8 +1,6 @@
 import { Button } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import {
-	useRemoveNestedQuiz,
-} from "app/routes/user/module/edit-setting/route";
+import { useRemoveNestedQuiz } from "app/routes/user/module/edit-setting/route";
 
 interface RemoveNestedQuizButtonProps {
 	moduleId: number;

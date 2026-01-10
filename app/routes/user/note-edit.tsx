@@ -1,4 +1,13 @@
-import { Button, Checkbox, Container, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import {
+	Button,
+	Checkbox,
+	Container,
+	Group,
+	Paper,
+	Stack,
+	Text,
+	Title,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
@@ -113,7 +122,8 @@ const updateNoteAction = createUpdateNoteActionRpc.createAction(
 	},
 );
 
-const useUpdateNote = createUpdateNoteActionRpc.createHook<typeof updateNoteAction>();
+const useUpdateNote =
+	createUpdateNoteActionRpc.createHook<typeof updateNoteAction>();
 
 const [action] = createActionMap({
 	[Action.UpdateNote]: updateNoteAction,
@@ -134,8 +144,6 @@ export const clientAction = async ({
 	}
 	return actionData;
 };
-
-
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -202,12 +210,18 @@ export default function NoteEditPage({
 							)}
 
 							<Group justify="flex-end" gap="md">
-								<Button variant="subtle" onClick={() => navigate("/user/notes")} type="button">
+								<Button
+									variant="subtle"
+									onClick={() => navigate("/user/notes")}
+									type="button"
+								>
 									Cancel
 								</Button>
 								<Button
 									type="submit"
-									disabled={!form.values.content.trim() || fetcher.state !== "idle"}
+									disabled={
+										!form.values.content.trim() || fetcher.state !== "idle"
+									}
 									loading={fetcher.state !== "idle"}
 								>
 									Update Note

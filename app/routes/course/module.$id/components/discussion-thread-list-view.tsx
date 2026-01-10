@@ -24,7 +24,7 @@ import { CreateThreadFormWrapper } from "./create-thread-form-wrapper";
 import { ThreadUpvoteDownVoteButton } from "./thread-upvote-button";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import { loaderSearchParams } from "../route";
-import type { inferParserType } from "nuqs"
+import type { inferParserType } from "nuqs";
 
 dayjs.extend(relativeTime);
 
@@ -92,7 +92,9 @@ export function DiscussionThreadListView({
 					</div>
 					<Button
 						leftSection={<IconPlus size={16} />}
-						onClick={() => setQueryParams({ view: DiscussionActions.CREATE_THREAD })}
+						onClick={() =>
+							setQueryParams({ view: DiscussionActions.CREATE_THREAD })
+						}
 					>
 						New Thread
 					</Button>
@@ -107,7 +109,11 @@ export function DiscussionThreadListView({
 						size="sm"
 						value={sortBy}
 						onChange={(value) => {
-							if (value === "recent" || value === "upvoted" || value === "active") {
+							if (
+								value === "recent" ||
+								value === "upvoted" ||
+								value === "active"
+							) {
 								setQueryParams({ sortBy: value });
 							} else {
 								setQueryParams({ sortBy: "recent" });
@@ -176,8 +182,8 @@ export function DiscussionThreadListView({
 											to={
 												courseId && thread.authorId
 													? href("/course/:courseId/participants/profile", {
-														courseId: String(courseId),
-													}) + `?userId=${thread.authorId}`
+															courseId: String(courseId),
+														}) + `?userId=${thread.authorId}`
 													: "#"
 											}
 											style={{ textDecoration: "none", color: "inherit" }}

@@ -48,6 +48,8 @@ describe("Gradebook Category Management", () => {
 				role: "instructor",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const instructorResult = await tryCreateUser(instructorArgs);
@@ -69,6 +71,8 @@ describe("Gradebook Category Management", () => {
 				createdBy: instructor.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 
 		expect(courseResult.ok).toBe(true);

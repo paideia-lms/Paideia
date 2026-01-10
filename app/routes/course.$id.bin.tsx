@@ -27,7 +27,6 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		);
 	}
 
-
 	// TODO: Fetch deleted items data
 	return {
 		deletedItems: [], // Placeholder data

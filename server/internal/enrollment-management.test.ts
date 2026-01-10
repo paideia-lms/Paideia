@@ -102,6 +102,8 @@ describe("Enrollment Management Functions", () => {
 				status: "active",
 
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateEnrollment(enrollmentArgs);
@@ -129,6 +131,7 @@ describe("Enrollment Management Functions", () => {
 				status: "active",
 
 				overrideAccess: true,
+				req: undefined,
 			};
 
 			const result = await tryCreateEnrollment(enrollmentArgs);
@@ -206,6 +209,8 @@ describe("Enrollment Management Functions", () => {
 				role: "student",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateEnrollment(enrollmentArgs);
@@ -221,6 +226,8 @@ describe("Enrollment Management Functions", () => {
 				role: "teacher",
 				status: "completed",
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryUpdateEnrollment(updateArgs);
@@ -238,6 +245,8 @@ describe("Enrollment Management Functions", () => {
 				enrollmentId: 0,
 				role: "student",
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryUpdateEnrollment(updateArgs);
@@ -251,6 +260,8 @@ describe("Enrollment Management Functions", () => {
 				enrollmentId: 99999,
 				role: "student",
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryUpdateEnrollment(updateArgs);
@@ -284,6 +295,8 @@ describe("Enrollment Management Functions", () => {
 				role: "student",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateEnrollment(enrollmentArgs);
@@ -357,6 +370,8 @@ describe("Enrollment Management Functions", () => {
 				role: "student",
 				status: "active",
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateEnrollment(enrollmentArgs);
@@ -708,6 +723,8 @@ describe("Enrollment Management Functions", () => {
 				status: "active",
 				groups: [artGroupId, econGroupId],
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const result = await tryCreateEnrollment(enrollmentArgs);
@@ -779,6 +796,8 @@ describe("Enrollment Management Functions", () => {
 					status: "active",
 					groups: artGroup1Result.ok ? [artGroup1Result.value.id] : [],
 					overrideAccess: true,
+
+					req: undefined,
 				};
 
 				const result = await tryCreateEnrollment(enrollmentArgs);
@@ -1130,6 +1149,8 @@ describe("Enrollment Management Functions with Authentication", () => {
 				limit: 10,
 				page: 1,
 				overrideAccess: false,
+
+				req: undefined,
 			};
 
 			const result = await trySearchEnrollments(searchArgs);

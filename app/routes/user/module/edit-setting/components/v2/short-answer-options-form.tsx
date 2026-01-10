@@ -1,8 +1,6 @@
 import { Button, Stack, Textarea, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateShortAnswerQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateShortAnswerQuestion } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface ShortAnswerOptionsFormProps {

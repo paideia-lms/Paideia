@@ -11,9 +11,7 @@ import {
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
-import {
-	useUpdateMultipleSelectionMatrixQuestion,
-} from "app/routes/user/module/edit-setting/route";
+import { useUpdateMultipleSelectionMatrixQuestion } from "app/routes/user/module/edit-setting/route";
 import type { Question } from "./types";
 
 interface MultipleSelectionMatrixOptionsFormProps {
@@ -32,14 +30,15 @@ export function MultipleSelectionMatrixOptionsForm({
 
 	// Convert correctAnswers from Record<string, string> to Record<string, string[]>
 	// The question type has Record<string, string> but the update function expects Record<string, string[]>
-	const initialCorrectAnswers: Record<string, string[]> = question.correctAnswers
-		? Object.fromEntries(
-			Object.entries(question.correctAnswers).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? (value as string[]) : [value as string],
-			]),
-		) as Record<string, string[]>
-		: {};
+	const initialCorrectAnswers: Record<string, string[]> =
+		question.correctAnswers
+			? (Object.fromEntries(
+					Object.entries(question.correctAnswers).map(([key, value]) => [
+						key,
+						Array.isArray(value) ? (value as string[]) : [value as string],
+					]),
+				) as Record<string, string[]>)
+			: {};
 
 	const form = useForm<{
 		rows: Record<string, string>;
@@ -81,7 +80,9 @@ export function MultipleSelectionMatrixOptionsForm({
 				<Title order={5}>Matrix Configuration</Title>
 				<Stack gap="xs">
 					<Group justify="space-between">
-						<Text size="sm" fw={500}>Rows</Text>
+						<Text size="sm" fw={500}>
+							Rows
+						</Text>
 						<Button
 							size="compact-sm"
 							variant="light"
@@ -128,7 +129,9 @@ export function MultipleSelectionMatrixOptionsForm({
 
 				<Stack gap="xs">
 					<Group justify="space-between">
-						<Text size="sm" fw={500}>Columns</Text>
+						<Text size="sm" fw={500}>
+							Columns
+						</Text>
 						<Button
 							size="compact-sm"
 							variant="light"
@@ -172,7 +175,9 @@ export function MultipleSelectionMatrixOptionsForm({
 
 				{rowKeys.length > 0 && columnKeys.length > 0 && (
 					<Stack gap="xs">
-						<Text size="sm" fw={500}>Correct Answers</Text>
+						<Text size="sm" fw={500}>
+							Correct Answers
+						</Text>
 						<Table striped highlightOnHover withTableBorder>
 							<Table.Thead>
 								<Table.Tr>

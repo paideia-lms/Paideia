@@ -67,6 +67,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				role: "student",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const userResult = await tryCreateUser(userArgs);
@@ -85,6 +87,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				createdBy: testUser.id,
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		};
 
 		const courseResult = await tryCreateCourse(courseArgs);
@@ -102,6 +106,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				description: "A test section for link management",
 			},
 			overrideAccess: true,
+
+			req: undefined,
 		});
 		expect(sectionResult.ok).toBe(true);
 		if (sectionResult.ok) {
@@ -213,6 +219,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				payload,
 				courseId: testCourse.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -237,6 +245,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const courseResult = await tryCreateCourse(courseArgs);
@@ -245,6 +255,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					payload,
 					courseId: courseResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -261,6 +273,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				payload,
 				activityModuleId: testActivityModule.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -281,6 +295,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				course: testCourse.id,
 				limit: 10,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -299,6 +315,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				activityModule: testActivityModule.id,
 				limit: 10,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -317,6 +335,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				limit: 2,
 				page: 1,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -335,6 +355,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				course: 99999, // Non-existent course
 				limit: 10,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -370,6 +392,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				payload,
 				linkId: testLink.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -388,6 +412,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				payload,
 				linkId: 99999,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(false);
@@ -405,6 +431,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				courseId: testCourse.id,
 				activityModuleId: testActivityModule.id,
 				overrideAccess: true,
+
+				req: undefined,
 			});
 
 			expect(result.ok).toBe(true);
@@ -426,6 +454,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					createdBy: testUser.id,
 				},
 				overrideAccess: true,
+
+				req: undefined,
 			};
 
 			const courseResult = await tryCreateCourse(courseArgs);
@@ -439,6 +469,8 @@ describe("Course Activity Module Link Management Functions", () => {
 						description: "A section with no links",
 					},
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				if (!sectionResult.ok) return;
@@ -464,6 +496,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					courseId: courseResult.value.id,
 					activityModuleId: activityModuleResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -510,6 +544,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					payload,
 					linkId: createResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 				expect(findResult.ok).toBe(false);
 			}
@@ -870,6 +906,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					payload,
 					linkId: assignmentLink.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -898,6 +936,8 @@ describe("Course Activity Module Link Management Functions", () => {
 					payload,
 					linkId: newLinkResult.value.id,
 					overrideAccess: true,
+
+					req: undefined,
 				});
 
 				expect(result.ok).toBe(true);
@@ -1099,11 +1139,15 @@ describe("Course Activity Module Link Management Functions", () => {
 						payload,
 						linkId: link1.value.id,
 						overrideAccess: true,
+
+						req: undefined,
 					});
 					const retrievedLink2 = await tryGetCourseModuleSettings({
 						payload,
 						linkId: link2.value.id,
 						overrideAccess: true,
+
+						req: undefined,
 					});
 
 					expect(retrievedLink1.ok).toBe(true);
