@@ -65,6 +65,7 @@ import type {
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "./activity-module-forms/use-whiteboard-data";
 import { SimpleRichTextEditor } from "./rich-text/simple-rich-text-editor";
+import { useEffectForAnyObject } from "app/utils/form-utils";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -103,33 +104,26 @@ function getDefaultValue(question: Question): unknown {
 
 export function QuestionRenderer({
 	question,
-	value: controlledValue,
+	value: initialValue,
 	onChange: controlledOnChange,
 	showFeedback = false,
 	disabled = false,
 }: QuestionRendererProps) {
 	// Determine if we're in controlled or uncontrolled mode
-	const isControlled = controlledOnChange !== undefined;
 	const defaultValue = useMemo(() => getDefaultValue(question), [question]);
 
 	// Internal state for uncontrolled mode
-	const [uncontrolledValue, setUncontrolledValue] = useState<unknown>(defaultValue);
-
-	// Use controlled value if provided, otherwise use internal state
-	// In controlled mode, use the provided value (even if undefined)
-	// In uncontrolled mode, use internal state
-	const value = isControlled
-		? (controlledValue ?? defaultValue)
-		: uncontrolledValue;
+	const [value, setValue] = useState<unknown>(defaultValue);
 
 	// Create onChange handler that works for both modes
 	const handleChange = (newValue: unknown) => {
-		if (isControlled) {
-			controlledOnChange?.(newValue);
-		} else {
-			setUncontrolledValue(newValue);
-		}
+		setValue(newValue);
+		controlledOnChange?.(newValue);
 	};
+
+	useEffectForAnyObject(() => {
+		setValue(initialValue ?? defaultValue);
+	}, { initialValue, defaultValue });
 
 	switch (question.type) {
 		case "multiple-choice":

@@ -113,7 +113,7 @@ function UnflagButton({
     );
 }
 
-interface SavedAnswerPillProps {
+interface SavedAnswerBadgeProps {
     questionId: string;
     moduleLinkId?: number;
     submissionId?: number;
@@ -121,19 +121,19 @@ interface SavedAnswerPillProps {
     isDisabled: boolean;
 }
 
-function SavedAnswerPill({
+function SavedAnswerBadge({
     questionId,
     moduleLinkId,
     submissionId,
     readonly,
     isDisabled,
-}: SavedAnswerPillProps) {
+}: SavedAnswerBadgeProps) {
     const { submit: unanswerQuestion, isLoading: isUnanswering } = useUnanswerQuizQuestion();
 
-    const handleRemove = () => {
+    const handleRemove = async () => {
         if (!moduleLinkId || !submissionId || readonly || isDisabled) return;
 
-        unanswerQuestion({
+        await unanswerQuestion({
             params: { moduleLinkId },
             values: {
                 submissionId,
@@ -157,9 +157,9 @@ function SavedAnswerPill({
                             color="green"
                             radius="xl"
                             variant="transparent"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                handleRemove();
+                                await handleRemove();
                             }}
                             disabled={isDisabled || isUnanswering}
                             loading={isUnanswering}
@@ -239,7 +239,7 @@ export function QuestionCard({
     moduleLinkId,
     submissionId,
 }: QuestionCardProps) {
-    const { submit: answerQuizQuestion } = useAnswerQuizQuestion();
+    const { submit: answerQuizQuestion, isLoading: isAnswering } = useAnswerQuizQuestion();
 
     // Debounce timer ref for answer saving
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,17 +310,21 @@ export function QuestionCard({
                                 </Badge>
                             </Tooltip>
                         )}
-                        {initialAnswers &&
-                            initialAnswers[question.id] !== undefined &&
-                            initialAnswers[question.id] !== null && (
-                                <SavedAnswerPill
-                                    questionId={question.id}
-                                    moduleLinkId={moduleLinkId}
-                                    submissionId={submissionId}
-                                    readonly={readonly}
-                                    isDisabled={isDisabled}
-                                />
-                            )}
+                        {isAnswering ? (
+                            <Badge size="lg" variant="light" color="blue">
+                                Saving...
+                            </Badge>
+                        ) : initialAnswers &&
+                        initialAnswers[question.id] !== undefined &&
+                        initialAnswers[question.id] !== null && (
+                            <SavedAnswerBadge
+                                questionId={question.id}
+                                moduleLinkId={moduleLinkId}
+                                submissionId={submissionId}
+                                readonly={readonly}
+                                isDisabled={isDisabled}
+                            />
+                        )}
                         <Text fw={500} style={{ flex: 1 }}>
                             {question.prompt}
                         </Text>
