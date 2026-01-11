@@ -313,10 +313,12 @@ export function typeCreateActionRpc<T extends ActionFunctionArgs>({
 		action?: Action;
 	} = {}) => {
 		// Merge action shortcut with searchParams if both are provided
+		// Spread searchParams first, then override with action parser that has default
+		// This ensures the action shortcut's default value is preserved
 		const mergedSearchParams = action
 			? {
-					action: parseAsStringEnum([action]).withDefault(action),
 					...(searchParams ?? {}),
+					action: parseAsStringEnum([action]).withDefault(action),
 				}
 			: searchParams;
 

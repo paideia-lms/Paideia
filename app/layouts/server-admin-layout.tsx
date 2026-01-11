@@ -2,7 +2,7 @@ import { Container, Group, Tabs, TextInput, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { parseAsString, parseAsStringEnum } from "nuqs";
 import { Outlet, useNavigate } from "react-router";
-import { globalContextKey } from "server/contexts/global-context";
+import { globalContextKey, PageInfo } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/server-admin-layout";
@@ -36,6 +36,45 @@ const createRouteLoader = createLoader({
 	searchParams: loaderSearchParams,
 });
 
+const getCurrentTab = (
+	pageInfo: PageInfo,
+	searchParams: { tab: AdminTab },
+): AdminTab => {
+	if (pageInfo.is["routes/admin/users"]) return AdminTab.Users;
+	if (
+		pageInfo.is["routes/admin/courses"] ||
+		pageInfo.is["routes/admin/course-new"] ||
+		pageInfo.is["routes/admin/categories"] ||
+		pageInfo.is["routes/admin/category-new"]
+	)
+		return AdminTab.Courses;
+	if (
+		pageInfo.is["routes/admin/system"] ||
+		pageInfo.is["routes/admin/test-email"] ||
+		pageInfo.is["routes/admin/dependencies"] ||
+		pageInfo.is["routes/admin/cron-jobs"] ||
+		pageInfo.is["routes/admin/scheduled-tasks"] ||
+		pageInfo.is["routes/admin/maintenance"] ||
+		pageInfo.is["routes/admin/media"]
+	)
+		return AdminTab.Server;
+	if (pageInfo.is["routes/admin/migrations"]) return AdminTab.Development;
+	if (
+		pageInfo.is["routes/admin/appearance"] ||
+		pageInfo.is["routes/admin/appearance/theme"] ||
+		pageInfo.is["routes/admin/appearance/logo"]
+	)
+		return AdminTab.Appearance;
+	if (
+		pageInfo.is["routes/admin/sitepolicies"] ||
+		pageInfo.is["routes/admin/analytics"] ||
+		pageInfo.is["routes/admin/registration"]
+	)
+		return AdminTab.General;
+	// Default to query param or 'general'
+	return searchParams.tab ?? AdminTab.General;
+};
+
 export const loader = createRouteLoader(
 	async ({ context, searchParams, params }) => {
 		const { pageInfo } = context.get(globalContextKey);
@@ -52,11 +91,14 @@ export const loader = createRouteLoader(
 			throw new ForbiddenResponse("Only admins can access this area");
 		}
 
+		const currentTab = getCurrentTab(pageInfo, searchParams);
+
 		return {
 			user: currentUser,
 			pageInfo,
 			searchParams,
 			params,
+			currentTab,
 		};
 	},
 )!;
@@ -73,7 +115,6 @@ const SearchInput = ({ search }: SearchInputProps) => {
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 	const [input, setInput] = useState(search || "");
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: search is intentionally the only dependency
 	useEffect(() => {
 		setInput(search || "");
 	}, [search]);
@@ -99,50 +140,11 @@ const SearchInput = ({ search }: SearchInputProps) => {
 export default function ServerAdminLayout({
 	loaderData,
 }: Route.ComponentProps) {
-	const { pageInfo, searchParams } = loaderData;
+	const { searchParams, currentTab } = loaderData;
 	const navigate = useNavigate();
-
-	// Determine current tab based on route matches or query param
-	const getCurrentTab = () => {
-		if (pageInfo.is["routes/admin/users"]) return AdminTab.Users;
-		if (
-			pageInfo.is["routes/admin/courses"] ||
-			pageInfo.is["routes/admin/course-new"] ||
-			pageInfo.is["routes/admin/categories"] ||
-			pageInfo.is["routes/admin/category-new"]
-		)
-			return AdminTab.Courses;
-		if (
-			pageInfo.is["routes/admin/system"] ||
-			pageInfo.is["routes/admin/test-email"] ||
-			pageInfo.is["routes/admin/dependencies"] ||
-			pageInfo.is["routes/admin/cron-jobs"] ||
-			pageInfo.is["routes/admin/scheduled-tasks"] ||
-			pageInfo.is["routes/admin/maintenance"] ||
-			pageInfo.is["routes/admin/media"]
-		)
-			return AdminTab.Server;
-		if (pageInfo.is["routes/admin/migrations"]) return AdminTab.Development;
-		if (
-			pageInfo.is["routes/admin/appearance"] ||
-			pageInfo.is["routes/admin/appearance/theme"] ||
-			pageInfo.is["routes/admin/appearance/logo"]
-		)
-			return AdminTab.Appearance;
-		if (
-			pageInfo.is["routes/admin/sitepolicies"] ||
-			pageInfo.is["routes/admin/analytics"] ||
-			pageInfo.is["routes/admin/registration"]
-		)
-			return AdminTab.General;
-		// Default to query param or 'general'
-		return searchParams.tab ?? AdminTab.General;
-	};
 
 	const handleTabChange = (value: string | null) => {
 		if (!value) return;
-
-		// setQueryParams({ tab: value as AdminTab });
 
 		switch (value) {
 			case AdminTab.General:
@@ -150,6 +152,9 @@ export default function ServerAdminLayout({
 			case AdminTab.Plugins:
 			case AdminTab.Appearance:
 			case AdminTab.Reports:
+			case AdminTab.Server:
+			case AdminTab.Users:
+			case AdminTab.Courses:
 			case AdminTab.Development:
 				// Navigate to index with query param
 				navigate(
@@ -158,15 +163,6 @@ export default function ServerAdminLayout({
 						searchParams: { tab: value },
 					}),
 				);
-				break;
-			case AdminTab.Users:
-				navigate(getRouteUrl("/admin/users", {}));
-				break;
-			case AdminTab.Courses:
-				navigate(getRouteUrl("/admin/courses", { searchParams: {} }));
-				break;
-			case AdminTab.Server:
-				navigate(getRouteUrl("/admin/system", {}));
 				break;
 		}
 	};
@@ -179,7 +175,7 @@ export default function ServerAdminLayout({
 						<SearchInput search={searchParams.search} />
 					</Group>
 					<Tabs
-						value={getCurrentTab()}
+						value={currentTab}
 						onChange={handleTabChange}
 						variant="outline"
 						classNames={{

@@ -50,7 +50,6 @@ enum Field {
 
 // Define search params for logo actions
 export const logoSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
 	field: parseAsStringEnum(Object.values(Field)),
 };
 
@@ -229,7 +228,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
-			message: actionData.message || "Logo uploaded successfully",
+			message: actionData.message,
 			color: "green",
 		});
 	} else if (
@@ -239,7 +238,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	) {
 		notifications.show({
 			title: "Error",
-			message: actionData?.error || "Failed to upload logo",
+			message: actionData.error,
 			color: "red",
 		});
 	}
@@ -301,8 +300,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: logo.id.toString(),
-			})
+			mediaId: logo.id.toString(),
+		})
 		: null;
 
 	return (
