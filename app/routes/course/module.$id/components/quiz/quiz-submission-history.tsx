@@ -9,9 +9,11 @@ import type { QuizSubmissionData } from "./quiz-submission-item";
 export function QuizSubmissionHistory({
 	submissions,
 	title = "Submission History",
+	moduleLinkId,
 }: {
 	submissions: QuizSubmissionData[];
 	title?: string;
+	moduleLinkId: number | string;
 }) {
 	if (submissions.length === 0) {
 		return null;
@@ -48,6 +50,7 @@ export function QuizSubmissionHistory({
 							sub.attemptNumber ?? sortedSubmissions.length - index
 						}
 						submission={sub}
+						moduleLinkId={moduleLinkId}
 					/>
 				))}
 		</Stack>

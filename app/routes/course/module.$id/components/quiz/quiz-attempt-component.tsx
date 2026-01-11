@@ -692,6 +692,7 @@ interface QuizAttemptComponentProps {
 	currentPageIndex: number | undefined;
 	moduleLinkId?: number; // Required for flag/unflag actions
 	flaggedQuestions?: Array<{ questionId: string }>; // Flagged questions from server
+	readonly?: boolean; // Whether the quiz is in readonly mode (for viewing completed submissions)
 }
 
 export function QuizAttemptComponent({
@@ -703,6 +704,7 @@ export function QuizAttemptComponent({
 	currentPageIndex,
 	moduleLinkId,
 	flaggedQuestions = [],
+	readonly = false,
 }: QuizAttemptComponentProps) {
 	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
 
@@ -725,6 +727,7 @@ export function QuizAttemptComponent({
 		return (
 			<SingleQuizPreview
 				quizConfig={quizConfig}
+				readonly={readonly}
 				onSubmit={onSubmit}
 				remainingTime={remainingTime}
 				grading={quizConfig.grading}
@@ -813,7 +816,7 @@ export function QuizAttemptComponent({
 			) : nestedQuizState.activeNestedQuiz ? (
 				<SingleQuizPreview
 					quizConfig={nestedQuizState.activeNestedQuiz}
-					readonly={isViewingCompletedQuiz}
+					readonly={readonly || isViewingCompletedQuiz}
 					moduleLinkId={moduleLinkId}
 					initialAnswers={
 						isViewingCompletedQuiz && initialAnswers

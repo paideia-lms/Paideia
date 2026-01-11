@@ -1,4 +1,7 @@
-import { Badge, Group, Paper, Stack, Text } from "@mantine/core";
+import { ActionIcon, Badge, Group, Paper, Stack, Text, Tooltip } from "@mantine/core";
+import { IconEye } from "@tabler/icons-react";
+import { Link } from "react-router";
+import { getRouteUrl } from "app/utils/search-params-utils";
 
 // ============================================================================
 // Types
@@ -28,10 +31,29 @@ export interface QuizSubmissionData {
 export function QuizSubmissionItem({
 	attemptNumber,
 	submission,
+	moduleLinkId,
 }: {
 	attemptNumber: number;
 	submission: QuizSubmissionData;
+	moduleLinkId: number | string;
 }) {
+	const canViewSubmission =
+		submission.status === "completed" ||
+		submission.status === "graded" ||
+		submission.status === "returned";
+
+	const viewSubmissionUrl = canViewSubmission
+		? getRouteUrl("/course/module/:moduleLinkId", {
+				params: { moduleLinkId: String(moduleLinkId) },
+				searchParams: {
+					viewSubmission: submission.id,
+					showQuiz: false,
+					view: null,
+					threadId: null,
+					replyTo: null,
+				},
+			})
+		: null;
 	return (
 		<Paper withBorder p="md">
 			<Stack gap="sm">
@@ -106,6 +128,19 @@ export function QuizSubmissionItem({
 									: ""}
 								Graded: {new Date(submission.grade.gradedAt).toLocaleString()}
 							</Text>
+						)}
+						{canViewSubmission && viewSubmissionUrl && (
+							<Tooltip label="View submission">
+								<ActionIcon
+									component={Link}
+									to={viewSubmissionUrl}
+									variant="light"
+									color="blue"
+									size="sm"
+								>
+									<IconEye size={16} />
+								</ActionIcon>
+							</Tooltip>
 						)}
 					</Group>
 				</Group>

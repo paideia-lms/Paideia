@@ -17,6 +17,7 @@ import {
 	tryAnswerQuizQuestion,
 	tryCheckInProgressSubmission,
 	tryGetNextAttemptNumber,
+	tryGetQuizSubmissionById,
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
 	tryRemoveAnswerFromQuizQuestion,
@@ -24,6 +25,7 @@ import {
 	tryUnflagQuizQuestion,
 } from "server/internal/quiz-submission-management";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
+import { convertDatabaseAnswersToQuizAnswers } from "server/internal/utils/quiz-answer-converter";
 import { permissions } from "server/utils/permissions";
 import z from "zod";
 import {
@@ -85,6 +87,7 @@ export const QuizActions = {
 	FLAG_QUESTION: "flagquestion",
 	UNFLAG_QUESTION: "unflagquestion",
 	MARK_QUIZ_ATTEMPT_AS_COMPLETE: "markquizattemptascomplete",
+	VIEW_SUBMISSION: "viewsubmission",
 	// GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
@@ -127,6 +130,7 @@ export const loaderSearchParams = {
 		"recent",
 	),
 	quizPageIndex: parseAsInteger.withDefault(0),
+	viewSubmission: parseAsInteger,
 };
 
 const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
@@ -137,6 +141,7 @@ export const loader = createLoaderRpc({
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -149,14 +154,94 @@ export const loader = createLoaderRpc({
 		throw new ForbiddenResponse("Course or module not found or access denied");
 	}
 
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
+
 	// Check if user is a student
 	const isStudent = enrolmentContext?.enrolment?.role === "student";
+
+	// Handle viewSubmission for quiz modules
+	let viewedSubmission = null;
+	let viewedSubmissionAnswers = undefined;
+	if (
+		searchParams.viewSubmission &&
+		courseModuleContext.type === "quiz" &&
+		courseModuleContext.quiz?.rawQuizConfig
+	) {
+		const submissionResult = await tryGetQuizSubmissionById({
+			payload,
+			id: searchParams.viewSubmission,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!submissionResult.ok) {
+			throw new ForbiddenResponse(
+				submissionResult.error.message || "Submission not found",
+			);
+		}
+
+		const submission = submissionResult.value;
+
+		// Verify the submission belongs to this module
+		if (submission.courseModuleLink !== courseModuleContext.id) {
+			throw new ForbiddenResponse(
+				"Submission does not belong to this module",
+			);
+		}
+
+		// Verify the submission belongs to the current user
+		const studentId =
+			typeof submission.student === "object"
+				? submission.student.id
+				: submission.student;
+		if (studentId !== currentUser.id) {
+			throw new ForbiddenResponse(
+				"You can only view your own submissions",
+			);
+		}
+
+		// Verify the submission is completed, graded, or returned (not in_progress)
+		if (submission.status === "in_progress") {
+			throw new ForbiddenResponse(
+				"Cannot view in-progress submissions. Please complete the quiz first.",
+			);
+		}
+
+		if (
+			submission.status !== "completed" &&
+			submission.status !== "graded" &&
+			submission.status !== "returned"
+		) {
+			throw new ForbiddenResponse("Invalid submission status for viewing");
+		}
+
+		viewedSubmission = submission;
+
+		// Convert submission answers to QuizAnswers format
+		if (submission.answers && courseModuleContext.quiz.rawQuizConfig) {
+			try {
+				viewedSubmissionAnswers = convertDatabaseAnswersToQuizAnswers(
+					courseModuleContext.quiz.rawQuizConfig,
+					submission.answers,
+				);
+			} catch {
+				// If conversion fails, continue without answers
+			}
+		}
+	}
 
 	return {
 		...courseModuleContext,
 		moduleLinkId,
 		isStudent,
 		searchParams,
+		viewedSubmission,
+		viewedSubmissionAnswers,
 	};
 });
 
@@ -661,6 +746,7 @@ const markQuizAttemptAsCompleteAction =
 						view: null,
 						threadId: null,
 						replyTo: null,
+						viewSubmission: null,
 					},
 				}),
 			);
@@ -732,6 +818,7 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 						view: null,
 						threadId: null,
 						replyTo: null,
+						viewSubmission: null,
 					},
 				}),
 			);
@@ -774,6 +861,7 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 					view: null,
 					threadId: null,
 					replyTo: null,
+					viewSubmission: null,
 				},
 			}),
 		);
@@ -1285,6 +1373,32 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 	const allQuizSubmissionsForDisplay =
 		loaderData.allQuizSubmissionsForDisplay ?? [];
 
+	// Handle viewing a completed submission in readonly mode
+	if (loaderData.searchParams.viewSubmission && loaderData.viewedSubmission) {
+		const viewedSubmission = loaderData.viewedSubmission;
+
+		// Get flagged questions from the viewed submission
+		const flaggedQuestions = (viewedSubmission.flaggedQuestions || []).filter(
+			(f): f is { questionId: string } =>
+				f?.questionId != null && typeof f.questionId === "string",
+		);
+
+		return (
+			<>
+				<ModuleDatesInfo settings={loaderData.settings} />
+				<QuizAttemptComponent
+					quizConfig={quizConfig}
+					submissionId={viewedSubmission.id}
+					readonly={true}
+					initialAnswers={loaderData.viewedSubmissionAnswers}
+					currentPageIndex={loaderData.searchParams.quizPageIndex}
+					moduleLinkId={loaderData.id}
+					flaggedQuestions={flaggedQuestions}
+				/>
+			</>
+		);
+	}
+
 	// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
 	if (showQuiz && loaderData.hasActiveQuizAttempt) {
 		// Use userSubmission which is already the active in_progress submission
@@ -1350,7 +1464,10 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 				canPreview={loaderData.permissions.quiz?.canPreview.allowed ?? false}
 			/>
 			{allQuizSubmissionsForDisplay.length > 0 && (
-				<QuizSubmissionHistory submissions={allQuizSubmissionsForDisplay} />
+				<QuizSubmissionHistory
+					submissions={allQuizSubmissionsForDisplay}
+					moduleLinkId={loaderData.id}
+				/>
 			)}
 		</>
 	);
