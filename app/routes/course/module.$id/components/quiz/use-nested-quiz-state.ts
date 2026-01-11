@@ -4,7 +4,6 @@ import type {
 	QuizAnswers,
 	QuizConfig,
 } from "server/json/raw-quiz-config/v2";
-import { isContainerQuiz } from "server/json/raw-quiz-config/v2";
 
 interface UseNestedQuizStateOptions {
 	quizConfig: QuizConfig;
@@ -40,14 +39,14 @@ export function useNestedQuizState({
 
 	// Get the active nested quiz if one is selected
 	const activeNestedQuiz =
-		currentNestedQuizId && isContainerQuiz(quizConfig)
+		currentNestedQuizId && quizConfig.type === "container"
 			? (quizConfig.nestedQuizzes?.find((q) => q.id === currentNestedQuizId) ??
 				null)
 			: null;
 
 	// Helper function to check if a quiz is completed based on initialAnswers
 	const isQuizCompletedFromInitialAnswers = (quizId: string): boolean => {
-		if (!isContainerQuiz(quizConfig) || !initialAnswers) {
+		if (quizConfig.type !== "container" || !initialAnswers) {
 			return false;
 		}
 
@@ -72,7 +71,7 @@ export function useNestedQuizState({
 	};
 
 	const startNestedQuiz = (quizId: string) => {
-		if (isContainerQuiz(quizConfig)) {
+		if (quizConfig.type === "container") {
 			const quiz = quizConfig.nestedQuizzes?.find((q) => q.id === quizId);
 			if (quiz && canAccessQuiz(quiz)) {
 				setCurrentNestedQuizId(quizId);
@@ -101,7 +100,7 @@ export function useNestedQuizState({
 	};
 
 	const isQuizAccessible = (quizId: string): boolean => {
-		if (!isContainerQuiz(quizConfig)) {
+		if (quizConfig.type !== "container") {
 			return false;
 		}
 
@@ -115,7 +114,7 @@ export function useNestedQuizState({
 	};
 
 	const canAccessQuiz = (quiz: NestedQuizConfig): boolean => {
-		if (!isContainerQuiz(quizConfig)) {
+		if (quizConfig.type !== "container") {
 			return false;
 		}
 
@@ -159,12 +158,13 @@ export function useNestedQuizState({
 		return true;
 	};
 
-	const allQuizzesCompleted = isContainerQuiz(quizConfig)
-		? (quizConfig.nestedQuizzes?.length ?? 0) === completedQuizIds.size
-		: false;
+	const allQuizzesCompleted =
+		quizConfig.type === "container"
+			? (quizConfig.nestedQuizzes?.length ?? 0) === completedQuizIds.size
+			: false;
 
 	const completionProgress =
-		isContainerQuiz(quizConfig) && quizConfig.nestedQuizzes
+		quizConfig.type === "container" && quizConfig.nestedQuizzes
 			? Math.round(
 					(completedQuizIds.size / quizConfig.nestedQuizzes.length) * 100,
 				)

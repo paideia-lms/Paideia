@@ -27,15 +27,15 @@ import {
 	calculateTotalPoints,
 } from "server/json/raw-quiz-config/v2";
 import { RichTextRenderer } from "../../../../../components/rich-text/rich-text-renderer";
-import { NestedQuizSelector } from "./nested-quiz-selector";
-import { useNestedQuizState } from "./use-nested-quiz-state";
 import { useQuizTimer } from "./use-quiz-timer";
 import { QuestionCard } from "./question-card";
 import { QuizNavigation, QuizNavigationButtons } from "./quiz-navigation";
+import { RegularQuizAttemptComponent } from "./regular-quiz-attempt-component";
+import { ContainerQuizAttemptComponent } from "./container-quiz-attempt-component";
 
 // Memoized timer display component to prevent unnecessary re-renders
 // Key prop should be used to remount when remainingTime changes
-const TimerDisplay = memo(
+export const TimerDisplay = memo(
 	({
 		initialTime,
 		remainingTime,
@@ -419,144 +419,35 @@ export function QuizAttemptComponent({
 	flaggedQuestions = [],
 	readonly = false,
 }: QuizAttemptComponentProps) {
-	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
-
-	// For container quizzes, use nested quiz state
-	const nestedQuizState = useNestedQuizState({
-		quizConfig,
-		initialAnswers,
-	});
-
-	const handleParentTimerExpire = () => {
-		setIsParentTimerExpired(true);
-		// If in a nested quiz when parent expires, force exit
-		if (nestedQuizState.currentNestedQuizId) {
-			nestedQuizState.exitToContainer();
-		}
-	};
-
-	// Regular quiz - just render SingleQuizPreview directly
+	// Route to appropriate component based on quiz type
 	if (quizConfig.type === "regular") {
 		return (
-			<SingleQuizPreview
+			<RegularQuizAttemptComponent
 				quizConfig={quizConfig}
-				readonly={readonly}
+				submissionId={submissionId}
 				onSubmit={onSubmit}
 				remainingTime={remainingTime}
-				grading={quizConfig.grading}
 				initialAnswers={initialAnswers}
-				submissionId={submissionId}
 				currentPageIndex={currentPageIndex}
 				moduleLinkId={moduleLinkId}
 				flaggedQuestions={flaggedQuestions}
+				readonly={readonly}
 			/>
 		);
 	}
 
-	// Check if viewing a completed nested quiz (readonly mode)
-	const isViewingCompletedQuiz =
-		nestedQuizState.currentNestedQuizId !== null &&
-		nestedQuizState.isQuizCompleted(nestedQuizState.currentNestedQuizId);
-
+	// Container quiz
 	return (
-		<Stack gap="md">
-			{/* Parent Timer (always visible if exists) */}
-			{quizConfig.globalTimer && (
-				<Paper withBorder p="md" radius="sm">
-					<Group justify="space-between">
-						<Text size="sm" fw={500}>
-							Overall Time Limit
-						</Text>
-						<TimerDisplay
-							key={`parent-timer-${remainingTime ?? quizConfig.globalTimer}`}
-							initialTime={quizConfig.globalTimer}
-							remainingTime={remainingTime}
-							onExpire={handleParentTimerExpire}
-						/>
-					</Group>
-				</Paper>
-			)}
-
-			{/* Parent Timer Expired Warning */}
-			{isParentTimerExpired && (
-				<Alert color="red" title="Time Expired" icon={<IconClock size={20} />}>
-					The overall time limit has expired. All quizzes are now locked.
-				</Alert>
-			)}
-
-			{/* Nested Quiz Timer (only when inside a nested quiz) */}
-			{nestedQuizState.activeNestedQuiz?.globalTimer &&
-				!isViewingCompletedQuiz && (
-					<Paper withBorder p="md" radius="sm" bg="blue.0">
-						<Group justify="space-between">
-							<Text size="sm" fw={500}>
-								Current Quiz Time
-							</Text>
-							<TimerDisplay
-								key={`nested-timer-${remainingTime ?? nestedQuizState.activeNestedQuiz.globalTimer}`}
-								initialTime={nestedQuizState.activeNestedQuiz.globalTimer}
-								remainingTime={remainingTime}
-								onExpire={() => {
-									// Nested timer expired - this will be handled by SingleQuizPreview
-								}}
-							/>
-						</Group>
-					</Paper>
-				)}
-
-			{/* Content: Either selector or nested quiz */}
-			{nestedQuizState.currentNestedQuizId === null ? (
-				<NestedQuizSelector
-					quizConfig={quizConfig}
-					completedQuizIds={nestedQuizState.completedQuizIds}
-					onStartQuiz={nestedQuizState.startNestedQuiz}
-					canAccessQuiz={nestedQuizState.canAccessQuiz}
-					isQuizCompleted={nestedQuizState.isQuizCompleted}
-					completionProgress={nestedQuizState.completionProgress}
-					isParentTimerExpired={isParentTimerExpired}
-				/>
-			) : nestedQuizState.activeNestedQuiz ? (
-				<SingleQuizPreview
-					quizConfig={nestedQuizState.activeNestedQuiz}
-					readonly={readonly || isViewingCompletedQuiz}
-					moduleLinkId={moduleLinkId}
-					initialAnswers={
-						isViewingCompletedQuiz && initialAnswers
-							? (() => {
-								// Extract answers for this specific nested quiz from initialAnswers
-								const nestedQuizAnswers: QuizAnswers = {};
-								const activeQuiz = nestedQuizState.activeNestedQuiz;
-								if (activeQuiz?.pages) {
-									for (const page of activeQuiz.pages) {
-										for (const question of page.questions) {
-											const answer = initialAnswers[question.id];
-											if (answer !== undefined && answer !== null) {
-												nestedQuizAnswers[question.id] = answer;
-											}
-										}
-									}
-								}
-								return nestedQuizAnswers;
-							})()
-							: undefined
-					}
-					onSubmit={() => {
-						if (nestedQuizState.currentNestedQuizId) {
-							// For nested quizzes, we still need to handle completion differently
-							// This is a simplified version - nested quiz handling may need more work
-							if (onSubmit) {
-								onSubmit();
-							}
-						}
-					}}
-					submissionId={submissionId}
-					onExit={nestedQuizState.exitToContainer}
-					disableInteraction={isParentTimerExpired}
-					remainingTime={remainingTime}
-					grading={quizConfig.grading}
-					currentPageIndex={currentPageIndex}
-				/>
-			) : null}
-		</Stack>
+		<ContainerQuizAttemptComponent
+			quizConfig={quizConfig}
+			submissionId={submissionId}
+			onSubmit={onSubmit}
+			remainingTime={remainingTime}
+			initialAnswers={initialAnswers}
+			currentPageIndex={currentPageIndex}
+			moduleLinkId={moduleLinkId}
+			flaggedQuestions={flaggedQuestions}
+			readonly={readonly}
+		/>
 	);
 }

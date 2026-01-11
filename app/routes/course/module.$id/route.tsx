@@ -23,6 +23,8 @@ import {
 	tryRemoveAnswerFromQuizQuestion,
 	tryFlagQuizQuestion,
 	tryUnflagQuizQuestion,
+	tryStartNestedQuiz,
+	tryMarkNestedQuizAsComplete,
 } from "server/internal/quiz-submission-management";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { convertDatabaseAnswersToQuizAnswers } from "server/internal/utils/quiz-answer-converter";
@@ -88,6 +90,8 @@ export const QuizActions = {
 	UNFLAG_QUESTION: "unflagquestion",
 	MARK_QUIZ_ATTEMPT_AS_COMPLETE: "markquizattemptascomplete",
 	VIEW_SUBMISSION: "viewsubmission",
+	START_NESTED_QUIZ: "startnestedquiz",
+	MARK_NESTED_QUIZ_AS_COMPLETE: "marknestedquizascomplete",
 	// GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
@@ -356,6 +360,25 @@ const unflagQuizQuestionRpc = createActionRpc({
 	}),
 	method: "POST",
 	action: QuizActions.UNFLAG_QUESTION,
+});
+
+const startNestedQuizRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		nestedQuizId: z.string().min(1),
+	}),
+	method: "POST",
+	action: QuizActions.START_NESTED_QUIZ,
+});
+
+const markNestedQuizAsCompleteRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+		nestedQuizId: z.string().min(1),
+		bypassTimeLimit: z.coerce.boolean().optional(),
+	}),
+	method: "POST",
+	action: QuizActions.MARK_NESTED_QUIZ_AS_COMPLETE,
 });
 
 const submitAssignmentRpc = createActionRpc({
@@ -1107,6 +1130,124 @@ const unflagQuizQuestionAction = unflagQuizQuestionRpc.createAction(
 const useUnflagQuizQuestion =
 	unflagQuizQuestionRpc.createHook<typeof unflagQuizQuestionAction>();
 
+const startNestedQuizAction = startNestedQuizRpc.createAction(
+	async ({ context, formData, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!enrolmentContext?.enrolment) {
+			return badRequest({ error: "Enrollment not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		const courseModuleContext = context.get(courseModuleContextKey);
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Only students can start nested quizzes
+		if (
+			courseModuleContext.type === "quiz" &&
+			!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
+		) {
+			return forbidden({
+				error: courseModuleContext.permissions.quiz.canStartAttempt.reason,
+			});
+		}
+
+		const result = await tryStartNestedQuiz({
+			payload,
+			submissionId: formData.submissionId,
+			nestedQuizId: formData.nestedQuizId,
+			req: payloadRequest,
+		});
+
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
+
+		return ok({
+			success: true,
+			message: "Nested quiz started successfully",
+		});
+	},
+);
+
+const useStartNestedQuiz =
+	startNestedQuizRpc.createHook<typeof startNestedQuizAction>();
+
+const markNestedQuizAsCompleteAction =
+	markNestedQuizAsCompleteRpc.createAction(
+		async ({ context, formData, params }) => {
+			const { payload, payloadRequest } = context.get(globalContextKey);
+			const userSession = context.get(userContextKey);
+			const enrolmentContext = context.get(enrolmentContextKey);
+
+			if (!userSession?.isAuthenticated) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			if (!enrolmentContext?.enrolment) {
+				return badRequest({ error: "Enrollment not found" });
+			}
+
+			const currentUser =
+				userSession.effectiveUser ?? userSession.authenticatedUser;
+
+			if (!currentUser) {
+				return unauthorized({ error: "Unauthorized" });
+			}
+
+			const courseModuleContext = context.get(courseModuleContextKey);
+			if (!courseModuleContext) {
+				return badRequest({ error: "Module not found" });
+			}
+
+			// Only students can mark nested quizzes as complete
+			if (
+				courseModuleContext.type === "quiz" &&
+				!courseModuleContext.permissions.quiz?.canStartAttempt.allowed
+			) {
+				return forbidden({
+					error: courseModuleContext.permissions.quiz.canStartAttempt.reason,
+				});
+			}
+
+			const result = await tryMarkNestedQuizAsComplete({
+				payload,
+				submissionId: formData.submissionId,
+				nestedQuizId: formData.nestedQuizId,
+				bypassTimeLimit: formData.bypassTimeLimit,
+				req: payloadRequest,
+			});
+
+			if (!result.ok) {
+				return badRequest({ error: result.error.message });
+			}
+
+			return ok({
+				success: true,
+				message: "Nested quiz marked as complete successfully",
+			});
+		},
+	);
+
+const useMarkNestedQuizAsComplete =
+	markNestedQuizAsCompleteRpc.createHook<
+		typeof markNestedQuizAsCompleteAction
+	>();
+
 const submitAssignmentAction = submitAssignmentRpc.createAction(
 	async ({ context, formData, params, request }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
@@ -1203,6 +1344,8 @@ export {
 	useCreateThread,
 	useCreateReply,
 	useMarkQuizAttemptAsComplete,
+	useStartNestedQuiz,
+	useMarkNestedQuizAsComplete,
 };
 
 const [action] = createActionMap({
@@ -1218,6 +1361,8 @@ const [action] = createActionMap({
 	[QuizActions.UNANSWER_QUESTION]: unanswerQuizQuestionAction,
 	[QuizActions.FLAG_QUESTION]: flagQuizQuestionAction,
 	[QuizActions.UNFLAG_QUESTION]: unflagQuizQuestionAction,
+	[QuizActions.START_NESTED_QUIZ]: startNestedQuizAction,
+	[QuizActions.MARK_NESTED_QUIZ_AS_COMPLETE]: markNestedQuizAsCompleteAction,
 	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
 });
 
