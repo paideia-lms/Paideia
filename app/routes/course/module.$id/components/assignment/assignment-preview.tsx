@@ -23,9 +23,9 @@ import {
 import { useState } from "react";
 import { getMimeTypesArray } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { isHtmlEmpty } from "../rich-text/rich-text-editor";
-import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
-import type { SubmissionData } from "../submission-history";
+import { isHtmlEmpty } from "../../../../../components/rich-text/rich-text-editor";
+import { SimpleRichTextEditor } from "../../../../../components/rich-text/simple-rich-text-editor";
+import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";
 import {
 	AssignmentActions,
 	loaderSearchParams,
@@ -65,7 +65,7 @@ interface AssignmentPreviewProps {
 		submittedAt?: string | null;
 		attemptNumber?: number;
 	} | null;
-	allSubmissions?: SubmissionData[];
+	allSubmissions?: AssignmentSubmissionData[];
 	onSubmit?: (data: {
 		textContent: string;
 		files: File[];
@@ -404,7 +404,7 @@ function InstructionsView({
 	isStudent = false,
 }: {
 	assignment: AssignmentData;
-	allSubmissions: SubmissionData[];
+	allSubmissions: AssignmentSubmissionData[];
 	submission?: { status: "draft" | "submitted" | "graded" | "returned" } | null;
 	onAddSubmission: () => void;
 	canSubmit?: boolean;
@@ -447,9 +447,8 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${
-									maxAttempts !== 1 ? "s" : ""
-								} used`
+							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
+							} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>

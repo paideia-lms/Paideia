@@ -3,7 +3,7 @@ import type {
 	QuizAnswers,
 	RegularQuizConfig,
 } from "server/json/raw-quiz-config/v2";
-import { loaderSearchParams } from "../route";
+import { loaderSearchParams } from "../../route";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
 interface UseQuizFormOptions {

@@ -20,12 +20,12 @@ import type {
 	DiscussionData,
 	DiscussionReply,
 	DiscussionThread,
-} from "~/components/activity-modules-preview/discussion-preview";
+} from "app/routes/course/module.$id/components/discussion/discussion-preview";
 import { ReplyCardWithUpvote } from "./reply-card";
 import { ReplyForm } from "./reply-form";
 import { ThreadUpvoteDownVoteButton } from "./thread-upvote-button";
 import type { inferParserType } from "nuqs";
-import { loaderSearchParams } from "../route";
+import { loaderSearchParams } from "../../route";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 
 dayjs.extend(relativeTime);
@@ -87,8 +87,8 @@ export function DiscussionThreadDetailView({
 								to={
 									courseId && thread.authorId
 										? href("/course/:courseId/participants/profile", {
-												courseId: String(courseId),
-											}) + `?userId=${thread.authorId}`
+											courseId: String(courseId),
+										}) + `?userId=${thread.authorId}`
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}

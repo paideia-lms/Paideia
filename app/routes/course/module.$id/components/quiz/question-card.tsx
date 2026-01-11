@@ -29,7 +29,7 @@ import {
 	useUnflagQuizQuestion,
 	useAnswerQuizQuestion,
 	useUnanswerQuizQuestion,
-} from "../route";
+} from "../../route";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { useRef, useEffect } from "react";
 

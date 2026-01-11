@@ -14,16 +14,16 @@ import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Link } from "react-router";
-import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
+import type { DiscussionReply } from "app/routes/course/module.$id/components/discussion/discussion-preview";
 import { FormableSimpleRichTextEditor } from "app/components/form-components/formable-simple-rich-text-editor";
-import { useCreateReply } from "../route";
+import { useCreateReply } from "../../route";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
 import {
 	getRouteUrl,
 	useNuqsSearchParams,
 } from "app/utils/search-params-utils";
 import type { inferParserType } from "nuqs";
-import { loaderSearchParams } from "../route";
+import { loaderSearchParams } from "../../route";
 import { useForm } from "@mantine/form";
 import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 
@@ -81,13 +81,13 @@ export function ReplyCardWithUpvote({
 								to={
 									courseId && reply.authorId
 										? getRouteUrl("/course/:courseId/participants/profile", {
-												params: {
-													courseId: courseId.toString(),
-												},
-												searchParams: {
-													userId: reply.authorId,
-												},
-											})
+											params: {
+												courseId: courseId.toString(),
+											},
+											searchParams: {
+												userId: reply.authorId,
+											},
+										})
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}

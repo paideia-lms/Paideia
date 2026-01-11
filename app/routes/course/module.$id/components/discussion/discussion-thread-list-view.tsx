@@ -18,12 +18,12 @@ import { href, Link } from "react-router";
 import type {
 	DiscussionData,
 	DiscussionThread,
-} from "~/components/activity-modules-preview/discussion-preview";
-import { DiscussionActions } from "../route";
-import { CreateThreadFormWrapper } from "./create-thread-form-wrapper";
+} from "app/routes/course/module.$id/components/discussion/discussion-preview";
+import { DiscussionActions } from "../../route";
+import { CreateThreadFormWrapper } from "../create-thread-form-wrapper";
 import { ThreadUpvoteDownVoteButton } from "./thread-upvote-button";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
-import { loaderSearchParams } from "../route";
+import { loaderSearchParams } from "../../route";
 import type { inferParserType } from "nuqs";
 
 dayjs.extend(relativeTime);
@@ -182,8 +182,8 @@ export function DiscussionThreadListView({
 											to={
 												courseId && thread.authorId
 													? href("/course/:courseId/participants/profile", {
-															courseId: String(courseId),
-														}) + `?userId=${thread.authorId}`
+														courseId: String(courseId),
+													}) + `?userId=${thread.authorId}`
 													: "#"
 											}
 											style={{ textDecoration: "none", color: "inherit" }}

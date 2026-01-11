@@ -29,6 +29,8 @@ import {
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
 import { getRouteUrl } from "~/utils/search-params-utils";
+import { QuizSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/submission-tables/quiz-submission-item-in-table";
+import type { QuizSubmissionData } from "app/routes/course/module.$id/components/quiz/quiz-submission-item";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
@@ -38,16 +40,7 @@ type Enrollment = NonNullable<
 // Types
 // ============================================================================
 
-type QuizSubmissionType = {
-	id: number;
-	status: "in_progress" | "completed" | "graded" | "returned";
-	attemptNumber: number;
-	startedAt?: string | null;
-	submittedAt?: string | null;
-	timeSpent?: number | null;
-	totalScore?: number | null;
-	maxScore?: number | null;
-	percentage?: number | null;
+type QuizSubmissionType = QuizSubmissionData & {
 	student: {
 		id: number;
 		firstName?: string | null;
@@ -66,88 +59,6 @@ type QuizSubmissionType = {
 // ============================================================================
 // Components
 // ============================================================================
-
-function QuizSubmissionHistoryItem({
-	attemptNumber,
-	submission,
-}: {
-	attemptNumber: number;
-	submission: QuizSubmissionType;
-}) {
-	return (
-		<Paper withBorder p="md" radius="sm">
-			<Stack gap="md">
-				<Group justify="space-between">
-					<Group gap="sm">
-						<Badge size="sm" variant="light">
-							Attempt {attemptNumber}
-						</Badge>
-						<Badge
-							color={
-								submission.status === "graded"
-									? "green"
-									: submission.status === "returned"
-										? "blue"
-										: submission.status === "completed"
-											? "yellow"
-											: "gray"
-							}
-							variant="light"
-						>
-							{submission.status === "in_progress"
-								? "In Progress"
-								: submission.status === "completed"
-									? "Completed"
-									: submission.status === "graded"
-										? "Graded"
-										: "Returned"}
-						</Badge>
-						{submission.status === "graded" ||
-						submission.status === "returned" ? (
-							<Badge color="green" variant="filled">
-								{submission.totalScore !== null &&
-								submission.totalScore !== undefined &&
-								submission.maxScore !== null &&
-								submission.maxScore !== undefined
-									? `${submission.totalScore}/${submission.maxScore}`
-									: submission.totalScore !== null &&
-											submission.totalScore !== undefined
-										? String(submission.totalScore)
-										: "-"}
-								{submission.percentage !== null &&
-								submission.percentage !== undefined
-									? ` (${submission.percentage.toFixed(1)}%)`
-									: ""}
-							</Badge>
-						) : null}
-						<Text size="xs" c="dimmed">
-							ID: {submission.id}
-						</Text>
-					</Group>
-				</Group>
-				<Group gap="sm">
-					{submission.startedAt && (
-						<Text size="sm" c="dimmed">
-							Started: {new Date(submission.startedAt).toLocaleString()}
-						</Text>
-					)}
-					{submission.submittedAt && (
-						<Text size="sm" c="dimmed">
-							{submission.startedAt ? "• " : ""}
-							Submitted: {new Date(submission.submittedAt).toLocaleString()}
-						</Text>
-					)}
-					{submission.timeSpent && (
-						<Text size="sm" c="dimmed">
-							{submission.startedAt || submission.submittedAt ? "• " : ""}
-							Time Spent: {Math.round(submission.timeSpent)} min
-						</Text>
-					)}
-				</Group>
-			</Stack>
-		</Paper>
-	);
-}
 
 function QuizStudentSubmissionRow({
 	courseId,
@@ -169,10 +80,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -202,7 +113,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-				gradedSubmissions.length
+			gradedSubmissions.length
 			: null;
 
 	return (
@@ -397,7 +308,7 @@ function QuizStudentSubmissionRow({
 											return dateB.getTime() - dateA.getTime();
 										})
 										.map((submission, index) => (
-											<QuizSubmissionHistoryItem
+											<QuizSubmissionItemInTable
 												key={submission.id}
 												attemptNumber={
 													submission.attemptNumber ??

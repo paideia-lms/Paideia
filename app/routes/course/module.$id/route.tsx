@@ -35,15 +35,16 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/route";
-import { AssignmentPreview } from "app/components/activity-modules-preview/assignment-preview";
+import { AssignmentPreview } from "app/routes/course/module.$id/components/assignment/assignment-preview";
 import { PagePreview } from "app/components/activity-modules-preview/page-preview";
 import { WhiteboardPreview } from "app/components/activity-modules-preview/whiteboard-preview";
 import { FilePreview } from "app/components/activity-modules-preview/file-preview";
-import { DiscussionThreadView } from "./components/discussion-thread-view";
+import { DiscussionThreadView } from "./components/discussion/discussion-thread-view";
 import { ModuleDatesInfo } from "./components/module-dates-info";
-import { SubmissionHistory } from "app/components/submission-history";
-import { QuizAttemptComponent } from "app/routes/course/module.$id/components/quiz-attempt-component";
-import { QuizInstructionsView } from "app/routes/course/module.$id/components/quiz-instructions-view";
+import { AssignmentSubmissionHistory } from "./components/assignment/assignment-submission-history";
+import { QuizSubmissionHistory } from "./components/quiz/quiz-submission-history";
+import { QuizAttemptComponent } from "app/routes/course/module.$id/components/quiz/quiz-attempt-component";
+import { QuizInstructionsView } from "app/routes/course/module.$id/components/quiz/quiz-instructions-view";
 import {
 	parseAsBoolean,
 	createParser,
@@ -1245,9 +1246,8 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 				view={loaderData.searchParams.view}
 			/>
 			{loaderData.allSubmissionsForDisplay.length > 0 && (
-				<SubmissionHistory
+				<AssignmentSubmissionHistory
 					submissions={loaderData.allSubmissionsForDisplay}
-					variant="compact"
 				/>
 			)}
 		</>
@@ -1290,8 +1290,8 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-			"status" in loaderData.userSubmission &&
-			loaderData.userSubmission.status === "in_progress"
+				"status" in loaderData.userSubmission &&
+				loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 
@@ -1350,24 +1350,7 @@ function QuizModuleView({ loaderData, showQuiz }: QuizModuleViewProps) {
 				canPreview={loaderData.permissions.quiz?.canPreview.allowed ?? false}
 			/>
 			{allQuizSubmissionsForDisplay.length > 0 && (
-				<SubmissionHistory
-					submissions={allQuizSubmissionsForDisplay.map((sub) => ({
-						id: sub.id,
-						// Map quiz statuses to SubmissionHistory statuses
-						status:
-							sub.status === "in_progress"
-								? "draft"
-								: sub.status === "completed"
-									? "submitted"
-									: sub.status === "graded"
-										? "graded"
-										: "returned",
-						submittedAt: sub.submittedAt,
-						startedAt: sub.startedAt,
-						attemptNumber: sub.attemptNumber,
-					}))}
-					variant="compact"
-				/>
+				<QuizSubmissionHistory submissions={allQuizSubmissionsForDisplay} />
 			)}
 		</>
 	);

@@ -3,11 +3,11 @@ import type {
 	DiscussionData,
 	DiscussionReply,
 	DiscussionThread,
-} from "~/components/activity-modules-preview/discussion-preview";
+} from "app/routes/course/module.$id/components/discussion/discussion-preview";
 import { DiscussionThreadDetailView } from "./discussion-thread-detail-view";
 import { DiscussionThreadListView } from "./discussion-thread-list-view";
 import type { inferParserType } from "nuqs";
-import type { loaderSearchParams } from "../route";
+import type { loaderSearchParams } from "../../route";
 
 interface DiscussionThreadViewProps {
 	discussion: DiscussionData | null;

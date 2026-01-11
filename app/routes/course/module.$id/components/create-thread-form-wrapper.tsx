@@ -1,4 +1,4 @@
-import { CreateThreadForm } from "~/components/activity-modules-preview/discussion-preview";
+import { CreateThreadForm } from "app/routes/course/module.$id/components/discussion/discussion-preview";
 import { useCreateThread } from "../route";
 
 interface CreateThreadFormWrapperProps {

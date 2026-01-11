@@ -33,8 +33,8 @@ import {
 	isContainerQuiz,
 	isRegularQuiz,
 } from "server/json/raw-quiz-config/v2";
-import { RichTextRenderer } from "../../../../components/rich-text/rich-text-renderer";
-import { NestedQuizSelector } from "../../../../components/activity-modules-preview/nested-quiz-selector";
+import { RichTextRenderer } from "../../../../../components/rich-text/rich-text-renderer";
+import { NestedQuizSelector } from "./nested-quiz-selector";
 import { useNestedQuizState } from "./use-nested-quiz-state";
 import { useQuizForm } from "./use-quiz-form";
 import { useQuizTimer } from "./use-quiz-timer";
@@ -187,10 +187,10 @@ function QuizNavigation({
 										style={
 											isCurrent
 												? {
-														borderWidth: 3,
-														borderStyle: "solid",
-														borderColor: "var(--mantine-color-blue-6)",
-													}
+													borderWidth: 3,
+													borderStyle: "solid",
+													borderColor: "var(--mantine-color-blue-6)",
+												}
 												: undefined
 										}
 									>
@@ -818,21 +818,21 @@ export function QuizAttemptComponent({
 					initialAnswers={
 						isViewingCompletedQuiz && initialAnswers
 							? (() => {
-									// Extract answers for this specific nested quiz from initialAnswers
-									const nestedQuizAnswers: QuizAnswers = {};
-									const activeQuiz = nestedQuizState.activeNestedQuiz;
-									if (activeQuiz?.pages) {
-										for (const page of activeQuiz.pages) {
-											for (const question of page.questions) {
-												const answer = initialAnswers[question.id];
-												if (answer !== undefined && answer !== null) {
-													nestedQuizAnswers[question.id] = answer;
-												}
+								// Extract answers for this specific nested quiz from initialAnswers
+								const nestedQuizAnswers: QuizAnswers = {};
+								const activeQuiz = nestedQuizState.activeNestedQuiz;
+								if (activeQuiz?.pages) {
+									for (const page of activeQuiz.pages) {
+										for (const question of page.questions) {
+											const answer = initialAnswers[question.id];
+											if (answer !== undefined && answer !== null) {
+												nestedQuizAnswers[question.id] = answer;
 											}
 										}
 									}
-									return nestedQuizAnswers;
-								})()
+								}
+								return nestedQuizAnswers;
+							})()
 							: undefined
 					}
 					onSubmit={() => {

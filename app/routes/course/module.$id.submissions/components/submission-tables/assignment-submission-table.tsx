@@ -26,10 +26,8 @@ import {
 	IconTrash,
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
-import {
-	type SubmissionData,
-	SubmissionHistoryItem,
-} from "~/components/submission-history";
+import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";
+import { AssignmentSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/submission-tables/assignment-submission-item-in-table";
 import { groupSubmissionsByStudent } from "./helpers";
 
 import {
@@ -49,7 +47,7 @@ type Enrollment = NonNullable<
 // Types
 // ============================================================================
 
-type SubmissionType = SubmissionData & {
+type SubmissionType = AssignmentSubmissionData & {
 	student: {
 		id: number;
 		firstName?: string | null;
@@ -163,10 +161,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter out draft submissions for display
@@ -254,8 +252,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-					"submittedAt" in latestSubmission &&
-					latestSubmission.submittedAt
+						"submittedAt" in latestSubmission &&
+						latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -343,7 +341,7 @@ function StudentSubmissionRow({
 											return dateB.getTime() - dateA.getTime();
 										})
 										.map((submission, index) => (
-											<SubmissionHistoryItem
+											<AssignmentSubmissionItemInTable
 												key={submission.id}
 												attemptNumber={
 													submission.attemptNumber ??
