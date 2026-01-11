@@ -802,6 +802,13 @@ export interface QuizSubmission {
   percentage?: number | null;
   isLate?: boolean | null;
   autoGraded?: boolean | null;
+  completedNestedQuizzes?:
+    | {
+        id: string;
+        startedAt?: string | null;
+        completedAt?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1703,6 +1710,13 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   percentage?: T;
   isLate?: T;
   autoGraded?: T;
+  completedNestedQuizzes?:
+    | T
+    | {
+        id?: T;
+        startedAt?: T;
+        completedAt?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }

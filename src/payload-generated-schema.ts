@@ -1387,6 +1387,38 @@ export const quiz_submissions_flagged_questions = pgTable(
   ],
 );
 
+export const quiz_submissions_completed_nested_quizzes = pgTable(
+  "quiz_submissions_completed_nested_quizzes",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    startedAt: timestamp("started_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    completedAt: timestamp("completed_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+  },
+  (columns) => [
+    index("quiz_submissions_completed_nested_quizzes_order_idx").on(
+      columns._order,
+    ),
+    index("quiz_submissions_completed_nested_quizzes_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [quiz_submissions.id],
+      name: "quiz_submissions_completed_nested_quizzes_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const quiz_submissions = pgTable(
   "quiz_submissions",
   {
@@ -3142,6 +3174,16 @@ export const relations_quiz_submissions_flagged_questions = relations(
     }),
   }),
 );
+export const relations_quiz_submissions_completed_nested_quizzes = relations(
+  quiz_submissions_completed_nested_quizzes,
+  ({ one }) => ({
+    _parentID: one(quiz_submissions, {
+      fields: [quiz_submissions_completed_nested_quizzes._parentID],
+      references: [quiz_submissions.id],
+      relationName: "completedNestedQuizzes",
+    }),
+  }),
+);
 export const relations_quiz_submissions = relations(
   quiz_submissions,
   ({ one, many }) => ({
@@ -3165,6 +3207,9 @@ export const relations_quiz_submissions = relations(
     }),
     flaggedQuestions: many(quiz_submissions_flagged_questions, {
       relationName: "flaggedQuestions",
+    }),
+    completedNestedQuizzes: many(quiz_submissions_completed_nested_quizzes, {
+      relationName: "completedNestedQuizzes",
     }),
   }),
 );
@@ -3735,6 +3780,7 @@ type DatabaseSchema = {
   quiz_submissions_answers_multiple_choice_answers: typeof quiz_submissions_answers_multiple_choice_answers;
   quiz_submissions_answers: typeof quiz_submissions_answers;
   quiz_submissions_flagged_questions: typeof quiz_submissions_flagged_questions;
+  quiz_submissions_completed_nested_quizzes: typeof quiz_submissions_completed_nested_quizzes;
   quiz_submissions: typeof quiz_submissions;
   discussion_submissions_attachments: typeof discussion_submissions_attachments;
   discussion_submissions_upvotes: typeof discussion_submissions_upvotes;
@@ -3799,6 +3845,7 @@ type DatabaseSchema = {
   relations_quiz_submissions_answers_multiple_choice_answers: typeof relations_quiz_submissions_answers_multiple_choice_answers;
   relations_quiz_submissions_answers: typeof relations_quiz_submissions_answers;
   relations_quiz_submissions_flagged_questions: typeof relations_quiz_submissions_flagged_questions;
+  relations_quiz_submissions_completed_nested_quizzes: typeof relations_quiz_submissions_completed_nested_quizzes;
   relations_quiz_submissions: typeof relations_quiz_submissions;
   relations_discussion_submissions_attachments: typeof relations_discussion_submissions_attachments;
   relations_discussion_submissions_upvotes: typeof relations_discussion_submissions_upvotes;

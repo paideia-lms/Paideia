@@ -238,6 +238,20 @@ export interface MarkQuizAttemptAsCompleteArgs
 	bypassTimeLimit?: boolean;
 }
 
+export interface StartNestedQuizArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	nestedQuizId: string;
+}
+
+export interface MarkNestedQuizAsCompleteArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	nestedQuizId: string;
+	/**
+	 * If true, bypasses the time limit check (useful for auto-submit)
+	 */
+	bypassTimeLimit?: boolean;
+}
+
 export interface QuizGradingResult {
 	totalScore: number;
 	maxScore: number;
@@ -1142,6 +1156,305 @@ export function tryMarkQuizAttemptAsComplete(
 		(error) =>
 			transformError(error) ??
 			new UnknownError("Failed to submit quiz", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Starts a nested quiz by recording the start time
+ * This is used when a student enters a nested quiz in a container quiz
+ */
+export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				nestedQuizId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate required fields
+			if (!submissionId) {
+				throw new InvalidArgumentError("Quiz submission ID is required");
+			}
+			if (!nestedQuizId) {
+				throw new InvalidArgumentError("Nested quiz ID is required");
+			}
+
+			// Get the current submission
+			const currentSubmission = await payload
+				.findByID({
+					collection: "quiz-submissions",
+					id: submissionId,
+					req,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (currentSubmission.status !== "in_progress") {
+				throw new InvalidArgumentError(
+					"Only in-progress submissions can be updated",
+				);
+			}
+
+			// Get course module link to access quiz config
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: currentSubmission.courseModuleLink.id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			if (courseModuleLink.activityModule.type !== "quiz") {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const rawConfig = courseModuleLink.activityModule
+				.rawQuizConfig as unknown as LatestQuizConfig | null;
+
+			if (!rawConfig) {
+				throw new InvalidArgumentError("Quiz configuration not found");
+			}
+
+			// Verify the quiz is a container quiz
+			if (rawConfig.type !== "container") {
+				throw new InvalidArgumentError(
+					"This function is only for container quizzes",
+				);
+			}
+
+			// Verify the nested quiz exists
+			const nestedQuiz = rawConfig.nestedQuizzes?.find(
+				(nq) => nq.id === nestedQuizId,
+			);
+
+			if (!nestedQuiz) {
+				throw new InvalidArgumentError(
+					`Nested quiz with id '${nestedQuizId}' not found in container quiz`,
+				);
+			}
+
+			// Get current completedNestedQuizzes array
+			const currentCompletedNestedQuizzes =
+				currentSubmission.completedNestedQuizzes || [];
+
+			// Find existing entry for this nested quiz by matching the id field
+			// The id field is set to nestedQuizId when the entry is created
+			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
+				(entry) => entry.id === nestedQuizId,
+			);
+
+			const startedAt = new Date().toISOString();
+
+			// Update or insert the entry
+			const updatedCompletedNestedQuizzes = [...currentCompletedNestedQuizzes];
+			if (existingEntryIndex >= 0) {
+				// Update existing entry (preserve completedAt if already set)
+				const existingEntry = updatedCompletedNestedQuizzes[existingEntryIndex];
+				if (existingEntry) {
+					updatedCompletedNestedQuizzes[existingEntryIndex] = {
+						...existingEntry,
+						startedAt,
+					};
+				}
+			} else {
+				// Add new entry with nestedQuizId as the id
+				updatedCompletedNestedQuizzes.push({
+					id: nestedQuizId,
+					startedAt,
+					completedAt: null,
+				});
+			}
+
+			// Update the submission with new completedNestedQuizzes array
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						completedNestedQuizzes: updatedCompletedNestedQuizzes,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to start nested quiz", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Marks a nested quiz as complete by recording the completion time
+ * This is used when a student completes a nested quiz in a container quiz
+ */
+export function tryMarkNestedQuizAsComplete(
+	args: MarkNestedQuizAsCompleteArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				nestedQuizId,
+				req,
+				overrideAccess = false,
+				bypassTimeLimit = false,
+			} = args;
+
+			// Validate required fields
+			if (!submissionId) {
+				throw new InvalidArgumentError("Quiz submission ID is required");
+			}
+			if (!nestedQuizId) {
+				throw new InvalidArgumentError("Nested quiz ID is required");
+			}
+
+			// Get the current submission
+			const currentSubmission = await payload
+				.findByID({
+					collection: "quiz-submissions",
+					id: submissionId,
+					req,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (currentSubmission.status !== "in_progress") {
+				throw new InvalidArgumentError(
+					"Only in-progress submissions can be updated",
+				);
+			}
+
+			// Get course module link to access quiz config
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: currentSubmission.courseModuleLink.id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			if (courseModuleLink.activityModule.type !== "quiz") {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const rawConfig = courseModuleLink.activityModule
+				.rawQuizConfig as unknown as LatestQuizConfig | null;
+
+			if (!rawConfig) {
+				throw new InvalidArgumentError("Quiz configuration not found");
+			}
+
+			// Verify the quiz is a container quiz
+			if (rawConfig.type !== "container") {
+				throw new InvalidArgumentError(
+					"This function is only for container quizzes",
+				);
+			}
+
+			// Verify the nested quiz exists
+			const nestedQuiz = rawConfig.nestedQuizzes?.find(
+				(nq) => nq.id === nestedQuizId,
+			);
+
+			if (!nestedQuiz) {
+				throw new InvalidArgumentError(
+					`Nested quiz with id '${nestedQuizId}' not found in container quiz`,
+				);
+			}
+
+			// Get current completedNestedQuizzes array
+			const currentCompletedNestedQuizzes =
+				currentSubmission.completedNestedQuizzes || [];
+
+			// Find existing entry for this nested quiz by matching the id field
+			// The id field is set to nestedQuizId when the entry is created
+			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
+				(entry) => entry.id === nestedQuizId,
+			);
+
+			// Check if nested quiz was started
+			if (existingEntryIndex === -1) {
+				throw new InvalidArgumentError(
+					`Nested quiz '${nestedQuizId}' must be started before it can be marked as complete`,
+				);
+			}
+
+			const existingEntry = currentCompletedNestedQuizzes[existingEntryIndex];
+
+			if (!existingEntry) {
+				throw new InvalidArgumentError(
+					`Nested quiz entry for '${nestedQuizId}' not found`,
+				);
+			}
+
+			// Check if already completed
+			if (existingEntry.completedAt) {
+				// Already completed, return existing submission
+				return {
+					...currentSubmission,
+					courseModuleLink: currentSubmission.courseModuleLink.id,
+				};
+			}
+
+			// Check time limit if nested quiz has one (unless bypassed for auto-submit)
+			if (!bypassTimeLimit && nestedQuiz.globalTimer) {
+				// Use startedAt from the nested quiz entry (not submission startedAt)
+				const nestedQuizStartedAt = existingEntry.startedAt;
+				if (nestedQuizStartedAt) {
+					assertTimeLimit({
+						startedAt: nestedQuizStartedAt,
+						globalTimer: nestedQuiz.globalTimer,
+						bypassTimeLimit,
+					});
+				}
+			}
+
+			const completedAt = new Date().toISOString();
+
+			// Update the entry to set completedAt
+			const updatedCompletedNestedQuizzes = [...currentCompletedNestedQuizzes];
+			updatedCompletedNestedQuizzes[existingEntryIndex] = {
+				...existingEntry,
+				completedAt,
+			};
+
+			// Update the submission with updated completedNestedQuizzes array
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						completedNestedQuizzes: updatedCompletedNestedQuizzes,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to mark nested quiz as complete", {
 				cause: error,
 			}),
 	);

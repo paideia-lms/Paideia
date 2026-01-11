@@ -240,6 +240,29 @@ export const QuizSubmissions = {
 			defaultValue: false,
 			label: "Auto Graded",
 		},
+		{
+			name: "completedNestedQuizzes",
+			type: "array",
+			fields: [
+				{
+					name: "id",
+					type: "text",
+					required: true,
+					label: "Nested Quiz ID",
+				},
+				{
+					name: "startedAt",
+					type: "date",
+					label: "Started At",
+				},
+				{
+					name: "completedAt",
+					type: "date",
+					label: "Completed At",
+				},
+			],
+			label: "Completed Nested Quizzes",
+		},
 	],
 	indexes: [
 		{
