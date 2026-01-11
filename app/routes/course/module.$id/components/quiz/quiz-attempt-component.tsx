@@ -1,13 +1,9 @@
-import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import {
 	Alert,
 	Badge,
-	Box,
 	Button,
 	Code,
 	Group,
-	Indicator,
-	Modal,
 	Paper,
 	Progress,
 	ScrollArea,
@@ -16,13 +12,12 @@ import {
 	Title,
 	Tooltip,
 } from "@mantine/core";
-import { IconClock, IconFlag } from "@tabler/icons-react";
+import { IconClock } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type {
 	GradingConfig,
 	NestedQuizConfig,
 	Question,
-	QuestionAnswer,
 	QuizAnswers,
 	QuizConfig,
 	QuizResource,
@@ -30,62 +25,13 @@ import type {
 } from "server/json/raw-quiz-config/v2";
 import {
 	calculateTotalPoints,
-	isContainerQuiz,
-	isRegularQuiz,
 } from "server/json/raw-quiz-config/v2";
 import { RichTextRenderer } from "../../../../../components/rich-text/rich-text-renderer";
 import { NestedQuizSelector } from "./nested-quiz-selector";
 import { useNestedQuizState } from "./use-nested-quiz-state";
-import { useQuizForm } from "./use-quiz-form";
 import { useQuizTimer } from "./use-quiz-timer";
 import { QuestionCard } from "./question-card";
-
-/**
- * Helper function to check if a question is truly answered
- * For whiteboard questions, checks if elements array is non-empty
- */
-function isQuestionAnswered(
-	question: Question,
-	value: QuestionAnswer | undefined,
-): boolean {
-	if (value === undefined || value === null) {
-		return false;
-	}
-
-	// For whiteboard questions, check if elements array is non-empty
-	if (question.type === "whiteboard") {
-		if (typeof value !== "string" || value.trim() === "") {
-			return false;
-		}
-		try {
-			const data = JSON.parse(value) as ExcalidrawInitialDataState;
-			return (
-				Array.isArray(data.elements) &&
-				data.elements.length > 0 &&
-				data.elements.filter((element) => !element.isDeleted).length > 0
-			);
-		} catch {
-			return false;
-		}
-	}
-
-	// For string values
-	if (typeof value === "string") {
-		return value.trim().length > 0;
-	}
-
-	// For array values (fill-in-the-blank, choice, ranking)
-	if (Array.isArray(value)) {
-		return value.length > 0 && value.some((v) => v && v.trim().length > 0);
-	}
-
-	// For object values (matrix questions)
-	if (typeof value === "object") {
-		return Object.keys(value).length > 0;
-	}
-
-	return true;
-}
+import { QuizNavigation, QuizNavigationButtons } from "./quiz-navigation";
 
 // Memoized timer display component to prevent unnecessary re-renders
 // Key prop should be used to remount when remainingTime changes
@@ -127,192 +73,6 @@ const TimerDisplay = memo(
 );
 
 TimerDisplay.displayName = "TimerDisplay";
-
-interface QuizNavigationProps {
-	questionMap: Array<{
-		questionId: string;
-		questionNumber: number;
-		pageIndex: number;
-		questionIndex: number;
-		prompt: string;
-		question: Question;
-	}>;
-	answers: QuizAnswers;
-	isFlagged: (questionId: string) => boolean;
-	currentPageIndex: number;
-	goToPage: (pageIndex: number) => void;
-	isDisabled: boolean;
-}
-
-function QuizNavigation({
-	questionMap,
-	answers,
-	isFlagged,
-	currentPageIndex,
-	goToPage,
-	isDisabled,
-}: QuizNavigationProps) {
-	return (
-		<Paper withBorder p="md" radius="sm">
-			<Stack gap="sm">
-				<Text size="sm" fw={500}>
-					Question Navigation
-				</Text>
-				<Group gap="xs">
-					{questionMap.map((item) => {
-						const answerValue = answers[item.questionId];
-						const isAnswered = isQuestionAnswered(item.question, answerValue);
-						const isFlaggedValue = isFlagged(item.questionId);
-						const isCurrent = currentPageIndex === item.pageIndex;
-
-						return (
-							<Tooltip
-								key={item.questionId}
-								label={`Q${item.questionNumber}: ${item.prompt.slice(0, 50)}...`}
-							>
-								<Indicator
-									inline
-									label={<IconFlag size={10} />}
-									size={16}
-									disabled={!isFlaggedValue}
-									color="red"
-									offset={3}
-								>
-									<Button
-										size="compact-sm"
-										variant={isAnswered ? "light" : "default"}
-										color={isAnswered ? "green" : "gray"}
-										onClick={() => goToPage(item.pageIndex)}
-										disabled={isDisabled}
-										style={
-											isCurrent
-												? {
-													borderWidth: 3,
-													borderStyle: "solid",
-													borderColor: "var(--mantine-color-blue-6)",
-												}
-												: undefined
-										}
-									>
-										{item.questionNumber}
-									</Button>
-								</Indicator>
-							</Tooltip>
-						);
-					})}
-				</Group>
-				<Group gap="md">
-					<Group gap="xs">
-						<Box
-							w={20}
-							h={20}
-							style={{
-								borderWidth: 3,
-								borderStyle: "solid",
-								borderColor: "var(--mantine-color-blue-6)",
-								borderRadius: "var(--mantine-radius-sm)",
-								backgroundColor: "transparent",
-							}}
-						/>
-						<Text size="xs" c="dimmed">
-							Current
-						</Text>
-					</Group>
-					<Group gap="xs">
-						<Box
-							w={20}
-							h={20}
-							style={{
-								backgroundColor: "var(--mantine-color-green-light)",
-								borderRadius: "var(--mantine-radius-sm)",
-							}}
-						/>
-						<Text size="xs" c="dimmed">
-							Answered
-						</Text>
-					</Group>
-					<Group gap="xs">
-						<IconFlag size={16} color="var(--mantine-color-red-6)" />
-						<Text size="xs" c="dimmed">
-							Flagged
-						</Text>
-					</Group>
-				</Group>
-			</Stack>
-		</Paper>
-	);
-}
-
-interface QuizNavigationButtonsProps {
-	readonly?: boolean;
-	onExit?: () => void;
-	isFirstPage: boolean;
-	isLastPage: boolean;
-	goToPreviousPage: () => void;
-	goToNextPage: () => void;
-	isDisabled: boolean;
-	onSubmit: () => void;
-	isGlobalTimerExpired: boolean;
-}
-
-function QuizNavigationButtons({
-	readonly = false,
-	onExit,
-	isFirstPage,
-	isLastPage,
-	goToPreviousPage,
-	goToNextPage,
-	isDisabled,
-	onSubmit,
-	isGlobalTimerExpired,
-}: QuizNavigationButtonsProps) {
-	return (
-		<Group justify="space-between" mt="md">
-			{readonly ? (
-				<>
-					{onExit && (
-						<Button variant="default" onClick={onExit}>
-							Exit
-						</Button>
-					)}
-					<div style={{ flex: 1 }} />
-					<Group gap="sm">
-						<Button
-							variant="default"
-							onClick={goToPreviousPage}
-							disabled={isFirstPage}
-						>
-							Previous
-						</Button>
-						<Button onClick={goToNextPage} disabled={isLastPage}>
-							Next
-						</Button>
-					</Group>
-				</>
-			) : (
-				<>
-					<Button
-						variant="default"
-						onClick={goToPreviousPage}
-						disabled={isFirstPage || isDisabled}
-					>
-						Previous
-					</Button>
-
-					{isLastPage ? (
-						<Button onClick={onSubmit} disabled={isDisabled}>
-							{isGlobalTimerExpired ? "View Results" : "Submit Quiz"}
-						</Button>
-					) : (
-						<Button onClick={goToNextPage} disabled={isDisabled}>
-							Next
-						</Button>
-					)}
-				</>
-			)}
-		</Group>
-	);
-}
 
 interface QuizHeaderProps {
 	quizConfig: RegularQuizConfig | NestedQuizConfig;
@@ -418,43 +178,21 @@ export function SingleQuizPreview({
 	const isQuestionFlagged = (questionId: string): boolean => {
 		return flaggedQuestionIds.has(questionId);
 	};
-	const [showResults, setShowResults] = useState(false);
-	const [submittedAnswers, setSubmittedAnswers] = useState<Record<
-		string,
-		unknown
-	> | null>(null);
 	const [isGlobalTimerExpired, setIsGlobalTimerExpired] = useState(false);
 
-	// Always call hooks - no conditional hook calls
-	// Provide a default empty config to avoid hook issues
-	const defaultConfig: QuizConfig = {
-		version: "v2",
-		type: "regular",
-		id: "empty",
-		title: "Empty Quiz",
-		pages: [],
-	};
-
-	const quiz = useQuizForm({
-		quizConfig: quizConfig || defaultConfig,
-		currentPageIndex,
-		readonly,
-		initialAnswers,
-	});
+	const effectiveCurrentPageIndex = currentPageIndex ?? 0;
+	const answers = initialAnswers || {};
+	const isFirstPage = effectiveCurrentPageIndex === 0;
+	const isLastPage = quizConfig?.pages
+		? effectiveCurrentPageIndex === quizConfig.pages.length - 1
+		: false;
 
 	const handleSubmit = () => {
 		if (!quizConfig) return;
-
-		// Call onSubmit callback if provided (for real submission - just marks complete)
+		// Call onSubmit callback if provided (for real submission - redirect will happen)
 		if (onSubmit) {
 			onSubmit();
-			// Don't show results modal for real submission - redirect will happen
-			return;
 		}
-
-		// Only show mock results modal if no onSubmit callback (for testing/preview)
-		setSubmittedAnswers(quiz.answers);
-		setShowResults(true);
 	};
 
 	const handleGlobalTimerExpire = () => {
@@ -479,7 +217,7 @@ export function SingleQuizPreview({
 		);
 	}
 
-	const currentPage = quizConfig.pages[quiz.currentPageIndex];
+	const currentPage = quizConfig.pages[effectiveCurrentPageIndex];
 
 	// Guard against invalid page index
 	if (!currentPage) {
@@ -495,7 +233,7 @@ export function SingleQuizPreview({
 
 	const progressValue =
 		quizConfig.pages.length > 0
-			? ((quiz.currentPageIndex + 1) / quizConfig.pages.length) * 100
+			? ((effectiveCurrentPageIndex + 1) / quizConfig.pages.length) * 100
 			: 0;
 
 	// Build question map for navigation
@@ -525,160 +263,135 @@ export function SingleQuizPreview({
 
 	const currentQuestionStartNumber =
 		quizConfig.pages
-			.slice(0, quiz.currentPageIndex)
+			.slice(0, effectiveCurrentPageIndex)
 			.reduce((sum: number, page) => sum + page.questions.length, 0) + 1;
 
 	const isDisabled = readonly || isGlobalTimerExpired || disableInteraction;
 
 	return (
-		<>
-			<Paper withBorder p="xl" radius="md">
-				<Stack gap="lg">
-					{/* Readonly Banner */}
-					{readonly && (
-						<Alert color="blue" title="Read-only Mode">
-							You are viewing a previously submitted quiz. No changes can be
-							made.
-						</Alert>
-					)}
+		<Paper withBorder p="xl" radius="md">
+			<Stack gap="lg">
+				{/* Readonly Banner */}
+				{readonly && (
+					<Alert color="blue" title="Read-only Mode">
+						You are viewing a previously submitted quiz. No changes can be
+						made.
+					</Alert>
+				)}
 
-					<QuizHeader
-						quizConfig={quizConfig}
-						grading={grading}
-						currentPageIndex={quiz.currentPageIndex}
-						readonly={readonly}
-						remainingTime={remainingTime}
-						onGlobalTimerExpire={handleGlobalTimerExpire}
-						progressValue={progressValue}
-					/>
+				<QuizHeader
+					quizConfig={quizConfig}
+					grading={grading}
+					currentPageIndex={effectiveCurrentPageIndex}
+					readonly={readonly}
+					remainingTime={remainingTime}
+					onGlobalTimerExpire={handleGlobalTimerExpire}
+					progressValue={progressValue}
+				/>
 
-					{/* Timer Expired Warning */}
-					{isGlobalTimerExpired && !readonly && (
-						<Paper
-							withBorder
-							p="md"
-							radius="sm"
-							bg="red.0"
-							style={{ borderColor: "var(--mantine-color-red-6)" }}
-						>
-							<Group gap="sm">
-								<IconClock size={20} color="var(--mantine-color-red-6)" />
-								<Text size="sm" c="red" fw={500}>
-									Time has expired! The quiz has been automatically submitted.
-								</Text>
-							</Group>
-						</Paper>
-					)}
+				{/* Timer Expired Warning */}
+				{isGlobalTimerExpired && !readonly && (
+					<Paper
+						withBorder
+						p="md"
+						radius="sm"
+						bg="red.0"
+						style={{ borderColor: "var(--mantine-color-red-6)" }}
+					>
+						<Group gap="sm">
+							<IconClock size={20} color="var(--mantine-color-red-6)" />
+							<Text size="sm" c="red" fw={500}>
+								Time has expired! The quiz has been automatically submitted.
+							</Text>
+						</Group>
+					</Paper>
+				)}
 
-					<QuizNavigation
-						questionMap={questionMap}
-						answers={quiz.answers}
-						isFlagged={isQuestionFlagged}
-						currentPageIndex={quiz.currentPageIndex}
-						goToPage={quiz.goToPage}
-						isDisabled={isDisabled}
-					/>
+				<QuizNavigation
+					questionMap={questionMap}
+					answers={answers}
+					isFlagged={isQuestionFlagged}
+					currentPageIndex={effectiveCurrentPageIndex}
+					isDisabled={isDisabled}
+				/>
 
-					{/* Current Page */}
-					<div>
-						<Title order={3} mb="md">
-							{currentPage.title}
-						</Title>
+				{/* Current Page */}
+				<div>
+					<Title order={3} mb="md">
+						{currentPage.title}
+					</Title>
 
-						{/* Resources for current page */}
-						{"resources" in quizConfig &&
-							quizConfig.resources &&
-							quizConfig.resources.length > 0 && (
-								<Stack gap="md" mb="xl">
-									{quizConfig.resources
-										.filter((resource: QuizResource) =>
-											resource.pages.includes(currentPage.id),
-										)
-										.map((resource: QuizResource) => (
-											<Paper
-												key={resource.id}
-												withBorder
-												p="md"
-												radius="sm"
-												bg="blue.0"
-											>
-												{resource.title && (
-													<Title order={4} mb="sm">
-														{resource.title}
-													</Title>
-												)}
-												<ScrollArea mah={400}>
-													<RichTextRenderer content={resource.content} />
-												</ScrollArea>
-											</Paper>
-										))}
-								</Stack>
-							)}
+					{/* Resources for current page */}
+					{"resources" in quizConfig &&
+						quizConfig.resources &&
+						quizConfig.resources.length > 0 && (
+							<Stack gap="md" mb="xl">
+								{quizConfig.resources
+									.filter((resource: QuizResource) =>
+										resource.pages.includes(currentPage.id),
+									)
+									.map((resource: QuizResource) => (
+										<Paper
+											key={resource.id}
+											withBorder
+											p="md"
+											radius="sm"
+											bg="blue.0"
+										>
+											{resource.title && (
+												<Title order={4} mb="sm">
+													{resource.title}
+												</Title>
+											)}
+											<ScrollArea mah={400}>
+												<RichTextRenderer content={resource.content} />
+											</ScrollArea>
+										</Paper>
+									))}
+							</Stack>
+						)}
 
-						<Stack gap="xl">
-							{currentPage.questions.map(
-								(question: Question, questionIndex: number) => {
-									const questionNumber =
-										currentQuestionStartNumber + questionIndex;
+					<Stack gap="xl">
+						{currentPage.questions.map(
+							(question: Question, questionIndex: number) => {
+								const questionNumber =
+									currentQuestionStartNumber + questionIndex;
 
-									return (
-										<QuestionCard
-											key={question.id}
-											question={question}
-											questionNumber={questionNumber}
-											grading={grading}
-											initialAnswers={initialAnswers}
-											readonly={readonly}
-											isDisabled={isDisabled}
-											isFlagged={isQuestionFlagged(question.id)}
-											answer={quiz.answers[question.id]}
-											moduleLinkId={moduleLinkId}
-											submissionId={submissionId}
-										/>
-									);
-								},
-							)}
-						</Stack>
-					</div>
+								return (
+									<QuestionCard
+										key={question.id}
+										question={question}
+										questionNumber={questionNumber}
+										grading={grading}
+										initialAnswers={initialAnswers}
+										readonly={readonly}
+										isDisabled={isDisabled}
+										isFlagged={isQuestionFlagged(question.id)}
+										answer={answers[question.id]}
+										moduleLinkId={moduleLinkId}
+										submissionId={submissionId}
+									/>
+								);
+							},
+						)}
+					</Stack>
+				</div>
 
-					<QuizNavigationButtons
-						readonly={readonly}
-						onExit={onExit}
-						isFirstPage={quiz.isFirstPage}
-						isLastPage={quiz.isLastPage}
-						goToPreviousPage={quiz.goToPreviousPage}
-						goToNextPage={quiz.goToNextPage}
-						isDisabled={isDisabled}
-						onSubmit={handleSubmit}
-						isGlobalTimerExpired={isGlobalTimerExpired}
-					/>
-				</Stack>
-			</Paper>
-
-			{/* Results Modal */}
-			<Modal
-				opened={showResults}
-				onClose={() => setShowResults(false)}
-				title="Quiz Submitted"
-				size="lg"
-			>
-				<Stack gap="md">
-					<Text>Your answers have been submitted successfully!</Text>
-
-					<Text size="sm" fw={500}>
-						Results:
-					</Text>
-
-					<ScrollArea h={400}>
-						<Code block>{JSON.stringify(submittedAnswers, null, 2)}</Code>
-					</ScrollArea>
-
-					<Button onClick={() => setShowResults(false)} fullWidth>
-						Close
-					</Button>
-				</Stack>
-			</Modal>
-		</>
+				<QuizNavigationButtons
+					readonly={readonly}
+					onExit={onExit}
+					isFirstPage={isFirstPage}
+					isLastPage={isLastPage}
+					currentPageIndex={effectiveCurrentPageIndex}
+					isDisabled={isDisabled}
+					onSubmit={handleSubmit}
+					isGlobalTimerExpired={isGlobalTimerExpired}
+					submissionId={submissionId}
+					moduleLinkId={moduleLinkId}
+					answers={answers}
+				/>
+			</Stack>
+		</Paper>
 	);
 }
 
@@ -723,7 +436,7 @@ export function QuizAttemptComponent({
 	};
 
 	// Regular quiz - just render SingleQuizPreview directly
-	if (isRegularQuiz(quizConfig)) {
+	if (quizConfig.type === "regular") {
 		return (
 			<SingleQuizPreview
 				quizConfig={quizConfig}
@@ -737,17 +450,6 @@ export function QuizAttemptComponent({
 				moduleLinkId={moduleLinkId}
 				flaggedQuestions={flaggedQuestions}
 			/>
-		);
-	}
-
-	// Container quiz logic
-	if (!isContainerQuiz(quizConfig)) {
-		return (
-			<Paper withBorder p="xl" radius="md">
-				<Text c="dimmed">
-					Invalid quiz configuration: Must have either pages or nested quizzes.
-				</Text>
-			</Paper>
 		);
 	}
 

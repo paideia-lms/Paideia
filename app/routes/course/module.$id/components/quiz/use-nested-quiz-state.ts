@@ -19,7 +19,6 @@ interface UseNestedQuizStateReturn {
 	startNestedQuiz: (quizId: string) => void;
 	completeNestedQuiz: (quizId: string) => void;
 	exitToContainer: () => void;
-
 	isQuizCompleted: (quizId: string) => boolean;
 	isQuizAccessible: (quizId: string) => boolean;
 	canAccessQuiz: (quiz: NestedQuizConfig) => boolean;

@@ -36,32 +36,32 @@ const stopImpersonationAction = stopImpersonationRpc.createAction(
 		const redirectTo = pageInfo.is["layouts/course-layout"]
 			? pageInfo.is["layouts/course-layout"].params.courseId
 				? getRouteUrl("/course/:courseId", {
-						params: {
-							courseId:
-								pageInfo.is["layouts/course-layout"].params.courseId.toString(),
-						},
-						searchParams: { reload: true },
-					})
+					params: {
+						courseId:
+							pageInfo.is["layouts/course-layout"].params.courseId.toString(),
+					},
+					searchParams: { reload: true },
+				})
 				: pageInfo.is["layouts/course-layout"].params.moduleLinkId
 					? getRouteUrl("/course/module/:moduleLinkId", {
-							params: {
-								moduleLinkId:
-									pageInfo.is[
-										"layouts/course-layout"
-									].params.moduleLinkId.toString(),
-							},
-							searchParams: { view: null, threadId: null, replyTo: null },
-						})
+						params: {
+							moduleLinkId:
+								pageInfo.is[
+									"layouts/course-layout"
+								].params.moduleLinkId.toString(),
+						},
+						searchParams: { view: null, threadId: null, replyTo: null, viewSubmission: null },
+					})
 					: pageInfo.is["layouts/course-layout"].params.sectionId
 						? getRouteUrl("/course/section/:sectionId", {
-								params: {
-									sectionId:
-										pageInfo.is[
-											"layouts/course-layout"
-										].params.sectionId.toString(),
-								},
-								searchParams: { reload: true },
-							})
+							params: {
+								sectionId:
+									pageInfo.is[
+										"layouts/course-layout"
+									].params.sectionId.toString(),
+							},
+							searchParams: { reload: true },
+						})
 						: href("/")
 			: href("/");
 
