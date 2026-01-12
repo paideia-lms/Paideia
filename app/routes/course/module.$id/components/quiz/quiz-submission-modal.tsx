@@ -9,41 +9,41 @@ import {
 } from "@mantine/core";
 import { forwardRef, useImperativeHandle, useState } from "react";
 import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
-import { useMarkQuizAttemptAsComplete } from "../../route";
+import { useMarkQuizAttemptAsComplete, type Route } from "../../route";
+import { createRouteComponent } from "~/utils/create-route-component";
 
 interface MarkCompleteButtonProps {
     submissionId: number;
-    moduleLinkId: number;
     onComplete: () => void;
 }
 
-function MarkCompleteButton({
-    submissionId,
-    moduleLinkId,
-    onComplete,
-}: MarkCompleteButtonProps) {
-    const { submit: markQuizAttemptAsComplete, isLoading: isMarkingQuizAttemptAsComplete } = useMarkQuizAttemptAsComplete();
+const MarkCompleteButton = createRouteComponent<Route.ComponentProps, MarkCompleteButtonProps>(
+    (props, { loaderData }) => {
+        const { submissionId, onComplete } = props;
+        const { params: { moduleLinkId } } = loaderData;
+        const { submit: markQuizAttemptAsComplete, isLoading: isMarkingQuizAttemptAsComplete } = useMarkQuizAttemptAsComplete();
 
-    return (
-        <Button
-            onClick={async () => {
-                await markQuizAttemptAsComplete({
-                    values: {
-                        submissionId: submissionId,
-                    },
-                    params: {
-                        moduleLinkId: moduleLinkId,
-                    },
-                });
-                onComplete();
-            }}
-            disabled={isMarkingQuizAttemptAsComplete}
-            loading={isMarkingQuizAttemptAsComplete}
-        >
-            Confirm Submission
-        </Button>
-    );
-}
+        return (
+            <Button
+                onClick={async () => {
+                    await markQuizAttemptAsComplete({
+                        values: {
+                            submissionId: submissionId,
+                        },
+                        params: {
+                            moduleLinkId: moduleLinkId,
+                        },
+                    });
+                    onComplete();
+                }}
+                disabled={isMarkingQuizAttemptAsComplete}
+                loading={isMarkingQuizAttemptAsComplete}
+            >
+                Confirm Submission
+            </Button>
+        );
+    }
+);
 
 export interface QuizSubmissionModalHandle {
     open: () => void;
@@ -51,7 +51,6 @@ export interface QuizSubmissionModalHandle {
 
 interface QuizSubmissionModalProps {
     submissionId?: number;
-    moduleLinkId?: number;
     answers?: QuizAnswers;
     onSubmit?: () => void;
 }
@@ -59,7 +58,7 @@ interface QuizSubmissionModalProps {
 export const QuizSubmissionModal = forwardRef<
     QuizSubmissionModalHandle,
     QuizSubmissionModalProps
->(({ submissionId, moduleLinkId, answers, onSubmit }, ref) => {
+>(({ submissionId, answers, onSubmit }, ref) => {
     const [opened, setOpened] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -93,10 +92,9 @@ export const QuizSubmissionModal = forwardRef<
                     >
                         Cancel
                     </Button>
-                    {submissionId && moduleLinkId ? (
+                    {submissionId ? (
                         <MarkCompleteButton
                             submissionId={submissionId}
-                            moduleLinkId={moduleLinkId}
                             onComplete={() => setOpened(false)}
                         />
                     ) : (

@@ -1,61 +1,45 @@
 import { Button } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
-import { useMarkNestedQuizAsComplete } from "../../route";
-
+import { useMarkNestedQuizAsComplete, type Route } from "../../route";
+import { createRouteComponent } from "~/utils/create-route-component";
 interface MarkNestedQuizCompleteButtonProps {
     submissionId: number;
     nestedQuizId: string;
-    bypassTimeLimit?: boolean;
-    onComplete?: () => void;
     disabled?: boolean;
     fullWidth?: boolean;
     variant?: "filled" | "light" | "outline" | "default" | "subtle" | "gradient";
     size?: string;
-    children?: React.ReactNode;
     moduleLinkId: number;
 }
 
-export function MarkNestedQuizCompleteButton({
-    submissionId,
-    nestedQuizId,
-    bypassTimeLimit = false,
-    onComplete,
-    disabled = false,
-    fullWidth = false,
-    variant = "filled",
-    size,
-    children,
-    moduleLinkId,
-}: MarkNestedQuizCompleteButtonProps) {
-    const { submit: markNestedQuizAsComplete, isLoading } =
-        useMarkNestedQuizAsComplete();
+export const MarkNestedQuizCompleteButton = createRouteComponent<Route.ComponentProps, MarkNestedQuizCompleteButtonProps>(
+    (props, { loaderData }) => {
+        const { submissionId, nestedQuizId, disabled = false, fullWidth = false, variant = "filled", size } = props;
+        const { moduleLinkId } = loaderData;
+        const { submit: markNestedQuizAsComplete, isLoading } =
+            useMarkNestedQuizAsComplete();
+        return (
+            <Button
+                leftSection={<IconCheck size={16} />}
+                onClick={async () => {
 
-    const handleComplete = async () => {
-        await markNestedQuizAsComplete({
-            values: {
-                submissionId,
-                nestedQuizId,
-            },
-            params: {
-                moduleLinkId
-            }
-        });
-        if (onComplete) {
-            onComplete();
-        }
-    };
-
-    return (
-        <Button
-            leftSection={<IconCheck size={16} />}
-            onClick={handleComplete}
-            loading={isLoading}
-            disabled={disabled || isLoading}
-            fullWidth={fullWidth}
-            variant={variant}
-            size={size}
-        >
-            {children ?? "Mark as Complete"}
-        </Button>
-    );
-}
+                    await markNestedQuizAsComplete({
+                        values: {
+                            submissionId,
+                            nestedQuizId,
+                        },
+                        params: {
+                            moduleLinkId
+                        }
+                    });
+                }}
+                loading={isLoading}
+                disabled={disabled}
+                fullWidth={fullWidth}
+                variant={variant}
+                size={size}
+            >
+                Mark as Complete
+            </Button>
+        );
+    });

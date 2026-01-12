@@ -243,9 +243,10 @@ export const loader = createLoaderRpc({
 		...courseModuleContext,
 		moduleLinkId,
 		isStudent,
-		searchParams,
 		viewedSubmission,
 		viewedSubmissionAnswers,
+		searchParams,
+		params
 	};
 });
 

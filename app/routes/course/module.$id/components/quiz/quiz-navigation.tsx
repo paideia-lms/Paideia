@@ -289,7 +289,6 @@ export function QuizNavigationButtons({
             <QuizSubmissionModal
                 ref={modalRef}
                 submissionId={submissionId}
-                moduleLinkId={moduleLinkId}
                 answers={answers}
                 onSubmit={onSubmit}
             />
