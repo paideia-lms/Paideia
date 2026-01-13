@@ -32,6 +32,8 @@ export const loader = createRouteLoader(
 			req: payloadRequest,
 		});
 
+		console.log("userResult", userResult);
+
 		if (!userResult.ok) {
 			console.error("Failed to find user:", userResult.error.message);
 			return notFound({ error: "User not found" });

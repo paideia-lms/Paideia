@@ -41,19 +41,19 @@ export function QuizSubmissionItemInTable({
 										: "Returned"}
 						</Badge>
 						{submission.status === "graded" ||
-							submission.status === "returned" ? (
+						submission.status === "returned" ? (
 							<Badge color="green" variant="filled">
 								{submission.totalScore !== null &&
-									submission.totalScore !== undefined &&
-									submission.maxScore !== null &&
-									submission.maxScore !== undefined
+								submission.totalScore !== undefined &&
+								submission.maxScore !== null &&
+								submission.maxScore !== undefined
 									? `${submission.totalScore}/${submission.maxScore}`
 									: submission.totalScore !== null &&
-										submission.totalScore !== undefined
+											submission.totalScore !== undefined
 										? String(submission.totalScore)
 										: "-"}
 								{submission.percentage !== null &&
-									submission.percentage !== undefined
+								submission.percentage !== undefined
 									? ` (${submission.percentage.toFixed(1)}%)`
 									: ""}
 							</Badge>

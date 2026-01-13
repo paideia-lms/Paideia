@@ -2,39 +2,37 @@ import { useInterval } from "@mantine/hooks";
 import { useState } from "react";
 
 interface UseQuizTimerOptions {
-	initialTime?: number; // Time in seconds
-	remainingTime?: number; // Remaining time in seconds (for resumed quizzes)
+	/**
+	 * The initial time in seconds. If not provided, the timer will start from the remaining time.
+	 */
+	initialTime?: number;
+	/**
+	 * The remaining time in seconds. If not provided, the timer will start from the initial time.
+	 */
+	remainingTime?: number;
+	/**
+	 * The function to call when the timer expires.
+	 */
 	onExpire?: () => void;
-}
-
-interface UseQuizTimerReturn {
-	timeLeft: number | null;
-	isExpired: boolean;
-	resetTimer: () => void;
-	pauseTimer: () => void;
-	resumeTimer: () => void;
-	formattedTime: string;
 }
 
 export function useQuizTimer({
 	initialTime,
 	remainingTime,
 	onExpire,
-}: UseQuizTimerOptions): UseQuizTimerReturn {
+}: UseQuizTimerOptions) {
 	// Use remainingTime if provided (for resumed quizzes), otherwise use initialTime
 	// Note: This hook should be remounted (via key prop) when remainingTime changes
 	const [timeLeft, setTimeLeft] = useState<number | null>(
 		remainingTime !== undefined ? remainingTime : (initialTime ?? null),
 	);
-	const [isExpired, setIsExpired] = useState(false);
-	const [isPaused, setIsPaused] = useState(false);
 
-	const interval = useInterval(
+	const _interval = useInterval(
 		() => {
-			if (timeLeft !== null && timeLeft > 0 && !isPaused) {
+			if (timeLeft !== null && timeLeft > 0) {
 				setTimeLeft((prev) => {
 					if (prev === null || prev <= 1) {
-						setIsExpired(true);
+						// setIsExpired(true);
 						onExpire?.();
 						return 0;
 					}
@@ -46,25 +44,6 @@ export function useQuizTimer({
 		{ autoInvoke: initialTime !== undefined || remainingTime !== undefined },
 	);
 
-	const resetTimer = () => {
-		const resetValue =
-			remainingTime !== undefined ? remainingTime : (initialTime ?? null);
-		setTimeLeft(resetValue);
-		setIsExpired(false);
-		setIsPaused(false);
-		if (resetValue !== null) {
-			interval.start();
-		}
-	};
-
-	const pauseTimer = () => {
-		setIsPaused(true);
-	};
-
-	const resumeTimer = () => {
-		setIsPaused(false);
-	};
-
 	const formatTime = (seconds: number): string => {
 		const minutes = Math.floor(seconds / 60);
 		const remainingSeconds = seconds % 60;
@@ -75,10 +54,7 @@ export function useQuizTimer({
 
 	return {
 		timeLeft,
-		isExpired,
-		resetTimer,
-		pauseTimer,
-		resumeTimer,
+		isExpired: timeLeft === 0,
 		formattedTime,
 	};
 }

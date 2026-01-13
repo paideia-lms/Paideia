@@ -98,3 +98,9 @@ export function constate<Props, Value, Selectors extends Selector<Value>[]>(
 
 	return [Provider, ...hooks];
 }
+
+export function createPortal<Props extends object>(
+	...selectors: Selector<Props>[]
+) {
+	return constate((props: Props) => props, ...selectors);
+}

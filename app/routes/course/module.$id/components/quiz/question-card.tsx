@@ -48,8 +48,8 @@ function FlagButton({
 }: FlagButtonProps) {
 	const { submit: flagQuestion, isLoading: isFlagging } = useFlagQuizQuestion();
 
-	const handleFlag = () => {
-		flagQuestion({
+	const handleFlag = async () => {
+		await flagQuestion({
 			params: { moduleLinkId },
 			values: {
 				submissionId,
@@ -64,7 +64,7 @@ function FlagButton({
 				variant="light"
 				color="gray"
 				onClick={handleFlag}
-				disabled={isDisabled || isFlagging}
+				disabled={isDisabled}
 				loading={isFlagging}
 			>
 				<IconFlag size={18} />

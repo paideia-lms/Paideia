@@ -1,56 +1,45 @@
 import { Button } from "@mantine/core";
 import { IconPlayerPlay } from "@tabler/icons-react";
 import { useStartNestedQuiz } from "../../route";
-
+import type { Route } from "../../route";
+import { createRouteComponent } from "~/utils/create-route-component";
+import type { Jsonify } from "type-fest";
 interface StartNestedQuizButtonProps {
-    submissionId: number;
-    nestedQuizId: string;
-    onStart?: () => void;
-    disabled?: boolean;
-    fullWidth?: boolean;
-    moduleLinkId: number;
-    variant?: "filled" | "light" | "outline" | "default" | "subtle" | "gradient";
-    size?: string;
+	submissionId: number;
+	nestedQuizId: string;
+	disabled?: boolean;
+	moduleLinkId: number;
 }
 
-export function StartNestedQuizButton({
-    submissionId,
-    nestedQuizId,
-    onStart,
-    disabled = false,
-    fullWidth = false,
-    moduleLinkId,
-    variant = "filled",
-    size,
-}: StartNestedQuizButtonProps) {
-    const { submit: startNestedQuiz, isLoading } = useStartNestedQuiz();
+export const StartNestedQuizButton = createRouteComponent<
+	Route.ComponentProps,
+	Jsonify<StartNestedQuizButtonProps>
+>(({ submissionId, nestedQuizId, disabled = false }, { loaderData }) => {
+	const {
+		params: { moduleLinkId },
+	} = loaderData;
+	const { submit: startNestedQuiz, isLoading } = useStartNestedQuiz();
 
-    const handleStart = () => {
-        startNestedQuiz({
-            values: {
-                submissionId,
-                nestedQuizId,
-            },
-            params: {
-                moduleLinkId,
-            },
-        });
-        if (onStart) {
-            onStart();
-        }
-    };
+	const handleStart = async () => {
+		await startNestedQuiz({
+			values: {
+				submissionId,
+				nestedQuizId,
+			},
+			params: {
+				moduleLinkId,
+			},
+		});
+	};
 
-    return (
-        <Button
-            leftSection={<IconPlayerPlay size={16} />}
-            onClick={handleStart}
-            loading={isLoading}
-            disabled={disabled || isLoading}
-            fullWidth={fullWidth}
-            variant={variant}
-            size={size}
-        >
-            Start Quiz
-        </Button>
-    );
-}
+	return (
+		<Button
+			leftSection={<IconPlayerPlay size={16} />}
+			onClick={handleStart}
+			loading={isLoading}
+			disabled={disabled || isLoading}
+		>
+			Start Quiz
+		</Button>
+	);
+});

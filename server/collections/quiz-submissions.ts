@@ -203,8 +203,10 @@ export const QuizSubmissions = {
 			type: "array",
 			fields: [
 				{
-					name: "questionId",
+					name: "id",
 					type: "text",
+					required: true,
+					label: "Flagged Question ID",
 				},
 			],
 			label: "Flagged Questions by student during the quiz attempt",

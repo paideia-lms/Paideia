@@ -1,5 +1,8 @@
 import { Stack, Text } from "@mantine/core";
-import { AssignmentSubmissionItem, type AssignmentSubmissionData } from "./assignment-submission-item";
+import {
+	AssignmentSubmissionItem,
+	type AssignmentSubmissionData,
+} from "./assignment-submission-item";
 
 // ============================================================================
 // Components

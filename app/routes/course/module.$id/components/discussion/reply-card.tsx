@@ -81,13 +81,13 @@ export function ReplyCardWithUpvote({
 								to={
 									courseId && reply.authorId
 										? getRouteUrl("/course/:courseId/participants/profile", {
-											params: {
-												courseId: courseId.toString(),
-											},
-											searchParams: {
-												userId: reply.authorId,
-											},
-										})
+												params: {
+													courseId: courseId.toString(),
+												},
+												searchParams: {
+													userId: reply.authorId,
+												},
+											})
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}

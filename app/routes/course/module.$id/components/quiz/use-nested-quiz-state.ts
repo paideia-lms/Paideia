@@ -1,13 +1,18 @@
 import { useState } from "react";
 import type {
 	NestedQuizConfig,
-	QuizAnswers,
 	QuizConfig,
 } from "server/json/raw-quiz-config/v2";
 
+interface CompletedNestedQuiz {
+	id: string;
+	startedAt?: string | null;
+	completedAt?: string | null;
+}
+
 interface UseNestedQuizStateOptions {
 	quizConfig: QuizConfig;
-	initialAnswers?: QuizAnswers;
+	completedNestedQuizzes?: CompletedNestedQuiz[] | null;
 }
 
 interface UseNestedQuizStateReturn {
@@ -16,7 +21,6 @@ interface UseNestedQuizStateReturn {
 	activeNestedQuiz: NestedQuizConfig | null;
 
 	startNestedQuiz: (quizId: string) => void;
-	completeNestedQuiz: (quizId: string) => void;
 	exitToContainer: () => void;
 	isQuizCompleted: (quizId: string) => boolean;
 	isQuizAccessible: (quizId: string) => boolean;
@@ -28,13 +32,14 @@ interface UseNestedQuizStateReturn {
 
 export function useNestedQuizState({
 	quizConfig,
-	initialAnswers,
+	completedNestedQuizzes,
 }: UseNestedQuizStateOptions): UseNestedQuizStateReturn {
 	const [currentNestedQuizId, setCurrentNestedQuizId] = useState<string | null>(
 		null,
 	);
-	const [completedQuizIds, setCompletedQuizIds] = useState<Set<string>>(
-		new Set(),
+
+	const completedQuizIds = new Set<string>(
+		completedNestedQuizzes?.map((completed) => completed.id) ?? [],
 	);
 
 	// Get the active nested quiz if one is selected
@@ -43,32 +48,6 @@ export function useNestedQuizState({
 			? (quizConfig.nestedQuizzes?.find((q) => q.id === currentNestedQuizId) ??
 				null)
 			: null;
-
-	// Helper function to check if a quiz is completed based on initialAnswers
-	const isQuizCompletedFromInitialAnswers = (quizId: string): boolean => {
-		if (quizConfig.type !== "container" || !initialAnswers) {
-			return false;
-		}
-
-		const quiz = quizConfig.nestedQuizzes?.find((q) => q.id === quizId);
-		if (!quiz || !quiz.pages) {
-			return false;
-		}
-
-		// Check if all questions in the quiz have answers in initialAnswers
-		for (const page of quiz.pages) {
-			for (const question of page.questions) {
-				if (
-					initialAnswers[question.id] === undefined ||
-					initialAnswers[question.id] === null
-				) {
-					return false;
-				}
-			}
-		}
-
-		return true;
-	};
 
 	const startNestedQuiz = (quizId: string) => {
 		if (quizConfig.type === "container") {
@@ -79,24 +58,12 @@ export function useNestedQuizState({
 		}
 	};
 
-	const completeNestedQuiz = (quizId: string) => {
-		setCompletedQuizIds((prev) => {
-			const newSet = new Set(prev);
-			newSet.add(quizId);
-			return newSet;
-		});
-		setCurrentNestedQuizId(null);
-	};
-
 	const exitToContainer = () => {
 		setCurrentNestedQuizId(null);
 	};
 
 	const isQuizCompleted = (quizId: string): boolean => {
-		// Check both state and initialAnswers
-		return (
-			completedQuizIds.has(quizId) || isQuizCompletedFromInitialAnswers(quizId)
-		);
+		return completedQuizIds.has(quizId);
 	};
 
 	const isQuizAccessible = (quizId: string): boolean => {
@@ -120,11 +87,8 @@ export function useNestedQuizState({
 
 		const nestedQuizzes = quizConfig.nestedQuizzes ?? [];
 
-		// If already completed (either in state or initialAnswers), always accessible for review
-		if (
-			completedQuizIds.has(quiz.id) ||
-			isQuizCompletedFromInitialAnswers(quiz.id)
-		) {
+		// If already completed, always accessible for review
+		if (completedQuizIds.has(quiz.id)) {
 			return true;
 		}
 
@@ -143,10 +107,7 @@ export function useNestedQuizState({
 			// Check if all previous quizzes are completed
 			for (let i = 0; i < quizIndex; i++) {
 				const prevQuizId = nestedQuizzes[i]!.id;
-				if (
-					!completedQuizIds.has(prevQuizId) &&
-					!isQuizCompletedFromInitialAnswers(prevQuizId)
-				) {
+				if (!completedQuizIds.has(prevQuizId)) {
 					return false;
 				}
 			}
@@ -175,7 +136,6 @@ export function useNestedQuizState({
 		completedQuizIds,
 		activeNestedQuiz,
 		startNestedQuiz,
-		completeNestedQuiz,
 		exitToContainer,
 		isQuizCompleted,
 		isQuizAccessible,

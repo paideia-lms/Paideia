@@ -9,7 +9,6 @@ import {
 	convertDatabaseAnswersToQuizAnswers,
 	convertQuestionAnswerToDatabaseFormat,
 	findQuestionInConfig,
-	validateAnswerTypeMatchesQuestion,
 } from "./quiz-answer-converter";
 import { InvalidArgumentError } from "~/utils/error";
 
@@ -479,28 +478,6 @@ describe("Quiz Answer Converter Utilities", () => {
 				"nested-1:non-existent",
 			);
 			expect(question).toBeNull();
-		});
-	});
-
-	describe("validateAnswerTypeMatchesQuestion", () => {
-		test("should return true for matching types", () => {
-			const question = regularQuizConfig.pages[0]!.questions[0]!;
-			const answer: TypedQuestionAnswer = {
-				type: "multiple-choice",
-				value: "b",
-			};
-
-			expect(validateAnswerTypeMatchesQuestion(question, answer)).toBe(true);
-		});
-
-		test("should return false for non-matching types", () => {
-			const question = regularQuizConfig.pages[0]!.questions[0]!;
-			const answer: TypedQuestionAnswer = {
-				type: "short-answer",
-				value: "some text",
-			};
-
-			expect(validateAnswerTypeMatchesQuestion(question, answer)).toBe(false);
 		});
 	});
 

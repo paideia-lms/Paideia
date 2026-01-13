@@ -325,16 +325,6 @@ export function findQuestionInConfig(
 }
 
 /**
- * Type guard to check if answer type matches question type
- */
-export function validateAnswerTypeMatchesQuestion(
-	question: Question,
-	answer: TypedQuestionAnswer,
-): boolean {
-	return answer.type === question.type;
-}
-
-/**
  * Converts database answers array to QuizAnswers format (Record<string, QuestionAnswer>)
  * This is used to load existing answers into the quiz preview component
  */

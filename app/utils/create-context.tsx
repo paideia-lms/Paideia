@@ -4,6 +4,16 @@ const NO_PROVIDER = Symbol("NO_PROVIDER");
 
 /**
  * only pick the keys that are functions and not optional
+ *
+ * @example
+ * ```ts
+ * interface MyProps {
+ *   a: () => void;
+ *   b: (x: number) => string;
+ *   c?: () => void;
+ * }
+ * type MyKeys = ExtractFunctionKeys<MyProps>; // "a" | "b"
+ * ```
  */
 type ExtractFunctionKeys<T extends object> = Simplify<
 	Pick<

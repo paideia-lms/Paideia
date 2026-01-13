@@ -13,6 +13,7 @@ import type {
 	NestedQuizConfig,
 	QuizConfig,
 } from "server/json/raw-quiz-config/v2";
+import { StartNestedQuizButton } from "./start-nested-quiz-button";
 
 interface NestedQuizSelectorProps {
 	quizConfig: QuizConfig;
@@ -22,6 +23,8 @@ interface NestedQuizSelectorProps {
 	isQuizCompleted: (quizId: string) => boolean;
 	completionProgress: number;
 	isParentTimerExpired?: boolean;
+	submissionId: number;
+	moduleLinkId: number;
 }
 
 export function NestedQuizSelector({
@@ -29,9 +32,10 @@ export function NestedQuizSelector({
 	completedQuizIds,
 	onStartQuiz,
 	canAccessQuiz,
-	isQuizCompleted,
 	completionProgress,
 	isParentTimerExpired = false,
+	submissionId,
+	moduleLinkId,
 }: NestedQuizSelectorProps) {
 	const nestedQuizzes =
 		quizConfig.type === "container" ? (quizConfig.nestedQuizzes ?? []) : [];
@@ -79,60 +83,9 @@ export function NestedQuizSelector({
 
 			{/* Quiz list */}
 			{nestedQuizzes.map((quiz, index) => {
-				const isCompleted = isQuizCompleted(quiz.id);
+				const isCompleted = completedQuizIds.has(quiz.id);
 				const isAccessible = canAccessQuiz(quiz);
 				const isLocked = !isAccessible || isParentTimerExpired;
-
-				const getStatusBadge = () => {
-					if (isCompleted) {
-						return (
-							<Badge color="green" leftSection={<IconCheck size={14} />}>
-								Completed
-							</Badge>
-						);
-					}
-					if (isLocked) {
-						return (
-							<Badge color="gray" leftSection={<IconLock size={14} />}>
-								Locked
-							</Badge>
-						);
-					}
-					return <Badge color="blue">Available</Badge>;
-				};
-
-				const getActionButton = () => {
-					if (isParentTimerExpired) {
-						return (
-							<Button disabled fullWidth variant="light">
-								Time Expired
-							</Button>
-						);
-					}
-					if (isCompleted) {
-						return (
-							<Button
-								fullWidth
-								variant="light"
-								onClick={() => onStartQuiz(quiz.id)}
-							>
-								View Submission
-							</Button>
-						);
-					}
-					if (isLocked) {
-						return (
-							<Button disabled fullWidth variant="light">
-								Complete Previous Quizzes
-							</Button>
-						);
-					}
-					return (
-						<Button fullWidth onClick={() => onStartQuiz(quiz.id)}>
-							Start Quiz
-						</Button>
-					);
-				};
 
 				return (
 					<Card
@@ -151,7 +104,20 @@ export function NestedQuizSelector({
 										<Badge variant="outline" size="lg">
 											Quiz {index + 1}
 										</Badge>
-										{getStatusBadge()}
+										{isCompleted ? (
+											<Badge
+												color="green"
+												leftSection={<IconCheck size={14} />}
+											>
+												Completed
+											</Badge>
+										) : isLocked ? (
+											<Badge color="gray" leftSection={<IconLock size={14} />}>
+												Locked
+											</Badge>
+										) : (
+											<Badge color="blue">Available</Badge>
+										)}
 									</Group>
 									<Title order={3}>{quiz.title}</Title>
 									{quiz.description && (
@@ -177,7 +143,29 @@ export function NestedQuizSelector({
 								</Text>
 							</Group>
 
-							{getActionButton()}
+							{isParentTimerExpired ? (
+								<Button disabled fullWidth variant="light">
+									Time Expired
+								</Button>
+							) : isCompleted ? (
+								<Button
+									fullWidth
+									variant="light"
+									onClick={() => onStartQuiz(quiz.id)}
+								>
+									View Submission
+								</Button>
+							) : isLocked ? (
+								<Button disabled fullWidth variant="light">
+									Complete Previous Quizzes
+								</Button>
+							) : (
+								<StartNestedQuizButton
+									submissionId={submissionId}
+									nestedQuizId={quiz.id}
+									moduleLinkId={moduleLinkId}
+								/>
+							)}
 						</Stack>
 					</Card>
 				);

@@ -98,7 +98,7 @@ export interface QuizData {
 	maxAttempts: number | null;
 	timeLimit: number | null; // in minutes
 	points: number | null;
-	rawQuizConfig: LatestQuizConfig | null;
+	rawQuizConfig: LatestQuizConfig;
 }
 
 export interface QuizSubmissionData {
@@ -362,9 +362,15 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					attemptNumber: sub.attemptNumber ?? 1,
 				}));
 
-				const hasActiveQuizAttempt = userSubmissions.some(
-					(sub) => sub.status === "in_progress",
-				);
+				// Find the active in_progress submission
+				const activeSubmission =
+					userSubmission &&
+					"status" in userSubmission &&
+					userSubmission.status === "in_progress"
+						? userSubmission
+						: null;
+
+				const hasActiveQuizAttempt = activeSubmission !== null;
 
 				// Calculate quiz remaining time if applicable
 				let quizRemainingTime: number | undefined;
@@ -435,14 +441,24 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					}
 				}
 
+				const activeSubmissionResult = activeSubmission
+					? {
+							hasActiveQuizAttempt: true as const,
+							activeSubmission,
+						}
+					: {
+							hasActiveQuizAttempt: false as const,
+							activeSubmission: null,
+						};
+
 				return {
 					...moduleLink,
+					...activeSubmissionResult,
 					submissions: allSubmissions,
 					userSubmissions,
 					userSubmission,
 					quiz,
 					allQuizSubmissionsForDisplay,
-					hasActiveQuizAttempt,
 					quizRemainingTime,
 					initialAnswers,
 					// formattedModuleSettings,

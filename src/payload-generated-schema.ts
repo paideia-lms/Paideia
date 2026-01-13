@@ -1372,7 +1372,6 @@ export const quiz_submissions_flagged_questions = pgTable(
     _order: integer("_order").notNull(),
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
-    questionId: varchar("question_id"),
   },
   (columns) => [
     index("quiz_submissions_flagged_questions_order_idx").on(columns._order),

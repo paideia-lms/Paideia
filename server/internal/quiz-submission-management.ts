@@ -5,7 +5,6 @@ import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import {
 	convertQuestionAnswerToDatabaseFormat,
 	findQuestionInConfig,
-	validateAnswerTypeMatchesQuestion,
 } from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
 import { JobQueue } from "../utils/job-queue";
@@ -730,7 +729,7 @@ export function tryAnswerQuizQuestion(args: AnswerQuizQuestionArgs) {
 				}).getOrThrow();
 
 			// Validate answer type matches question type (in-memory operation)
-			if (!validateAnswerTypeMatchesQuestion(question, answer)) {
+			if (question.type !== answer.type) {
 				throw new InvalidArgumentError(
 					`Answer type "${answer.type}" does not match question type "${question.type}"`,
 				);
@@ -893,7 +892,7 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 
 			// Check if question is already flagged
 			const isAlreadyFlagged = currentFlaggedQuestions.some(
-				(flagged) => flagged.questionId === questionId,
+				(flagged) => flagged.id === questionId,
 			);
 
 			// If already flagged, return success (idempotent)
@@ -907,7 +906,7 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			// Add the question to flagged list
 			const updatedFlaggedQuestions = [
 				...currentFlaggedQuestions,
-				{ questionId },
+				{ id: questionId },
 			];
 
 			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
@@ -967,7 +966,7 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 
 			// Find existing flagged question index (if any)
 			const existingFlaggedIndex = currentFlaggedQuestions.findIndex(
-				(flagged) => flagged.questionId === questionId,
+				(flagged) => flagged.id === questionId,
 			);
 
 			// If no flag exists, there's nothing to remove - return success (idempotent)

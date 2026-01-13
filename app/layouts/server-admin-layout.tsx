@@ -2,7 +2,10 @@ import { Container, Group, Tabs, TextInput, Title } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { parseAsString, parseAsStringEnum } from "nuqs";
 import { Outlet, useNavigate } from "react-router";
-import { globalContextKey, PageInfo } from "server/contexts/global-context";
+import {
+	globalContextKey,
+	type PageInfo,
+} from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/server-admin-layout";

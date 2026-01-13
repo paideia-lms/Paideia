@@ -141,7 +141,14 @@ export function getRouteUrl<T extends keyof Register["pages"]>(
 		options.searchParams &&
 		Object.keys(options.searchParams).length > 0
 	) {
-		return url + "?" + stringify(options.searchParams);
+		return (
+			url +
+			"?" +
+			stringify(options.searchParams, {
+				// ! skip null to keep URL clean
+				skipNulls: true,
+			})
+		);
 	}
 	return url;
 }

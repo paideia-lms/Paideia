@@ -300,8 +300,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: logo.id.toString(),
-		})
+				mediaId: logo.id.toString(),
+			})
 		: null;
 
 	return (

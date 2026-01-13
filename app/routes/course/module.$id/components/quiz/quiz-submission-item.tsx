@@ -1,4 +1,12 @@
-import { ActionIcon, Badge, Group, Paper, Stack, Text, Tooltip } from "@mantine/core";
+import {
+	ActionIcon,
+	Badge,
+	Group,
+	Paper,
+	Stack,
+	Text,
+	Tooltip,
+} from "@mantine/core";
 import { IconEye } from "@tabler/icons-react";
 import { Link } from "react-router";
 import { getRouteUrl } from "app/utils/search-params-utils";
@@ -23,6 +31,20 @@ export interface QuizSubmissionData {
 		gradedAt?: string | null;
 	} | null;
 }
+
+const submissionColorMap = {
+	in_progress: "gray",
+	completed: "blue",
+	graded: "green",
+	returned: "orange",
+} as const;
+
+const submissionStatusMap = {
+	in_progress: "In Progress",
+	completed: "Completed",
+	graded: "Graded",
+	returned: "Returned",
+} as const;
 
 // ============================================================================
 // Components
@@ -62,25 +84,8 @@ export function QuizSubmissionItem({
 						<Text size="sm" fw={600}>
 							Attempt {attemptNumber}
 						</Text>
-						<Badge
-							color={
-								submission.status === "graded"
-									? "green"
-									: submission.status === "returned"
-										? "orange"
-										: submission.status === "completed"
-											? "blue"
-											: "gray"
-							}
-							size="sm"
-						>
-							{submission.status === "in_progress"
-								? "In Progress"
-								: submission.status === "completed"
-									? "Completed"
-									: submission.status === "graded"
-										? "Graded"
-										: "Returned"}
+						<Badge color={submissionColorMap[submission.status]} size="sm">
+							{submissionStatusMap[submission.status]}
 						</Badge>
 						{(submission.status === "graded" ||
 							submission.status === "returned") &&
@@ -88,16 +93,16 @@ export function QuizSubmissionItem({
 							submission.totalScore !== undefined && (
 								<Badge color="green" size="sm" variant="filled">
 									{submission.totalScore !== null &&
-										submission.totalScore !== undefined &&
-										submission.maxScore !== null &&
-										submission.maxScore !== undefined
+									submission.totalScore !== undefined &&
+									submission.maxScore !== null &&
+									submission.maxScore !== undefined
 										? `${submission.totalScore}/${submission.maxScore}`
 										: submission.totalScore !== null &&
-											submission.totalScore !== undefined
+												submission.totalScore !== undefined
 											? String(submission.totalScore)
 											: "-"}
 									{submission.percentage !== null &&
-										submission.percentage !== undefined
+									submission.percentage !== undefined
 										? ` (${submission.percentage.toFixed(1)}%)`
 										: ""}
 								</Badge>
@@ -123,7 +128,9 @@ export function QuizSubmissionItem({
 						)}
 						{submission.status === "graded" && submission.grade?.gradedAt && (
 							<Text size="xs" c="dimmed">
-								{submission.startedAt || submission.submittedAt || submission.timeSpent
+								{submission.startedAt ||
+								submission.submittedAt ||
+								submission.timeSpent
 									? "• "
 									: ""}
 								Graded: {new Date(submission.grade.gradedAt).toLocaleString()}

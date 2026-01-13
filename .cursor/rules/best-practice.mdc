@@ -25,7 +25,7 @@ in `clientAction`, we should use `notifications` from `@mantine/notifications` t
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
 
-use interface but not type for component props.
+use interface but not type for component props except for `createRouteComponent` where we can use type.
 
 in the loader, we should always throw ErrorResponse if fail, unless it is a non component route. in action, we return error response from `utils/responses` instead of throwing error.
 

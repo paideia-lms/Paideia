@@ -12,13 +12,7 @@ import { Link } from "react-router";
 import { View } from "app/routes/course/module.$id.submissions/route";
 import { getRouteUrl } from "~/utils/search-params-utils";
 import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";
-import {
-	Anchor,
-	Box,
-	ScrollArea,
-	Tooltip,
-	Typography,
-} from "@mantine/core";
+import { Anchor, Box, ScrollArea, Tooltip, Typography } from "@mantine/core";
 import { href } from "react-router";
 import {
 	formatFileSize,
@@ -36,13 +30,13 @@ export function SubmissionAttachments({
 }: {
 	attachments: Array<{
 		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}>;
 }) {
@@ -128,8 +122,6 @@ export function SubmissionContentPreview({ content }: { content: string }) {
 	);
 }
 
-
-
 // ============================================================================
 // Components
 // ============================================================================
@@ -182,7 +174,7 @@ export function AssignmentSubmissionItemInTable({
 							submission.grade?.baseGrade !== undefined && (
 								<Badge color="green" variant="filled">
 									{submission.grade.maxGrade !== null &&
-										submission.grade.maxGrade !== undefined
+									submission.grade.maxGrade !== undefined
 										? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
 										: submission.grade.baseGrade}
 								</Badge>
