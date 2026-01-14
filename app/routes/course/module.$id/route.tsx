@@ -17,7 +17,6 @@ import {
 	tryAnswerQuizQuestion,
 	tryCheckInProgressSubmission,
 	tryGetNextAttemptNumber,
-	tryGetQuizSubmissionById,
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
 	tryRemoveAnswerFromQuizQuestion,
@@ -26,8 +25,7 @@ import {
 	tryStartNestedQuiz,
 	tryMarkNestedQuizAsComplete,
 } from "server/internal/quiz-submission-management";
-import type { QuizAnswers, TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
-import { convertDatabaseAnswersToQuizAnswers } from "server/internal/utils/quiz-answer-converter";
+import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { permissions } from "server/utils/permissions";
 import z from "zod";
 import {
@@ -50,14 +48,12 @@ import { QuizSubmissionHistory } from "./components/quiz/quiz-submission-history
 import { QuizAttemptComponent } from "app/routes/course/module.$id/components/quiz/quiz-attempt-component";
 import { QuizInstructionsView } from "app/routes/course/module.$id/components/quiz/quiz-instructions-view";
 import {
-	parseAsBoolean,
 	createParser,
 	parseAsInteger,
 	parseAsStringEnum,
 } from "nuqs";
 import { typeCreateLoader } from "app/utils/loader-utils";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { createRouteComponent } from "~/utils/create-route-component";
 import { getRouteUrl } from "app/utils/search-params-utils";
 
 export type { Route };
@@ -121,6 +117,25 @@ const parseAsReplyTo = createParser({
 	},
 });
 
+/**
+ * Custom parser for nestedQuizId parameter
+ * Accepts a string or null
+ */
+const parseAsNestedQuizId = createParser({
+	parse(queryValue) {
+		if (!queryValue || queryValue.trim() === "") {
+			return null;
+		}
+		return queryValue;
+	},
+	serialize(value) {
+		if (value === null || value === undefined) {
+			return "";
+		}
+		return String(value);
+	},
+});
+
 export const loaderSearchParams = {
 	view: parseAsStringEnum([
 		...Object.values(AssignmentActions),
@@ -132,12 +147,15 @@ export const loaderSearchParams = {
 	sortBy: parseAsStringEnum(["recent", "upvoted", "active"]).withDefault(
 		"recent",
 	),
-	showQuiz: parseAsBoolean.withDefault(false),
 	quizPageIndex: parseAsInteger.withDefault(0),
 	/**
 	 * the submission id to view
 	 */
 	viewSubmission: parseAsInteger,
+	/**
+	 * the nested quiz id to view (for container quizzes)
+	 */
+	nestedQuizId: parseAsNestedQuizId,
 };
 
 const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
@@ -148,7 +166,6 @@ export const loader = createLoaderRpc({
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -168,31 +185,22 @@ export const loader = createLoaderRpc({
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
+
 	// Check if user is a student
 	const isStudent = enrolmentContext?.enrolment?.role === "student";
 
 	// Handle viewSubmission for quiz modules
 	let viewedSubmission = null;
-	let viewedSubmissionAnswers: QuizAnswers | null = null;
 	if (
 		searchParams.viewSubmission &&
 		courseModuleContext.type === "quiz" &&
 		courseModuleContext.quiz?.rawQuizConfig
 	) {
-		const submissionResult = await tryGetQuizSubmissionById({
-			payload,
-			id: searchParams.viewSubmission,
-			req: payloadRequest,
-			overrideAccess: false,
-		});
 
-		if (!submissionResult.ok) {
-			throw new ForbiddenResponse(
-				submissionResult.error.message || "Submission not found",
-			);
+		const submission = courseModuleContext.userSubmissions.find(submission => submission.id === searchParams.viewSubmission);
+		if (!submission) {
+			throw new ForbiddenResponse("Submission not found");
 		}
-
-		const submission = submissionResult.value;
 
 		// Verify the submission belongs to this module
 		if (submission.courseModuleLink !== courseModuleContext.id) {
@@ -200,50 +208,28 @@ export const loader = createLoaderRpc({
 		}
 
 		// Verify the submission belongs to the current user
-		const studentId =
-			typeof submission.student === "object"
-				? submission.student.id
-				: submission.student;
+		const studentId = submission.student.id
 		if (studentId !== currentUser.id) {
 			throw new ForbiddenResponse("You can only view your own submissions");
 		}
 
-		// Verify the submission is completed, graded, or returned (not in_progress)
-		if (submission.status === "in_progress") {
-			throw new ForbiddenResponse(
-				"Cannot view in-progress submissions. Please complete the quiz first.",
-			);
-		}
-
-		if (
-			submission.status !== "completed" &&
-			submission.status !== "graded" &&
-			submission.status !== "returned"
-		) {
-			throw new ForbiddenResponse("Invalid submission status for viewing");
-		}
-
 		viewedSubmission = submission;
-
-		// Convert submission answers to QuizAnswers format
-		if (submission.answers && courseModuleContext.quiz.rawQuizConfig) {
-			try {
-				viewedSubmissionAnswers = convertDatabaseAnswersToQuizAnswers(
-					courseModuleContext.quiz.rawQuizConfig,
-					submission.answers,
-				);
-			} catch {
-				// If conversion fails, continue without answers
-			}
-		}
 	}
+
+	// For quiz modules, also expose activeSubmission if available
+	// This is used when taking the quiz (not viewing a completed submission)
+	const activeSubmission =
+		courseModuleContext.type === "quiz" &&
+			"activeSubmission" in courseModuleContext
+			? courseModuleContext.activeSubmission
+			: null;
 
 	return {
 		...courseModuleContext,
 		moduleLinkId,
 		isStudent,
 		viewedSubmission,
-		viewedSubmissionAnswers,
+		activeSubmission,
 		searchParams,
 		params,
 	};
@@ -330,6 +316,7 @@ const answerQuizQuestionRpc = createActionRpc({
 		questionId: z.string().min(1),
 		answerType: z.string().min(1),
 		answerValue: z.string().min(1),
+		nestedQuizId: z.string().optional(),
 	}),
 	method: "POST",
 	action: QuizActions.ANSWER_QUESTION,
@@ -339,6 +326,7 @@ const unanswerQuizQuestionRpc = createActionRpc({
 	formDataSchema: z.object({
 		submissionId: z.coerce.number(),
 		questionId: z.string().min(1),
+		nestedQuizId: z.string().optional(),
 	}),
 	method: "POST",
 	action: QuizActions.UNANSWER_QUESTION,
@@ -348,6 +336,7 @@ const flagQuizQuestionRpc = createActionRpc({
 	formDataSchema: z.object({
 		submissionId: z.coerce.number(),
 		questionId: z.string().min(1),
+		nestedQuizId: z.string().optional(),
 	}),
 	method: "POST",
 	action: QuizActions.FLAG_QUESTION,
@@ -357,6 +346,7 @@ const unflagQuizQuestionRpc = createActionRpc({
 	formDataSchema: z.object({
 		submissionId: z.coerce.number(),
 		questionId: z.string().min(1),
+		nestedQuizId: z.string().optional(),
 	}),
 	method: "POST",
 	action: QuizActions.UNFLAG_QUESTION,
@@ -455,10 +445,8 @@ const createThreadAction = createThreadRpc.createAction(
 			getRouteUrl("/course/module/:moduleLinkId", {
 				params: { moduleLinkId: String(moduleLinkId) },
 				searchParams: {
-					view: null,
 					threadId: createResult.value.id,
-					replyTo: null,
-					viewSubmission: null,
+
 				},
 			}),
 		);
@@ -678,6 +666,7 @@ const createReplyAction = createReplyRpc.createAction(
 					threadId: actualParentThread,
 					replyTo: null,
 					viewSubmission: null,
+					nestedQuizId: null,
 				},
 			}),
 		});
@@ -736,16 +725,16 @@ const markQuizAttemptAsCompleteAction =
 				return badRequest({ error: submitResult.error.message });
 			}
 
-			// Redirect to remove showQuiz parameter and show instructions view
+			// Redirect to show instructions view
 			return redirect(
 				getRouteUrl("/course/module/:moduleLinkId", {
 					params: { moduleLinkId: String(moduleLinkId) },
 					searchParams: {
-						showQuiz: false,
 						view: null,
 						threadId: null,
 						replyTo: null,
 						viewSubmission: null,
+						nestedQuizId: null,
 					},
 				}),
 			);
@@ -807,17 +796,17 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 			return badRequest({ error: checkResult.error.message });
 		}
 
-		// If there's an in_progress submission, reuse it by redirecting with showQuiz parameter
+		// If there's an in_progress submission, reuse it by redirecting (will show active attempt)
 		if (checkResult.value.hasInProgress) {
 			return redirect(
 				getRouteUrl("/course/module/:moduleLinkId", {
 					params: { moduleLinkId: String(moduleLinkId) },
 					searchParams: {
-						showQuiz: true,
 						view: null,
 						threadId: null,
 						replyTo: null,
-						viewSubmission: null,
+						viewSubmission: checkResult.value.submission.id,
+						nestedQuizId: null,
 					},
 				}),
 			);
@@ -839,28 +828,27 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 
 		const startResult = await tryStartQuizAttempt({
 			payload,
-			courseModuleLinkId: Number(moduleLinkId),
+			courseModuleLinkId: moduleLinkId,
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
 			attemptNumber: nextAttemptResult.value,
 			req: payloadRequest,
-			overrideAccess: false,
 		});
 
 		if (!startResult.ok) {
 			return badRequest({ error: startResult.error.message });
 		}
 
-		// Redirect with showQuiz parameter to show the quiz preview
+		// Redirect to show the quiz (will show active attempt)
 		return redirect(
 			getRouteUrl("/course/module/:moduleLinkId", {
 				params: { moduleLinkId: String(moduleLinkId) },
 				searchParams: {
-					showQuiz: true,
 					view: null,
 					threadId: null,
 					replyTo: null,
-					viewSubmission: null,
+					viewSubmission: startResult.value.id,
+					nestedQuizId: null,
 				},
 			}),
 		);
@@ -922,10 +910,15 @@ const answerQuizQuestionAction = answerQuizQuestionRpc.createAction(
 			} as TypedQuestionAnswer;
 		}
 
+		// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
+		const fullQuestionId = formData.nestedQuizId
+			? `${formData.nestedQuizId}:${formData.questionId}`
+			: formData.questionId;
+
 		const result = await tryAnswerQuizQuestion({
 			payload,
 			submissionId: formData.submissionId,
-			questionId: formData.questionId,
+			questionId: fullQuestionId,
 			answer,
 			req: payloadRequest,
 		});
@@ -977,10 +970,15 @@ const unanswerQuizQuestionAction = unanswerQuizQuestionRpc.createAction(
 			});
 		}
 
+		// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
+		const fullQuestionId = formData.nestedQuizId
+			? `${formData.nestedQuizId}:${formData.questionId}`
+			: formData.questionId;
+
 		const result = await tryRemoveAnswerFromQuizQuestion({
 			payload,
 			submissionId: formData.submissionId,
-			questionId: formData.questionId,
+			questionId: fullQuestionId,
 			req: payloadRequest,
 		});
 
@@ -1034,10 +1032,15 @@ const flagQuizQuestionAction = flagQuizQuestionRpc.createAction(
 			});
 		}
 
+		// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
+		const fullQuestionId = formData.nestedQuizId
+			? `${formData.nestedQuizId}:${formData.questionId}`
+			: formData.questionId;
+
 		const result = await tryFlagQuizQuestion({
 			payload,
 			submissionId: formData.submissionId,
-			questionId: formData.questionId,
+			questionId: fullQuestionId,
 			req: payloadRequest,
 		});
 
@@ -1088,10 +1091,15 @@ const unflagQuizQuestionAction = unflagQuizQuestionRpc.createAction(
 			});
 		}
 
+		// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
+		const fullQuestionId = formData.nestedQuizId
+			? `${formData.nestedQuizId}:${formData.questionId}`
+			: formData.questionId;
+
 		const result = await tryUnflagQuizQuestion({
 			payload,
 			submissionId: formData.submissionId,
-			questionId: formData.questionId,
+			questionId: fullQuestionId,
 			req: payloadRequest,
 		});
 
@@ -1298,10 +1306,6 @@ const submitAssignmentAction = submitAssignmentRpc.createAction(
 			getRouteUrl("/course/module/:moduleLinkId", {
 				params: { moduleLinkId: String(moduleLinkId) },
 				searchParams: {
-					view: null,
-					threadId: null,
-					replyTo: null,
-					viewSubmission: null,
 				},
 			}),
 		);
@@ -1407,10 +1411,6 @@ function PreviousNextNavigation({
 					to={getRouteUrl("/course/module/:moduleLinkId", {
 						params: { moduleLinkId: String(previousModule.id) },
 						searchParams: {
-							view: null,
-							threadId: null,
-							replyTo: null,
-							viewSubmission: null,
 						},
 					})}
 					leftSection={<IconChevronLeft size={16} />}
@@ -1427,10 +1427,6 @@ function PreviousNextNavigation({
 					to={getRouteUrl("/course/module/:moduleLinkId", {
 						params: { moduleLinkId: String(nextModule.id) },
 						searchParams: {
-							view: null,
-							threadId: null,
-							replyTo: null,
-							viewSubmission: null,
 						},
 					})}
 					rightSection={<IconChevronRight size={16} />}
@@ -1485,38 +1481,29 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 	);
 }
 
+type QuizLoaderData = Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
+
 type QuizModuleViewProps = {
-	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
+	loaderData: QuizLoaderData;
 };
 
-const QuizModuleView = createRouteComponent<
-	Route.ComponentProps,
-	QuizModuleViewProps
->(({ loaderData }) => {
+function QuizModuleView({ loaderData }: QuizModuleViewProps) {
+	// Determine which submission to use:
+	// 1. If viewing a specific submission (viewSubmission param), use that
+	// 2. Otherwise, if there's an active quiz attempt, use that
+	// 3. Otherwise, show the instructions view
+	const submissionToUse =
+		loaderData.searchParams.viewSubmission && loaderData.viewedSubmission
+			? loaderData.viewedSubmission
+			: loaderData.activeSubmission;
+
 	return (
 		<>
 			<ModuleDatesInfo settings={loaderData.settings} />
-			{loaderData.searchParams.viewSubmission && loaderData.viewedSubmission ? (
+			{submissionToUse ? (
 				<QuizAttemptComponent
 					quizConfig={loaderData.quiz.rawQuizConfig}
-					submissionId={loaderData.viewedSubmission.id}
-					readonly={true}
-					initialAnswers={loaderData.viewedSubmissionAnswers ?? undefined}
-					flaggedQuestions={loaderData.viewedSubmission.flaggedQuestions ?? []}
-					completedNestedQuizzes={
-						loaderData.viewedSubmission.completedNestedQuizzes ?? null
-					}
-				/>
-			) : loaderData.searchParams.showQuiz && loaderData.hasActiveQuizAttempt ? (
-				<QuizAttemptComponent
-					quizConfig={loaderData.quiz.rawQuizConfig}
-					submissionId={loaderData.activeSubmission.id}
-					remainingTime={loaderData.quizRemainingTime}
-					initialAnswers={loaderData.initialAnswers}
-					flaggedQuestions={loaderData.activeSubmission.flaggedQuestions ?? []}
-					completedNestedQuizzes={
-						loaderData.activeSubmission.completedNestedQuizzes ?? null
-					}
+					submission={submissionToUse}
 				/>
 			) : (
 				<>
@@ -1538,7 +1525,7 @@ const QuizModuleView = createRouteComponent<
 			)}
 		</>
 	);
-});
+}
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	const { activityModule, settings, course, previousModule, nextModule } =

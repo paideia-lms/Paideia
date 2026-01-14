@@ -14,10 +14,8 @@ import {
 	IconX,
 } from "@tabler/icons-react";
 import type {
-	GradingConfig,
 	Question,
 	QuestionAnswer,
-	QuizAnswers,
 } from "server/json/raw-quiz-config/v2";
 import {
 	getQuestionPoints,
@@ -32,12 +30,14 @@ import {
 } from "../../route";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { useRef, useEffect } from "react";
+import { useQuestionContext } from "./question-context";
 
 interface FlagButtonProps {
 	questionId: string;
 	moduleLinkId: number;
 	submissionId: number;
 	isDisabled: boolean;
+	nestedQuizId?: string | null;
 }
 
 function FlagButton({
@@ -45,6 +45,7 @@ function FlagButton({
 	moduleLinkId,
 	submissionId,
 	isDisabled,
+	nestedQuizId,
 }: FlagButtonProps) {
 	const { submit: flagQuestion, isLoading: isFlagging } = useFlagQuizQuestion();
 
@@ -54,6 +55,7 @@ function FlagButton({
 			values: {
 				submissionId,
 				questionId,
+				...(nestedQuizId && { nestedQuizId }),
 			},
 		});
 	};
@@ -78,6 +80,7 @@ interface UnflagButtonProps {
 	moduleLinkId: number;
 	submissionId: number;
 	isDisabled: boolean;
+	nestedQuizId?: string | null;
 }
 
 function UnflagButton({
@@ -85,6 +88,7 @@ function UnflagButton({
 	moduleLinkId,
 	submissionId,
 	isDisabled,
+	nestedQuizId,
 }: UnflagButtonProps) {
 	const { submit: unflagQuestion, isLoading: isUnflagging } =
 		useUnflagQuizQuestion();
@@ -95,6 +99,7 @@ function UnflagButton({
 			values: {
 				submissionId,
 				questionId,
+				...(nestedQuizId && { nestedQuizId }),
 			},
 		});
 	};
@@ -120,6 +125,7 @@ interface SavedAnswerBadgeProps {
 	submissionId?: number;
 	readonly: boolean;
 	isDisabled: boolean;
+	nestedQuizId?: string | null;
 }
 
 function SavedAnswerBadge({
@@ -128,6 +134,7 @@ function SavedAnswerBadge({
 	submissionId,
 	readonly,
 	isDisabled,
+	nestedQuizId,
 }: SavedAnswerBadgeProps) {
 	const { submit: unanswerQuestion, isLoading: isUnanswering } =
 		useUnanswerQuizQuestion();
@@ -140,6 +147,7 @@ function SavedAnswerBadge({
 			values: {
 				submissionId,
 				questionId,
+				...(nestedQuizId && { nestedQuizId }),
 			},
 		});
 	};
@@ -177,19 +185,6 @@ function SavedAnswerBadge({
 			</Badge>
 		</Tooltip>
 	);
-}
-
-interface QuestionCardProps {
-	question: Question;
-	questionNumber: number;
-	grading?: GradingConfig;
-	initialAnswers?: QuizAnswers;
-	readonly: boolean;
-	isDisabled: boolean;
-	isFlagged: boolean;
-	answer: QuestionAnswer | undefined;
-	moduleLinkId?: number;
-	submissionId?: number;
 }
 
 /**
@@ -230,18 +225,21 @@ function convertToTypedAnswer(
 	return { type: "short-answer", value: String(answer) };
 }
 
-export function QuestionCard({
-	question,
-	questionNumber,
-	grading,
-	initialAnswers,
-	readonly,
-	isDisabled,
-	isFlagged,
-	answer,
-	moduleLinkId,
-	submissionId,
-}: QuestionCardProps) {
+export function QuestionCard() {
+	// Get all data from context
+	const {
+		question,
+		questionNumber,
+		grading,
+		readonly,
+		isDisabled,
+		isFlagged,
+		answer,
+		moduleLinkId,
+		submissionId,
+		nestedQuizId,
+	} = useQuestionContext();
+
 	const { submit: answerQuizQuestion, isLoading: isAnswering } =
 		useAnswerQuizQuestion();
 
@@ -280,6 +278,7 @@ export function QuestionCard({
 						questionId: question.id,
 						answerType: typedAnswer.type,
 						answerValue: JSON.stringify(typedAnswer.value),
+						...(nestedQuizId && { nestedQuizId }),
 					},
 				});
 			}, 500);
@@ -318,15 +317,15 @@ export function QuestionCard({
 								Saving...
 							</Badge>
 						) : (
-							initialAnswers &&
-							initialAnswers[question.id] !== undefined &&
-							initialAnswers[question.id] !== null && (
+							answer !== undefined &&
+							answer !== null && (
 								<SavedAnswerBadge
 									questionId={question.id}
 									moduleLinkId={moduleLinkId}
 									submissionId={submissionId}
 									readonly={readonly}
 									isDisabled={isDisabled}
+									nestedQuizId={nestedQuizId}
 								/>
 							)
 						)}
@@ -344,6 +343,7 @@ export function QuestionCard({
 									moduleLinkId={moduleLinkId}
 									submissionId={submissionId}
 									isDisabled={isDisabled}
+									nestedQuizId={nestedQuizId}
 								/>
 							) : (
 								<FlagButton
@@ -351,6 +351,7 @@ export function QuestionCard({
 									moduleLinkId={moduleLinkId}
 									submissionId={submissionId}
 									isDisabled={isDisabled}
+									nestedQuizId={nestedQuizId}
 								/>
 							))}
 					</Group>

@@ -793,7 +793,8 @@ export interface QuizSubmission {
     | null;
   flaggedQuestions?:
     | {
-        id: string;
+        questionId: string;
+        id?: string | null;
       }[]
     | null;
   totalScore?: number | null;
@@ -803,9 +804,10 @@ export interface QuizSubmission {
   autoGraded?: boolean | null;
   completedNestedQuizzes?:
     | {
-        id: string;
+        nestedQuizId: string;
         startedAt?: string | null;
         completedAt?: string | null;
+        id?: string | null;
       }[]
     | null;
   updatedAt: string;
@@ -1701,6 +1703,7 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   flaggedQuestions?:
     | T
     | {
+        questionId?: T;
         id?: T;
       };
   totalScore?: T;
@@ -1711,9 +1714,10 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   completedNestedQuizzes?:
     | T
     | {
-        id?: T;
+        nestedQuizId?: T;
         startedAt?: T;
         completedAt?: T;
+        id?: T;
       };
   updatedAt?: T;
   createdAt?: T;

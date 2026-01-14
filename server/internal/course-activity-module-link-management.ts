@@ -801,19 +801,10 @@ export function tryFindCourseActivityModuleLinkById(
 				id: activityModuleId,
 				req,
 				overrideAccess,
-			});
-
-			if (!activityModuleResult.ok) {
-				throw new NonExistingActivityModuleError(
-					`Activity module with id '${activityModuleId}' not found`,
-				);
-			}
+			}).getOrThrow();
 
 			// Build discriminated union result
-			return buildCourseActivityModuleLinkResult(
-				link,
-				activityModuleResult.value,
-			);
+			return buildCourseActivityModuleLinkResult(link, activityModuleResult);
 		},
 		(error) =>
 			transformError(error) ??

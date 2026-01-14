@@ -203,7 +203,7 @@ export const QuizSubmissions = {
 			type: "array",
 			fields: [
 				{
-					name: "id",
+					name: "questionId",
 					type: "text",
 					required: true,
 					label: "Flagged Question ID",
@@ -247,7 +247,7 @@ export const QuizSubmissions = {
 			type: "array",
 			fields: [
 				{
-					name: "id",
+					name: "nestedQuizId",
 					type: "text",
 					required: true,
 					label: "Nested Quiz ID",
@@ -263,7 +263,7 @@ export const QuizSubmissions = {
 					label: "Completed At",
 				},
 			],
-			label: "Completed Nested Quizzes",
+			label: "Completed or In Progress Nested Quizzes",
 		},
 	],
 	indexes: [

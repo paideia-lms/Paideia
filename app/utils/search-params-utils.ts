@@ -99,12 +99,27 @@ type RouteParamsOption<T extends keyof Register["pages"]> =
 		: { params: Args[T][number] };
 
 /**
+ * Makes a property optional if the value of key is null
+ *
+ * @example
+ * type Example = MakeNullOptional<{ a: string | null, b: number | null }>
+ * { a?: string | null, b?: number | null }
+ */
+type MakeNullOptional<T> = {
+	[K in keyof T as null extends T[K] ? K : never]?: T[K];
+} & {
+	[K in keyof T as null extends T[K] ? never : K]: T[K];
+};
+
+/**
  * Gets the searchParams type for a route, making it optional if never
  */
 type RouteSearchParamsOption<T extends keyof Register["pages"]> =
 	IsNever<SearchParamsForPage<T>> extends true
 		? { searchParams?: never }
-		: { searchParams: SearchParamsForPage<T> };
+		: {
+				searchParams: Simplify<MakeNullOptional<SearchParamsForPage<T>>>;
+			};
 
 /**
  * Combined options type that conditionally makes params and searchParams optional

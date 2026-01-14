@@ -13,16 +13,14 @@ import { useRef } from "react";
 import type {
 	Question,
 	QuestionAnswer,
-	QuizAnswers,
 } from "server/json/raw-quiz-config/v2";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
-import { loaderSearchParams, type Route } from "../../route";
+import { loaderSearchParams } from "../../route";
 import {
 	QuizSubmissionModal,
 	type QuizSubmissionModalHandle,
 } from "./quiz-submission-modal";
-import { createRouteComponent } from "~/utils/create-route-component";
-import type { Jsonify } from "type-fest";
+import { useRegularQuizAttemptContext } from "./quiz-attempt-component";
 
 /**
  * Helper function to check if a question is truly answered
@@ -62,7 +60,7 @@ function isQuestionAnswered(
 
 	// For array values (fill-in-the-blank, choice, ranking)
 	if (Array.isArray(value)) {
-		return value.length > 0 && value.some((v) => v && v.trim().length > 0);
+		return value.length > 0 && value.some((v) => v && typeof v === "string" && v.trim().length > 0);
 	}
 
 	// For object values (matrix questions)
@@ -73,28 +71,17 @@ function isQuestionAnswered(
 	return true;
 }
 
-interface QuizNavigationProps {
-	questionMap: Array<{
-		questionId: string;
-		questionNumber: number;
-		pageIndex: number;
-		questionIndex: number;
-		prompt: string;
-		question: Question;
-	}>;
-	answers: QuizAnswers;
-	flaggedQuestions: Array<{ id: string }>;
-	currentPageIndex: number;
-	isDisabled: boolean;
-}
+export function QuizNavigation() {
+	// Get all data from context
+	const {
+		submission,
+		quizPageIndex: currentPageIndex,
+		isDisabled,
+		answers,
+		questionMap,
+	} = useRegularQuizAttemptContext();
 
-export function QuizNavigation({
-	questionMap,
-	answers,
-	flaggedQuestions,
-	currentPageIndex,
-	isDisabled,
-}: QuizNavigationProps) {
+	const flaggedQuestions = submission.flaggedQuestions ?? [];
 	const setSearchParams = useNuqsSearchParams(loaderSearchParams);
 
 	return (
@@ -108,7 +95,7 @@ export function QuizNavigation({
 						const answerValue = answers[item.questionId];
 						const isAnswered = isQuestionAnswered(item.question, answerValue);
 						const isFlaggedValue = flaggedQuestions.some(
-							(flaggedQuestion) => flaggedQuestion.id === item.questionId,
+							(flaggedQuestion) => flaggedQuestion.questionId === item.questionId,
 						);
 						const isCurrent = currentPageIndex === item.pageIndex;
 
@@ -136,10 +123,10 @@ export function QuizNavigation({
 										style={
 											isCurrent
 												? {
-														borderWidth: 3,
-														borderStyle: "solid",
-														borderColor: "var(--mantine-color-blue-6)",
-													}
+													borderWidth: 3,
+													borderStyle: "solid",
+													borderColor: "var(--mantine-color-blue-6)",
+												}
 												: undefined
 										}
 									>
@@ -193,123 +180,103 @@ export function QuizNavigation({
 }
 
 interface QuizNavigationButtonsProps {
-	readonly?: boolean;
-	// onExit?: () => void;
-	isFirstPage: boolean;
-	isLastPage: boolean;
-	currentPageIndex: number;
-	isDisabled: boolean;
-	// onSubmit: () => void;
 	isGlobalTimerExpired: boolean;
-	submissionId: number;
-	moduleLinkId: number;
-	answers?: QuizAnswers;
 }
 
-export const QuizNavigationButtons = createRouteComponent<
-	Route.ComponentProps,
-	Jsonify<QuizNavigationButtonsProps>,
-	never
->(
-	(
-		{
-			readonly = false,
-			// onExit,
-			isFirstPage,
-			isLastPage,
-			currentPageIndex,
-			isDisabled,
-			// onSubmit,
-			isGlobalTimerExpired,
-			submissionId,
-			moduleLinkId: _moduleLinkId,
-			answers,
-		},
-		{ loaderData: _loaderData },
-	) => {
-		const setSearchParams = useNuqsSearchParams(loaderSearchParams);
-		const modalRef = useRef<QuizSubmissionModalHandle>(null);
+export function QuizNavigationButtons({
+	isGlobalTimerExpired,
+}: QuizNavigationButtonsProps) {
+	// Get all navigation data from context
+	const {
+		submission,
+		readonly,
+		isDisabled,
+		isFirstPage,
+		isLastPage,
+		quizPageIndex: currentPageIndex,
+		answers,
+	} = useRegularQuizAttemptContext();
+	const setSearchParams = useNuqsSearchParams(loaderSearchParams);
+	const modalRef = useRef<QuizSubmissionModalHandle>(null);
 
-		return (
-			<>
-				<Group justify="space-between" mt="md">
-					{readonly ? (
-						<>
-							{/* {onExit && (
+	return (
+		<>
+			<Group justify="space-between" mt="md">
+				{readonly ? (
+					<>
+						{/* {onExit && (
                             <Button variant="default" onClick={onExit}>
                                 Exit
                             </Button>
                         )} */}
-							<div style={{ flex: 1 }} />
-							<Group gap="sm">
-								<Button
-									variant="default"
-									onClick={() => {
-										setSearchParams({ quizPageIndex: currentPageIndex - 1 });
-									}}
-									disabled={isFirstPage}
-								>
-									Previous
-								</Button>
-								<Button
-									onClick={() => {
-										setSearchParams({ quizPageIndex: currentPageIndex + 1 });
-									}}
-									disabled={isLastPage}
-								>
-									Next
-								</Button>
-							</Group>
-						</>
-					) : (
-						<>
+						<div style={{ flex: 1 }} />
+						<Group gap="sm">
 							<Button
 								variant="default"
 								onClick={() => {
 									setSearchParams({ quizPageIndex: currentPageIndex - 1 });
 								}}
-								disabled={isFirstPage || isDisabled}
+								disabled={isFirstPage}
 							>
 								Previous
 							</Button>
+							<Button
+								onClick={() => {
+									setSearchParams({ quizPageIndex: currentPageIndex + 1 });
+								}}
+								disabled={isLastPage}
+							>
+								Next
+							</Button>
+						</Group>
+					</>
+				) : (
+					<>
+						<Button
+							variant="default"
+							onClick={() => {
+								setSearchParams({ quizPageIndex: currentPageIndex - 1 });
+							}}
+							disabled={isFirstPage || isDisabled}
+						>
+							Previous
+						</Button>
 
-							{isLastPage ? (
-								isGlobalTimerExpired ? (
-									<Button
-										onClick={() => modalRef.current?.open()}
-										disabled={isDisabled}
-									>
-										View Results
-									</Button>
-								) : (
-									<Button
-										onClick={() => modalRef.current?.open()}
-										disabled={isDisabled || readonly}
-									>
-										Submit Quiz
-									</Button>
-								)
-							) : (
+						{isLastPage ? (
+							isGlobalTimerExpired ? (
 								<Button
-									onClick={() => {
-										setSearchParams({ quizPageIndex: currentPageIndex + 1 });
-									}}
+									onClick={() => modalRef.current?.open()}
 									disabled={isDisabled}
 								>
-									Next
+									View Results
 								</Button>
-							)}
-						</>
-					)}
-				</Group>
+							) : (
+								<Button
+									onClick={() => modalRef.current?.open()}
+									disabled={isDisabled || readonly}
+								>
+									Submit Quiz
+								</Button>
+							)
+						) : (
+							<Button
+								onClick={() => {
+									setSearchParams({ quizPageIndex: currentPageIndex + 1 });
+								}}
+								disabled={isDisabled}
+							>
+								Next
+							</Button>
+						)}
+					</>
+				)}
+			</Group>
 
-				<QuizSubmissionModal
-					ref={modalRef}
-					submissionId={submissionId}
-					answers={answers}
-					// onSubmit={onSubmit}
-				/>
-			</>
-		);
-	},
-);
+			<QuizSubmissionModal
+				ref={modalRef}
+				submissionId={submission.id}
+				answers={answers}
+			/>
+		</>
+	);
+}

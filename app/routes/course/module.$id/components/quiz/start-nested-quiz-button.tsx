@@ -1,23 +1,20 @@
 import { Button } from "@mantine/core";
 import { IconPlayerPlay } from "@tabler/icons-react";
 import { useStartNestedQuiz } from "../../route";
-import type { Route } from "../../route";
-import { createRouteComponent } from "~/utils/create-route-component";
-import type { Jsonify } from "type-fest";
+import { useNestedQuizContext } from "./nested-quiz-context";
+
 interface StartNestedQuizButtonProps {
 	submissionId: number;
 	nestedQuizId: string;
 	disabled?: boolean;
-	moduleLinkId: number;
 }
 
-export const StartNestedQuizButton = createRouteComponent<
-	Route.ComponentProps,
-	Jsonify<StartNestedQuizButtonProps>
->(({ submissionId, nestedQuizId, disabled = false }, { loaderData }) => {
-	const {
-		params: { moduleLinkId },
-	} = loaderData;
+export function StartNestedQuizButton({
+	submissionId,
+	nestedQuizId,
+	disabled = false,
+}: StartNestedQuizButtonProps) {
+	const { moduleLinkId } = useNestedQuizContext();
 	const { submit: startNestedQuiz, isLoading } = useStartNestedQuiz();
 
 	const handleStart = async () => {
@@ -42,4 +39,4 @@ export const StartNestedQuizButton = createRouteComponent<
 			Start Quiz
 		</Button>
 	);
-});
+}

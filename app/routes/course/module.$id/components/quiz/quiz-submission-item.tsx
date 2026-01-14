@@ -66,15 +66,14 @@ export function QuizSubmissionItem({
 
 	const viewSubmissionUrl = canViewSubmission
 		? getRouteUrl("/course/module/:moduleLinkId", {
-				params: { moduleLinkId: String(moduleLinkId) },
-				searchParams: {
-					viewSubmission: submission.id,
-					showQuiz: false,
-					view: null,
-					threadId: null,
-					replyTo: null,
-				},
-			})
+			params: { moduleLinkId: String(moduleLinkId) },
+			searchParams: {
+				viewSubmission: submission.id,
+				view: null,
+				threadId: null,
+				replyTo: null,
+			},
+		})
 		: null;
 	return (
 		<Paper withBorder p="md">
@@ -93,16 +92,16 @@ export function QuizSubmissionItem({
 							submission.totalScore !== undefined && (
 								<Badge color="green" size="sm" variant="filled">
 									{submission.totalScore !== null &&
-									submission.totalScore !== undefined &&
-									submission.maxScore !== null &&
-									submission.maxScore !== undefined
+										submission.totalScore !== undefined &&
+										submission.maxScore !== null &&
+										submission.maxScore !== undefined
 										? `${submission.totalScore}/${submission.maxScore}`
 										: submission.totalScore !== null &&
-												submission.totalScore !== undefined
+											submission.totalScore !== undefined
 											? String(submission.totalScore)
 											: "-"}
 									{submission.percentage !== null &&
-									submission.percentage !== undefined
+										submission.percentage !== undefined
 										? ` (${submission.percentage.toFixed(1)}%)`
 										: ""}
 								</Badge>
@@ -129,8 +128,8 @@ export function QuizSubmissionItem({
 						{submission.status === "graded" && submission.grade?.gradedAt && (
 							<Text size="xs" c="dimmed">
 								{submission.startedAt ||
-								submission.submittedAt ||
-								submission.timeSpent
+									submission.submittedAt ||
+									submission.timeSpent
 									? "• "
 									: ""}
 								Graded: {new Date(submission.grade.gradedAt).toLocaleString()}

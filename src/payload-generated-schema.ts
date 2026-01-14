@@ -1372,6 +1372,7 @@ export const quiz_submissions_flagged_questions = pgTable(
     _order: integer("_order").notNull(),
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
+    questionId: varchar("question_id").notNull(),
   },
   (columns) => [
     index("quiz_submissions_flagged_questions_order_idx").on(columns._order),
@@ -1392,6 +1393,7 @@ export const quiz_submissions_completed_nested_quizzes = pgTable(
     _order: integer("_order").notNull(),
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
+    nestedQuizId: varchar("nested_quiz_id").notNull(),
     startedAt: timestamp("started_at", {
       mode: "string",
       withTimezone: true,

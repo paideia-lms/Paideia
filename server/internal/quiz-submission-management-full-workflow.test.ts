@@ -1053,7 +1053,7 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(submissionWithFlag.ok).toBe(true);
 		if (!submissionWithFlag.ok) return;
 		const flaggedQuestions = submissionWithFlag.value.flaggedQuestions || [];
-		const isFlagged = flaggedQuestions.some((f) => f.id === questionId);
+		const isFlagged = flaggedQuestions.some((f) => f.questionId === questionId);
 		expect(isFlagged).toBe(true);
 	});
 
@@ -1170,7 +1170,7 @@ describe("Quiz Management - Full Workflow", () => {
 		if (!submission.ok) return;
 		const flaggedQuestions = submission.value.flaggedQuestions || [];
 		const flaggedCount = flaggedQuestions.filter(
-			(f) => f.id === questionId,
+			(f) => f.questionId === questionId,
 		).length;
 		expect(flaggedCount).toBe(1);
 	});
@@ -1275,7 +1275,7 @@ describe("Quiz Management - Full Workflow", () => {
 		const flaggedQuestionsBefore =
 			submissionWithFlag.value.flaggedQuestions || [];
 		const isFlaggedBefore = flaggedQuestionsBefore.some(
-			(f) => f.id === questionId,
+			(f) => f.questionId === questionId,
 		);
 		expect(isFlaggedBefore).toBe(true);
 
@@ -1306,7 +1306,7 @@ describe("Quiz Management - Full Workflow", () => {
 		const flaggedQuestionsAfter =
 			submissionWithoutFlag.value.flaggedQuestions || [];
 		const isFlaggedAfter = flaggedQuestionsAfter.some(
-			(f) => f.id === questionId,
+			(f) => f.questionId === questionId,
 		);
 		expect(isFlaggedAfter).toBe(false);
 	});

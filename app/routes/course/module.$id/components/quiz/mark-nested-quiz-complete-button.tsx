@@ -1,8 +1,7 @@
 import { Button } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
-import { useMarkNestedQuizAsComplete, type Route } from "../../route";
-import { createRouteComponent } from "~/utils/create-route-component";
-import type { Jsonify } from "type-fest";
+import { useMarkNestedQuizAsComplete } from "../../route";
+import { useNestedQuizContext } from "./nested-quiz-context";
 
 interface MarkNestedQuizCompleteButtonProps {
 	submissionId: number;
@@ -10,13 +9,12 @@ interface MarkNestedQuizCompleteButtonProps {
 	disabled?: boolean;
 }
 
-export const MarkNestedQuizCompleteButton = createRouteComponent<
-	Route.ComponentProps,
-	Jsonify<MarkNestedQuizCompleteButtonProps>
->(({ submissionId, nestedQuizId, disabled = false }, { loaderData }) => {
-	const {
-		params: { moduleLinkId },
-	} = loaderData;
+export function MarkNestedQuizCompleteButton({
+	submissionId,
+	nestedQuizId,
+	disabled = false,
+}: MarkNestedQuizCompleteButtonProps) {
+	const { moduleLinkId } = useNestedQuizContext();
 	const { submit: markNestedQuizAsComplete, isLoading } =
 		useMarkNestedQuizAsComplete();
 	return (
@@ -39,4 +37,4 @@ export const MarkNestedQuizCompleteButton = createRouteComponent<
 			Mark as Complete
 		</Button>
 	);
-});
+}

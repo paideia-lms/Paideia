@@ -349,6 +349,8 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					})[0] ||
 					null;
 
+				console.log(userSubmission);
+
 				// Calculate quiz-specific display data
 				const quizSubmissionsForDisplay = userSubmissions.map((sub) => ({
 					id: sub.id,

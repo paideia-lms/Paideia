@@ -890,9 +890,21 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			// Get current flagged questions array
 			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
 
+			console.log("[tryFlagQuizQuestion] Debug:", {
+				submissionId,
+				questionId,
+				questionIdType: typeof questionId,
+				currentFlaggedQuestions,
+				currentFlaggedQuestionsStructure: currentFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
+
 			// Check if question is already flagged
 			const isAlreadyFlagged = currentFlaggedQuestions.some(
-				(flagged) => flagged.id === questionId,
+				(flagged) => flagged.questionId === questionId,
 			);
 
 			// If already flagged, return success (idempotent)
@@ -904,12 +916,32 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			}
 
 			// Add the question to flagged list
+			// The `questionId` field stores the question ID (as a string)
+			// Note: `id` is the auto-generated primary key, `questionId` is the data field
 			const updatedFlaggedQuestions = [
 				...currentFlaggedQuestions,
-				{ id: questionId },
+				{ questionId: String(questionId) },
 			];
 
+			console.log("[tryFlagQuizQuestion] Updated array:", {
+				updatedFlaggedQuestions,
+				updatedFlaggedQuestionsStructure: updatedFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
+
 			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
+			console.log("[tryFlagQuizQuestion] About to update with:", {
+				collection: "quiz-submissions",
+				id: submissionId,
+				data: {
+					flaggedQuestions: updatedFlaggedQuestions,
+				},
+				flaggedQuestionsValue: JSON.stringify(updatedFlaggedQuestions),
+			});
+
 			const updatedSubmission = await payload
 				.update({
 					collection: "quiz-submissions",
@@ -921,7 +953,19 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<1, "update">());
+				.then(stripDepth<1, "update">())
+				.catch((error: unknown) => {
+					console.log("[tryFlagQuizQuestion] Update error:", {
+						error: error instanceof Error ? error.message : String(error),
+						errorData:
+							error && typeof error === "object" && "data" in error
+								? error.data
+								: undefined,
+						errorStack: error instanceof Error ? error.stack : undefined,
+						fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+					});
+					throw error;
+				});
 
 			return {
 				...updatedSubmission,
@@ -964,10 +1008,24 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 			// Get current flagged questions array
 			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
 
+			console.log("[tryUnflagQuizQuestion] Debug:", {
+				submissionId,
+				questionId,
+				questionIdType: typeof questionId,
+				currentFlaggedQuestions,
+				currentFlaggedQuestionsStructure: currentFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
+
 			// Find existing flagged question index (if any)
 			const existingFlaggedIndex = currentFlaggedQuestions.findIndex(
-				(flagged) => flagged.id === questionId,
+				(flagged) => flagged.questionId === questionId,
 			);
+
+			console.log("[tryUnflagQuizQuestion] Found index:", existingFlaggedIndex);
 
 			// If no flag exists, there's nothing to remove - return success (idempotent)
 			if (existingFlaggedIndex === -1) {
@@ -980,6 +1038,15 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 			// Remove the flag from the array
 			const updatedFlaggedQuestions = [...currentFlaggedQuestions];
 			updatedFlaggedQuestions.splice(existingFlaggedIndex, 1);
+
+			console.log("[tryUnflagQuizQuestion] Updated array:", {
+				updatedFlaggedQuestions,
+				updatedFlaggedQuestionsStructure: updatedFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
 
 			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
 			const updatedSubmission = await payload
@@ -1241,10 +1308,9 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 			const currentCompletedNestedQuizzes =
 				currentSubmission.completedNestedQuizzes || [];
 
-			// Find existing entry for this nested quiz by matching the id field
-			// The id field is set to nestedQuizId when the entry is created
+			// Find existing entry for this nested quiz by matching the nestedQuizId field
 			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
-				(entry) => entry.id === nestedQuizId,
+				(entry) => entry.nestedQuizId === nestedQuizId,
 			);
 
 			const startedAt = new Date().toISOString();
@@ -1261,9 +1327,10 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 					};
 				}
 			} else {
-				// Add new entry with nestedQuizId as the id
+				// Add new entry with nestedQuizId
+				// Note: id is auto-generated as primary key, we only set nestedQuizId
 				updatedCompletedNestedQuizzes.push({
-					id: nestedQuizId,
+					nestedQuizId,
 					startedAt,
 					completedAt: null,
 				});
@@ -1281,7 +1348,15 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<1, "update">());
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryStartNestedQuiz",
+						args,
+					});
+					throw error;
+				});
 
 			return {
 				...updatedSubmission,
@@ -1380,10 +1455,9 @@ export function tryMarkNestedQuizAsComplete(
 			const currentCompletedNestedQuizzes =
 				currentSubmission.completedNestedQuizzes || [];
 
-			// Find existing entry for this nested quiz by matching the id field
-			// The id field is set to nestedQuizId when the entry is created
+			// Find existing entry for this nested quiz by matching the nestedQuizId field
 			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
-				(entry) => entry.id === nestedQuizId,
+				(entry) => entry.nestedQuizId === nestedQuizId,
 			);
 
 			// Check if nested quiz was started
@@ -1753,7 +1827,6 @@ export function tryListQuizSubmissions(args: ListQuizSubmissionsArgs) {
 					page,
 					sort: "-createdAt",
 					depth: 1, // Fetch related data
-
 					req,
 					overrideAccess,
 				})
@@ -1826,10 +1899,19 @@ export function tryCheckInProgressSubmission(
 				overrideAccess,
 			});
 
-			return {
-				hasInProgress: result.docs.length > 0,
-				submission: result.docs[0] || null,
-			};
+			const hasInProgress = result.docs.length > 0;
+
+			if (hasInProgress) {
+				return {
+					hasInProgress: true as const,
+					submission: result.docs[0]!,
+				};
+			} else {
+				return {
+					hasInProgress: false as const,
+					submission: null,
+				};
+			}
 		},
 		(error) =>
 			transformError(error) ??
