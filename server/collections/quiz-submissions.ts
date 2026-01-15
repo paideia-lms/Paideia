@@ -253,6 +253,28 @@ export const QuizSubmissions = {
 			label: "Auto Graded",
 		},
 		{
+			name: "grade",
+			type: "number",
+			label: "Grade",
+			min: 0,
+		},
+		{
+			name: "feedback",
+			type: "textarea",
+			label: "Feedback",
+		},
+		{
+			name: "gradedBy",
+			type: "relationship",
+			relationTo: "users",
+			label: "Graded By",
+		},
+		{
+			name: "gradedAt",
+			type: "date",
+			label: "Graded At",
+		},
+		{
 			name: "completedNestedQuizzes",
 			type: "array",
 			fields: [

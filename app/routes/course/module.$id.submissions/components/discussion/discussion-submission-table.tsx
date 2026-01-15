@@ -149,7 +149,6 @@ function DiscussionStudentSubmissionRow({
 									to={getRouteUrl("/course/module/:moduleLinkId/submissions", {
 										params: { moduleLinkId: moduleLinkId.toString() },
 										searchParams: {
-											action: null,
 											view: View.GRADING,
 											submissionId: latestSubmission.id,
 										},
@@ -160,24 +159,24 @@ function DiscussionStudentSubmissionRow({
 								</Menu.Item>
 								{(gradingStatus === "graded" ||
 									gradingStatus === "partially-graded") && (
-									<Menu.Item
-										leftSection={<IconSend size={14} />}
-										onClick={() => {
-											releaseGrade({
-												params: {
-													moduleLinkId: moduleLinkId,
-												},
-												values: {
-													courseModuleLinkId: moduleLinkId,
-													enrollmentId: enrollment.id,
-												},
-											});
-										}}
-										disabled={isReleasing}
-									>
-										{isReleasing ? "Releasing..." : "Release Grade"}
-									</Menu.Item>
-								)}
+										<Menu.Item
+											leftSection={<IconSend size={14} />}
+											onClick={() => {
+												releaseGrade({
+													params: {
+														moduleLinkId: moduleLinkId,
+													},
+													values: {
+														courseModuleLinkId: moduleLinkId,
+														enrollmentId: enrollment.id,
+													},
+												});
+											}}
+											disabled={isReleasing}
+										>
+											{isReleasing ? "Releasing..." : "Release Grade"}
+										</Menu.Item>
+									)}
 							</Menu.Dropdown>
 						</Menu>
 					) : (

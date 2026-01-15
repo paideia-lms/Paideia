@@ -147,6 +147,10 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					user ?? undefined,
 					enrolment ?? undefined,
 				),
+				canDelete: permissions.course.module.canDelete(
+					user ?? undefined,
+					enrolment ?? undefined,
+				),
 			};
 
 			// Fetch the module link

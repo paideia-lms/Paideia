@@ -1227,30 +1227,15 @@ export function tryGetQuizSubmissionById(args: GetQuizSubmissionByIdArgs) {
 			}
 
 			// Fetch the quiz submission
-			const submissionResult = await payload
-				.find({
+			const submission = await payload
+				.findByID({
 					collection: "quiz-submissions",
-					where: {
-						and: [
-							{
-								id: { equals: id },
-							},
-						],
-					},
+					id,
 					depth: 1, // Fetch related data
-
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<1, "find">());
-
-			const submission = submissionResult.docs[0];
-
-			if (!submission) {
-				throw new NonExistingQuizSubmissionError(
-					`Quiz submission with id '${id}' not found`,
-				);
-			}
+				.then(stripDepth<1, "findByID">());
 
 			return {
 				...submission,

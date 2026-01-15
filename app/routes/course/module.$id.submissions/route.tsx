@@ -25,14 +25,13 @@ import {
 	tryReleaseQuizGrade,
 } from "server/internal/user-grade-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { permissions } from "server/utils/permissions";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion-grading-view";
-import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
-import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
-import { AssignmentSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/assignment-submission-table";
-import { QuizSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/quiz-submission-table";
-import { DiscussionSubmissionTable } from "app/routes/course/module.$id.submissions/components/submission-tables/discussion-submission-table";
+import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion/discussion-grading-view";
+import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignments/assignment-grading-view";
+import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz/quiz-grading-view";
+import { AssignmentSubmissionTable } from "app/routes/course/module.$id.submissions/components/assignments/assignment-submission-table";
+import { QuizSubmissionTable } from "app/routes/course/module.$id.submissions/components/quiz/quiz-submission-table";
+import { DiscussionSubmissionTable } from "app/routes/course/module.$id.submissions/components/discussion/discussion-submission-table";
 import {
 	badRequest,
 	BadRequestResponse,
@@ -59,7 +58,7 @@ export enum Action {
 
 // Define search params
 export const loaderSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
+	// action: parseAsStringEnum(Object.values(Action)),
 	submissionId: parseAsInteger,
 	view: parseAsStringEnum(Object.values(View)),
 };
@@ -100,18 +99,15 @@ const releaseGradeRpc = createActionRpc({
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams }) => {
+	const { submissionId, view } = searchParams;
 	const { payloadRequest, payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
@@ -122,30 +118,18 @@ export const loader = createRouteLoader({
 	}
 
 	// Check if user can see submissions
-	const canSee = permissions.course.module.canSeeSubmissions(
-		currentUser,
-		enrolmentContext?.enrolment,
-	).allowed;
-
+	const canSee = courseModuleContext.permissions.canSeeSubmissions.allowed;
 	if (!canSee) {
 		throw new ForbiddenResponse(
 			"You don't have permission to view submissions",
 		);
 	}
-
-	// Check if user can delete submissions
-	const canDelete = permissions.course.module.canSeeSubmissions(
-		currentUser,
-		enrolmentContext?.enrolment,
-	).allowed;
-
+	const canDelete = courseModuleContext.permissions.canDelete.allowed;
 	// Get all enrollments for this course to show all students, filter out students
 	const enrollments = courseContext.course.enrollments.filter(
 		(enrollment) => enrollment.role === "student",
 	);
 
-	// Parse search params to check if we're in grading mode
-	const { submissionId, view } = searchParams;
 
 	const showGradingView = view === View.GRADING && submissionId !== null;
 
@@ -172,18 +156,18 @@ export const loader = createRouteLoader({
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
-					baseGrade: submission.grade,
-					maxGrade,
-					feedback: submission.feedback || null,
-				}
+				baseGrade: submission.grade,
+				maxGrade,
+				feedback: submission.feedback || null,
+			}
 			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -204,17 +188,13 @@ export const loader = createRouteLoader({
 	}
 
 	if (showGradingView && courseModuleContext.type === "quiz") {
-		const submissionResult = await tryGetQuizSubmissionById({
+		const submission = await tryGetQuizSubmissionById({
 			payload,
-			id: submissionId!,
+			id: submissionId,
 			req: payloadRequest,
+		}).getOrElse((error) => {
+			throw new BadRequestResponse(error.message);
 		});
-
-		if (!submissionResult.ok) {
-			throw new BadRequestResponse(submissionResult.error.message);
-		}
-
-		const submission = submissionResult.value;
 
 		// Verify the submission belongs to this module
 		if (submission.courseModuleLink !== courseModuleContext.id) {
@@ -222,27 +202,22 @@ export const loader = createRouteLoader({
 		}
 
 		// Get grade from submission itself
-		const submissionWithGrade = submission as typeof submission & {
-			grade?: number | null;
-			feedback?: string | null;
-		};
+		// TODO: This is very weird
 
-		const gradingGrade =
-			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
-				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
-				: null;
+		const gradingGrade = isNotNil(submission.grade)
+			? {
+				baseGrade: submission.grade,
+				maxGrade,
+				feedback: submission.feedback ?? null,
+			}
+			: null;
 
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -290,7 +265,7 @@ export const loader = createRouteLoader({
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -301,12 +276,12 @@ export const loader = createRouteLoader({
 				const author =
 					typeof student === "object" && student !== null
 						? {
-								id: student.id,
-								firstName: student.firstName ?? null,
-								lastName: student.lastName ?? null,
-								email: student.email ?? null,
-								avatar: student.avatar ?? null,
-							}
+							id: student.id,
+							firstName: student.firstName ?? null,
+							lastName: student.lastName ?? null,
+							email: student.email ?? null,
+							avatar: student.avatar ?? null,
+						}
 						: null;
 
 				return [
@@ -343,7 +318,7 @@ export const loader = createRouteLoader({
 				};
 				const parentThreadId =
 					typeof subWithParent.parentThread === "object" &&
-					subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 						? subWithParent.parentThread.id
 						: typeof subWithParent.parentThread === "number"
 							? subWithParent.parentThread
@@ -406,12 +381,12 @@ export const loader = createRouteLoader({
 
 		const gradingGrade =
 			submissionWithGrade.grade !== null &&
-			submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 				? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						feedback: submissionWithGrade.feedback || null,
-					}
+					baseGrade: submissionWithGrade.grade,
+					maxGrade,
+					feedback: submissionWithGrade.feedback || null,
+				}
 				: null;
 
 		// Add student submissions to gradingSubmission for display
@@ -429,9 +404,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 
 		return {
@@ -454,8 +429,8 @@ export const loader = createRouteLoader({
 	// Not in grading mode - return list view data
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-		courseModuleContext.type === "quiz" ||
-		courseModuleContext.type === "discussion"
+			courseModuleContext.type === "quiz" ||
+			courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -470,13 +445,13 @@ export const loader = createRouteLoader({
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
@@ -485,9 +460,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -509,9 +484,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -533,9 +508,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-					version: "v2" as const,
-					settings: courseModuleContext.settings,
-				}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 			: null;
 		return {
 			mode: "list" as const,
@@ -562,7 +537,6 @@ const deleteSubmissionAction = deleteSubmissionRpc.createAction(
 		void params;
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
-		const enrolmentContext = context.get(enrolmentContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -573,16 +547,8 @@ const deleteSubmissionAction = deleteSubmissionRpc.createAction(
 			return badRequest({ error: "Module not found" });
 		}
 
-		const currentUser =
-			userSession.effectiveUser || userSession.authenticatedUser;
-
 		// Check if user can delete submissions
-		const canDelete = permissions.course.module.canSeeSubmissions(
-			currentUser,
-			enrolmentContext?.enrolment,
-		).allowed;
-
-		if (!canDelete) {
+		if (!courseModuleContext.permissions.canDelete.allowed) {
 			return unauthorized({
 				error: "You don't have permission to delete submissions",
 			});
@@ -636,12 +602,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 			userSession.effectiveUser || userSession.authenticatedUser;
 
 		// Check if user can grade submissions (same as viewing submissions)
-		const canGrade = permissions.course.module.canSeeSubmissions(
-			currentUser,
-			enrolmentContext?.enrolment,
-		).allowed;
-
-		if (!canGrade) {
+		if (!courseModuleContext.permissions.canSeeSubmissions.allowed) {
 			return unauthorized({
 				error: "You don't have permission to grade submissions",
 			});
@@ -769,7 +730,6 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 		void params;
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
-		const enrolmentContext = context.get(enrolmentContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -780,16 +740,8 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 			return badRequest({ error: "Module not found" });
 		}
 
-		const currentUser =
-			userSession.effectiveUser || userSession.authenticatedUser;
-
 		// Check if user can grade submissions (same as viewing submissions)
-		const canGrade = permissions.course.module.canSeeSubmissions(
-			currentUser,
-			enrolmentContext?.enrolment,
-		).allowed;
-
-		if (!canGrade) {
+		if (!courseModuleContext.permissions.canSeeSubmissions.allowed) {
 			return unauthorized({
 				error: "You don't have permission to release grades",
 			});
@@ -978,53 +930,6 @@ export default function ModuleSubmissionsPage({
 			: null;
 	const title = `${moduleName ?? loaderData.module.title} - ${loaderData.module.type === "quiz" ? "Results" : "Submissions"} | ${loaderData.course.title} | Paideia LMS`;
 
-	// Render content based on module type
-	const renderSubmissions = () => {
-		if (loaderData.moduleType === "assignment") {
-			return (
-				<AssignmentSubmissionTable
-					courseId={loaderData.course.id}
-					enrollments={loaderData.enrollments}
-					submissions={
-						loaderData.submissions as Parameters<
-							typeof AssignmentSubmissionTable
-						>[0]["submissions"]
-					}
-					canDelete={loaderData.canDelete}
-					moduleLinkId={loaderData.moduleLinkId}
-				/>
-			);
-		}
-
-		if (loaderData.moduleType === "quiz") {
-			return (
-				<QuizSubmissionTable
-					courseId={loaderData.course.id}
-					enrollments={loaderData.enrollments}
-					submissions={
-						loaderData.submissions as Parameters<
-							typeof QuizSubmissionTable
-						>[0]["submissions"]
-					}
-					moduleLinkId={loaderData.moduleLinkId}
-				/>
-			);
-		}
-
-		if (loaderData.moduleType === "discussion") {
-			return (
-				<DiscussionSubmissionTable
-					courseId={loaderData.course.id}
-					enrollments={loaderData.enrollments}
-					submissions={loaderData.submissions}
-					moduleLinkId={loaderData.moduleLinkId}
-				/>
-			);
-		}
-
-		return null;
-	};
-
 	return (
 		<Container size="xl" py="xl">
 			<title>{title}</title>
@@ -1038,7 +943,39 @@ export default function ModuleSubmissionsPage({
 				content={`${loaderData.module.title} submissions`}
 			/>
 
-			{renderSubmissions()}
+			{
+				loaderData.moduleType === "assignment" ? (
+					<AssignmentSubmissionTable
+						courseId={loaderData.course.id}
+						enrollments={loaderData.enrollments}
+						canDelete={loaderData.canDelete}
+						submissions={
+							loaderData.submissions as Parameters<
+								typeof AssignmentSubmissionTable
+							>[0]["submissions"]
+						}
+						moduleLinkId={loaderData.moduleLinkId}
+					/>
+				) : loaderData.moduleType === "quiz" ? (
+					<QuizSubmissionTable
+						courseId={loaderData.course.id}
+						enrollments={loaderData.enrollments}
+						submissions={
+							loaderData.submissions as Parameters<
+								typeof QuizSubmissionTable
+							>[0]["submissions"]
+						}
+						moduleLinkId={loaderData.moduleLinkId}
+					/>
+				) : loaderData.moduleType === "discussion" ? (
+					<DiscussionSubmissionTable
+						courseId={loaderData.course.id}
+						enrollments={loaderData.enrollments}
+						submissions={loaderData.submissions}
+						moduleLinkId={loaderData.moduleLinkId}
+					/>
+				) : null
+			}
 		</Container>
 	);
 }

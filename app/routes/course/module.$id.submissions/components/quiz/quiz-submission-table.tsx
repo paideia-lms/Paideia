@@ -22,14 +22,14 @@ import {
 	IconSend,
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
-import { groupSubmissionsByStudent } from "./helpers";
+import { groupSubmissionsByStudent } from "../../utils/group-submissions-by-student";
 import {
 	type Route,
 	View,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
 import { getRouteUrl } from "~/utils/search-params-utils";
-import { QuizSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/submission-tables/quiz-submission-item-in-table";
+import { QuizSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/quiz/quiz-submission-item-in-table";
 import type { QuizSubmissionData } from "app/routes/course/module.$id/components/quiz/quiz-submission-item";
 
 type Enrollment = NonNullable<
@@ -80,10 +80,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -113,7 +113,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-				gradedSubmissions.length
+			gradedSubmissions.length
 			: null;
 
 	return (
@@ -240,7 +240,6 @@ function QuizStudentSubmissionRow({
 											{
 												params: { moduleLinkId: moduleLinkId.toString() },
 												searchParams: {
-													action: null,
 													view: View.GRADING,
 													submissionId: latestSubmission.id,
 												},

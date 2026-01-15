@@ -806,6 +806,10 @@ export interface QuizSubmission {
   percentage?: number | null;
   isLate?: boolean | null;
   autoGraded?: boolean | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
   completedNestedQuizzes?:
     | {
         nestedQuizId: string;
@@ -1716,6 +1720,10 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   percentage?: T;
   isLate?: T;
   autoGraded?: T;
+  grade?: T;
+  feedback?: T;
+  gradedBy?: T;
+  gradedAt?: T;
   completedNestedQuizzes?:
     | T
     | {

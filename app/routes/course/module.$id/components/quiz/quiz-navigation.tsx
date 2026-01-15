@@ -184,7 +184,9 @@ interface QuizNavigationButtonsProps {
 }
 
 /** 
- * this componnent can change page. If it is in a nested quiz, it have an exit button to go back to nested quiz selector
+ * this componnent can change page. If it is in a nested quiz, it have an exit button to go back to nested quiz selector. 
+ * 
+ * if it is 
  */
 export function QuizNavigationButtons({
 	isGlobalTimerExpired,

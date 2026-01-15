@@ -178,7 +178,7 @@ export const users = pgTable(
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
     direction: enum_users_direction("direction").notNull().default("ltr"),
-    avatar: integer("avatar_id").references(() : AnyPgColumn=> media.id, {
+    avatar: integer("avatar_id").references(() => media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
@@ -1462,6 +1462,16 @@ export const quiz_submissions = pgTable(
     percentage: numeric("percentage", { mode: "number" }),
     isLate: boolean("is_late").default(false),
     autoGraded: boolean("auto_graded").default(false),
+    grade: numeric("grade", { mode: "number" }),
+    feedback: varchar("feedback"),
+    gradedBy: integer("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1483,6 +1493,7 @@ export const quiz_submissions = pgTable(
     ),
     index("quiz_submissions_student_idx").on(columns.student),
     index("quiz_submissions_enrollment_idx").on(columns.enrollment),
+    index("quiz_submissions_graded_by_idx").on(columns.gradedBy),
     index("quiz_submissions_updated_at_idx").on(columns.updatedAt),
     index("quiz_submissions_created_at_idx").on(columns.createdAt),
     index("courseModuleLink_1_idx").on(columns.courseModuleLink),
@@ -3209,6 +3220,11 @@ export const relations_quiz_submissions = relations(
     }),
     flaggedQuestions: many(quiz_submissions_flagged_questions, {
       relationName: "flaggedQuestions",
+    }),
+    gradedBy: one(users, {
+      fields: [quiz_submissions.gradedBy],
+      references: [users.id],
+      relationName: "gradedBy",
     }),
     completedNestedQuizzes: many(quiz_submissions_completed_nested_quizzes, {
       relationName: "completedNestedQuizzes",

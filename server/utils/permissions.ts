@@ -1256,6 +1256,35 @@ function canDeleteSubmissions(
 	};
 }
 
+function canDeleteModuleSubmissions(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	const allowed =
+		user.role === "admin" ||
+		enrolment?.role === "manager" ||
+		enrolment?.role === "teacher";
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can delete module submissions"
+			: "Only admins, managers, and teachers can delete module submissions",
+	};
+}
+
 // ============================================================================
 // Discussion Permissions
 // ============================================================================
@@ -1361,6 +1390,7 @@ export const permissions = {
 			canSeeSettings: canSeeCourseModuleSettings,
 			canEdit: canEditCourseModule,
 			canSeeSubmissions: canSeeModuleSubmissions,
+			canDelete: canDeleteModuleSubmissions,
 			canSubmitAssignment: canSubmitAssignment,
 			quiz: {
 				canStartAttempt: canStartQuizAttempt,

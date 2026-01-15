@@ -26,9 +26,9 @@ import {
 	IconTrash,
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import { AssignmentSubmissionItemInTable } from "./assignment-submission-item-in-table";
+import { groupSubmissionsByStudent } from "../../utils/group-submissions-by-student";
 import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";
-import { AssignmentSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/submission-tables/assignment-submission-item-in-table";
-import { groupSubmissionsByStudent } from "./helpers";
 
 import {
 	type Route,
@@ -39,6 +39,7 @@ import {
 import { getRouteUrl } from "~/utils/search-params-utils";
 import { useState } from "react";
 
+
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
 >[number];
@@ -47,14 +48,30 @@ type Enrollment = NonNullable<
 // Types
 // ============================================================================
 
-type SubmissionType = AssignmentSubmissionData & {
-	student: {
-		id: number;
-		firstName?: string | null;
-		lastName?: string | null;
-		email?: string | null;
-	};
+type AssignmentListLoaderData = Extract<
+	Route.ComponentProps["loaderData"],
+	{ mode: "list"; moduleType: "assignment" }
+>;
+
+type AssignmentSubmissionTableProps = {
+	courseId: AssignmentListLoaderData["course"]["id"];
+	enrollments: AssignmentListLoaderData["enrollments"];
+	submissions: AssignmentListLoaderData["submissions"];
+	canDelete: AssignmentListLoaderData["canDelete"];
+	moduleLinkId: AssignmentListLoaderData["moduleLinkId"];
 };
+
+type SubmissionType = Extract<
+	NonNullable<AssignmentListLoaderData["submissions"]>[number],
+	{ attemptNumber: number }
+>;
+
+// Type guard to narrow submissions to assignment submissions
+function isAssignmentSubmission(
+	submission: NonNullable<AssignmentListLoaderData["submissions"]>[number],
+): submission is SubmissionType {
+	return "attemptNumber" in submission;
+}
 
 // ============================================================================
 // Components
@@ -161,10 +178,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter out draft submissions for display
@@ -252,8 +269,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-					"submittedAt" in latestSubmission &&
-					latestSubmission.submittedAt
+						"submittedAt" in latestSubmission &&
+						latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -277,7 +294,6 @@ function StudentSubmissionRow({
 											getRouteUrl("/course/module/:moduleLinkId/submissions", {
 												params: { moduleLinkId: moduleLinkId.toString() },
 												searchParams: {
-													action: null,
 													view: View.GRADING,
 													submissionId: latestSubmission.id,
 												},
@@ -347,7 +363,7 @@ function StudentSubmissionRow({
 													submission.attemptNumber ??
 													submittedSubmissions.length - index
 												}
-												submission={submission}
+												submission={submission as AssignmentSubmissionData}
 												showDelete={canDelete}
 												onDelete={(submissionId) => {
 													deleteSubmission({
@@ -379,13 +395,7 @@ export function AssignmentSubmissionTable({
 	submissions,
 	canDelete,
 	moduleLinkId,
-}: {
-	courseId: number;
-	enrollments: Enrollment[];
-	submissions: SubmissionType[];
-	canDelete: boolean;
-	moduleLinkId: number;
-}) {
+}: AssignmentSubmissionTableProps) {
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
 
 	const handleSelectRow = (enrollmentId: number, checked: boolean) => {
@@ -404,8 +414,13 @@ export function AssignmentSubmissionTable({
 		selectedRows.includes(e.id),
 	);
 
+	// Narrow submissions to assignment submissions only
+	const assignmentSubmissions = submissions
+		? submissions.filter(isAssignmentSubmission)
+		: [];
+
 	// Group submissions by student ID
-	const submissionsByStudent = groupSubmissionsByStudent(submissions);
+	const submissionsByStudent = groupSubmissionsByStudent(assignmentSubmissions);
 
 	const allRowIds = enrollments.map((e) => e.id);
 	const allSelected =
