@@ -1,6 +1,5 @@
 import {
 	Button,
-	Code,
 	Group,
 	Modal,
 	ScrollArea,
@@ -9,7 +8,10 @@ import {
 } from "@mantine/core";
 import { forwardRef, useImperativeHandle, useState } from "react";
 import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
-import { useMarkQuizAttemptAsComplete } from "../../route";
+import {
+	useMarkQuizAttemptAsComplete,
+	useMarkNestedQuizAsComplete,
+} from "../../route";
 import { useLoaderData } from "react-router";
 import type { Route } from "../../route";
 import { useRegularQuizAttemptContext } from "./quiz-attempt-component";
@@ -24,6 +26,10 @@ type QuizSubmissionModalProps = {
 	answers?: QuizAnswers;
 };
 
+/** 
+ * this modal handle the submission of a quiz or a nested quiz. when it is a regular quiz, it use markQuizAttemptAsComplete. if it is a nested quiz, it use markNestedQuizAsComplete. 
+ * when it is in a nested quiz, it should mark the nested quiz as complete. 
+ */
 export const QuizSubmissionModal = forwardRef<
 	QuizSubmissionModalHandle,
 	QuizSubmissionModalProps
@@ -33,9 +39,16 @@ export const QuizSubmissionModal = forwardRef<
 		submit: markQuizAttemptAsComplete,
 		isLoading: isMarkingQuizAttemptAsComplete,
 	} = useMarkQuizAttemptAsComplete();
+	const {
+		submit: markNestedQuizAsComplete,
+		isLoading: isMarkingNestedQuizAsComplete,
+	} = useMarkNestedQuizAsComplete();
 	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
 	const moduleLinkId = loaderData.params.moduleLinkId;
-	const { questionMap } = useRegularQuizAttemptContext();
+	const { questionMap, nestedQuizId } = useRegularQuizAttemptContext();
+
+	// Check if we're in a nested quiz
+	const isInNestedQuiz = nestedQuizId !== null;
 
 	useImperativeHandle(ref, () => ({
 		open: () => {
@@ -79,19 +92,36 @@ export const QuizSubmissionModal = forwardRef<
 					</Button>
 					<Button
 						onClick={async () => {
-							await markQuizAttemptAsComplete({
-								values: {
-									submissionId: submissionId,
-								},
-								params: {
-									moduleLinkId,
-								},
-							});
-							setOpened(false);
+							if (isInNestedQuiz && nestedQuizId) {
+								await markNestedQuizAsComplete({
+									values: {
+										submissionId,
+										nestedQuizId,
+									},
+									params: {
+										moduleLinkId,
+									},
+								});
+								setOpened(false);
+							} else {
+								await markQuizAttemptAsComplete({
+									values: {
+										submissionId: submissionId,
+									},
+									params: {
+										moduleLinkId,
+									},
+								});
+								setOpened(false);
+							}
 						}}
-						loading={isMarkingQuizAttemptAsComplete}
+						loading={
+							isInNestedQuiz
+								? isMarkingNestedQuizAsComplete
+								: isMarkingQuizAttemptAsComplete
+						}
 					>
-						Confirm Submission
+						{isInNestedQuiz ? "Mark as Complete" : "Confirm Submission"}
 					</Button>
 				</Group>
 			</Stack>

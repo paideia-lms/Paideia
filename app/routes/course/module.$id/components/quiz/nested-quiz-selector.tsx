@@ -13,11 +13,18 @@ import {
 } from "@mantine/core";
 import { IconCheck, IconClock, IconLock } from "@tabler/icons-react";
 import { StartNestedQuizButton } from "./start-nested-quiz-button";
-import { loaderSearchParams } from "../../route";
+import { loaderSearchParams, useMarkQuizAttemptAsComplete } from "../../route";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import { useNestedQuizContext } from "./nested-quiz-context";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
 
+/**
+ * this component allow user to select a nested quiz to start / continue. 
+ * 
+ * by default, the server will treat the quiz as complete if all nested quizzes are completed.
+ * but user can still manually mark the quiz as complete using the "Mark as Complete" button. 
+ * it is just that user will be warned if an nested quiz is not completed.
+ */
 export function NestedQuizSelector() {
 	// Get all data from contexts
 	const {
@@ -30,8 +37,13 @@ export function NestedQuizSelector() {
 		completionProgress,
 		nestedQuizzes,
 		completedNestedQuizzes,
+		moduleLinkId,
 	} = useNestedQuizContext();
 	const setSearchParams = useNuqsSearchParams(loaderSearchParams);
+	const {
+		submit: markQuizAttemptAsComplete,
+		isLoading: isMarkingQuizAttemptAsComplete,
+	} = useMarkQuizAttemptAsComplete();
 
 	// Helper to check if a quiz is completed
 	const isQuizCompleted = (quizId: string): boolean => {
@@ -87,6 +99,37 @@ export function NestedQuizSelector() {
 	const completedCount = completedQuizIds.length;
 	const totalCount = nestedQuizzes.length;
 	const allCompleted = completedCount === totalCount;
+
+	// Get list of incomplete nested quizzes for warning message
+	const incompleteQuizzes = nestedQuizzes.filter(
+		(quiz) => !completedQuizIds.includes(quiz.id),
+	);
+
+	// Handler for marking quiz as complete
+	const handleMarkAsComplete = async () => {
+		// If not all quizzes are completed, show warning
+		if (!allCompleted && incompleteQuizzes.length > 0) {
+			const incompleteQuizTitles = incompleteQuizzes
+				.map((quiz) => `- ${quiz.title}`)
+				.join("\n");
+			const warningMessage = `Warning: The following nested quiz(es) are not completed:\n\n${incompleteQuizTitles}\n\nAre you sure you want to mark this quiz as complete?`;
+
+			const confirmed = window.confirm(warningMessage);
+			if (!confirmed) {
+				return;
+			}
+		}
+
+		// Mark quiz as complete
+		await markQuizAttemptAsComplete({
+			values: {
+				submissionId,
+			},
+			params: {
+				moduleLinkId,
+			},
+		});
+	};
 
 	return (
 		<Stack gap="lg">
@@ -275,6 +318,33 @@ export function NestedQuizSelector() {
 					</Card>
 				);
 			})}
+
+			{/* Mark as Complete Button */}
+			{!readonly && (
+				<Card withBorder p="lg" radius="md">
+					<Stack gap="md">
+						<Group justify="space-between" align="center">
+							<div>
+								<Title order={4}>Complete Quiz</Title>
+								<Text size="sm" c="dimmed">
+									{allCompleted
+										? "All nested quizzes are completed. You can mark this quiz as complete."
+										: "You can manually mark this quiz as complete even if not all nested quizzes are finished."}
+								</Text>
+							</div>
+							<Button
+								onClick={handleMarkAsComplete}
+								loading={isMarkingQuizAttemptAsComplete}
+								disabled={isParentTimerExpired}
+								leftSection={<IconCheck size={16} />}
+								color={allCompleted ? "green" : "orange"}
+							>
+								Mark as Complete
+							</Button>
+						</Group>
+					</Stack>
+				</Card>
+			)}
 		</Stack>
 	);
 }

@@ -183,6 +183,9 @@ interface QuizNavigationButtonsProps {
 	isGlobalTimerExpired: boolean;
 }
 
+/** 
+ * this componnent can change page. If it is in a nested quiz, it have an exit button to go back to nested quiz selector
+ */
 export function QuizNavigationButtons({
 	isGlobalTimerExpired,
 }: QuizNavigationButtonsProps) {
@@ -195,21 +198,31 @@ export function QuizNavigationButtons({
 		isLastPage,
 		quizPageIndex: currentPageIndex,
 		answers,
+		nestedQuizId,
 	} = useRegularQuizAttemptContext();
 	const setSearchParams = useNuqsSearchParams(loaderSearchParams);
 	const modalRef = useRef<QuizSubmissionModalHandle>(null);
+
+	// Check if we're in a nested quiz
+	const isInNestedQuiz = nestedQuizId !== null;
+
+	// Handler to exit nested quiz and go back to selector
+	const handleExitNestedQuiz = () => {
+		setSearchParams({ nestedQuizId: null, quizPageIndex: 0 });
+	};
 
 	return (
 		<>
 			<Group justify="space-between" mt="md">
 				{readonly ? (
 					<>
-						{/* {onExit && (
-                            <Button variant="default" onClick={onExit}>
-                                Exit
-                            </Button>
-                        )} */}
-						<div style={{ flex: 1 }} />
+						<Group gap="sm">
+							{isInNestedQuiz && (
+								<Button variant="default" onClick={handleExitNestedQuiz}>
+									Exit
+								</Button>
+							)}
+						</Group>
 						<Group gap="sm">
 							<Button
 								variant="default"
@@ -232,15 +245,22 @@ export function QuizNavigationButtons({
 					</>
 				) : (
 					<>
-						<Button
-							variant="default"
-							onClick={() => {
-								setSearchParams({ quizPageIndex: currentPageIndex - 1 });
-							}}
-							disabled={isFirstPage || isDisabled}
-						>
-							Previous
-						</Button>
+						<Group gap="sm">
+							{isInNestedQuiz && (
+								<Button variant="default" onClick={handleExitNestedQuiz}>
+									Exit
+								</Button>
+							)}
+							<Button
+								variant="default"
+								onClick={() => {
+									setSearchParams({ quizPageIndex: currentPageIndex - 1 });
+								}}
+								disabled={isFirstPage || isDisabled}
+							>
+								Previous
+							</Button>
+						</Group>
 
 						{isLastPage ? (
 							isGlobalTimerExpired ? (

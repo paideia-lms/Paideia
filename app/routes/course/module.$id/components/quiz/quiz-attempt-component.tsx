@@ -269,7 +269,6 @@ type QuizLoaderData = Extract<Route.ComponentProps["loaderData"], { type: "quiz"
 type RegularQuizConfig = Extract<QuizLoaderData['quiz']['rawQuizConfig'], { type: "regular" }>
 type ContainerQuizConfig = Extract<QuizLoaderData['quiz']['rawQuizConfig'], { type: "container" }>;
 type Submission = NonNullable<Extract<QuizLoaderData, { type: "quiz" }>['viewedSubmission']>;
-type CompletedNestedQuiz = NonNullable<NonNullable<Extract<QuizLoaderData, { type: "quiz" }>['viewedSubmission']>['completedNestedQuizzes']>[number];
 
 interface QuizAttemptComponentProps {
 	quizConfig: RegularQuizConfig | ContainerQuizConfig;
@@ -302,8 +301,20 @@ const [RegularQuizAttemptContextProvider, useRegularQuizAttemptContext] = consta
 	const quizPageIndex = loaderData.searchParams.quizPageIndex;
 	const nestedQuizId = loaderData.searchParams.nestedQuizId;
 
-	// Compute readonly from submission status
-	const readonly = props.submission.status !== "in_progress";
+	// Check if the current nested quiz is completed
+	// A nested quiz is completed if it has a completedAt value
+	const isNestedQuizCompleted =
+		nestedQuizId !== null &&
+		props.submission.completedNestedQuizzes?.some(
+			(q) =>
+				q.nestedQuizId === nestedQuizId &&
+				q.completedAt !== null &&
+				q.completedAt !== undefined,
+		);
+
+	// Compute readonly from submission status or nested quiz completion
+	const readonly =
+		props.submission.status !== "in_progress" || isNestedQuizCompleted;
 
 	// TODO: Implement actual timer expiration check
 	const isGlobalTimerExpired = false;

@@ -1242,14 +1242,6 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 				overrideAccess = false,
 			} = args;
 
-			// Validate required fields
-			if (!submissionId) {
-				throw new InvalidArgumentError("Quiz submission ID is required");
-			}
-			if (!nestedQuizId) {
-				throw new InvalidArgumentError("Nested quiz ID is required");
-			}
-
 			// Get the current submission
 			const currentSubmission = await payload
 				.findByID({
@@ -1279,12 +1271,7 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 				throw new InvalidArgumentError("Quiz not found");
 			}
 
-			const rawConfig = courseModuleLink.activityModule
-				.rawQuizConfig as unknown as LatestQuizConfig | null;
-
-			if (!rawConfig) {
-				throw new InvalidArgumentError("Quiz configuration not found");
-			}
+			const rawConfig = courseModuleLink.activityModule.rawQuizConfig;
 
 			// Verify the quiz is a container quiz
 			if (rawConfig.type !== "container") {
@@ -1307,6 +1294,21 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 			// Get current completedNestedQuizzes array
 			const currentCompletedNestedQuizzes =
 				currentSubmission.completedNestedQuizzes || [];
+
+			// Check if there's already an in-progress nested quiz (different from the one we're trying to start)
+			const inProgressNestedQuiz = currentCompletedNestedQuizzes.find(
+				(entry) =>
+					entry.nestedQuizId !== nestedQuizId &&
+					entry.startedAt !== null &&
+					entry.startedAt !== undefined &&
+					(entry.completedAt === null || entry.completedAt === undefined),
+			);
+
+			if (inProgressNestedQuiz) {
+				throw new InvalidArgumentError(
+					"Cannot start a new nested quiz while another nested quiz is in progress",
+				);
+			}
 
 			// Find existing entry for this nested quiz by matching the nestedQuizId field
 			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
@@ -1374,6 +1376,10 @@ export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
 /**
  * Marks a nested quiz as complete by recording the completion time
  * This is used when a student completes a nested quiz in a container quiz
+ *
+ * if the nested quiz already be marked as complete, it cannot be marked as complete again.
+ *
+ * if all nested quizzes are marked as complete, the submission should be marked as complete.
  */
 export function tryMarkNestedQuizAsComplete(
 	args: MarkNestedQuizAsCompleteArgs,
@@ -1477,11 +1483,9 @@ export function tryMarkNestedQuizAsComplete(
 
 			// Check if already completed
 			if (existingEntry.completedAt) {
-				// Already completed, return existing submission
-				return {
-					...currentSubmission,
-					courseModuleLink: currentSubmission.courseModuleLink.id,
-				};
+				throw new InvalidArgumentError(
+					`Nested quiz '${nestedQuizId}' already marked as complete`,
+				);
 			}
 
 			// Check time limit if nested quiz has one (unless bypassed for auto-submit)
@@ -1506,23 +1510,48 @@ export function tryMarkNestedQuizAsComplete(
 				completedAt,
 			};
 
-			// Update the submission with updated completedNestedQuizzes array
-			const updatedSubmission = await payload
-				.update({
-					collection: "quiz-submissions",
-					id: submissionId,
-					data: {
-						completedNestedQuizzes: updatedCompletedNestedQuizzes,
-					},
-					depth: 1,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "update">());
+			const transactionInfo = await handleTransactionId(payload, req);
+			const result = await transactionInfo.tx(
+				async ({ reqWithTransaction }) => {
+					// Update the submission with updated completedNestedQuizzes array
+					const updatedSubmission = await payload
+						.update({
+							collection: "quiz-submissions",
+							id: submissionId,
+							data: {
+								completedNestedQuizzes: updatedCompletedNestedQuizzes,
+							},
+							depth: 1,
+							req: reqWithTransaction,
+							overrideAccess,
+						})
+						.then(stripDepth<1, "update">());
+
+					const isLastNestedQuiz =
+						updatedCompletedNestedQuizzes.length ===
+						rawConfig.nestedQuizzes?.length;
+
+					// if all nested quizzes are marked as complete, the submission should be marked as complete.
+					if (isLastNestedQuiz) {
+						await tryMarkQuizAttemptAsComplete({
+							payload,
+							submissionId,
+							req: reqWithTransaction,
+							overrideAccess,
+						});
+					}
+
+					return {
+						updatedSubmission,
+						isLastNestedQuiz,
+					};
+				},
+			);
 
 			return {
-				...updatedSubmission,
-				courseModuleLink: updatedSubmission.courseModuleLink.id,
+				...result.updatedSubmission,
+				courseModuleLink: result.updatedSubmission.courseModuleLink.id,
+				isLastNestedQuiz: result.isLastNestedQuiz,
 			};
 		},
 		(error) =>

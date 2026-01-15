@@ -323,7 +323,7 @@ export function QuestionCard() {
 									questionId={question.id}
 									moduleLinkId={moduleLinkId}
 									submissionId={submissionId}
-									readonly={readonly}
+									readonly={readonly ?? false}
 									isDisabled={isDisabled}
 									nestedQuizId={nestedQuizId}
 								/>

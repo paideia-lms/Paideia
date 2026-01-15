@@ -1161,10 +1161,17 @@ const startNestedQuizAction = startNestedQuizRpc.createAction(
 			return badRequest({ error: result.error.message });
 		}
 
-		return ok({
-			success: true,
-			message: "Nested quiz started successfully",
-		});
+		// return ok({
+		// 	success: true,
+		// 	message: "Nested quiz started successfully",
+		// });
+		return redirect(getRouteUrl("/course/module/:moduleLinkId", {
+			params: { moduleLinkId: params.moduleLinkId.toString() },
+			searchParams: {
+				viewSubmission: formData.submissionId,
+				nestedQuizId: formData.nestedQuizId,
+			},
+		}));
 	},
 );
 
@@ -1219,10 +1226,18 @@ const markNestedQuizAsCompleteAction = markNestedQuizAsCompleteRpc.createAction(
 			return badRequest({ error: result.error.message });
 		}
 
-		return ok({
-			success: true,
-			message: "Nested quiz marked as complete successfully",
-		});
+		return redirect(result.value.isLastNestedQuiz ?
+			getRouteUrl("/course/module/:moduleLinkId", {
+				params: { moduleLinkId: params.moduleLinkId.toString() },
+				searchParams: {
+				},
+			})
+			: getRouteUrl("/course/module/:moduleLinkId", {
+				params: { moduleLinkId: params.moduleLinkId.toString() },
+				searchParams: {
+					viewSubmission: formData.submissionId,
+				},
+			}));
 	},
 );
 
@@ -1493,14 +1508,14 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 	// 2. Otherwise, if there's an active quiz attempt, use that
 	// 3. Otherwise, show the instructions view
 	const submissionToUse =
-		loaderData.searchParams.viewSubmission && loaderData.viewedSubmission
+		loaderData.viewedSubmission
 			? loaderData.viewedSubmission
 			: loaderData.activeSubmission;
 
 	return (
 		<>
 			<ModuleDatesInfo settings={loaderData.settings} />
-			{submissionToUse ? (
+			{loaderData.searchParams.viewSubmission && submissionToUse ? (
 				<QuizAttemptComponent
 					quizConfig={loaderData.quiz.rawQuizConfig}
 					submission={submissionToUse}
