@@ -26,6 +26,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
+import { debugLog } from "../utils/debug";
 
 /**
  * Common arguments for quiz question operations
@@ -890,7 +891,7 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			// Get current flagged questions array
 			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
 
-			console.log("[tryFlagQuizQuestion] Debug:", {
+			debugLog("tryFlagQuizQuestion Debug", {
 				submissionId,
 				questionId,
 				questionIdType: typeof questionId,
@@ -923,7 +924,7 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 				{ questionId: String(questionId) },
 			];
 
-			console.log("[tryFlagQuizQuestion] Updated array:", {
+			debugLog("tryFlagQuizQuestion Updated array", {
 				updatedFlaggedQuestions,
 				updatedFlaggedQuestionsStructure: updatedFlaggedQuestions.map((f) => ({
 					questionId: f.questionId,
@@ -933,7 +934,7 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			});
 
 			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
-			console.log("[tryFlagQuizQuestion] About to update with:", {
+			debugLog("tryFlagQuizQuestion About to update with", {
 				collection: "quiz-submissions",
 				id: submissionId,
 				data: {
@@ -955,7 +956,7 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 				})
 				.then(stripDepth<1, "update">())
 				.catch((error: unknown) => {
-					console.log("[tryFlagQuizQuestion] Update error:", {
+					debugLog("tryFlagQuizQuestion Update error", {
 						error: error instanceof Error ? error.message : String(error),
 						errorData:
 							error && typeof error === "object" && "data" in error
@@ -1008,7 +1009,7 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 			// Get current flagged questions array
 			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
 
-			console.log("[tryUnflagQuizQuestion] Debug:", {
+			debugLog("tryUnflagQuizQuestion Debug", {
 				submissionId,
 				questionId,
 				questionIdType: typeof questionId,
@@ -1025,7 +1026,7 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 				(flagged) => flagged.questionId === questionId,
 			);
 
-			console.log("[tryUnflagQuizQuestion] Found index:", existingFlaggedIndex);
+			debugLog("tryUnflagQuizQuestion Found index", existingFlaggedIndex);
 
 			// If no flag exists, there's nothing to remove - return success (idempotent)
 			if (existingFlaggedIndex === -1) {
@@ -1039,7 +1040,7 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 			const updatedFlaggedQuestions = [...currentFlaggedQuestions];
 			updatedFlaggedQuestions.splice(existingFlaggedIndex, 1);
 
-			console.log("[tryUnflagQuizQuestion] Updated array:", {
+			debugLog("tryUnflagQuizQuestion Updated array", {
 				updatedFlaggedQuestions,
 				updatedFlaggedQuestionsStructure: updatedFlaggedQuestions.map((f) => ({
 					questionId: f.questionId,

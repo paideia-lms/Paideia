@@ -97,6 +97,16 @@ export const envVars = {
 			return val === "1" || val === "true";
 		},
 	},
+	DEBUG_LOGS: {
+		required: false,
+		sensitive: false,
+		value: process.env.DEBUG_LOGS,
+		default: "0",
+		get enabled() {
+			const val = this.value ?? this.default;
+			return val === "1" || val === "true";
+		},
+	},
 	CORS_ORIGINS: {
 		required: false,
 		sensitive: false,
