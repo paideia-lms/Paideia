@@ -5,6 +5,7 @@ import {
 	ScrollArea,
 	Stack,
 	Text,
+	Tooltip,
 } from "@mantine/core";
 import { forwardRef, useImperativeHandle, useState } from "react";
 import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
@@ -45,10 +46,13 @@ export const QuizSubmissionModal = forwardRef<
 	} = useMarkNestedQuizAsComplete();
 	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
 	const moduleLinkId = loaderData.params.moduleLinkId;
-	const { questionMap, nestedQuizId } = useRegularQuizAttemptContext();
+	const { questionMap, nestedQuizId, submission } = useRegularQuizAttemptContext();
 
 	// Check if we're in a nested quiz
 	const isInNestedQuiz = nestedQuizId !== null;
+
+	// Check if this is a preview attempt - previews cannot be submitted
+	const isPreview = submission.isPreview === true;
 
 	useImperativeHandle(ref, () => ({
 		open: () => {
@@ -90,39 +94,45 @@ export const QuizSubmissionModal = forwardRef<
 					<Button variant="default" onClick={() => setOpened(false)}>
 						Cancel
 					</Button>
-					<Button
-						onClick={async () => {
-							if (isInNestedQuiz && nestedQuizId) {
-								await markNestedQuizAsComplete({
-									values: {
-										submissionId,
-										nestedQuizId,
-									},
-									params: {
-										moduleLinkId,
-									},
-								});
-								setOpened(false);
-							} else {
-								await markQuizAttemptAsComplete({
-									values: {
-										submissionId: submissionId,
-									},
-									params: {
-										moduleLinkId,
-									},
-								});
-								setOpened(false);
-							}
-						}}
-						loading={
-							isInNestedQuiz
-								? isMarkingNestedQuizAsComplete
-								: isMarkingQuizAttemptAsComplete
-						}
+					<Tooltip
+						label="Preview attempts cannot be submitted"
+						disabled={!isPreview}
 					>
-						{isInNestedQuiz ? "Mark as Complete" : "Confirm Submission"}
-					</Button>
+						<Button
+							onClick={async () => {
+								if (isInNestedQuiz && nestedQuizId) {
+									await markNestedQuizAsComplete({
+										values: {
+											submissionId,
+											nestedQuizId,
+										},
+										params: {
+											moduleLinkId,
+										},
+									});
+									setOpened(false);
+								} else {
+									await markQuizAttemptAsComplete({
+										values: {
+											submissionId: submissionId,
+										},
+										params: {
+											moduleLinkId,
+										},
+									});
+									setOpened(false);
+								}
+							}}
+							disabled={isPreview}
+							loading={
+								isInNestedQuiz
+									? isMarkingNestedQuizAsComplete
+									: isMarkingQuizAttemptAsComplete
+							}
+						>
+							{isInNestedQuiz ? "Mark as Complete" : "Confirm Submission"}
+						</Button>
+					</Tooltip>
 				</Group>
 			</Stack>
 		</Modal>

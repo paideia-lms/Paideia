@@ -178,7 +178,7 @@ export const users = pgTable(
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
     direction: enum_users_direction("direction").notNull().default("ltr"),
-    avatar: integer("avatar_id").references(() => media.id, {
+    avatar: integer("avatar_id").references(() : AnyPgColumn=> media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
@@ -1445,6 +1445,7 @@ export const quiz_submissions = pgTable(
     status: enum_quiz_submissions_status("status")
       .notNull()
       .default("in_progress"),
+    isPreview: boolean("is_preview").default(false),
     startedAt: timestamp("started_at", {
       mode: "string",
       withTimezone: true,

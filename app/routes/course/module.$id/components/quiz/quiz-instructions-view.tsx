@@ -15,7 +15,10 @@ import {
 	IconPlayerPlay,
 } from "@tabler/icons-react";
 import prettyMs from "pretty-ms";
-import { useStartQuizAttempt } from "app/routes/course/module.$id/route";
+import {
+	useStartQuizAttempt,
+	usePreviewQuiz,
+} from "app/routes/course/module.$id/route";
 import { useLoaderData } from "react-router";
 import type { Route } from "../../route";
 // ============================================================================
@@ -117,6 +120,7 @@ export function QuizInstructionsView({
 }: QuizInstructionsViewProps) {
 	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
 	const moduleLinkId = loaderData.params.moduleLinkId;
+	const { submit: previewQuiz, isLoading: isPreviewing } = usePreviewQuiz();
 	if (!quiz) {
 		return (
 			<Paper withBorder p="xl" radius="md">
@@ -127,6 +131,18 @@ export function QuizInstructionsView({
 			</Paper>
 		);
 	}
+
+	// Check if quiz has no content (no questions for regular quiz, no nested quizzes for container quiz)
+	const quizConfig = loaderData.type === "quiz" ? loaderData.quiz.rawQuizConfig : null;
+	const isRegularQuiz = quizConfig?.type === "regular";
+	const isContainerQuiz = quizConfig?.type === "container";
+	const hasNoQuestions = isRegularQuiz && quizConfig
+		? quizConfig.pages.reduce((total, page) => total + page.questions.length, 0) === 0
+		: false;
+	const hasNoNestedQuizzes = isContainerQuiz && quizConfig
+		? (quizConfig.nestedQuizzes?.length ?? 0) === 0
+		: false;
+	const shouldShowAlert = (isRegularQuiz && hasNoQuestions) || (isContainerQuiz && hasNoNestedQuizzes);
 
 	// Count all attempts that have been started (including in_progress)
 	// This gives a more accurate count of attempts used
@@ -171,8 +187,13 @@ export function QuizInstructionsView({
 								leftSection={<IconEye size={16} />}
 								variant="light"
 								onClick={() => {
-									// Mock preview action - no effect for now
+									previewQuiz({
+										params: {
+											moduleLinkId,
+										},
+									});
 								}}
+								loading={isPreviewing}
 							>
 								Preview Quiz
 							</Button>
@@ -256,6 +277,14 @@ export function QuizInstructionsView({
 					</div>
 				) : (
 					<Text c="dimmed">No instructions provided.</Text>
+				)}
+
+				{shouldShowAlert && (
+					<Alert color="yellow" icon={<IconInfoCircle size={16} />}>
+						{isRegularQuiz
+							? "This quiz has no questions. Please add questions to the quiz before students can take it."
+							: "This quiz has no nested quizzes. Please add nested quizzes to the quiz before students can take it."}
+					</Alert>
 				)}
 			</Stack>
 		</Paper>

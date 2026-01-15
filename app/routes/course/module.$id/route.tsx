@@ -1,4 +1,4 @@
-import { Button, Container, Group, Stack } from "@mantine/core";
+import { Alert, Button, Container, Group, Stack } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
@@ -24,6 +24,7 @@ import {
 	tryUnflagQuizQuestion,
 	tryStartNestedQuiz,
 	tryMarkNestedQuizAsComplete,
+	tryStartPreviewQuizAttempt,
 } from "server/internal/quiz-submission-management";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { permissions } from "server/utils/permissions";
@@ -88,6 +89,7 @@ export const QuizActions = {
 	VIEW_SUBMISSION: "viewsubmission",
 	START_NESTED_QUIZ: "startnestedquiz",
 	MARK_NESTED_QUIZ_AS_COMPLETE: "marknestedquizascomplete",
+	PREVIEW_QUIZ: "previewquiz",
 	// GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
@@ -163,6 +165,7 @@ const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createLoaderRpc({
 	searchParams: loaderSearchParams,
 })(async ({ context, params, searchParams }) => {
+	const { envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -232,6 +235,7 @@ export const loader = createLoaderRpc({
 		activeSubmission,
 		searchParams,
 		params,
+		enableDebugLogs: process.env.NODE_ENV === "development" && envVars.DEBUG_LOGS.enabled,
 	};
 });
 
@@ -369,6 +373,11 @@ const markNestedQuizAsCompleteRpc = createActionRpc({
 	}),
 	method: "POST",
 	action: QuizActions.MARK_NESTED_QUIZ_AS_COMPLETE,
+});
+
+const previewQuizRpc = createActionRpc({
+	method: "POST",
+	action: QuizActions.PREVIEW_QUIZ,
 });
 
 const submitAssignmentRpc = createActionRpc({
@@ -1246,6 +1255,77 @@ const useMarkNestedQuizAsComplete =
 		typeof markNestedQuizAsCompleteAction
 	>();
 
+const previewQuizAction = previewQuizRpc.createAction(
+	async ({ context, params }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const { moduleLinkId } = params;
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Check if this is a quiz module
+		if (courseModuleContext.type !== "quiz") {
+			return badRequest({ error: "Invalid module type for this action" });
+		}
+
+		// Check preview permission
+		if (!courseModuleContext.permissions.quiz?.canPreview.allowed) {
+			return forbidden({
+				error: courseModuleContext.permissions.quiz.canPreview.reason,
+			});
+		}
+
+		if (!enrolmentContext?.enrolment) {
+			return badRequest({ error: "Enrollment not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
+
+		if (!currentUser) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		// Start preview quiz attempt
+		const previewResult = await tryStartPreviewQuizAttempt({
+			payload,
+			courseModuleLinkId: Number(moduleLinkId),
+			userId: currentUser.id,
+			enrollmentId: enrolmentContext.enrolment.id,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!previewResult.ok) {
+			return badRequest({ error: previewResult.error.message });
+		}
+
+		// Redirect to quiz view with the preview submission
+		return redirect(
+			getRouteUrl("/course/module/:moduleLinkId", {
+				params: { moduleLinkId: String(moduleLinkId) },
+				searchParams: {
+					view: null,
+					threadId: null,
+					replyTo: null,
+					viewSubmission: previewResult.value.id,
+					nestedQuizId: null,
+				},
+			}),
+		);
+	},
+);
+
+const usePreviewQuiz = previewQuizRpc.createHook<typeof previewQuizAction>();
+
 const submitAssignmentAction = submitAssignmentRpc.createAction(
 	async ({ context, formData, params, request }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
@@ -1346,6 +1426,7 @@ export {
 	useMarkQuizAttemptAsComplete,
 	useStartNestedQuiz,
 	useMarkNestedQuizAsComplete,
+	usePreviewQuiz,
 };
 
 const actionMap = {
@@ -1363,6 +1444,7 @@ const actionMap = {
 	[QuizActions.UNFLAG_QUESTION]: unflagQuizQuestionAction,
 	[QuizActions.START_NESTED_QUIZ]: startNestedQuizAction,
 	[QuizActions.MARK_NESTED_QUIZ_AS_COMPLETE]: markNestedQuizAsCompleteAction,
+	[QuizActions.PREVIEW_QUIZ]: previewQuizAction,
 	[AssignmentActions.SUBMIT_ASSIGNMENT]: submitAssignmentAction,
 };
 
@@ -1512,14 +1594,30 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 			? loaderData.viewedSubmission
 			: loaderData.activeSubmission;
 
+	const isPreview = submissionToUse?.isPreview === true;
+
 	return (
 		<>
 			<ModuleDatesInfo settings={loaderData.settings} />
 			{loaderData.searchParams.viewSubmission && submissionToUse ? (
-				<QuizAttemptComponent
-					quizConfig={loaderData.quiz.rawQuizConfig}
-					submission={submissionToUse}
-				/>
+				<>
+					{isPreview && (
+						<Alert
+							color="blue"
+							title="Preview Mode"
+							variant="light"
+							mb="md"
+						>
+							You are currently previewing this quiz. This is a test attempt that
+							will not be saved or graded. You can answer questions and explore
+							the quiz, but you cannot submit it.
+						</Alert>
+					)}
+					<QuizAttemptComponent
+						quizConfig={loaderData.quiz.rawQuizConfig}
+						submission={submissionToUse}
+					/>
+				</>
 			) : (
 				<>
 					<QuizInstructionsView

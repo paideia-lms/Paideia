@@ -314,12 +314,14 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				// Fetch quiz submissions
 				// Only filter by studentId if user is a student
 				// Teachers/admins should see all submissions in the submissions table
+				// Include preview submissions so they can be retrieved when needed (e.g., via viewSubmission param)
 				const isStudent = enrolment?.role === "student";
 				const submissionsResult = await tryListQuizSubmissions({
 					payload,
 					courseModuleLinkId: moduleLinkId,
 					studentId: isStudent ? req?.user?.id : undefined,
 					limit: 1000,
+					includePreview: true, // Include previews so they can be retrieved when viewing
 					req,
 					overrideAccess,
 				}).getOrThrow();
@@ -329,42 +331,50 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				// userSubmissions should always be filtered to current user's submissions
 				// regardless of role (for display in module page)
 				// submissions field contains all submissions (for admin/teacher view in submissions table)
+				// Include preview attempts in userSubmissions so they can be retrieved when needed (e.g., via viewSubmission param)
 				const userSubmissions = allSubmissions.filter(
 					(sub) => sub.student.id === req?.user?.id,
 				);
 
 				// Get the latest submission (in_progress or most recent)
+				// Exclude preview attempts from the latest submission logic
 				const userSubmission =
-					userSubmissions.find((sub) => sub.status === "in_progress") ||
-					[...userSubmissions].sort((a, b) => {
-						const aDate =
-							typeof a.createdAt === "string"
-								? new Date(a.createdAt).getTime()
-								: 0;
-						const bDate =
-							typeof b.createdAt === "string"
-								? new Date(b.createdAt).getTime()
-								: 0;
-						return bDate - aDate;
-					})[0] ||
+					userSubmissions
+						.filter((sub) => !sub.isPreview)
+						.find((sub) => sub.status === "in_progress") ||
+					[...userSubmissions]
+						.filter((sub) => !sub.isPreview)
+						.sort((a, b) => {
+							const aDate =
+								typeof a.createdAt === "string"
+									? new Date(a.createdAt).getTime()
+									: 0;
+							const bDate =
+								typeof b.createdAt === "string"
+									? new Date(b.createdAt).getTime()
+									: 0;
+							return bDate - aDate;
+						})[0] ||
 					null;
 
-				console.log(userSubmission);
-
 				// Calculate quiz-specific display data
-				const quizSubmissionsForDisplay = userSubmissions.map((sub) => ({
-					id: sub.id,
-					status: sub.status as
-						| "in_progress"
-						| "completed"
-						| "graded"
-						| "returned",
-					submittedAt: sub.submittedAt ?? null,
-					startedAt: sub.startedAt ?? null,
-					attemptNumber: sub.attemptNumber ?? 1,
-				}));
+				// Exclude preview attempts from display (submission history)
+				const quizSubmissionsForDisplay = userSubmissions
+					.filter((sub) => !sub.isPreview)
+					.map((sub) => ({
+						id: sub.id,
+						status: sub.status as
+							| "in_progress"
+							| "completed"
+							| "graded"
+							| "returned",
+						submittedAt: sub.submittedAt ?? null,
+						startedAt: sub.startedAt ?? null,
+						attemptNumber: sub.attemptNumber ?? 1,
+					}));
 
 				// Find the active in_progress submission
+				// Exclude preview attempts from active submission
 				const activeSubmission =
 					userSubmission &&
 					"status" in userSubmission &&

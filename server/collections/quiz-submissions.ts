@@ -108,6 +108,16 @@ export const QuizSubmissions = {
 			label: "Status",
 		},
 		{
+			name: "isPreview",
+			type: "checkbox",
+			defaultValue: false,
+			label: "Is Preview",
+			admin: {
+				description:
+					"Marks this submission as a preview attempt. Preview attempts are excluded from normal display and don't count toward attempt limits.",
+			},
+		},
+		{
 			name: "startedAt",
 			type: "date",
 			label: "Started At",

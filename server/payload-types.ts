@@ -768,6 +768,10 @@ export interface QuizSubmission {
   courseTitle?: string | null;
   attemptNumber: number;
   status: 'in_progress' | 'completed' | 'graded' | 'returned';
+  /**
+   * Marks this submission as a preview attempt. Preview attempts are excluded from normal display and don't count toward attempt limits.
+   */
+  isPreview?: boolean | null;
   startedAt?: string | null;
   submittedAt?: string | null;
   timeSpent?: number | null;
@@ -1677,6 +1681,7 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   courseTitle?: T;
   attemptNumber?: T;
   status?: T;
+  isPreview?: T;
   startedAt?: T;
   submittedAt?: T;
   timeSpent?: T;

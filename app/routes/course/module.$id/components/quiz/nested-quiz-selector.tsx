@@ -11,12 +11,14 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { IconCheck, IconClock, IconLock } from "@tabler/icons-react";
+import { IconCheck, IconClock, IconInfoCircle, IconLock } from "@tabler/icons-react";
 import { StartNestedQuizButton } from "./start-nested-quiz-button";
-import { loaderSearchParams, useMarkQuizAttemptAsComplete } from "../../route";
+import { loaderSearchParams, type Route, useMarkQuizAttemptAsComplete } from "../../route";
 import { useNuqsSearchParams } from "app/utils/search-params-utils";
 import { useNestedQuizContext } from "./nested-quiz-context";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
+import { useLoaderData } from "react-router";
+import { CodeHighlight } from "@mantine/code-highlight";
 
 /**
  * this component allow user to select a nested quiz to start / continue. 
@@ -26,6 +28,7 @@ import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
  * it is just that user will be warned if an nested quiz is not completed.
  */
 export function NestedQuizSelector() {
+	const { enableDebugLogs } = useLoaderData<Route.ComponentProps["loaderData"]>();
 	// Get all data from contexts
 	const {
 		quizConfig,
@@ -134,27 +137,25 @@ export function NestedQuizSelector() {
 	return (
 		<Stack gap="lg">
 			{/* Debug Section */}
-			<Paper withBorder p="md" radius="sm" bg="yellow.0">
+			{enableDebugLogs && <Paper withBorder p="md" radius="sm" bg="yellow.0">
 				<Stack gap="xs">
 					<Text size="sm" fw={600} c="yellow.9">
 						Debug Info
 					</Text>
-					<Code block>
-						{JSON.stringify(
-							{
-								completedNestedQuizzes,
-								completedQuizIds,
-								inProgressQuizIds,
-								completionProgress,
-								allQuizzesCompleted: allCompleted,
-								submissionId,
-							},
-							null,
-							2,
-						)}
-					</Code>
+					<CodeHighlight code={JSON.stringify(
+						{
+							completedNestedQuizzes,
+							completedQuizIds,
+							inProgressQuizIds,
+							completionProgress,
+							allQuizzesCompleted: allCompleted,
+							submissionId,
+						}, null, 2)}
+						language="json"
+						withCopyButton
+					/>
 				</Stack>
-			</Paper>
+			</Paper>}
 			{/* Header with progress */}
 			{readonly ?
 				<Alert color="blue" title="Read-only Mode">
@@ -243,6 +244,17 @@ export function NestedQuizSelector() {
 											{quiz.description}
 										</Text>
 									)}
+									{(() => {
+										const totalQuestions = quiz.pages.reduce(
+											(total, page) => total + page.questions.length,
+											0,
+										);
+										return totalQuestions === 0 ? (
+											<Alert color="yellow" icon={<IconInfoCircle size={16} />} mt="xs">
+												This nested quiz has no questions. Please add questions before students can take it.
+											</Alert>
+										) : null;
+									})()}
 								</div>
 							</Group>
 

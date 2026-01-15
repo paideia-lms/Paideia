@@ -50,6 +50,17 @@ export const autoSubmitQuiz: TaskConfig<"autoSubmitQuiz"> = {
 			};
 		}
 
+		// Skip auto-submit for preview attempts
+		if (currentSubmission.isPreview === true) {
+			return {
+				state: "succeeded",
+				output: {
+					message: `Quiz submission ${submissionId} is a preview attempt, skipping auto-submit`,
+					submissionId,
+				},
+			};
+		}
+
 		// Only auto-submit if still in progress
 		if (currentSubmission.status !== "in_progress") {
 			return {

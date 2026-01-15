@@ -152,6 +152,12 @@ export interface StartQuizAttemptArgs extends BaseInternalFunctionArgs {
 	attemptNumber?: number;
 }
 
+export interface StartPreviewQuizAttemptArgs extends BaseInternalFunctionArgs {
+	courseModuleLinkId: number;
+	userId: number;
+	enrollmentId: number;
+}
+
 export interface AnswerQuizQuestionArgs extends BaseInternalFunctionArgs {
 	submissionId: number;
 	questionId: string;
@@ -198,6 +204,10 @@ export interface ListQuizSubmissionsArgs extends BaseInternalFunctionArgs {
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
+	/**
+	 * Whether to include preview submissions. Defaults to false.
+	 */
+	includePreview?: boolean;
 	limit?: number;
 	page?: number;
 }
@@ -553,6 +563,7 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 			}
 
 			// Check if there's an existing in_progress submission for this student and quiz
+			// Exclude preview attempts from this check
 			const existingInProgressSubmission = await payload
 				.find({
 					collection: "quiz-submissions",
@@ -565,6 +576,7 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 									equals: "in_progress" satisfies QuizSubmission["status"],
 								},
 							},
+							{ isPreview: { not_equals: true } },
 						],
 					},
 					depth: 1,
@@ -698,6 +710,131 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 		(error) =>
 			transformError(error) ??
 			new UnknownError("Failed to start quiz attempt", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Starts a preview quiz attempt for instructors
+ * Deletes any existing preview submission for the same user/module and creates a new one
+ * Preview attempts use isPreview: true, status: "in_progress", and attemptNumber: 0
+ */
+export function tryStartPreviewQuizAttempt(args: StartPreviewQuizAttemptArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				courseModuleLinkId,
+				userId,
+				enrollmentId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate required fields
+			if (!courseModuleLinkId) {
+				throw new InvalidArgumentError("Course module link ID is required");
+			}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
+			if (!enrollmentId) {
+				throw new InvalidArgumentError("Enrollment ID is required");
+			}
+
+			// Get course module link to access quiz
+			const courseModuleLink = await payload
+				.findByID({
+					collection: "course-activity-module-links",
+					id: courseModuleLinkId,
+					depth: 2, // Need to get activity module and quiz
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<2, "findByID">());
+
+			if (!courseModuleLink) {
+				throw new InvalidArgumentError("Course module link not found");
+			}
+
+			// Get quiz from activity module
+			const activityModule = courseModuleLink.activityModule;
+			const quiz = activityModule.quiz;
+
+			if (!quiz) {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const startedAt = new Date().toISOString();
+
+			// Use transaction to delete old preview and create new one atomically
+			const transactionInfo = await handleTransactionId(payload, req);
+			const submission = await transactionInfo.tx(
+				async ({ reqWithTransaction }) => {
+					// Delete any existing preview submission for this user and module
+					const existingPreviewSubmissions = await payload.find({
+						collection: "quiz-submissions",
+						where: {
+							and: [
+								{ courseModuleLink: { equals: courseModuleLinkId } },
+								{ student: { equals: userId } },
+								{ isPreview: { equals: true } },
+							],
+						},
+						limit: 100,
+						req: reqWithTransaction,
+						overrideAccess,
+					});
+
+					// Delete all existing preview submissions in parallel
+					await Promise.all(
+						existingPreviewSubmissions.docs.map((existingPreview) =>
+							payload.delete({
+								collection: "quiz-submissions",
+								id: existingPreview.id,
+								req: reqWithTransaction,
+								overrideAccess,
+							}),
+						),
+					);
+
+					// Create new preview submission
+					// Use a high attempt number (999999) for previews to avoid conflicts with real attempts
+					// This is an internal attempt number that users don't see
+					const newSubmission = await payload
+						.create({
+							collection: "quiz-submissions",
+							data: {
+								courseModuleLink: courseModuleLinkId,
+								student: userId,
+								enrollment: enrollmentId,
+								attemptNumber: 999999,
+								status: "in_progress",
+								isPreview: true,
+								startedAt,
+								answers: [],
+								isLate: false,
+							},
+							depth: 1,
+							req: reqWithTransaction,
+							overrideAccess,
+						})
+						.then(stripDepth<1, "create">());
+
+					return newSubmission;
+				},
+			);
+
+			return {
+				...submission,
+				courseModuleLink: submission.courseModuleLink.id,
+				student: submission.student.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to start preview quiz attempt", {
 				cause: error,
 			}),
 	);
@@ -1159,6 +1296,13 @@ export function tryMarkQuizAttemptAsComplete(
 					overrideAccess,
 				})
 				.then(stripDepth<1, "findByID">());
+
+			// Reject preview attempts - previews cannot be marked as complete
+			if (currentSubmission.isPreview === true) {
+				throw new InvalidArgumentError(
+					"Preview attempts cannot be marked as complete",
+				);
+			}
 
 			if (currentSubmission.status !== "in_progress") {
 				throw new InvalidArgumentError(
@@ -1813,6 +1957,7 @@ export function tryListQuizSubmissions(args: ListQuizSubmissionsArgs) {
 				studentId,
 				enrollmentId,
 				status,
+				includePreview = false,
 				limit = 10,
 				page = 1,
 
@@ -1820,39 +1965,22 @@ export function tryListQuizSubmissions(args: ListQuizSubmissionsArgs) {
 				overrideAccess = false,
 			} = args;
 
-			const whereConditions: Array<Record<string, { equals: unknown }>> = [];
-
-			if (courseModuleLinkId) {
-				whereConditions.push({
-					courseModuleLink: { equals: courseModuleLinkId },
-				});
-			}
-
-			if (studentId) {
-				whereConditions.push({
-					student: { equals: studentId },
-				});
-			}
-
-			if (enrollmentId) {
-				whereConditions.push({
-					enrollment: { equals: enrollmentId },
-				});
-			}
-
-			if (status) {
-				whereConditions.push({
-					status: { equals: status },
-				});
-			}
-
-			const where =
-				whereConditions.length > 0 ? { and: whereConditions } : undefined;
-
 			const result = await payload
 				.find({
 					collection: "quiz-submissions",
-					where,
+					where: {
+						and: [
+							...(!includePreview ? [{ isPreview: { not_equals: true } }] : []),
+							...(status ? [{ status: { equals: status } }] : []),
+							...(enrollmentId
+								? [{ enrollment: { equals: enrollmentId } }]
+								: []),
+							...(studentId ? [{ student: { equals: studentId } }] : []),
+							...(courseModuleLinkId
+								? [{ courseModuleLink: { equals: courseModuleLinkId } }]
+								: []),
+						],
+					},
 					limit,
 					page,
 					sort: "-createdAt",
@@ -1922,6 +2050,7 @@ export function tryCheckInProgressSubmission(
 						{ courseModuleLink: { equals: courseModuleLinkId } },
 						{ student: { equals: studentId } },
 						{ status: { equals: "in_progress" } },
+						{ isPreview: { not_equals: true } },
 					],
 				},
 				limit: 1,
