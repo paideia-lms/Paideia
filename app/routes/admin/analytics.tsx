@@ -25,7 +25,7 @@ import {
 	tryUpdateAnalyticsSettings,
 } from "server/internal/analytics-settings";
 import { z } from "zod";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import {
 	ForbiddenResponse,
 	forbidden,
@@ -34,7 +34,7 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/analytics";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 
 type AnalyticsGlobal = {
 	id: number;

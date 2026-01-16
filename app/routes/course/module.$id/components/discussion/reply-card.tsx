@@ -25,7 +25,7 @@ import {
 import type { inferParserType } from "nuqs";
 import { loaderSearchParams } from "../../route";
 import { useForm } from "@mantine/form";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 dayjs.extend(relativeTime);
 

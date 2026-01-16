@@ -38,7 +38,7 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/notes";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 

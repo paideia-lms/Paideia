@@ -16,7 +16,7 @@ import {
 	QuizTimeLimitExceededError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import { tryCreateUserGrade } from "./user-grade-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {

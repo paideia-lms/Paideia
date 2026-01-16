@@ -7,7 +7,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import type {
 	CourseActivityModuleLink,
 	CourseSection,

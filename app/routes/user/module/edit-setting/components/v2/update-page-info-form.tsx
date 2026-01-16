@@ -2,7 +2,7 @@ import { Button, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useUpdatePageInfo } from "app/routes/user/module/edit-setting/route";
 import type { QuizPage } from "./types";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface UpdatePageInfoFormProps {
 	moduleId: number;

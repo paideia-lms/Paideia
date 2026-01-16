@@ -25,7 +25,7 @@ import { QuizNavigation, QuizNavigationButtons } from "./quiz-navigation";
 import { ContainerQuizAttemptComponent } from "./container-quiz-attempt-component";
 import { TimerDisplay } from "app/components/timer-display";
 import type { Route } from "../../route";
-import { constate } from "app/utils/constate";
+import { constate } from "app/utils/ui/constate";
 import { QuestionContextProvider } from "./question-context";
 import { useLoaderData } from "react-router";
 import { keyBy, mapValues } from "es-toolkit";

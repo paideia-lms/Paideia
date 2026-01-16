@@ -14,7 +14,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { parseAsInteger } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";

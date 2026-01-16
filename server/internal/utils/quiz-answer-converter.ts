@@ -4,7 +4,7 @@ import type {
 	TypedQuestionAnswer,
 } from "server/json/raw-quiz-config/v2";
 import type { QuizSubmission } from "server/payload-types";
-import { InvalidArgumentError } from "~/utils/error";
+import { InvalidArgumentError } from "app/utils/error";
 import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
 
 /**

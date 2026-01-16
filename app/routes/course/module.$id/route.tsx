@@ -54,7 +54,7 @@ import {
 	parseAsStringEnum,
 } from "nuqs";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 export type { Route };

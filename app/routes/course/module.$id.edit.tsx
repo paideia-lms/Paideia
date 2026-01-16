@@ -18,7 +18,7 @@ import { notifications } from "@mantine/notifications";
 import { IconTrash } from "@tabler/icons-react";
 import { createLoader, parseAsStringEnum } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
-import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";

@@ -16,7 +16,7 @@ import {
 	NonExistingMediaError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import { envVars } from "../env";
 import type { Media } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";

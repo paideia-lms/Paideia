@@ -16,7 +16,7 @@ import {
 	NonExistingActivityModuleError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import {
 	type ActivityModuleResult,
 	tryGetActivityModuleById,

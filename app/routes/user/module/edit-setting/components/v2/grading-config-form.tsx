@@ -9,7 +9,7 @@ import {
 import { useForm } from "@mantine/form";
 import { useUpdateGradingConfig } from "app/routes/user/module/edit-setting/route";
 import type { QuizConfig } from "./types";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface GradingConfigFormProps {
 	moduleId: number;

@@ -16,7 +16,7 @@ import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useId, useRef, useState, useEffect } from "react";
 import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";

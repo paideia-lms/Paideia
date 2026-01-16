@@ -28,7 +28,7 @@ import {
 	tryReleaseQuizGrade,
 } from "server/internal/user-grade-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion/discussion-grading-view";
 import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignments/assignment-grading-view";
 import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz/quiz-grading-view";

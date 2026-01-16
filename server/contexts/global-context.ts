@@ -5,7 +5,7 @@ import type { Media } from "server/payload-types";
 import type { Storage } from "unstorage";
 import type { RouteId, MyRouteInfo } from "app/utils/router/routes-utils";
 import type { TypeSafeRouteParams } from "app/utils/router/route-params-schema";
-import type { TypeSafeRouteSearchParams } from "app/utils/router/route-search-params-schema";
+import type { TypeSafeRouteSearchParams } from "app/utils/router/search-params-utils";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";

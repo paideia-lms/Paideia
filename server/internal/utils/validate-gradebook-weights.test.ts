@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { WeightExceedsLimitError } from "~/utils/error";
+import { WeightExceedsLimitError } from "app/utils/error";
 import type { GradebookSetupItem } from "../gradebook-management";
 import { validateGradebookWeights } from "./validate-gradebook-weights";
 

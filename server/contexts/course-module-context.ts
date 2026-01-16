@@ -4,7 +4,7 @@ import type { LatestCourseQuizSettings } from "server/json/course-module-setting
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { calculateTotalPoints } from "server/json/raw-quiz-config/v2";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "~/utils/error";
+import { transformError, UnknownError } from "app/utils/error";
 import { tryListAssignmentSubmissions } from "../internal/assignment-submission-management";
 import { tryFindCourseActivityModuleLinkById } from "../internal/course-activity-module-link-management";
 import { tryGetPreviousNextModule } from "../internal/course-section-management";

@@ -7,7 +7,7 @@ import {
 	NonExistingDiscussionSubmissionError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {

@@ -1,5 +1,5 @@
 import type { Payload, PayloadRequest } from "payload";
-import { TransactionIdNotFoundError } from "~/utils/error";
+import { TransactionIdNotFoundError } from "app/utils/error";
 export interface HandleTransactionIdResult {
 	transactionID: string | number;
 	/**

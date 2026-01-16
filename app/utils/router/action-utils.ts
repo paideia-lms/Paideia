@@ -4,17 +4,14 @@ import { useFetcher, href } from "react-router";
 import type { Simplify, UnionToIntersection } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
 import { badRequest } from "app/utils/router/responses";
-import { paramsSchema, type ParamsType } from "./router/route-params-schema";
+import { paramsSchema, type ParamsType } from "./route-params-schema";
 import {
 	createLoader,
 	parseAsStringEnum,
 	type ParserMap,
 	type inferParserType,
 } from "nuqs/server";
-import type {
-	RouteIdFromRouteFunctionArgs,
-	RoutePage,
-} from "./router/routes-utils";
+import type { RouteIdFromRouteFunctionArgs, RoutePage } from "./routes-utils";
 import { stringify } from "qs";
 
 /**

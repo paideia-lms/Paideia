@@ -15,7 +15,7 @@ import {
 	PRESET_FILE_TYPE_OPTIONS,
 	presetValuesToFileTypes,
 } from "~/utils/file-types";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import type { AssignmentFormInitialValues as NewAssignmentFormInitialValues } from "app/routes/user/module/new";
 import type { AssignmentFormInitialValues as EditAssignmentFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { Simplify, UnionToIntersection } from "type-fest";

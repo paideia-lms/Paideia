@@ -3,6 +3,7 @@ import { stringify } from "qs";
 import type { inferParserType, ParserMap } from "nuqs";
 import { href, type Register } from "react-router";
 import type { Simplify } from "type-fest";
+import type { RouteId } from "app/utils/router/routes-utils";
 
 /**
  * Generic hook that wraps useQueryStates to only return setQueryParams
@@ -49,15 +50,16 @@ type PageToRouteId<T extends keyof Register["pages"]> = Extract<
 /**
  * Extracts searchParams type from a route module
  * Checks if the module exports searchParams-related exports
+ * Priority: loaderSearchParams > searchParams > actionSearchParams
  */
 type ExtractSearchParams<Module> = Simplify<
 	| (Module extends {
-			searchParams?: infer S extends ParserMap;
+			loaderSearchParams?: infer S extends ParserMap;
 	  }
 			? LoaderFunctionInput<S>
 			: never)
 	| (Module extends {
-			loaderSearchParams?: infer S extends ParserMap;
+			searchParams?: infer S extends ParserMap;
 	  }
 			? LoaderFunctionInput<S>
 			: never)
@@ -68,19 +70,66 @@ type ExtractSearchParams<Module> = Simplify<
 			: never)
 >;
 
+/** 
+ * get the type safe route module by id
+ * 
+ * @example
+ * ```
+ * type RouteModule = RouteModuleById<"routes/course.$id">;
+ * 
+ * type RouteModule = {
+  default: ({ loaderData }: Route.ComponentProps) => JSX.Element;
+    readonly loaderSearchParams: {
+        reload: Omit<SingleParserBuilder<boolean>, "parseServerSide"> & {
+            readonly defaultValue: boolean;
+            parseServerSide(value: string | string[] | undefined): boolean;
+        };
+    };
+    readonly loader: (args: CreateServerLoaderArgs<Info & {
+        module: typeof import("/Users/yomaruhananoshika/repos/@paideia/paideia/app/routes/course.$id");
+        matches: Matches;
+    }>) => Promise<...>;
+}
+	```
+ */
+type RouteModuleById<T extends keyof Register["routeModules"]> = Simplify<
+	Register["routeModules"][T]
+>;
+/**
+ * Gets the searchParams type for a given RouteId
+ * Uses the RouteId to access the route module and extract searchParams
+ */
+type SearchParamsForRoute<T extends RouteId> =
+	T extends keyof Register["routeModules"]
+		? ExtractSearchParams<RouteModuleById<T>>
+		: never;
+
 /**
  * Gets the searchParams type for a given page path
  * Uses the RouteId to access the route module and extract searchParams
  */
 type SearchParamsForPage<T extends keyof Register["pages"]> =
 	PageToRouteId<T> extends keyof Register["routeModules"]
-		? ExtractSearchParams<Register["routeModules"][PageToRouteId<T>]>
+		? ExtractSearchParams<RouteModuleById<PageToRouteId<T>>>
 		: unknown;
 
 /**
  * Helper type to check if a type is never
  */
 type IsNever<T> = [T] extends [never] ? true : false;
+
+/**
+ * Converts route search params to type-safe search params
+ * Similar to TypeSafeRouteParams but for search params
+ *
+ * For example:
+ * - If a route exports `loaderSearchParams: { threadId: parseAsInteger }`
+ * - Then TypeSafeRouteSearchParams<"routes/course/module.$id"> will be `{ threadId: number | null }`
+ */
+export type TypeSafeRouteSearchParams<T extends RouteId> =
+	IsNever<SearchParamsForRoute<T>> extends true
+		? never
+		: SearchParamsForRoute<T>;
 
 /**
  * Helper type to check if Args[T] can be an empty tuple (no params required)
@@ -130,11 +179,11 @@ type RouteUrlOptions<T extends keyof Register["pages"]> = Simplify<
 
 export type LoaderFunctionInput<T extends ParserMap> = Simplify<
 	{
-		[K in keyof T as T[K] extends { defaultValue: infer DefaultValue }
+		[K in keyof T as T[K] extends { defaultValue: infer _DefaultValue }
 			? never
 			: K]: inferParserType<T[K]>;
 	} & {
-		[K in keyof T as T[K] extends { defaultValue: infer DefaultValue }
+		[K in keyof T as T[K] extends { defaultValue: infer _DefaultValue }
 			? K
 			: never]?: inferParserType<T[K]>;
 	}

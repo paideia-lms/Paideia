@@ -1,7 +1,7 @@
 import type { ParserMap } from "nuqs";
 import { createLoader } from "nuqs/server";
 import type { RouteId } from "app/utils/router/routes-utils";
-import type { TypeSafeRouteSearchParams } from "app/utils/router/route-search-params-schema";
+import type { TypeSafeRouteSearchParams } from "app/utils/router/search-params-utils";
 import { tryGetSearchParamsParsers } from "app/utils/router/route-module-loader";
 import { debugLog } from "server/utils/debug";
 

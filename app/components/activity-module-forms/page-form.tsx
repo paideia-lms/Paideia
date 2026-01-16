@@ -1,6 +1,6 @@
 import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { type UseFormReturnType, useForm } from "@mantine/form";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { SimpleRichTextEditor } from "../rich-text/simple-rich-text-editor";
 import type { PageFormInitialValues as EditPageFormInitialValues } from "app/routes/user/module/edit-setting/route";
 import type { PageFormInitialValues as NewPageFormInitialValues } from "app/routes/user/module/new";

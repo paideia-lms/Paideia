@@ -78,7 +78,7 @@ import {
 } from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { z } from "zod";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();

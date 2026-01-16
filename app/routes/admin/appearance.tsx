@@ -31,7 +31,7 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/appearance";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 
 type AppearanceGlobal = {
 	id: number;

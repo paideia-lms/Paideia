@@ -22,7 +22,7 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { getMimeTypesArray } from "~/utils/file-types";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { isHtmlEmpty } from "../../../../../components/rich-text/rich-text-editor";
 import { SimpleRichTextEditor } from "../../../../../components/rich-text/simple-rich-text-editor";
 import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";

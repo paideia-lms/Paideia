@@ -14,7 +14,7 @@ import type { ContainerQuizConfig } from "./types";
 import { NestedQuizForm } from "./nested-quiz-form";
 import { AddNestedQuizButton } from "./add-nested-quiz-form";
 import { RemoveNestedQuizButton } from "./remove-nested-quiz-button";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface ContainerSettingsFormProps {
 	moduleId: number;

@@ -11,7 +11,7 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";

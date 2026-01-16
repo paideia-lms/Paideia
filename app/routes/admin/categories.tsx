@@ -35,7 +35,7 @@ import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { parseAsInteger, parseAsStringEnum } from "nuqs/server";
 import { useEffect } from "react";
 import { href, Link } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
@@ -60,7 +60,7 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/categories";
-import { createActionMap } from "app/utils/action-utils";
+import { createActionMap } from "app/utils/router/action-utils";
 
 export type { Route };
 

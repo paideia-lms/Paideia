@@ -16,7 +16,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { notifications } from "@mantine/notifications";
 import { Link, redirect } from "react-router";
-import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";

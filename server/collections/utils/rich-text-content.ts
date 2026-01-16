@@ -6,7 +6,7 @@ import {
 	interceptPayloadError,
 	stripDepth,
 } from "server/internal/utils/internal-function-utils";
-import { replaceBase64MediaWithMediaUrlsV2 } from "~/utils/replace-base64-images";
+import { replaceBase64MediaWithMediaUrlsV2 } from "server/utils/replace-base64-images";
 import type { Simplify } from "type-fest";
 
 export function richTextContent<T extends TextareaField>(o: T) {

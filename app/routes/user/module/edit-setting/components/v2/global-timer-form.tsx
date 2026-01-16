@@ -2,7 +2,7 @@ import { Button, NumberInput, Paper, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useUpdateGlobalTimer } from "app/routes/user/module/edit-setting/route";
 import type { QuizConfig } from "./types";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface GlobalTimerFormProps {
 	moduleId: number;

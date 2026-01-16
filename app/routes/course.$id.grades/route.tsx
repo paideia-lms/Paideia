@@ -2,7 +2,7 @@ import { notifications } from "@mantine/notifications";
 import { parseAsStringEnum } from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
-import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {

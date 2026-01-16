@@ -1,5 +1,5 @@
 import type { UseFormReturnType } from "@mantine/form";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { RichTextEditor } from "../rich-text/rich-text-editor";
 import type {
 	FormPathValue,

@@ -2,7 +2,7 @@ import type {
     ContainerQuizConfig,
     NestedQuizConfig,
 } from "server/json/raw-quiz-config/v2";
-import { constate } from "app/utils/constate";
+import { constate } from "app/utils/ui/constate";
 import { useLoaderData } from "react-router";
 import type { Route } from "../../route";
 

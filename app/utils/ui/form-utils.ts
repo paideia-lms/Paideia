@@ -7,6 +7,7 @@ import { useForceUpdate } from "@mantine/hooks";
 import { type EffectCallback, useEffect } from "react";
 import { keys } from "es-toolkit/compat";
 import { flattenObject } from "es-toolkit";
+import { useEffectForAnyObject } from "./better-effect";
 
 /**
  * https://github.com/mantinedev/mantine/blob/master/packages/%40mantine/form/src/paths/get-splitted-path.ts
@@ -22,7 +23,7 @@ function getSplittedPath(path: unknown) {
 /**
  * https://github.com/mantinedev/mantine/blob/master/packages/%40mantine/form/src/paths/get-path.ts#L3
  */
-export function getPath<V, T extends LooseKeys<V>>(
+function getPath<V, T extends LooseKeys<V>>(
 	path: T,
 	values: V,
 ): FormPathValue<V, T> {
@@ -77,19 +78,6 @@ export function triggerFormUpdate<Values, T extends LooseKeys<Values>>(
 	// This function's purpose is to trigger re-render, not type checking
 	const value = getPath(path, form.getValues()) as any;
 	form.setFieldValue(path, value, { forceUpdate: true });
-}
-
-export function useEffectForAnyObject<T extends Record<string, unknown>>(
-	effect: EffectCallback,
-	dependencies: T,
-) {
-	const flattenedDependencies = flattenObject(dependencies);
-	const flattenedDependenciesKeys = keys(flattenedDependencies);
-	const flattenedDependenciesValues = flattenedDependenciesKeys.map(
-		(key) => flattenedDependencies[key],
-	);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: we intentionally depend on the flattened scalar initial values instead of the full initialValues object identity to avoid unnecessary re-renders while still updating when any initial value actually changes
-	useEffect(effect, flattenedDependenciesValues);
 }
 
 export function useFormWithSyncedInitialValues<

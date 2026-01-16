@@ -3,7 +3,7 @@ import type {
 	Question,
 	QuestionAnswer,
 } from "server/json/raw-quiz-config/v2";
-import { constate } from "app/utils/constate";
+import { constate } from "app/utils/ui/constate";
 import { useRegularQuizAttemptContext } from "./quiz-attempt-component";
 
 /**

@@ -5,7 +5,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import type { Course, Enrollment } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {

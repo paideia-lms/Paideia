@@ -11,7 +11,7 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/batch-update-courses";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/api/batch-update-courses",

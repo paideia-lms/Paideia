@@ -16,7 +16,7 @@ interface UseQuizTimerOptions {
 	onExpire?: () => void;
 }
 
-export function useQuizTimer({
+export function useServerTimer({
 	initialTime,
 	remainingTime,
 	onExpire,

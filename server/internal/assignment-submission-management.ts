@@ -6,7 +6,7 @@ import {
 	NonExistingAssignmentSubmissionError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import { DEFAULT_ALLOWED_FILE_TYPES } from "~/utils/file-types";
 import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";

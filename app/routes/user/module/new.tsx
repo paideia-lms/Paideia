@@ -34,7 +34,7 @@ import {
 } from "app/utils/router/responses";
 import type { Route } from "./+types/new";
 import { z } from "zod";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { presetValuesToFileTypes } from "~/utils/file-types";

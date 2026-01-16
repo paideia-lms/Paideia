@@ -19,7 +19,7 @@ import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { parseAsStringEnum } from "nuqs/server";
 import { useState } from "react";
 import { redirect } from "react-router";
-import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";

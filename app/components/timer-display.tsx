@@ -1,7 +1,7 @@
 import { Badge } from "@mantine/core";
 import { IconClock } from "@tabler/icons-react";
 import { memo } from "react";
-import { useQuizTimer } from "../utils/use-quiz-timer";
+import { useServerTimer } from "../utils/use-quiz-timer";
 
 const getTimerColor = (timeLeft: number | null, initial?: number) => {
 	if (timeLeft === null || !initial) return "blue";
@@ -23,7 +23,7 @@ export const TimerDisplay = memo(
 		remainingTime?: number;
 		onExpire: () => void;
 	}) => {
-		const timer = useQuizTimer({ initialTime, remainingTime, onExpire });
+		const timer = useServerTimer({ initialTime, remainingTime, onExpire });
 
 		// Use remainingTime if provided, otherwise use initialTime
 		const effectiveInitialTime =
