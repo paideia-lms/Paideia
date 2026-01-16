@@ -114,7 +114,8 @@ export interface TryGetCourseModuleContextArgs
 	moduleLinkId: number;
 	courseId: number;
 	enrolment: { role?: "student" | "teacher" | "ta" | "manager" } | null;
-	threadId?: string | null;
+	threadId?: number | null;
+	submissionId?: number | null;
 }
 
 /**
@@ -130,6 +131,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				courseId,
 				enrolment,
 				threadId,
+				submissionId,
 
 				req,
 				overrideAccess = false,
@@ -526,13 +528,9 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					courseModuleLinkId: moduleLinkId,
 					req,
 					overrideAccess,
-				});
+				}).getOrThrow();
 
-				if (!threadsResult.ok) {
-					throw threadsResult.error;
-				}
-
-				const threads = threadsResult.value.threads.map((threadData) => {
+				const threads = threadsResult.threads.map((threadData) => {
 					const thread = threadData.thread;
 					const student = thread.student;
 					const authorName = student
@@ -547,18 +545,9 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 						: "U";
 
 					const isUpvoted =
-						thread.upvotes?.some(
-							(upvote: {
-								user: number | { id: number };
-								upvotedAt: string;
-							}) => {
-								const upvoteUser =
-									typeof upvote.user === "object" && upvote.user !== null
-										? upvote.user
-										: null;
-								return upvoteUser?.id === req?.user?.id;
-							},
-						) ?? false;
+						// ? NOT SURE if the of upvote.user is right here, if not right, don't fix here, fix upstream
+						thread.upvotes?.some((upvote) => upvote.user === req?.user?.id) ??
+						false;
 
 					// Calculate total reply count (replies + comments)
 					const replyCount = threadData.repliesTotal + threadData.commentsTotal;
@@ -589,26 +578,129 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				};
 
 				// Fetch thread and replies if threadId is provided
-				let thread: DiscussionThread | null = null;
-				let replies: DiscussionReply[] = [];
-
-				if (threadId) {
-					const threadIdNumber = Number.parseInt(threadId, 10);
-					if (!Number.isNaN(threadIdNumber)) {
-						const threadResult = await tryGetDiscussionThreadWithReplies({
+				const threadData = threadId
+					? await tryGetDiscussionThreadWithReplies({
 							payload,
-							threadId: threadIdNumber,
+							threadId,
 							courseModuleLinkId: moduleLinkId,
 							req,
 							overrideAccess,
-						});
+						}).getOrNull()
+					: null;
 
-						if (threadResult.ok) {
-							thread = threadResult.value.thread;
-							replies = threadResult.value.replies;
-						}
-					}
-				}
+				const thread = threadData?.thread ?? null;
+				const replies = threadData?.replies ?? [];
+
+				// Process submission for grading view if submissionId is provided
+				const gradingSubmission =
+					submissionId !== null && submissionId !== undefined
+						? (() => {
+								const submission = allSubmissions.find(
+									(sub) => sub.id === submissionId,
+								);
+
+								if (!submission) {
+									return null;
+								}
+
+								// Get student ID from submission
+								const studentId = submission.student.id;
+
+								// Build a map of ALL submissions by ID for parent lookup
+								const allSubmissionsMap = new Map(
+									allSubmissions.map((sub) => {
+										const parentThreadId = sub.parentThread?.id ?? null;
+
+										// Extract student/author information
+										const student = sub.student;
+										const author = student ?? null;
+
+										return [
+											sub.id,
+											{
+												id: sub.id,
+												status: sub.status,
+												postType: sub.postType,
+												title: sub.title ?? null,
+												content: sub.content,
+												publishedAt: sub.publishedAt ?? null,
+												createdAt: sub.createdAt,
+												grade: sub.grade ?? null,
+												feedback: sub.feedback ?? null,
+												gradedAt: sub.gradedAt ?? null,
+												parentThread: parentThreadId,
+												author,
+											},
+										];
+									}),
+								);
+
+								// Filter all discussion submissions for this student
+								const studentSubmissions = allSubmissions
+									.filter((sub) => {
+										return sub.student.id === studentId;
+									})
+									.map((sub) => {
+										const parentThreadId = sub.parentThread?.id ?? null;
+										return {
+											id: sub.id,
+											status: sub.status,
+											postType: sub.postType,
+											title: sub.title ?? null,
+											content: sub.content,
+											publishedAt: sub.publishedAt ?? null,
+											createdAt: sub.createdAt,
+											grade: sub.grade ?? null,
+											feedback: sub.feedback ?? null,
+											gradedAt: sub.gradedAt ?? null,
+											parentThread: parentThreadId,
+										};
+									});
+
+								// Add parentPost and ancestors references to each submission
+								const studentSubmissionsWithParents = studentSubmissions.map(
+									(sub) => {
+										const parentPost =
+											sub.parentThread && sub.postType !== "thread"
+												? (allSubmissionsMap.get(sub.parentThread) ?? null)
+												: null;
+
+										// Build ancestors chain (all parents up to thread)
+										const ancestors: (typeof sub)[] = [];
+										if (parentPost) {
+											let current: typeof sub | null = parentPost;
+											while (current) {
+												ancestors.push(current);
+												// Stop at thread (root)
+												if (current.postType === "thread") {
+													break;
+												}
+												// Get next parent
+												if (current.parentThread) {
+													current =
+														allSubmissionsMap.get(current.parentThread) ?? null;
+												} else {
+													current = null;
+												}
+											}
+											// Reverse to show from thread to direct parent
+											ancestors.reverse();
+										}
+
+										return {
+											...sub,
+											parentPost,
+											ancestors,
+										};
+									},
+								);
+
+								return {
+									...submission,
+									studentSubmissions: studentSubmissionsWithParents,
+								};
+							})()
+						: null;
 
 				return {
 					...moduleLink,
@@ -618,6 +710,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					discussion,
 					thread,
 					replies,
+					gradingSubmission,
 					previousModule,
 					nextModule,
 					// formattedModuleSettings,
