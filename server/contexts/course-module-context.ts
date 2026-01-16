@@ -658,6 +658,10 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 									});
 
 								// Add parentPost and ancestors references to each submission
+								type SubmissionWithAuthor = NonNullable<
+									ReturnType<typeof allSubmissionsMap.get>
+								>;
+
 								const studentSubmissionsWithParents = studentSubmissions.map(
 									(sub) => {
 										const parentPost =
@@ -666,9 +670,10 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 												: null;
 
 										// Build ancestors chain (all parents up to thread)
-										const ancestors: (typeof sub)[] = [];
+										// Ancestors come from allSubmissionsMap which includes author
+										const ancestors: SubmissionWithAuthor[] = [];
 										if (parentPost) {
-											let current: typeof sub | null = parentPost;
+											let current: SubmissionWithAuthor | null = parentPost;
 											while (current) {
 												ancestors.push(current);
 												// Stop at thread (root)

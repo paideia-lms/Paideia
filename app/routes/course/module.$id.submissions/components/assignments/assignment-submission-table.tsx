@@ -28,15 +28,12 @@ import {
 import { href, Link } from "react-router";
 import { AssignmentSubmissionItemInTable } from "./assignment-submission-item-in-table";
 import { groupSubmissionsByStudent } from "../../utils/group-submissions-by-student";
-import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";
 
 import {
 	type Route,
-	View,
 	useDeleteSubmission,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
-import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { useState } from "react";
 
 
@@ -287,16 +284,9 @@ function StudentSubmissionRow({
 									<Menu.Item
 										component={Link}
 										to={
-											// href("/course/module/:moduleLinkId/submissions", {
-											// 	moduleLinkId: String(moduleLinkId),
-											// }) +
-											// `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
-											getRouteUrl("/course/module/:moduleLinkId/submissions", {
-												params: { moduleLinkId: moduleLinkId.toString() },
-												searchParams: {
-													view: View.GRADING,
-													submissionId: latestSubmission.id,
-												},
+											href("/course/module/:moduleLinkId/submissions/:submissionId", {
+												moduleLinkId: moduleLinkId.toString(),
+												submissionId: latestSubmission.id.toString(),
 											})
 										}
 										leftSection={<IconPencil size={14} />}
@@ -363,7 +353,7 @@ function StudentSubmissionRow({
 													submission.attemptNumber ??
 													submittedSubmissions.length - index
 												}
-												submission={submission as AssignmentSubmissionData}
+												submission={submission}
 												showDelete={canDelete}
 												onDelete={(submissionId) => {
 													deleteSubmission({

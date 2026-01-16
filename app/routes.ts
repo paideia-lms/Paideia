@@ -69,6 +69,10 @@ export const routes = [
 						"course/module/:moduleLinkId/submissions",
 						"routes/course/module.$id.submissions/route.tsx",
 					),
+					route(
+						"course/module/:moduleLinkId/submissions/:submissionId",
+						"routes/course/module.$id.submissions.$submissionId/route.tsx",
+					),
 				]),
 				layout("layouts/course-section-layout.tsx", [
 					route("course/section/:sectionId", "routes/course/section.$id.tsx"),

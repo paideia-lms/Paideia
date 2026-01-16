@@ -29,6 +29,10 @@ use interface but not type for component props except for `createRouteComponent`
 
 in the loader, we should always throw ErrorResponse if fail, unless it is a non component route. in action, we return error response from `utils/responses` instead of throwing error.
 
+we should not use `as` operator for type casting, especially in the UI components. we should fix the type in the upstream internal functions or context. 
+
+avoid create complex props type for component, try infer type from loader data `Route.ComponentProps["loaderData"]` if possible.
+
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.

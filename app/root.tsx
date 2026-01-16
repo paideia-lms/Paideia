@@ -90,6 +90,7 @@ import { parseAsInteger, createLoader } from "nuqs/server";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import { parseParams } from "app/utils/router/route-params-schema";
 import { parseSearchParamsForRoute } from "app/utils/router/parse-search-params";
+import { isNotNil } from "es-toolkit";
 
 const searchParams = {
 	threadId: parseAsInteger,
@@ -421,19 +422,19 @@ export const middleware = [
 			pageInfo.is["layouts/course-module-layout"] &&
 			courseContext
 		) {
-			const { moduleLinkId } =
+			const { moduleLinkId, submissionId } =
 				pageInfo.is["layouts/course-module-layout"].params;
 
-			// Get module link ID from params
-			// Extract threadId from URL search params if present
-			const { threadId } = loadSearchParams(request);
+			const { threadId } = pageInfo.is["routes/course/module.$id/route"]?.searchParams ?? {}
 
+			// Get module link ID from params
 			const courseModuleContext = await tryGetCourseModuleContext({
 				payload,
 				moduleLinkId: moduleLinkId,
 				courseId: courseContext.courseId,
 				enrolment: enrolmentContext?.enrolment ?? null,
-				threadId: threadId !== null ? threadId : null,
+				threadId: isNotNil(threadId) ? threadId : null,
+				submissionId: submissionId !== null ? submissionId : null,
 				req: payloadRequest,
 			}).getOrNull();
 

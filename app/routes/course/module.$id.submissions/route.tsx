@@ -1,19 +1,15 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { parseAsInteger, parseAsStringEnum } from "nuqs/server";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import {
 	courseModuleContextKey,
-	tryGetCourseModuleContext,
 } from "server/contexts/course-module-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteAssignmentSubmission,
-	tryGetAssignmentSubmissionById,
 	tryGradeAssignmentSubmission,
 } from "server/internal/assignment-submission-management";
 import { tryGradeDiscussionSubmission } from "server/internal/discussion-management";
@@ -29,9 +25,6 @@ import {
 } from "server/internal/user-grade-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
-import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion/discussion-grading-view";
-import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignments/assignment-grading-view";
-import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz/quiz-grading-view";
 import { AssignmentSubmissionTable } from "app/routes/course/module.$id.submissions/components/assignments/assignment-submission-table";
 import { QuizSubmissionTable } from "app/routes/course/module.$id.submissions/components/quiz/quiz-submission-table";
 import { DiscussionSubmissionTable } from "app/routes/course/module.$id.submissions/components/discussion/discussion-submission-table";
@@ -49,10 +42,6 @@ import { z } from "zod";
 
 export type { Route };
 
-export enum View {
-	GRADING = "grading",
-}
-
 export enum Action {
 	DeleteSubmission = "deleteSubmission",
 	GradeSubmission = "gradeSubmission",
@@ -62,8 +51,6 @@ export enum Action {
 // Define search params
 export const loaderSearchParams = {
 	// action: parseAsStringEnum(Object.values(Action)),
-	submissionId: parseAsInteger,
-	view: parseAsStringEnum(Object.values(View)),
 };
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
@@ -101,8 +88,7 @@ const releaseGradeRpc = createActionRpc({
 
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
-})(async ({ context, searchParams }) => {
-	const { submissionId, view } = searchParams;
+})(async ({ context }) => {
 	const { payloadRequest, payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -133,9 +119,6 @@ export const loader = createRouteLoader({
 		(enrollment) => enrollment.role === "student",
 	);
 
-
-	const showGradingView = view === View.GRADING && submissionId !== null;
-
 	// Fetch gradebook item to get maxGrade for all submissions
 	const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 		payload,
@@ -147,167 +130,7 @@ export const loader = createRouteLoader({
 		? (gradebookItemResult.value.maxGrade ?? null)
 		: null;
 
-	// If we're in grading mode, return grading-specific data
-	if (showGradingView && courseModuleContext.type === "assignment") {
-		const submission = await tryGetAssignmentSubmissionById({
-			payload,
-			id: submissionId,
-			req: payloadRequest,
-		}).getOrElse((error) => {
-			throw new BadRequestResponse(error.message);
-		});
-
-		const gradingGrade = isNotNil(submission.grade)
-			? {
-				baseGrade: submission.grade,
-				maxGrade,
-				feedback: submission.feedback || null,
-			}
-			: null;
-
-		// Wrap settings back to match what grading views expect
-		const moduleSettings = isNotNil(courseModuleContext.settings)
-			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
-			: null;
-
-		return {
-			mode: "grading" as const,
-			gradingModuleType: "assignment" as const,
-			module: courseModuleContext.activityModule,
-			moduleSettings,
-			course: courseContext.course,
-			enrollments,
-			moduleLinkId: courseModuleContext.id,
-			canDelete,
-			gradingSubmission: submission,
-			gradingGrade,
-			view,
-			maxGrade,
-			searchParams,
-		};
-	}
-
-	if (showGradingView && courseModuleContext.type === "quiz") {
-		const submission = await tryGetQuizSubmissionById({
-			payload,
-			id: submissionId,
-			req: payloadRequest,
-		}).getOrElse((error) => {
-			throw new BadRequestResponse(error.message);
-		});
-
-		// Verify the submission belongs to this module
-		if (submission.courseModuleLink !== courseModuleContext.id) {
-			throw new ForbiddenResponse("Submission does not belong to this module");
-		}
-
-		// Get grade from submission itself
-		// TODO: This is very weird
-
-		const gradingGrade = isNotNil(submission.grade)
-			? {
-				baseGrade: submission.grade,
-				maxGrade,
-				feedback: submission.feedback ?? null,
-			}
-			: null;
-
-		// Wrap settings back to match what grading views expect
-		const moduleSettings = isNotNil(courseModuleContext.settings)
-			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
-			: null;
-
-		return {
-			mode: "grading" as const,
-			gradingModuleType: "quiz" as const,
-			module: courseModuleContext.activityModule,
-			moduleSettings,
-			course: courseContext.course,
-			enrollments,
-			moduleLinkId: courseModuleContext.id,
-			canDelete,
-			gradingSubmission: submission,
-			gradingGrade,
-			view,
-			maxGrade,
-			searchParams,
-		};
-	}
-
-	if (showGradingView && courseModuleContext.type === "discussion") {
-		// Re-fetch context with submissionId to get processed gradingSubmission
-		const contextWithSubmission = await tryGetCourseModuleContext({
-			payload,
-			moduleLinkId: courseModuleContext.id,
-			courseId: courseContext.course.id,
-			enrolment: context.get(enrolmentContextKey)?.enrolment ?? null,
-			threadId: null,
-			submissionId: submissionId,
-			req: payloadRequest,
-		}).getOrElse((error) => {
-			throw new BadRequestResponse(error.message);
-		});
-
-		const contextWithGrading = contextWithSubmission as any;
-
-		if (!contextWithGrading.gradingSubmission) {
-			throw badRequest({
-				error: `Discussion submission with id '${submissionId}' not found`,
-			});
-		}
-
-		const gradingSubmission = contextWithGrading.gradingSubmission;
-		const submissionWithGrade = gradingSubmission as typeof gradingSubmission & {
-			grade?: number | null;
-			feedback?: string | null;
-		};
-
-		const gradingGrade = isNotNil(submissionWithGrade.grade)
-			? {
-				baseGrade: submissionWithGrade.grade,
-				maxGrade,
-				feedback: submissionWithGrade.feedback ?? null,
-			}
-			: null;
-
-		if (
-			courseModuleContext.settings &&
-			courseModuleContext.settings.type !== "discussion"
-		)
-			throw new BadRequestResponse("Module is not a discussion");
-
-		// Wrap settings back to match what grading views expect
-		const moduleSettings = isNotNil(courseModuleContext.settings)
-			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
-			: null;
-
-		return {
-			mode: "grading" as const,
-			gradingModuleType: "discussion" as const,
-			module: courseModuleContext.activityModule,
-			moduleSettings,
-			course: courseContext.course,
-			enrollments,
-			moduleLinkId: courseModuleContext.id,
-			canDelete,
-			gradingSubmission,
-			gradingGrade,
-			view,
-			maxGrade,
-			searchParams,
-		};
-	}
-
-	// Not in grading mode - return list view data
+	// Return list view data
 	if (courseModuleContext.type === "assignment") {
 		const allSubmissions = courseModuleContext.submissions;
 
@@ -345,9 +168,7 @@ export const loader = createRouteLoader({
 			submissions: submissionsWithGrades,
 			moduleLinkId: courseModuleContext.id,
 			canDelete,
-			view,
 			maxGrade,
-			searchParams,
 		};
 	}
 
@@ -388,9 +209,7 @@ export const loader = createRouteLoader({
 			submissions: submissionsWithGrades,
 			moduleLinkId: courseModuleContext.id,
 			canDelete,
-			view,
 			maxGrade,
-			searchParams,
 		};
 	}
 
@@ -431,9 +250,7 @@ export const loader = createRouteLoader({
 			submissions: submissionsWithGrades,
 			moduleLinkId: courseModuleContext.id,
 			canDelete,
-			view,
 			maxGrade,
-			searchParams,
 		};
 	}
 
@@ -754,78 +571,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function ModuleSubmissionsPage({
 	loaderData,
 }: Route.ComponentProps) {
-	// If we're in grading mode, show the appropriate grading view
-	if (loaderData.mode === "grading") {
-		if (loaderData.gradingModuleType === "assignment") {
-			const submissionWithRelations =
-				loaderData.gradingSubmission as typeof loaderData.gradingSubmission & {
-					enrollment?: { id: number } | number | null;
-					courseModuleLink?: { id: number } | number | null;
-				};
-
-			return (
-				<AssignmentGradingView
-					submission={loaderData.gradingSubmission}
-					module={loaderData.module}
-					moduleSettings={loaderData.moduleSettings}
-					course={loaderData.course}
-					moduleLinkId={loaderData.moduleLinkId}
-					grade={loaderData.gradingGrade}
-					enrollment={submissionWithRelations.enrollment}
-					courseModuleLink={submissionWithRelations.courseModuleLink}
-				/>
-			);
-		}
-
-		if (loaderData.gradingModuleType === "quiz") {
-			const submissionWithRelations =
-				loaderData.gradingSubmission as typeof loaderData.gradingSubmission & {
-					enrollment?: { id: number } | number | null;
-					courseModuleLink?: { id: number } | number | null;
-				};
-
-			return (
-				<QuizGradingView
-					submission={loaderData.gradingSubmission}
-					module={loaderData.module}
-					moduleSettings={loaderData.moduleSettings}
-					course={loaderData.course}
-					moduleLinkId={loaderData.moduleLinkId}
-					grade={loaderData.gradingGrade}
-					enrollment={submissionWithRelations.enrollment}
-					courseModuleLink={submissionWithRelations.courseModuleLink}
-				/>
-			);
-		}
-
-		if (loaderData.gradingModuleType === "discussion") {
-			const submissionWithRelations =
-				loaderData.gradingSubmission as typeof loaderData.gradingSubmission & {
-					enrollment?: { id: number } | number | null;
-					courseModuleLink?: { id: number } | number | null;
-				};
-
-			return (
-				<DiscussionGradingView
-					submission={
-						loaderData.gradingSubmission as Parameters<
-							typeof DiscussionGradingView
-						>[0]["submission"]
-					}
-					module={loaderData.module}
-					moduleSettings={loaderData.moduleSettings}
-					course={loaderData.course}
-					moduleLinkId={loaderData.moduleLinkId}
-					grade={loaderData.gradingGrade}
-					enrollment={submissionWithRelations.enrollment}
-					courseModuleLink={submissionWithRelations.courseModuleLink}
-					maxGrade={loaderData.maxGrade}
-				/>
-			);
-		}
-	}
-
-	// List mode - render submissions table
+	// Render submissions table
 	const moduleName =
 		loaderData.moduleSettings && "name" in loaderData.moduleSettings
 			? loaderData.moduleSettings.name

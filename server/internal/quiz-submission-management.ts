@@ -8,7 +8,7 @@ import {
 } from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
 import { JobQueue } from "../utils/job-queue";
-import type { QuizSubmission } from "server/payload-types";
+import type { QuizSubmission, UserGrade } from "server/payload-types";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -17,7 +17,11 @@ import {
 	transformError,
 	UnknownError,
 } from "app/utils/error";
-import { tryCreateUserGrade } from "./user-grade-management";
+import {
+	tryCreateUserGrade,
+	tryFindUserGradeByEnrollmentAndItem,
+	tryUpdateUserGrade,
+} from "./user-grade-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	assertTimeLimit,
@@ -1810,7 +1814,7 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 						collection: "course-activity-module-links",
 						id: currentSubmission.courseModuleLink,
 						depth: 2,
-						req: transactionInfo.reqWithTransaction,
+						req: reqWithTransaction,
 
 						overrideAccess,
 					})
@@ -1880,34 +1884,73 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 					})
 					.then(stripDepth<1, "update">());
 
-				// Create user grade in gradebook
+				// Check if user grade already exists
 				const submittedAtString =
 					submittedAt !== undefined
 						? String(submittedAt)
 						: updatedSubmission.submittedAt !== undefined
 							? String(updatedSubmission.submittedAt)
 							: undefined;
-				const userGradeResult = await tryCreateUserGrade({
+
+				const existingGradeResult = await tryFindUserGradeByEnrollmentAndItem({
 					payload,
-					req: transactionInfo.reqWithTransaction,
+					req: reqWithTransaction,
 					overrideAccess,
 					enrollmentId,
 					gradebookItemId,
-					baseGrade: gradeData.totalScore,
-					baseGradeSource: "submission",
-					submission: id,
-					submissionType: "quiz",
-					feedback: gradeData.feedback,
-					gradedBy,
-					submittedAt: submittedAtString,
 				});
 
-				if (!userGradeResult.ok) {
-					throw new Error(
-						`Failed to create gradebook entry: ${userGradeResult.error}`,
-					);
+				let userGradeResult: UserGrade;
+
+				if (existingGradeResult.ok) {
+					// Update existing grade with latest submission's data
+					const updateResult = await tryUpdateUserGrade({
+						payload,
+						req: reqWithTransaction,
+						overrideAccess,
+						gradeId: existingGradeResult.value.id,
+						baseGrade: gradeData.totalScore,
+						feedback: gradeData.feedback || undefined,
+						gradedBy,
+						submittedAt: submittedAtString,
+						submission: id,
+						submissionType: "quiz",
+					});
+
+					if (!updateResult.ok) {
+						throw new UnknownError("Failed to update user grade", {
+							cause: updateResult.error,
+						});
+					}
+
+					userGradeResult = updateResult.value;
+					payload.logger.info("User grade updated successfully");
+				} else {
+					// Create new grade
+					const createResult = await tryCreateUserGrade({
+						payload,
+						req: reqWithTransaction,
+						overrideAccess,
+						enrollmentId,
+						gradebookItemId,
+						baseGrade: gradeData.totalScore,
+						baseGradeSource: "submission",
+						submission: id,
+						submissionType: "quiz",
+						feedback: gradeData.feedback,
+						gradedBy,
+						submittedAt: submittedAtString,
+					});
+
+					if (!createResult.ok) {
+						throw new UnknownError("Failed to create user grade", {
+							cause: createResult.error,
+						});
+					}
+
+					userGradeResult = createResult.value;
+					payload.logger.info("User grade created successfully");
 				}
-				payload.logger.info("User grade created successfully");
 
 				return {
 					...updatedSubmission,
@@ -1917,7 +1960,7 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 					percentage: gradeData.percentage,
 					feedback: gradeData.feedback,
 					gradedBy,
-					userGrade: userGradeResult.value,
+					userGrade: userGradeResult,
 					questionResults: gradeData.questionResults,
 				};
 			});

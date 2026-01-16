@@ -1,4 +1,15 @@
-import { Badge, Group, Paper, Stack, Text } from "@mantine/core";
+import {
+	ActionIcon,
+	Badge,
+	Group,
+	Menu,
+	Paper,
+	Stack,
+	Text,
+} from "@mantine/core";
+import { IconDots, IconPencil } from "@tabler/icons-react";
+import { Link } from "react-router";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import type { QuizSubmissionData } from "app/routes/course/module.$id/components/quiz/quiz-submission-item";
 
 // ============================================================================
@@ -8,9 +19,13 @@ import type { QuizSubmissionData } from "app/routes/course/module.$id/components
 export function QuizSubmissionItemInTable({
 	attemptNumber,
 	submission,
+	moduleLinkId,
+	showGrade = true,
 }: {
 	attemptNumber: number;
 	submission: QuizSubmissionData;
+	moduleLinkId?: number;
+	showGrade?: boolean;
 }) {
 	return (
 		<Paper withBorder p="md" radius="sm">
@@ -62,6 +77,29 @@ export function QuizSubmissionItemInTable({
 							ID: {submission.id}
 						</Text>
 					</Group>
+					{showGrade && moduleLinkId && (
+						<Menu position="bottom-end" shadow="md">
+							<Menu.Target>
+								<ActionIcon variant="light" aria-label="Actions">
+									<IconDots size={16} />
+								</ActionIcon>
+							</Menu.Target>
+							<Menu.Dropdown>
+								<Menu.Item
+									component={Link}
+									to={getRouteUrl("/course/module/:moduleLinkId/submissions/:submissionId", {
+										params: {
+											moduleLinkId: moduleLinkId.toString(),
+											submissionId: submission.id.toString(),
+										},
+									})}
+									leftSection={<IconPencil size={16} />}
+								>
+									Grade
+								</Menu.Item>
+							</Menu.Dropdown>
+						</Menu>
+					)}
 				</Group>
 				<Group gap="sm">
 					{submission.startedAt && (

@@ -9,11 +9,9 @@ import {
 } from "@mantine/core";
 import { IconDots, IconPencil, IconTrash } from "@tabler/icons-react";
 import { Link } from "react-router";
-import { View } from "app/routes/course/module.$id.submissions/route";
-import { getRouteUrl } from "app/utils/router/search-params-utils";
-import type { AssignmentSubmissionData } from "app/routes/course/module.$id/components/assignment/assignment-submission-item";
+import type { Route } from "app/routes/course/module.$id.submissions/route";
 import { Anchor, Box, ScrollArea, Tooltip, Typography } from "@mantine/core";
-import { href } from "react-router";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import {
 	formatFileSize,
 	getFileIcon,
@@ -22,10 +20,23 @@ import {
 } from "~/utils/file-types";
 
 // ============================================================================
+// Types
+// ============================================================================
+
+type AssignmentListLoaderData = Extract<
+	Route.ComponentProps["loaderData"],
+	{ mode: "list"; moduleType: "assignment" }
+>;
+
+type AssignmentSubmissionData = NonNullable<
+	AssignmentListLoaderData["submissions"]
+>[number];
+
+// ============================================================================
 // Shared Components
 // ============================================================================
 
-export function SubmissionAttachments({
+function SubmissionAttachments({
 	attachments,
 }: {
 	attachments: Array<{
@@ -37,7 +48,7 @@ export function SubmissionAttachments({
 			mimeType?: string | null;
 			filesize?: number | null;
 		};
-		description?: string;
+		description?: string | null;
 	}>;
 }) {
 	return (
@@ -67,8 +78,9 @@ export function SubmissionAttachments({
 							</Tooltip>
 							<Box style={{ flex: 1, minWidth: 0 }}>
 								<Anchor
-									href={href("/api/media/file/:mediaId", {
-										mediaId: fileId.toString(),
+									href={getRouteUrl("/api/media/file/:mediaId", {
+										params: { mediaId: fileId.toString() },
+										searchParams: {},
 									})}
 									target="_blank"
 									size="sm"
@@ -147,6 +159,13 @@ export function AssignmentSubmissionItemInTable({
 			? submission.attachments
 			: null;
 
+	const startedAt =
+		"startedAt" in submission &&
+			submission.startedAt &&
+			typeof submission.startedAt === "string"
+			? submission.startedAt
+			: null;
+
 	return (
 		<Paper withBorder p="md" radius="sm">
 			<Stack gap="md">
@@ -184,20 +203,20 @@ export function AssignmentSubmissionItemInTable({
 						</Text>
 					</Group>
 					<Group gap="sm">
-						{submission.startedAt && (
+						{startedAt && (
 							<Text size="sm" c="dimmed">
-								Started: {new Date(submission.startedAt).toLocaleString()}
+								Started: {new Date(startedAt).toLocaleString()}
 							</Text>
 						)}
 						{submission.submittedAt && (
 							<Text size="sm" c="dimmed">
-								{submission.startedAt ? "• " : ""}
+								{startedAt ? "• " : ""}
 								Submitted: {new Date(submission.submittedAt).toLocaleString()}
 							</Text>
 						)}
 						{submission.status === "graded" && submission.grade?.gradedAt && (
 							<Text size="sm" c="dimmed">
-								{submission.startedAt || submission.submittedAt ? "• " : ""}
+								{startedAt || submission.submittedAt ? "• " : ""}
 								Graded: {new Date(submission.grade.gradedAt).toLocaleString()}
 							</Text>
 						)}
@@ -212,16 +231,9 @@ export function AssignmentSubmissionItemInTable({
 									{showGrade && moduleLinkId && (
 										<Menu.Item
 											component={Link}
-											to={getRouteUrl(
-												"/course/module/:moduleLinkId/submissions",
-												{
-													params: { moduleLinkId: moduleLinkId.toString() },
-													searchParams: {
-														view: View.GRADING,
-														submissionId: submission.id,
-													},
-												},
-											)}
+											to={getRouteUrl("/course/module/:moduleLinkId/submissions/:submissionId", {
+												params: { moduleLinkId: moduleLinkId.toString(), submissionId: submission.id.toString() },
+											})}
 											leftSection={<IconPencil size={16} />}
 										>
 											Grade

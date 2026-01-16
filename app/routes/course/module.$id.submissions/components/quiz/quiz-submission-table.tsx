@@ -25,10 +25,8 @@ import { href, Link } from "react-router";
 import { groupSubmissionsByStudent } from "../../utils/group-submissions-by-student";
 import {
 	type Route,
-	View,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
-import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { QuizSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/quiz/quiz-submission-item-in-table";
 import type { QuizSubmissionData } from "app/routes/course/module.$id/components/quiz/quiz-submission-item";
 
@@ -235,16 +233,10 @@ function QuizStudentSubmissionRow({
 								<Menu.Dropdown>
 									<Menu.Item
 										component={Link}
-										to={getRouteUrl(
-											"/course/module/:moduleLinkId/submissions",
-											{
-												params: { moduleLinkId: moduleLinkId.toString() },
-												searchParams: {
-													view: View.GRADING,
-													submissionId: latestSubmission.id,
-												},
-											},
-										)}
+										to={href("/course/module/:moduleLinkId/submissions/:submissionId", {
+											moduleLinkId: moduleLinkId.toString(),
+											submissionId: latestSubmission.id.toString(),
+										})}
 										leftSection={<IconPencil size={14} />}
 									>
 										Grade
@@ -314,6 +306,7 @@ function QuizStudentSubmissionRow({
 													submittedSubmissions.length - index
 												}
 												submission={submission}
+												moduleLinkId={moduleLinkId}
 											/>
 										))}
 								</Stack>

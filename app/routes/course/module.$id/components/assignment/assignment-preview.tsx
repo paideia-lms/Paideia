@@ -1,6 +1,7 @@
 import {
 	Alert,
 	Button,
+	Code,
 	Group,
 	Input,
 	Modal,
@@ -32,6 +33,8 @@ import {
 } from "app/routes/course/module.$id/route";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import type { inferParserType } from "nuqs";
+import { useLoaderData } from "react-router";
+import type { Route } from "app/routes/course/module.$id/route";
 // ============================================================================
 // Types
 // ============================================================================
@@ -473,6 +476,45 @@ function InstructionsView({
 }
 
 // ============================================================================
+// Debug Component
+// ============================================================================
+
+function AssignmentDebugInfo() {
+	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
+
+	if (loaderData.type !== "assignment") {
+		return null;
+	}
+
+	return (
+		<Paper withBorder p="md" radius="md" style={{ backgroundColor: "#fff3cd" }}>
+			<Stack gap="sm">
+				<Title order={4}>Debug: Assignment Data</Title>
+				<Text size="sm" fw={500}>Assignment Object:</Text>
+				<Code block style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}>
+					{JSON.stringify(loaderData.assignment, null, 2)}
+				</Code>
+				<Text size="sm" fw={500}>Activity Module:</Text>
+				<Code block style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}>
+					{JSON.stringify(
+						{
+							requireTextSubmission: loaderData.activityModule.requireTextSubmission,
+							requireFileSubmission: loaderData.activityModule.requireFileSubmission,
+						},
+						null,
+						2,
+					)}
+				</Code>
+				<Text size="sm" fw={500}>Full Loader Data (assignment type only):</Text>
+				<Code block style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}>
+					{JSON.stringify(loaderData, null, 2)}
+				</Code>
+			</Stack>
+		</Paper>
+	);
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -496,37 +538,41 @@ export function AssignmentPreview({
 
 	if (!assignment) {
 		return (
-			<Paper withBorder p="xl" radius="md">
-				<Stack gap="md">
-					<Title order={3}>Assignment Preview</Title>
-					<Text c="dimmed">No assignment data available.</Text>
-				</Stack>
-			</Paper>
-		);
-	}
-
-	if (view === AssignmentActions.SUBMIT_ASSIGNMENT && canSubmit) {
-		return (
-			<SubmissionForm
-				assignment={assignment}
-				isSubmitting={isSubmitting}
-				onClose={() => setQueryParams({ view: null })}
-				onSubmit={handleSubmit}
-			/>
+			<>
+				<AssignmentDebugInfo />
+				<Paper withBorder p="xl" radius="md">
+					<Stack gap="md">
+						<Title order={3}>Assignment Preview</Title>
+						<Text c="dimmed">No assignment data available.</Text>
+					</Stack>
+				</Paper>
+			</>
 		);
 	}
 
 	return (
-		<InstructionsView
-			assignment={assignment}
-			allSubmissions={allSubmissions}
-			submission={submission}
-			// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
-			onAddSubmission={() =>
-				setQueryParams({ view: AssignmentActions.SUBMIT_ASSIGNMENT })
-			}
-			canSubmit={canSubmit}
-			isStudent={isStudent}
-		/>
+		<>
+			<AssignmentDebugInfo />
+			{view === AssignmentActions.SUBMIT_ASSIGNMENT && canSubmit ? (
+				<SubmissionForm
+					assignment={assignment}
+					isSubmitting={isSubmitting}
+					onClose={() => setQueryParams({ view: null })}
+					onSubmit={handleSubmit}
+				/>
+			) : (
+				<InstructionsView
+					assignment={assignment}
+					allSubmissions={allSubmissions}
+					submission={submission}
+					// onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
+					onAddSubmission={() =>
+						setQueryParams({ view: AssignmentActions.SUBMIT_ASSIGNMENT })
+					}
+					canSubmit={canSubmit}
+					isStudent={isStudent}
+				/>
+			)}
+		</>
 	);
 }

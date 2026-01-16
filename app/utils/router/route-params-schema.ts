@@ -10,6 +10,7 @@ export const paramsSchema = {
 	courseId: z.coerce.number(),
 	moduleLinkId: z.coerce.number(),
 	sectionId: z.coerce.number(),
+	submissionId: z.coerce.number(),
 	"*": z.string().optional(),
 };
 

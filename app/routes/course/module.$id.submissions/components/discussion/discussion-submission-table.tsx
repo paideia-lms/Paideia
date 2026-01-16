@@ -26,10 +26,8 @@ import {
 } from "./helpers";
 import {
 	type Route,
-	View,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
-import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
@@ -146,12 +144,9 @@ function DiscussionStudentSubmissionRow({
 							<Menu.Dropdown>
 								<Menu.Item
 									component={Link}
-									to={getRouteUrl("/course/module/:moduleLinkId/submissions", {
-										params: { moduleLinkId: moduleLinkId.toString() },
-										searchParams: {
-											view: View.GRADING,
-											submissionId: latestSubmission.id,
-										},
+									to={href("/course/module/:moduleLinkId/submissions/:submissionId", {
+										moduleLinkId: moduleLinkId.toString(),
+										submissionId: latestSubmission.id.toString(),
 									})}
 									leftSection={<IconPencil size={14} />}
 								>
