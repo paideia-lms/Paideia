@@ -52,7 +52,7 @@ import type React from "react";
 import { href } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { createContext } from "app/utils/create-context";
+import { constate } from "app/utils/constate";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
@@ -775,22 +775,18 @@ function useMediaSelectionValue({ media }: UseMediaSelectionValueProps) {
 	};
 }
 
-const [MediaSelectionContext, useMediaSelection] = createContext(
+const [MediaSelectionProvider, useMediaSelection] = constate(
 	useMediaSelectionValue,
 );
 
 // Batch Actions Component
 function BatchActions({
 	userId,
-	selectedCardIds,
-	selectedRecords,
 }: {
 	userId: number;
-	selectedCardIds: number[];
-	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
 	const { submit: deleteMedia } = useDelete();
-	const { clearSelection } = useMediaSelection();
+	const { selectedCardIds, selectedRecords, clearSelection } = useMediaSelection();
 
 	const selectedCount =
 		selectedRecords.length > 0
@@ -1499,12 +1495,11 @@ function MediaCard({
 function MediaCardView({
 	media,
 	userId,
-	selectedCardIds,
 }: {
 	media: Route.ComponentProps["loaderData"]["media"];
 	userId: number;
-	selectedCardIds: number[];
 }) {
+	const { selectedCardIds } = useMediaSelection();
 	return (
 		<Grid>
 			{media.map((file) => (
@@ -1523,13 +1518,11 @@ function MediaCardView({
 function MediaTableView({
 	media,
 	userId,
-	selectedRecords,
 }: {
 	media: Route.ComponentProps["loaderData"]["media"];
 	userId: number;
-	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
-	const { handleTableSelectionChange } = useMediaSelection();
+	const { selectedRecords, handleTableSelectionChange } = useMediaSelection();
 	const columns = [
 		{
 			accessor: "filename",
@@ -1627,14 +1620,6 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 		searchParams: { viewMode },
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-
-	const {
-		selectedCardIds,
-		selectedRecords,
-		setSelectedCardIds,
-		handleTableSelectionChange,
-		clearSelection,
-	} = useMediaSelectionValue({ media });
 
 	const title = `Media | ${fullName} | Paideia LMS`;
 	return (
@@ -1754,24 +1739,15 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 						No media files yet.
 					</Text>
 				) : (
-					<MediaSelectionContext.Provider
-						value={{
-							setSelectedCardIds,
-							handleTableSelectionChange,
-							clearSelection,
-						}}
-					>
+					<MediaSelectionProvider media={media}>
 						{viewMode === "card" ? (
 							<>
 								<BatchActions
 									userId={user.id}
-									selectedCardIds={selectedCardIds}
-									selectedRecords={selectedRecords}
 								/>
 								<MediaCardView
 									media={media}
 									userId={user.id}
-									selectedCardIds={selectedCardIds}
 								/>
 								<MediaPagination
 									totalPages={pagination.totalPages}
@@ -1782,13 +1758,10 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 							<>
 								<BatchActions
 									userId={user.id}
-									selectedCardIds={selectedCardIds}
-									selectedRecords={selectedRecords}
 								/>
 								<MediaTableView
 									media={media}
 									userId={user.id}
-									selectedRecords={selectedRecords}
 								/>
 								<MediaPagination
 									totalPages={pagination.totalPages}
@@ -1796,7 +1769,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 								/>
 							</>
 						)}
-					</MediaSelectionContext.Provider>
+					</MediaSelectionProvider>
 				)}
 			</Stack>
 		</Container>

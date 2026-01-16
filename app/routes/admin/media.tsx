@@ -40,7 +40,7 @@ import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import React, {
+import {
 	forwardRef,
 	useEffect,
 	useImperativeHandle,
@@ -50,7 +50,7 @@ import React, {
 } from "react";
 import { href, Link } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
-import { createContext } from "app/utils/create-context";
+import { constate } from "app/utils/constate";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -657,16 +657,6 @@ function MediaHeader({
 }
 
 // Media Selection Context
-interface MediaSelectionProviderProps {
-	media: Route.ComponentProps["loaderData"]["media"];
-	children:
-	| React.ReactNode
-	| ((props: {
-		selectedCardIds: number[];
-		selectedRecords: Route.ComponentProps["loaderData"]["media"];
-	}) => React.ReactNode);
-}
-
 interface UseMediaSelectionValueProps {
 	media: Route.ComponentProps["loaderData"]["media"];
 }
@@ -699,34 +689,9 @@ function useMediaSelectionValue({ media }: UseMediaSelectionValueProps) {
 	};
 }
 
-const [MediaSelectionContext, useMediaSelection] = createContext(
+const [MediaSelectionProvider, useMediaSelection] = constate(
 	useMediaSelectionValue,
 );
-
-function MediaSelectionProvider({
-	media,
-	children,
-}: MediaSelectionProviderProps) {
-	const values = useMediaSelectionValue({ media });
-	return (
-		<MediaSelectionContext.Provider value={values}>
-			{typeof children === "function"
-				? children({
-					selectedCardIds: values.selectedCardIds,
-					selectedRecords: values.selectedRecords,
-				})
-				: React.Children.map(children, (child) => {
-					if (React.isValidElement(child)) {
-						return React.cloneElement(child as React.ReactElement<any>, {
-							selectedCardIds: values.selectedCardIds,
-							selectedRecords: values.selectedRecords,
-						});
-					}
-					return child;
-				})}
-		</MediaSelectionContext.Provider>
-	);
-}
 
 // Batch Actions Component
 function BatchActions({
@@ -1747,14 +1712,13 @@ function useOrphanedMediaSelectionValue({
 	};
 }
 
-const [OrphanedMediaSelectionContext, useOrphanedMediaSelection] =
-	createContext(useOrphanedMediaSelectionValue);
+const [OrphanedMediaSelectionProvider, useOrphanedMediaSelection] =
+	constate(useOrphanedMediaSelectionValue);
 
 // Orphaned Media Table Component
 function OrphanedMediaTable({
 	files,
 	pagination,
-	selectedOrphanedIds,
 }: {
 	files: OrphanedMediaFile[];
 	pagination: {
@@ -1763,9 +1727,8 @@ function OrphanedMediaTable({
 		hasPrevPage: boolean;
 		hasNextPage: boolean;
 	};
-	selectedOrphanedIds: string[];
 }) {
-	const { handleTableSelectionChange, clearSelection } =
+	const { selectedOrphanedIds, handleTableSelectionChange, clearSelection } =
 		useOrphanedMediaSelection();
 	const { submit: deleteOrphanedMedia, isLoading } = useDeleteOrphanedMedia();
 
@@ -1886,15 +1849,6 @@ function OrphanedMediaSection({
 		Route.ComponentProps["loaderData"]["orphanedMedia"]
 	>;
 }) {
-	const {
-		selectedOrphanedIds,
-		setSelectedOrphanedIds,
-		handleTableSelectionChange,
-		clearSelection,
-	} = useOrphanedMediaSelectionValue({
-		orphanedPage: orphanedMedia.page,
-	});
-
 	return (
 		<Card withBorder padding="lg" radius="md">
 			<Stack gap="lg">
@@ -1914,12 +1868,8 @@ function OrphanedMediaSection({
 						No orphaned media files found.
 					</Text>
 				) : (
-					<OrphanedMediaSelectionContext.Provider
-						value={{
-							setSelectedOrphanedIds,
-							handleTableSelectionChange,
-							clearSelection,
-						}}
+					<OrphanedMediaSelectionProvider
+						orphanedPage={orphanedMedia.page}
 					>
 						<OrphanedMediaTable
 							files={orphanedMedia.files}
@@ -1929,9 +1879,8 @@ function OrphanedMediaSection({
 								hasPrevPage: orphanedMedia.hasPrevPage,
 								hasNextPage: orphanedMedia.hasNextPage,
 							}}
-							selectedOrphanedIds={selectedOrphanedIds}
 						/>
-					</OrphanedMediaSelectionContext.Provider>
+					</OrphanedMediaSelectionProvider>
 				)}
 			</Stack>
 		</Card>
@@ -2072,15 +2021,12 @@ function MediaViews({
 	viewMode,
 	media,
 	pagination,
-	selectedCardIds,
-	selectedRecords,
 }: {
 	viewMode: "card" | "table";
 	media: Route.ComponentProps["loaderData"]["media"];
 	pagination: Route.ComponentProps["loaderData"]["pagination"];
-	selectedCardIds: number[];
-	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
+	const { selectedCardIds, selectedRecords } = useMediaSelection();
 	return viewMode === "card" ? (
 		<>
 			<BatchActions
@@ -2158,15 +2104,11 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 					</Text>
 				) : (
 					<MediaSelectionProvider media={media}>
-						{({ selectedCardIds, selectedRecords }) => (
-							<MediaViews
-								viewMode={viewMode}
-								media={media}
-								pagination={pagination}
-								selectedCardIds={selectedCardIds}
-								selectedRecords={selectedRecords}
-							/>
-						)}
+						<MediaViews
+							viewMode={viewMode}
+							media={media}
+							pagination={pagination}
+						/>
 					</MediaSelectionProvider>
 				)}
 
