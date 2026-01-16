@@ -165,7 +165,6 @@ const createLoaderRpc = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createLoaderRpc({
 	searchParams: loaderSearchParams,
 })(async ({ context, params, searchParams }) => {
-	const { envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -235,7 +234,6 @@ export const loader = createLoaderRpc({
 		activeSubmission,
 		searchParams,
 		params,
-		enableDebugLogs: process.env.NODE_ENV === "development" && envVars.DEBUG_LOGS.enabled,
 	};
 });
 

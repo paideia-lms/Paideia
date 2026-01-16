@@ -41,6 +41,11 @@ export interface GradeAssignmentSubmissionArgs
 	gradedBy: number;
 }
 
+export interface RemoveAssignmentSubmissionGradeArgs
+	extends BaseInternalFunctionArgs {
+	id: number;
+}
+
 export interface GetAssignmentSubmissionByIdArgs
 	extends BaseInternalFunctionArgs {
 	id: number | string;
@@ -371,13 +376,15 @@ export function tryGradeAssignmentSubmission(
 
 			return transactionInfo.tx(async ({ reqWithTransaction }) => {
 				// Get the current submission with depth to access course module link
-				const currentSubmission = await payload.findByID({
-					collection: AssignmentSubmissions.slug,
-					id,
-					depth: 1,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
+				const currentSubmission = await payload
+					.findByID({
+						collection: AssignmentSubmissions.slug,
+						id,
+						depth: 1,
+						req: reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">());
 
 				if (!currentSubmission) {
 					throw new NonExistingAssignmentSubmissionError(
@@ -392,10 +399,7 @@ export function tryGradeAssignmentSubmission(
 				}
 
 				// Optionally validate grade against gradebook item limits if gradebook item exists
-				const courseModuleLinkId =
-					typeof currentSubmission.courseModuleLink === "number"
-						? currentSubmission.courseModuleLink
-						: currentSubmission.courseModuleLink.id;
+				const courseModuleLinkId = currentSubmission.courseModuleLink.id;
 
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
@@ -421,22 +425,65 @@ export function tryGradeAssignmentSubmission(
 
 				// Update submission with grade, feedback, gradedBy, gradedAt, and status
 				// Note: Using Record<string, unknown> because Payload types haven't been regenerated yet
-				await payload.update({
-					collection: AssignmentSubmissions.slug,
-					id,
-					data: {
-						grade,
-						feedback,
-						gradedBy,
-						gradedAt: now,
-						status: "graded",
-					} as Record<string, unknown>,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
-
-				// Fetch the updated submission with depth for return value
 				const updatedSubmission = await payload
+					.update({
+						collection: AssignmentSubmissions.slug,
+						id,
+						data: {
+							grade,
+							feedback,
+							gradedBy,
+							gradedAt: now,
+							status: "graded",
+						} as Record<string, unknown>,
+						req: reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "update">());
+
+				const courseModuleLinkRef = updatedSubmission.courseModuleLink;
+
+				const student = updatedSubmission.student;
+
+				const enrollment = updatedSubmission.enrollment;
+
+				return {
+					...updatedSubmission,
+					courseModuleLink: courseModuleLinkRef,
+					student,
+					enrollment,
+				};
+			});
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to grade assignment submission", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Removes grade from an assignment submission by setting grade-related fields to null and status back to "submitted"
+ * This reverses the grading operation, allowing the submission to be re-graded
+ */
+export function tryRemoveAssignmentSubmissionGrade(
+	args: RemoveAssignmentSubmissionGradeArgs,
+) {
+	return Result.try(
+		async () => {
+			const { payload, req, id, overrideAccess = false } = args;
+
+			// Validate ID
+			if (!id) {
+				throw new InvalidArgumentError("Assignment submission ID is required");
+			}
+
+			const transactionInfo = await handleTransactionId(payload, req);
+
+			return transactionInfo.tx(async ({ reqWithTransaction }) => {
+				// Get the current submission with depth to access course module link
+				const currentSubmission = await payload
 					.findByID({
 						collection: AssignmentSubmissions.slug,
 						id,
@@ -445,6 +492,35 @@ export function tryGradeAssignmentSubmission(
 						overrideAccess,
 					})
 					.then(stripDepth<1, "findByID">());
+				if (!currentSubmission) {
+					throw new NonExistingAssignmentSubmissionError(
+						`Assignment submission with id '${id}' not found`,
+					);
+				}
+
+				if (currentSubmission.status !== "graded") {
+					throw new InvalidArgumentError(
+						"Only graded assignments can have their grades removed",
+					);
+				}
+
+				// Update submission with null values for grade-related fields and status back to "submitted"
+				const updatedSubmission = await payload
+					.update({
+						collection: AssignmentSubmissions.slug,
+						id,
+						data: {
+							grade: null,
+							feedback: null,
+							gradedBy: null,
+							gradedAt: null,
+							status: "submitted",
+						},
+						depth: 1,
+						req: reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "update">());
 
 				if (!updatedSubmission) {
 					throw new NonExistingAssignmentSubmissionError(
@@ -468,7 +544,7 @@ export function tryGradeAssignmentSubmission(
 		},
 		(error) =>
 			transformError(error) ??
-			new UnknownError("Failed to grade assignment submission", {
+			new UnknownError("Failed to remove assignment submission grade", {
 				cause: error,
 			}),
 	);

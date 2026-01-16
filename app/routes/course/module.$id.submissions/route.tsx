@@ -11,6 +11,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteAssignmentSubmission,
 	tryGradeAssignmentSubmission,
+	tryRemoveAssignmentSubmissionGrade,
 } from "server/internal/assignment-submission-management";
 import { tryGradeDiscussionSubmission } from "server/internal/discussion-management";
 import { tryFindGradebookItemByCourseModuleLink } from "server/internal/gradebook-item-management";
@@ -46,6 +47,7 @@ export enum Action {
 	DeleteSubmission = "deleteSubmission",
 	GradeSubmission = "gradeSubmission",
 	ReleaseGrade = "releaseGrade",
+	RemoveGrade = "removeGrade",
 }
 
 // Define search params
@@ -84,6 +86,14 @@ const releaseGradeRpc = createActionRpc({
 	}),
 	method: "POST",
 	action: Action.ReleaseGrade,
+});
+
+const removeGradeRpc = createActionRpc({
+	formDataSchema: z.object({
+		submissionId: z.coerce.number(),
+	}),
+	method: "POST",
+	action: Action.RemoveGrade,
 });
 
 export const loader = createRouteLoader({
@@ -523,12 +533,77 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 
 const useReleaseGrade = releaseGradeRpc.createHook<typeof releaseGradeAction>();
 
-export { useDeleteSubmission, useGradeSubmission, useReleaseGrade };
+const removeGradeAction = removeGradeRpc.createAction(
+	async ({ context, formData, params }) => {
+		// params is used in the action option for URL generation
+		void params;
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
+
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		// Check if user can grade submissions (same as viewing submissions)
+		if (!courseModuleContext.permissions.canSeeSubmissions.allowed) {
+			return unauthorized({
+				error: "You don't have permission to remove grades",
+			});
+		}
+
+		const moduleType = courseModuleContext.type;
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const id = formData.submissionId;
+
+			// Remove grade based on module type
+			if (moduleType === "assignment") {
+				const removeGradeResult = await tryRemoveAssignmentSubmissionGrade({
+					payload,
+					req: reqWithTransaction,
+					id,
+				});
+
+				if (!removeGradeResult.ok) {
+					const errorMessage = String(removeGradeResult.error);
+					return badRequest({ error: errorMessage });
+				}
+
+				return ok({
+					success: true,
+					submission: removeGradeResult.value,
+					message: "Grade removed successfully",
+				});
+			} else if (moduleType === "quiz") {
+				console.log("Remove grade for quiz not yet implemented", { id });
+				return badRequest({ error: "Remove grade for quiz not yet implemented" });
+			} else if (moduleType === "discussion") {
+				console.log("Remove grade for discussion not yet implemented", { id });
+				return badRequest({ error: "Remove grade for discussion not yet implemented" });
+			} else {
+				return badRequest({ error: "Unsupported module type for removing grades" });
+			}
+		});
+	},
+);
+
+const useRemoveGrade = removeGradeRpc.createHook<typeof removeGradeAction>();
+
+export { useDeleteSubmission, useGradeSubmission, useReleaseGrade, useRemoveGrade };
 
 const [action] = createActionMap({
 	[Action.DeleteSubmission]: deleteSubmissionAction,
 	[Action.GradeSubmission]: gradeSubmissionAction,
 	[Action.ReleaseGrade]: releaseGradeAction,
+	[Action.RemoveGrade]: removeGradeAction,
 });
 
 export { action };

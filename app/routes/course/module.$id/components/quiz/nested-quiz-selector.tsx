@@ -17,7 +17,7 @@ import { loaderSearchParams, type Route, useMarkQuizAttemptAsComplete } from "..
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useNestedQuizContext } from "./nested-quiz-context";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
-import { useLoaderData } from "react-router";
+import { useMatches } from "react-router";
 import { CodeHighlight } from "@mantine/code-highlight";
 
 /**
@@ -28,7 +28,8 @@ import { CodeHighlight } from "@mantine/code-highlight";
  * it is just that user will be warned if an nested quiz is not completed.
  */
 export function NestedQuizSelector() {
-	const { enableDebugLogs } = useLoaderData<Route.ComponentProps["loaderData"]>();
+	const matches = useMatches() as Route.ComponentProps["matches"];
+	const { loaderData: { enableDebugLogs } } = matches[0]
 	// Get all data from contexts
 	const {
 		quizConfig,

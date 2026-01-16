@@ -554,6 +554,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			faviconMedia,
 			isSandboxMode,
 			nextResetTime,
+			enableDebugLogs: process.env.NODE_ENV === "development" && envVars.DEBUG_LOGS.enabled,
 		};
 	}
 
@@ -594,6 +595,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 				},
 		isSandboxMode,
 		nextResetTime,
+		enableDebugLogs: process.env.NODE_ENV === "development" && envVars.DEBUG_LOGS.enabled,
 	};
 }
 

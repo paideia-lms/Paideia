@@ -33,6 +33,8 @@ we should not use `as` operator for type casting, especially in the UI component
 
 avoid create complex props type for component, try infer type from loader data `Route.ComponentProps["loaderData"]` if possible.
 
+we should break down the components so that each component only use one action hook. 
+
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.

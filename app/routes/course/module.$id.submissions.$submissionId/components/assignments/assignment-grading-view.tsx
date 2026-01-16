@@ -7,110 +7,43 @@ import {
 	Container,
 	Grid,
 	Group,
-	NumberInput,
 	Paper,
 	Stack,
 	Text,
 	Title,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import { useEffectEvent, useState } from "react";
-import { href, Link, useNavigate } from "react-router";
+import { useState } from "react";
+import { Link } from "react-router";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
-import { SimpleRichTextEditor } from "app/components/rich-text/simple-rich-text-editor";
-import { useGradeSubmission, useReleaseGrade } from "app/routes/course/module.$id.submissions/route";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
+import type { Route } from "../../route";
+import { AssignmentGradingForm } from "./assignment-grading-form";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type AssignmentSubmissionType = {
-	id: number;
-	attemptNumber: number;
-	status: "draft" | "submitted" | "graded" | "returned";
-	content?: string | null;
-	submittedAt?: string | null;
-	student:
-	| {
-		id: number;
-		firstName?: string | null;
-		lastName?: string | null;
-		email?: string | null;
-	}
-	| number;
-	attachments?: Array<{
-		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-			url?: string | null;
-		};
-		description?: string | null;
-	}> | null;
-};
-
-interface GradingFormValues {
-	score: number | string;
-	feedback: string;
-}
-
-export interface GradingViewProps {
-	submission: AssignmentSubmissionType;
-	module: {
-		id: number;
-		title: string;
-		type: string;
-	};
-	moduleSettings?: {
-		settings: {
-			name?: string;
-		};
-	} | null;
-	course: {
-		id: number;
-		title: string;
-	};
-	moduleLinkId: number;
-	grade?: {
-		baseGrade: number | null;
-		maxGrade: number | null;
-		feedback: string | null;
-	} | null;
-	enrollment?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
-	courseModuleLink?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
-}
+export type AssignmentGradingViewProps = Extract<
+	Route.ComponentProps["loaderData"],
+	{ gradingModuleType: "assignment" }
+>;
 
 // ============================================================================
 // Component
 // ============================================================================
 
 export function AssignmentGradingView({
-	submission,
-	module,
-	moduleSettings,
-	course,
-	moduleLinkId,
-	grade,
-	enrollment,
-	courseModuleLink,
-}: GradingViewProps) {
-	const { submit: releaseGrade, isLoading: isReleasing } = useReleaseGrade();
+	loaderData,
+}: {
+	loaderData: AssignmentGradingViewProps;
+}) {
+	const submission = loaderData.gradingSubmission;
+	const module = loaderData.module;
+	const moduleSettings = loaderData.moduleSettings;
+	const course = loaderData.course;
+	const moduleLinkId = loaderData.moduleLinkId;
 	// Track individual attachment expansion state (all expanded by default)
 	const [expandedAttachments, setExpandedAttachments] = useState<
 		Record<string, boolean>
@@ -128,42 +61,6 @@ export function AssignmentGradingView({
 			[index.toString()]: !prev[index.toString()],
 		}));
 	};
-
-	const form = useForm<GradingFormValues>({
-		mode: "uncontrolled",
-		initialValues: {
-			score: grade?.baseGrade ?? "",
-			feedback: grade?.feedback ?? "",
-		},
-	});
-
-	const { submit: gradeSubmission, isLoading: isGrading } =
-		useGradeSubmission();
-	const _navigate = useNavigate();
-
-	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
-		const scoreValue =
-			typeof values.score === "number"
-				? values.score
-				: Number.parseFloat(String(values.score));
-		if (Number.isNaN(scoreValue)) {
-			notifications.show({
-				title: "Error",
-				message: "Invalid score value",
-				color: "red",
-			});
-			return;
-		}
-
-		gradeSubmission({
-			params: { moduleLinkId },
-			values: {
-				submissionId: submission.id,
-				score: scoreValue,
-				feedback: values.feedback || undefined,
-			},
-		});
-	});
 
 	// Get student information
 	const student = submission.student;
@@ -186,8 +83,9 @@ export function AssignmentGradingView({
 			<Container size="xl">
 				<Button
 					component={Link}
-					to={href("/course/module/:moduleLinkId/submissions", {
-						moduleLinkId: moduleLinkId.toString(),
+					to={getRouteUrl("/course/module/:moduleLinkId/submissions", {
+						params: { moduleLinkId: moduleLinkId.toString() },
+						searchParams: {},
 					})}
 					variant="subtle"
 				>
@@ -324,73 +222,7 @@ export function AssignmentGradingView({
 				</Grid.Col>
 
 				<Grid.Col span={6}>
-					{/* Right column - Fixed grading form */}
-					<Paper withBorder shadow="sm" p="md" radius="md">
-						<form onSubmit={form.onSubmit(handleSubmit)}>
-							<Stack gap="md">
-								<Title order={4}>Grade Submission</Title>
-
-								<NumberInput
-									label="Score"
-									placeholder="Enter score"
-									min={0}
-									max={grade?.maxGrade ?? 100}
-									key={form.key("score")}
-									{...form.getInputProps("score")}
-								/>
-
-								<div>
-									<Text size="sm" fw={500} mb="xs">
-										Feedback
-									</Text>
-									<SimpleRichTextEditor
-										content={grade?.feedback ?? ""}
-										placeholder="Provide feedback for the student..."
-										onChange={(value) => {
-											form.setFieldValue("feedback", value);
-										}}
-									/>
-								</div>
-
-								<Group justify="flex-end">
-									<Button type="submit" variant="filled" loading={isGrading}>
-										Submit Grade
-									</Button>
-									{grade?.baseGrade !== null &&
-										grade?.baseGrade !== undefined &&
-										submission.status === "graded" &&
-										enrollment &&
-										courseModuleLink && (
-											<Button
-												variant="outline"
-												loading={isReleasing}
-												onClick={() => {
-													const enrollmentId =
-														typeof enrollment === "number"
-															? enrollment
-															: enrollment.id;
-													const courseModuleLinkId =
-														typeof courseModuleLink === "number"
-															? courseModuleLink
-															: courseModuleLink.id;
-													releaseGrade({
-														params: {
-															moduleLinkId: moduleLinkId,
-														},
-														values: {
-															courseModuleLinkId: courseModuleLinkId,
-															enrollmentId: enrollmentId,
-														},
-													});
-												}}
-											>
-												Release Grade
-											</Button>
-										)}
-								</Group>
-							</Stack>
-						</form>
-					</Paper>
+					<AssignmentGradingForm loaderData={loaderData} />
 				</Grid.Col>
 			</Grid>
 		</Box>

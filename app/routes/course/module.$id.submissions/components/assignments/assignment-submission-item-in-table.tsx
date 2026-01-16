@@ -7,9 +7,10 @@ import {
 	Stack,
 	Text,
 } from "@mantine/core";
-import { IconDots, IconPencil, IconTrash } from "@tabler/icons-react";
-import { Link } from "react-router";
+import { IconDots, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
+import { Link, useLoaderData, useMatches, useRouteLoaderData } from "react-router";
 import type { Route } from "app/routes/course/module.$id.submissions/route";
+import { useRemoveGrade } from "app/routes/course/module.$id.submissions/route";
 import { Anchor, Box, ScrollArea, Tooltip, Typography } from "@mantine/core";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 import {
@@ -32,6 +33,20 @@ type AssignmentSubmissionData = NonNullable<
 	AssignmentListLoaderData["submissions"]
 >[number];
 
+type AttachmentItem = {
+	file:
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+		mimeType?: string | null;
+		filesize?: number | null;
+		url?: string | null;
+	};
+	description?: string | null;
+	id?: string | null;
+};
+
 // ============================================================================
 // Shared Components
 // ============================================================================
@@ -39,29 +54,41 @@ type AssignmentSubmissionData = NonNullable<
 function SubmissionAttachments({
 	attachments,
 }: {
-	attachments: Array<{
-		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
-		description?: string | null;
-	}>;
+	attachments: Array<AttachmentItem>;
 }) {
+	const matches = useMatches() as Route.ComponentProps["matches"];
+	const { loaderData: { enableDebugLogs } } = matches[0]
+	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
+
 	return (
 		<Stack gap="xs">
 			<Text size="sm" fw={500}>
 				Attachments ({attachments.length}):
 			</Text>
+			{/* Debug view */}
+			{enableDebugLogs && (
+				<Paper withBorder p="xs" style={{ backgroundColor: "#f8f9fa" }}>
+					<Text size="xs" c="dimmed" fw={500} mb="xs">
+						Debug Info:
+					</Text>
+					<Text size="xs" c="dimmed" style={{ fontFamily: "monospace" }}>
+						Loader Mode: {loaderData.mode}
+						<br />
+						Module Type:{" "}
+						{"moduleType" in loaderData ? loaderData.moduleType : "N/A"}
+						<br />
+						Attachments Type: {typeof attachments}
+						<br />
+						Attachments Length: {attachments.length}
+					</Text>
+				</Paper>
+			)}
 			{attachments.map((attachment) => {
 				const file = attachment.file;
 				const fileId = typeof file === "object" ? file.id : file;
 				const filename =
 					typeof file === "object"
-						? file.filename || `File ${fileId}`
+						? (file.filename ?? `File ${fileId}`)
 						: `File ${fileId}`;
 				const mimeType = typeof file === "object" ? file.mimeType : null;
 				const filesize = typeof file === "object" ? file.filesize : null;
@@ -153,6 +180,8 @@ export function AssignmentSubmissionItemInTable({
 	showGrade?: boolean;
 	moduleLinkId?: number;
 }) {
+	const { submit: removeGrade, isLoading: isRemovingGrade } = useRemoveGrade();
+
 	const content = submission.content || null;
 	const attachments =
 		submission.attachments && Array.isArray(submission.attachments)
@@ -239,6 +268,35 @@ export function AssignmentSubmissionItemInTable({
 											Grade
 										</Menu.Item>
 									)}
+									{showGrade &&
+										moduleLinkId &&
+										submission.status === "graded" &&
+										submission.grade?.baseGrade !== null &&
+										submission.grade?.baseGrade !== undefined && (
+											<Menu.Item
+												color="red"
+												leftSection={<IconX size={16} />}
+												disabled={isRemovingGrade}
+												onClick={async () => {
+													if (
+														!window.confirm(
+															"Are you sure you want to unset the grade? This action cannot be undone.",
+														)
+													)
+														return;
+													await removeGrade({
+														params: {
+															moduleLinkId,
+														},
+														values: {
+															submissionId: submission.id,
+														},
+													});
+												}}
+											>
+												Unset Grade
+											</Menu.Item>
+										)}
 									{showDelete && onDelete && (
 										<Menu.Item
 											color="red"

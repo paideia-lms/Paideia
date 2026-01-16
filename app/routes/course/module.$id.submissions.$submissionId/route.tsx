@@ -222,20 +222,8 @@ export default function ModuleSubmissionGradingPage({
     loaderData,
 }: Route.ComponentProps) {
     if (loaderData.gradingModuleType === "assignment") {
-        const submissionWithRelations =
-            loaderData.gradingSubmission;
-
         return (
-            <AssignmentGradingView
-                submission={loaderData.gradingSubmission}
-                module={loaderData.module}
-                moduleSettings={loaderData.moduleSettings}
-                course={loaderData.course}
-                moduleLinkId={loaderData.moduleLinkId}
-                grade={loaderData.gradingGrade}
-                enrollment={submissionWithRelations.enrollment}
-                courseModuleLink={submissionWithRelations.courseModuleLink}
-            />
+            <AssignmentGradingView loaderData={loaderData} />
         );
     }
 
