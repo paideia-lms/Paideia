@@ -80,15 +80,16 @@ import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
 	InternalServerErrorResponse,
 	MaintenanceModeResponse,
-} from "./utils/responses";
+} from "./utils/router/responses";
 import {
 	type RouteId,
 	type RouteParams,
 	tryGetRouteHierarchy,
-} from "./utils/routes-utils";
+} from "./utils/router/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { parseParams } from "app/utils/route-params-schema";
+import { parseParams } from "app/utils/router/route-params-schema";
+import { parseSearchParamsForRoute } from "app/utils/router/parse-search-params";
 
 const searchParams = {
 	threadId: parseAsInteger,
@@ -100,14 +101,35 @@ export const middleware = [
 	 * update the page info to the global context
 	 */
 	async ({ request, context, params }) => {
-		const routeHierarchy = tryGetRouteHierarchy(new URL(request.url).pathname);
+		const url = new URL(request.url);
+		const routeHierarchy = tryGetRouteHierarchy(url.pathname);
 		const parsedParams = parseParams(params);
-		const is: PageInfo["is"] = Object.fromEntries(
-			routeHierarchy.map((route) => [
-				route.id,
-				{ params: parsedParams as RouteParams<RouteId> },
-			]),
-		) as PageInfo["is"];
+
+		// Parse search params for each route in the hierarchy
+		const isEntries = await Promise.all(
+			routeHierarchy.map(async (route) => {
+				const searchParams = await parseSearchParamsForRoute(route.id, url);
+				return [
+					route.id,
+					{
+						params: parsedParams as RouteParams<RouteId>,
+						...(searchParams !== undefined ? { searchParams } : {}),
+					},
+				] as const;
+			}),
+		);
+		// Collect all search params from all routes (for top-level searchParams)
+		const allSearchParams: Record<string, unknown> = isEntries.reduce((acc, entry) => {
+			const [, routeInfo] = entry;
+			if (routeInfo.searchParams) {
+				Object.assign(acc, routeInfo.searchParams);
+			}
+			return acc;
+		}, {} as Record<string, unknown>);
+
+
+		const is: PageInfo["is"] = Object.fromEntries(isEntries) as PageInfo["is"];
+
 
 		// set the route hierarchy and page info to the context
 		context.set(globalContextKey, {
@@ -116,6 +138,9 @@ export const middleware = [
 			pageInfo: {
 				is: is,
 				params: parsedParams,
+				...(Object.keys(allSearchParams).length > 0
+					? { searchParams: allSearchParams }
+					: {}),
 			},
 		});
 	},
@@ -355,15 +380,15 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								userSession,
-								globalContext,
-							)
+							userAccessContext,
+							userSession,
+							globalContext,
+						)
 						: await getUserProfileContext({
-								profileUserId,
-								userSession,
-								globalContext,
-							});
+							profileUserId,
+							userSession,
+							globalContext,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -408,7 +433,7 @@ export const middleware = [
 				moduleLinkId: moduleLinkId,
 				courseId: courseContext.courseId,
 				enrolment: enrolmentContext?.enrolment ?? null,
-				threadId: threadId !== null ? String(threadId) : null,
+				threadId: threadId !== null ? threadId : null,
 				req: payloadRequest,
 			}).getOrNull();
 
@@ -555,17 +580,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 			environment !== "development"
 				? null
 				: {
-						userSession: userSession,
-						courseContext: context.get(courseContextKey),
-						courseModuleContext: context.get(courseModuleContextKey),
-						courseSectionContext: context.get(courseSectionContextKey),
-						enrolmentContext: context.get(enrolmentContextKey),
-						userModuleContext: context.get(userModuleContextKey),
-						userProfileContext: context.get(userProfileContextKey),
-						userAccessContext: context.get(userAccessContextKey),
-						userContext: context.get(userContextKey),
-						systemGlobals: systemGlobals,
-					},
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				},
 		isSandboxMode,
 		nextResetTime,
 	};

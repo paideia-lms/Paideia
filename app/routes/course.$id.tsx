@@ -15,7 +15,7 @@ import {
 } from "@mantine/core";
 import { IconEdit, IconFolder, IconPlus } from "@tabler/icons-react";
 import { href, Link } from "react-router";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -23,9 +23,9 @@ import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "app/utils/course-view-utils";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
 
 export const loaderSearchParams = {
@@ -130,10 +130,10 @@ function CourseInfo({ course }: CourseInfoProps) {
 											src={
 												instructor.user.avatar
 													? getRouteUrl("/api/user/:id/avatar", {
-															params: {
-																id: instructor.user.id.toString(),
-															},
-														})
+														params: {
+															id: instructor.user.id.toString(),
+														},
+													})
 													: undefined
 											}
 											name={

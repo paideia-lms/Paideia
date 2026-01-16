@@ -23,10 +23,10 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course";
 import {
 	getEnrollmentStatusBadgeColor,
@@ -205,8 +205,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		const thumbnailUrl = enrollment.course.thumbnail
 			? href(`/api/media/file/:mediaId`, {
-					mediaId: enrollment.course.thumbnail.toString(),
-				})
+				mediaId: enrollment.course.thumbnail.toString(),
+			})
 			: null;
 		return {
 			...enrollment.course,

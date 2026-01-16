@@ -23,9 +23,9 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { permissions } from "server/utils/permissions";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.backup";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -53,8 +53,8 @@ export const loader = createRouteLoader()(async ({ context, params }) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					role: enrolmentContext.enrolment.role,
-				}
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 

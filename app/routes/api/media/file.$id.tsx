@@ -1,13 +1,13 @@
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import type { Route } from "./+types/file.$id";
-import { NotFoundResponse } from "app/utils/responses";
+import { NotFoundResponse } from "app/utils/router/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
 import { parseAsBoolean } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 export const loaderSearchParams = {
 	download: parseAsBoolean.withDefault(false),

@@ -22,7 +22,7 @@ import type {
 import { DiscussionActions } from "../../route";
 import { CreateThreadFormWrapper } from "./create-thread-form-wrapper";
 import { ThreadUpvoteDownVoteButton } from "./thread-upvote-button";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { loaderSearchParams } from "../../route";
 import type { inferParserType } from "nuqs";
 
@@ -182,8 +182,8 @@ export function DiscussionThreadListView({
 											to={
 												courseId && thread.authorId
 													? href("/course/:courseId/participants/profile", {
-															courseId: String(courseId),
-														}) + `?userId=${thread.authorId}`
+														courseId: String(courseId),
+													}) + `?userId=${thread.authorId}`
 													: "#"
 											}
 											style={{ textDecoration: "none", color: "inherit" }}

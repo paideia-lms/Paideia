@@ -24,9 +24,9 @@ import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course-content-layout";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import {
 	dragAndDropFeature,
 	expandAllFeature,
@@ -53,7 +53,7 @@ import {
 	getChildrenIds,
 	type TreeNode,
 } from "app/utils/course-structure-tree-utils";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 

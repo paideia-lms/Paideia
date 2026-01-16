@@ -7,14 +7,14 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/server-admin-layout";
 import classes from "./header-tabs.module.css";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { useState, useEffect } from "react";
-import { getRouteUrl } from "~/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 enum AdminTab {
 	General = "general",

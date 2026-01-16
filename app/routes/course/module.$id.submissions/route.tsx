@@ -2,7 +2,7 @@ import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { parseAsInteger, parseAsStringEnum } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import {
 	courseModuleContextKey,
@@ -42,7 +42,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { isNotNil } from "es-toolkit";
 import { z } from "zod";

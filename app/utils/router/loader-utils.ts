@@ -3,8 +3,11 @@ import type { LoaderFunctionArgs } from "react-router";
 import { useFetcher, href } from "react-router";
 import type { Simplify } from "type-fest";
 import { serverOnly$ } from "vite-env-only/macros";
-import { badRequest, BadRequestResponse } from "~/utils/responses";
-import { paramsSchema, type ParamsType } from "app/utils/route-params-schema";
+import { badRequest, BadRequestResponse } from "app/utils/router/responses";
+import {
+	paramsSchema,
+	type ParamsType,
+} from "app/utils/router/route-params-schema";
 import {
 	createLoader,
 	type ParserMap,

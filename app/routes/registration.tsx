@@ -30,7 +30,7 @@ import {
 	badRequest,
 	ForbiddenResponse,
 	InternalServerErrorResponse,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/registration";
 
 export async function loader({ context }: Route.LoaderArgs) {

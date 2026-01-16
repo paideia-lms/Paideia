@@ -15,7 +15,7 @@ import {
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
 import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";

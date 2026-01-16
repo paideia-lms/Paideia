@@ -3,7 +3,7 @@ import { parseAsStringEnum } from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
 	tryCreateGradebookCategory,
@@ -24,7 +24,7 @@ import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-m
 import { z } from "zod";
 import { GraderReportView } from "app/routes/course.$id.grades/report-view";
 import { GradebookSetupView } from "app/routes/course.$id.grades/setup-view";
-import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
+import { badRequest, ForbiddenResponse, ok } from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 
 export type { Route };
@@ -172,8 +172,8 @@ export const loader = createRouteLoader({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0 ||
-				gradebookSetupForUI.extraCreditCategories.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],

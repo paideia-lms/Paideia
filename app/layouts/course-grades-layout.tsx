@@ -5,10 +5,10 @@ import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course-grades-layout";
 import classes from "./header-tabs.module.css";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 enum GradesTab {
 	Report = "report",

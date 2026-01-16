@@ -28,7 +28,7 @@ import {
 	View,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
-import { getRouteUrl } from "~/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { QuizSubmissionItemInTable } from "app/routes/course/module.$id.submissions/components/quiz/quiz-submission-item-in-table";
 import type { QuizSubmissionData } from "app/routes/course/module.$id/components/quiz/quiz-submission-item";
 

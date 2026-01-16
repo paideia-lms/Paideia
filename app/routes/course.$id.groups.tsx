@@ -24,7 +24,7 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -40,7 +40,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.groups";
 
 export type { Route };

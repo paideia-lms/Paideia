@@ -75,11 +75,11 @@ import {
 	NotFoundResponse,
 	ok,
 	StatusCode,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
@@ -685,7 +685,7 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 
 		const allowedFileTypes =
 			formData.assignmentAllowedFileTypes &&
-			formData.assignmentAllowedFileTypes.length > 0
+				formData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 				: undefined;
 

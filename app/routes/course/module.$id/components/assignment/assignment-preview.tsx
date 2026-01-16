@@ -30,7 +30,7 @@ import {
 	AssignmentActions,
 	loaderSearchParams,
 } from "app/routes/course/module.$id/route";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import type { inferParserType } from "nuqs";
 // ============================================================================
 // Types
@@ -447,9 +447,8 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${
-									maxAttempts !== 1 ? "s" : ""
-								} used`
+							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
+							} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>

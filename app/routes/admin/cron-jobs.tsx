@@ -9,8 +9,8 @@ import { tryGetCronJobs } from "server/internal/cron-jobs-management";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
-} from "~/utils/responses";
-import { typeCreateLoader } from "app/utils/loader-utils";
+} from "app/utils/router/responses";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/cron-jobs";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();

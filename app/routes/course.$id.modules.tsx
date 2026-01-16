@@ -17,7 +17,7 @@ import { useState } from "react";
 import { notifications } from "@mantine/notifications";
 import { Link, redirect } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -43,10 +43,10 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.modules";
 import { tryFindUserEnrollmentInCourse } from "server/internal/enrollment-management";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
 
 enum Action {
@@ -161,9 +161,9 @@ const checkAuthorization = async (
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 

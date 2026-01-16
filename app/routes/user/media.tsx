@@ -53,8 +53,8 @@ import { href } from "react-router";
 import { z } from "zod";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { createContext } from "app/utils/create-context";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -86,7 +86,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/media";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 
@@ -1182,8 +1182,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1275,8 +1275,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1388,8 +1388,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	return (

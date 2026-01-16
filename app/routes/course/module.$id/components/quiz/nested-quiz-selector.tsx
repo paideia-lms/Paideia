@@ -14,7 +14,7 @@ import {
 import { IconCheck, IconClock, IconInfoCircle, IconLock } from "@tabler/icons-react";
 import { StartNestedQuizButton } from "./start-nested-quiz-button";
 import { loaderSearchParams, type Route, useMarkQuizAttemptAsComplete } from "../../route";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useNestedQuizContext } from "./nested-quiz-context";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
 import { useLoaderData } from "react-router";

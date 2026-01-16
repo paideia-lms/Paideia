@@ -22,7 +22,7 @@ import dayjs from "dayjs";
 import { parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { href, redirect } from "react-router";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/catalog";
 

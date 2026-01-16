@@ -31,12 +31,12 @@ import {
 	IconLibraryMinus,
 	IconLibraryPlus,
 } from "@tabler/icons-react";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { parseAsInteger, parseAsStringEnum } from "nuqs/server";
 import { useEffect } from "react";
 import { href, Link } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -58,7 +58,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/categories";
 import { createActionMap } from "app/utils/action-utils";
 
@@ -485,11 +485,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent("category:none")
+							"?query=" +
+							encodeURIComponent("category:none")
 							: href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent(`category:"${d.name}"`);
+							"?query=" +
+							encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">

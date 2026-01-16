@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RouteId, RouteParams } from "app/utils/routes-utils";
+import type { RouteId, RouteParams } from "app/utils/router/routes-utils";
 import type { Simplify } from "type-fest";
 
 export const paramsSchema = {

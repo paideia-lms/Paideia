@@ -42,7 +42,7 @@ import {
 import type { Route } from "app/routes/course.$id.participants/route";
 import { DeleteEnrollmentButton } from "./delete-enrollment-modal";
 import { EditEnrollmentButton } from "./edit-enrollment-modal";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";
 import { useEnrollUser } from "../route";

@@ -17,7 +17,7 @@ import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useId, useRef, useState, useEffect } from "react";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -35,11 +35,11 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.settings";
 import { omitBy } from "es-toolkit";
 import { z } from "zod";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 type Course = Route.ComponentProps["loaderData"]["course"];
 
@@ -438,9 +438,9 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							initialPreviewUrl={
 								course.thumbnail
 									? getRouteUrl("/api/media/file/:mediaId", {
-											params: { mediaId: course.thumbnail.id.toString() },
-											searchParams: {},
-										})
+										params: { mediaId: course.thumbnail.id.toString() },
+										searchParams: {},
+									})
 									: null
 							}
 						/>

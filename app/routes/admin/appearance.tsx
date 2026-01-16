@@ -29,7 +29,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/appearance";
 import { typeCreateActionRpc } from "~/utils/action-utils";
 
@@ -233,7 +233,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 							key={`${url}-${
 								// biome-ignore lint/suspicious/noArrayIndexKey: url may not be unique, index is needed
 								index
-							}`}
+								}`}
 							align="flex-start"
 							wrap="nowrap"
 						>
@@ -244,9 +244,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-									!form
-										.getValues()
-										.stylesheets[index]?.url.match(/^https?:\/\/.+/)
+										!form
+											.getValues()
+											.stylesheets[index]?.url.match(/^https?:\/\/.+/)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}

@@ -9,8 +9,8 @@ import {
 	ForbiddenResponse,
 	ok,
 	StatusCode,
-} from "~/utils/responses";
-import { typeCreateLoaderRpc } from "~/utils/loader-utils";
+} from "app/utils/router/responses";
+import { typeCreateLoaderRpc } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/search-users";
 
 export type { Route };

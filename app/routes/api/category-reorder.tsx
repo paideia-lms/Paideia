@@ -5,7 +5,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCategory } from "server/internal/course-category-management";
 import { z } from "zod";
-import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
+import { badRequest, ok, StatusCode, unauthorized } from "app/utils/router/responses";
 import type { Route } from "./+types/category-reorder";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

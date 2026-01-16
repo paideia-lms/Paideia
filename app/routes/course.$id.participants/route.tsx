@@ -19,10 +19,10 @@ import {
 	ForbiddenResponse,
 	ok,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { parseAsStringEnum } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 export type { Route };
 

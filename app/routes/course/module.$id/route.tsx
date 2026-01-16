@@ -36,7 +36,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { AssignmentPreview } from "app/routes/course/module.$id/components/assignment/assignment-preview";
 import { PagePreview } from "app/components/activity-modules-preview/page-preview";
@@ -53,9 +53,9 @@ import {
 	parseAsInteger,
 	parseAsStringEnum,
 } from "nuqs";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 export type { Route };
 

@@ -12,7 +12,7 @@ import { notifications } from "@mantine/notifications";
 import { pick } from "es-toolkit";
 import { href } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -25,7 +25,7 @@ import {
 	ForbiddenResponse,
 	NotFoundResponse,
 	ok,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/preference";
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();

@@ -19,7 +19,7 @@ import { IconTrash } from "@tabler/icons-react";
 import { createLoader, parseAsStringEnum } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
 import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -49,7 +49,7 @@ import {
 	ForbiddenResponse,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/module.$id.edit";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
@@ -81,11 +81,11 @@ export const loader = createRouteLoader(async ({ context }) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-					{
-						userId: enrolmentContext.enrolment.user.id,
-						role: enrolmentContext.enrolment.role,
-					},
-				]
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
 			: undefined,
 	);
 

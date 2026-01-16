@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconAlertCircle } from "@tabler/icons-react";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { useEffect, useState } from "react";
 import {
 	type FileTypeCategory,

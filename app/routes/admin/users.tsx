@@ -16,20 +16,20 @@ import {
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
 import { parseAsInteger, parseAsString } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import { badRequest, ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/users";
 import {
 	getUserRoleBadgeColor,
 	getUserRoleLabel,
 } from "app/utils/course-view-utils";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 // Define search params
 export const usersSearchParams = {
@@ -81,8 +81,8 @@ export const loader = createRouteLoader({
 	const users = usersResult.value.docs.map((user) => {
 		const avatarUrl = user.avatar
 			? href(`/api/media/file/:mediaId`, {
-					mediaId: user.avatar.id.toString(),
-				})
+				mediaId: user.avatar.id.toString(),
+			})
 			: null;
 
 		return {

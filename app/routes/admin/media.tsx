@@ -51,7 +51,7 @@ import React, {
 import { href, Link } from "react-router";
 import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
 import { createContext } from "app/utils/create-context";
-import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -86,10 +86,10 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/media";
 import { z } from "zod";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 // Define search params
 export const loaderSearchParams = {
@@ -177,24 +177,24 @@ export const loader = createRouteLoader({
 
 	const mediaResult = userId
 		? await tryFindMediaByUser({
-				payload,
-				userId,
-				limit,
-				page,
-				depth: 1, // Include createdBy user info
-				req: payloadRequest,
-				overrideAccess: true,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch media");
-			})
+			payload,
+			userId,
+			limit,
+			page,
+			depth: 1, // Include createdBy user info
+			req: payloadRequest,
+			overrideAccess: true,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch media");
+		})
 		: await tryGetAllMedia({
-				payload,
-				limit,
-				page,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch media");
-			});
+			payload,
+			limit,
+			page,
+			req: payloadRequest,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch media");
+		});
 	const mediaWithPermissions = mediaResult.docs.map((file) => ({
 		...file,
 		deletePermission: { allowed: true, reason: "" },
@@ -202,18 +202,18 @@ export const loader = createRouteLoader({
 
 	const stats = userId
 		? await tryGetUserMediaStats({
-				payload,
-				userId,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch user media stats");
-			})
+			payload,
+			userId,
+			req: payloadRequest,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch user media stats");
+		})
 		: await tryGetSystemMediaStats({
-				payload,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch system media stats");
-			});
+			payload,
+			req: payloadRequest,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch system media stats");
+		});
 
 	const systemStats = await tryGetSystemMediaStats({
 		payload,
@@ -660,11 +660,11 @@ function MediaHeader({
 interface MediaSelectionProviderProps {
 	media: Route.ComponentProps["loaderData"]["media"];
 	children:
-		| React.ReactNode
-		| ((props: {
-				selectedCardIds: number[];
-				selectedRecords: Route.ComponentProps["loaderData"]["media"];
-		  }) => React.ReactNode);
+	| React.ReactNode
+	| ((props: {
+		selectedCardIds: number[];
+		selectedRecords: Route.ComponentProps["loaderData"]["media"];
+	}) => React.ReactNode);
 }
 
 interface UseMediaSelectionValueProps {
@@ -712,18 +712,18 @@ function MediaSelectionProvider({
 		<MediaSelectionContext.Provider value={values}>
 			{typeof children === "function"
 				? children({
-						selectedCardIds: values.selectedCardIds,
-						selectedRecords: values.selectedRecords,
-					})
+					selectedCardIds: values.selectedCardIds,
+					selectedRecords: values.selectedRecords,
+				})
 				: React.Children.map(children, (child) => {
-						if (React.isValidElement(child)) {
-							return React.cloneElement(child as React.ReactElement<any>, {
-								selectedCardIds: values.selectedCardIds,
-								selectedRecords: values.selectedRecords,
-							});
-						}
-						return child;
-					})}
+					if (React.isValidElement(child)) {
+						return React.cloneElement(child as React.ReactElement<any>, {
+							selectedCardIds: values.selectedCardIds,
+							selectedRecords: values.selectedRecords,
+						});
+					}
+					return child;
+				})}
 		</MediaSelectionContext.Provider>
 	);
 }
@@ -1034,8 +1034,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1222,8 +1222,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1326,8 +1326,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	// Get creator info
@@ -1338,7 +1338,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-				"Unknown"
+			"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1349,13 +1349,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: creatorAvatarId.toString(),
-			})
+			mediaId: creatorAvatarId.toString(),
+		})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-				id: creatorId.toString(),
-			})
+			id: creatorId.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1556,7 +1556,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-							"Unknown"
+						"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1567,13 +1567,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:mediaId`, {
-							mediaId: creatorAvatarId.toString(),
-						})
+						mediaId: creatorAvatarId.toString(),
+					})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-							id: creatorId.toString(),
-						})
+						id: creatorId.toString(),
+					})
 					: undefined;
 
 				return (

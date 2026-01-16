@@ -32,10 +32,10 @@ import {
 	NotFoundResponse,
 	ok,
 	StatusCode,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/edit-access";
 import { createActionMap, typeCreateActionRpc } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 enum Action {
 	GrantAccess = "grantAccess",

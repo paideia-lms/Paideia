@@ -9,7 +9,7 @@ import {
 } from "@mantine/core";
 import { IconEye } from "@tabler/icons-react";
 import { Link } from "react-router";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 // ============================================================================
 // Types

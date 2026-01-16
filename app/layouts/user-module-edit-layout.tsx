@@ -13,12 +13,12 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
 import type { ActivityModule } from "server/payload-types";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { getRouteUrl } from "~/utils/search-params-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 enum ModuleEditTab {
 	// Preview = "preview",

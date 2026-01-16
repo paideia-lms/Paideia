@@ -15,7 +15,7 @@ import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
 import { parseAsStringEnum } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import prettyBytes from "pretty-bytes";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -31,7 +31,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/logo";
 import { z } from "zod";
 
@@ -300,8 +300,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: logo.id.toString(),
-			})
+			mediaId: logo.id.toString(),
+		})
 		: null;
 
 	return (

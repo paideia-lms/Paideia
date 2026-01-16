@@ -23,8 +23,8 @@ import type {
 } from "server/internal/course-section-management";
 import { useCreateModuleLink } from "~/routes/course.$id.modules";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
-import { ForbiddenResponse, ok } from "~/utils/responses";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { ForbiddenResponse, ok } from "app/utils/router/responses";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/section.$id";
 import { parseAsBoolean } from "nuqs";
 // Helper function to recursively find a section in the course structure
@@ -87,14 +87,14 @@ export const loader = createRouteLoader({
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureSection => item.type === "section",
-			)
+			(item): item is CourseStructureSection => item.type === "section",
+		)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureItem => item.type === "activity-module",
-			)
+			(item): item is CourseStructureItem => item.type === "activity-module",
+		)
 		: [];
 
 	// Get available modules from user access context

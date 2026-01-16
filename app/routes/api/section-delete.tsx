@@ -5,7 +5,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryDeleteSection } from "server/internal/course-section-management";
 import { z } from "zod";
-import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
+import { badRequest, StatusCode, unauthorized } from "app/utils/router/responses";
 import type { Route } from "./+types/section-delete";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

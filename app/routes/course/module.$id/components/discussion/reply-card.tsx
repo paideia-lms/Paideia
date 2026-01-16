@@ -21,7 +21,7 @@ import { ReplyUpvoteButton } from "./reply-upvote-button";
 import {
 	getRouteUrl,
 	useNuqsSearchParams,
-} from "app/utils/search-params-utils";
+} from "app/utils/router/search-params-utils";
 import type { inferParserType } from "nuqs";
 import { loaderSearchParams } from "../../route";
 import { useForm } from "@mantine/form";
@@ -81,13 +81,13 @@ export function ReplyCardWithUpvote({
 								to={
 									courseId && reply.authorId
 										? getRouteUrl("/course/:courseId/participants/profile", {
-												params: {
-													courseId: courseId.toString(),
-												},
-												searchParams: {
-													userId: reply.authorId,
-												},
-											})
+											params: {
+												courseId: courseId.toString(),
+											},
+											searchParams: {
+												userId: reply.authorId,
+											},
+										})
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}
@@ -162,7 +162,7 @@ export function ReplyCardWithUpvote({
 									parentThread: threadId,
 								},
 								searchParams: {
-									replyTo: Number(reply.id),
+									replyTo: reply.id,
 								},
 							});
 							setQueryParams({ replyTo: null });

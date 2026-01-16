@@ -36,7 +36,7 @@ import {
 	useDeleteSubmission,
 	useReleaseGrade,
 } from "app/routes/course/module.$id.submissions/route";
-import { getRouteUrl } from "~/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { useState } from "react";
 
 

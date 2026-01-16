@@ -2,7 +2,7 @@ import { Button, Group, Paper, Stack, Text } from "@mantine/core";
 import { useCreateReply } from "../../route";
 import type { inferParserType } from "nuqs";
 import { loaderSearchParams } from "../../route";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useForm } from "@mantine/form";
 import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
 import { FormableSimpleRichTextEditor } from "app/components/form-components/formable-simple-rich-text-editor";

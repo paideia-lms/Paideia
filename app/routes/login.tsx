@@ -13,7 +13,7 @@ import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
@@ -21,9 +21,9 @@ import { tryGetUserCount, tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
-import { badRequest, InternalServerErrorResponse } from "~/utils/responses";
+import { badRequest, InternalServerErrorResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/login";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 

@@ -2,12 +2,12 @@ import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import { tryFindUserById } from "server/internal/user-management";
 import type { Route } from "./+types/user.$id.avatar";
-import { badRequest, notFound } from "app/utils/responses";
+import { badRequest, notFound } from "app/utils/router/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
 } from "~/utils/media-stream-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoader({});

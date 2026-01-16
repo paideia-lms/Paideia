@@ -39,9 +39,9 @@ import { type UserSession, userContextKey } from "server/contexts/user-context";
 import type { Media } from "server/payload-types";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useStopImpersonating } from "app/routes/api/stop-impersonation";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 const createLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -361,7 +361,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-													"Anonymous"
+												"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -407,8 +407,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-											// component={Link}
-											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

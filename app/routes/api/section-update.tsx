@@ -10,7 +10,7 @@ import {
 	ForbiddenResponse,
 	ok,
 	StatusCode,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/section-update";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
