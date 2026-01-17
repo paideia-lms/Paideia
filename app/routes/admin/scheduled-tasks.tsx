@@ -91,18 +91,7 @@ function getStatusBadge(status: string) {
 	}
 }
 
-function formatDateString(dateString: string | null): string {
-	if (!dateString) return "-";
-	try {
-		const date = new Date(dateString);
-		return new Intl.DateTimeFormat("en-US", {
-			dateStyle: "medium",
-			timeStyle: "medium",
-		}).format(date);
-	} catch {
-		return dateString;
-	}
-}
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 
 function getTaskName(taskSlug: string | null): string {
 	if (!taskSlug) return "Unknown";
@@ -150,14 +139,20 @@ export default function ScheduledTasksPage({
 				<Text size="sm">{task.queue || "-"}</Text>
 			</Table.Td>
 			<Table.Td>
-				<Text size="sm">{formatDateString(task.waitUntil)}</Text>
+				<Text size="sm">
+					{formatDateTimeForDisplay(task.waitUntil, { style: "medium" })}
+				</Text>
 			</Table.Td>
 			<Table.Td>{getStatusBadge(task.status)}</Table.Td>
 			<Table.Td>
-				<Text size="sm">{formatDateString(task.createdAt)}</Text>
+				<Text size="sm">
+					{formatDateTimeForDisplay(task.createdAt, { style: "medium" })}
+				</Text>
 			</Table.Td>
 			<Table.Td>
-				<Text size="sm">{formatDateString(task.completedAt)}</Text>
+				<Text size="sm">
+					{formatDateTimeForDisplay(task.completedAt, { style: "medium" })}
+				</Text>
 			</Table.Td>
 		</Table.Tr>
 	));

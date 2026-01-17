@@ -10,11 +10,12 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
+import { DateTimePicker } from "@mantine/dates";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { useId, useRef, useState, useEffect } from "react";
+import { useId, useRef, useState } from "react";
 import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
@@ -47,6 +48,16 @@ const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/course/:courseId/settings",
 });
 
+// Helper function to convert Date to ISO string or null
+const toISOStringOrNull = (
+	value: Date | string | null | undefined,
+): string | null => {
+	if (!value) return null;
+	if (value instanceof Date) return value.toISOString();
+	if (typeof value === "string") return value;
+	return null;
+};
+
 const updateCourseRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1, "Title is required").optional(),
@@ -62,6 +73,8 @@ const updateCourseRpc = createActionRpc({
 		description: z.string().min(1, "Description is required").optional(),
 		status: z.enum(["draft", "published", "archived"]).optional(),
 		category: z.coerce.number().nullish(),
+		startDate: z.coerce.date().nullish(),
+		endDate: z.coerce.date().nullish(),
 		redirectTo: z
 			.union([z.string(), z.null()])
 			.optional()
@@ -117,7 +130,11 @@ const updateCourseAction = updateCourseRpc.createAction(
 		const updateResult = await tryUpdateCourse({
 			payload,
 			courseId: Number(courseId),
-			data: formData,
+			data: {
+				...formData,
+				startDate: toISOStringOrNull(formData.startDate),
+				endDate: toISOStringOrNull(formData.endDate),
+			},
 			req: payloadRequest,
 			overrideAccess: false,
 		});
@@ -351,6 +368,8 @@ const useEditCourseForm = (
 			category: course.category?.id ?? null,
 			description: course.description,
 			thumbnail: null as File | null,
+			startDate: course.startDate ? new Date(course.startDate) : null,
+			endDate: course.endDate ? new Date(course.endDate) : null,
 		},
 		validate: {
 			title: (value) => (!value ? "Title is required" : null),
@@ -363,6 +382,18 @@ const useEditCourseForm = (
 			},
 			status: (value) => (!value ? "Status is required" : null),
 			description: (value) => (!value ? "Description is required" : null),
+			startDate: (value, values) => {
+				if (value && values.endDate && value >= values.endDate) {
+					return "Start date must be before end date";
+				}
+				return null;
+			},
+			endDate: (value, values) => {
+				if (value && values.startDate && value <= values.startDate) {
+					return "End date must be after start date";
+				}
+				return null;
+			},
 		},
 	});
 
@@ -474,6 +505,24 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 								{ value: "published", label: "Published" },
 								{ value: "archived", label: "Archived" },
 							]}
+						/>
+
+						<DateTimePicker
+							{...form.getInputProps("startDate")}
+							key={form.key("startDate")}
+							label="Start Date"
+							placeholder="Select start date and time"
+							clearable
+							description="When the course becomes active"
+						/>
+
+						<DateTimePicker
+							{...form.getInputProps("endDate")}
+							key={form.key("endDate")}
+							label="End Date"
+							placeholder="Select end date and time"
+							clearable
+							description="When the course ends"
 						/>
 
 						<Select

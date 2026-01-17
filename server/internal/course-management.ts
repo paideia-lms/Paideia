@@ -35,6 +35,8 @@ export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 		thumbnail?: number;
 		tags?: { tag?: string }[];
 		category?: number;
+		startDate?: string | null;
+		endDate?: string | null;
 	};
 }
 
@@ -116,6 +118,8 @@ export function tryCreateCourse(args: CreateCourseArgs) {
 							thumbnail,
 							tags,
 							category,
+							startDate: args.data.startDate ?? undefined,
+							endDate: args.data.endDate ?? undefined,
 						},
 						depth: 1,
 						req: txInfo.reqWithTransaction,
@@ -194,6 +198,8 @@ export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
 		thumbnail?: File | null;
 		tags?: { tag?: string }[];
 		category?: number | null;
+		startDate?: string | null;
+		endDate?: string | null;
 	};
 }
 export function tryUpdateCourse(args: UpdateCourseArgs) {
@@ -270,11 +276,16 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 
 			return updatedCourse;
 		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to update course with file", {
+		(error) => {
+			const transformed = transformError(error);
+			if (transformed) return transformed;
+			// Preserve original error message if available
+			const errorMessage =
+				error instanceof Error ? error.message : "Failed to update course";
+			return new UnknownError(errorMessage, {
 				cause: error,
-			}),
+			});
+		},
 	);
 }
 

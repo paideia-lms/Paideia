@@ -1,0 +1,172 @@
+name: Course Date Settings E2E Test
+description: Test the course start and end date settings functionality. This test ensures that date fields can be set, updated, and validated correctly in the course settings page.
+baseUrl: http://localhost:3000
+
+steps:
+  - name: Navigate to My Courses page
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+      - Create course button is visible
+
+  - name: Click Create Course button
+    action: click
+    target: Create course button (+ Create course)
+    verify:
+      - User is navigated to course creation form
+      - Create New Course form is visible
+
+  - name: Fill in course title
+    action: type
+    target: Title field
+    value: Course for Date Settings Test
+    verify:
+      - Title field is populated
+
+  - name: Fill in course slug
+    action: type
+    target: Slug field
+    value: course-for-date-settings-test
+    verify:
+      - Slug field is populated with valid format
+
+  - name: Fill in course description
+    action: type
+    target: Description field
+    value: A test course for testing date settings functionality.
+    verify:
+      - Description field is populated
+
+  - name: Select course status
+    action: select
+    target: Status dropdown
+    value: Draft
+    verify:
+      - Status is set to Draft
+
+  - name: Submit course creation form
+    action: click
+    target: Create Course button
+    verify:
+      - Form submission is successful
+      - User is redirected to course page
+
+  - name: Navigate to course settings page
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+
+  - name: Find and click on the test course
+    action: click
+    target: Course for Date Settings Test
+    verify:
+      - Course page loads successfully
+
+  - name: Navigate to course settings
+    action: click
+    target: Settings link or button
+    verify:
+      - Course settings page loads successfully
+      - Edit Course form is visible
+      - Start Date field is visible
+      - End Date field is visible
+
+  - name: Set course start date
+    action: type
+    target: Start Date field
+    value: 2025-02-01T09:00
+    verify:
+      - Start Date field is populated with the selected date
+
+  - name: Set course end date
+    action: type
+    target: End Date field
+    value: 2025-06-01T17:00
+    verify:
+      - End Date field is populated with the selected date
+      - End date is after start date (no validation error)
+
+  - name: Submit course update with dates
+    action: click
+    target: Update Course button
+    verify:
+      - Form submission is successful
+      - Success notification is shown
+      - User is redirected to course page
+
+  - name: Navigate back to course settings
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+
+  - name: Click on the test course again
+    action: click
+    target: Course for Date Settings Test
+    verify:
+      - Course page loads successfully
+
+  - name: Navigate to course settings again
+    action: click
+    target: Settings link or button
+    verify:
+      - Course settings page loads successfully
+      - Start Date field shows the previously set date
+      - End Date field shows the previously set date
+
+  - name: Clear start date
+    action: click
+    target: Start Date clear button
+    verify:
+      - Start Date field is cleared
+
+  - name: Update course with only end date
+    action: click
+    target: Update Course button
+    verify:
+      - Form submission is successful
+      - Course is updated with only end date
+
+  - name: Navigate back to course settings again
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+
+  - name: Click on the test course one more time
+    action: click
+    target: Course for Date Settings Test
+    verify:
+      - Course page loads successfully
+
+  - name: Navigate to course settings one more time
+    action: click
+    target: Settings link or button
+    verify:
+      - Course settings page loads successfully
+      - Start Date field is empty
+      - End Date field shows the previously set date
+
+  - name: Set invalid date range (end before start)
+    action: type
+    target: Start Date field
+    value: 2025-06-01T09:00
+    verify:
+      - Start Date field is populated
+
+  - name: Set end date before start date
+    action: type
+    target: End Date field
+    value: 2025-02-01T17:00
+    verify:
+      - End Date field is populated
+      - Validation error appears indicating end date must be after start date
+
+  - name: Attempt to submit invalid date range
+    action: click
+    target: Update Course button
+    verify:
+      - Form submission is prevented or shows validation error
+      - Error message about date validation is displayed

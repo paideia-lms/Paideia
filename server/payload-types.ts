@@ -297,6 +297,8 @@ export interface Course {
   description: string;
   descriptionMedia?: (number | Media)[] | null;
   status: 'draft' | 'published' | 'archived';
+  startDate?: string | null;
+  endDate?: string | null;
   thumbnail?: (number | null) | Media;
   tags?:
     | {
@@ -1321,6 +1323,8 @@ export interface CoursesSelect<T extends boolean = true> {
   description?: T;
   descriptionMedia?: T;
   status?: T;
+  startDate?: T;
+  endDate?: T;
   thumbnail?: T;
   tags?:
     | T

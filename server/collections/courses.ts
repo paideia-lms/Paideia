@@ -1,4 +1,5 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
+import { ValidationError } from "app/utils/error";
 import { richTextContent } from "./utils/rich-text-content";
 
 // Courses collection - core LMS content
@@ -12,7 +13,7 @@ export const Courses = {
 			// only admin and content manager can create a course
 			return req.user.role === "admin" || req.user.role === "content-manager";
 		},
-		read: ({ req }) => {
+		read: () => {
 			// any one can read any course
 			return true;
 		},
@@ -65,6 +66,26 @@ export const Courses = {
 			],
 			defaultValue: "draft",
 			required: true,
+		},
+		{
+			name: "startDate",
+			type: "date",
+			label: "Start Date",
+			admin: {
+				date: {
+					pickerAppearance: "dayAndTime",
+				},
+			},
+		},
+		{
+			name: "endDate",
+			type: "date",
+			label: "End Date",
+			admin: {
+				date: {
+					pickerAppearance: "dayAndTime",
+				},
+			},
 		},
 		{
 			name: "thumbnail",
@@ -126,4 +147,28 @@ export const Courses = {
 			maxDepth: 2,
 		},
 	],
+	hooks: {
+		beforeValidate: [
+			async ({ data, operation }) => {
+				// Only validate on create/update operations
+				if (operation !== "create" && operation !== "update") {
+					return data;
+				}
+
+				// Validate that endDate is after startDate if both are provided
+				if (data?.startDate && data?.endDate) {
+					const startDate = new Date(data.startDate);
+					const endDate = new Date(data.endDate);
+
+					if (endDate <= startDate) {
+						throw new ValidationError(
+							"End date must be after start date",
+						);
+					}
+				}
+
+				return data;
+			},
+		],
+	},
 } as const satisfies CollectionConfig;

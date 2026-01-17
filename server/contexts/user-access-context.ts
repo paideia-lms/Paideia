@@ -25,6 +25,8 @@ type Course = {
 	createdAt: string;
 	updatedAt: string;
 	category?: number | null;
+	startDate?: string | null;
+	endDate?: string | null;
 };
 
 type ActivityModule = {
@@ -98,6 +100,8 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 			updatedAt: enrollment.course.updatedAt,
 			category: enrollment.course.category ?? null,
 			thumbnail: enrollment.course.thumbnail ?? null,
+			startDate: enrollment.course.startDate ?? null,
+			endDate: enrollment.course.endDate ?? null,
 		},
 	})) satisfies Enrollment[];
 

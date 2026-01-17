@@ -152,6 +152,131 @@ describe("Course Management Functions", () => {
 
 			expect(result.ok).toBe(false);
 		});
+
+		test("should create course with startDate and endDate", async () => {
+			const startDate = new Date("2025-02-01T00:00:00Z").toISOString();
+			const endDate = new Date("2025-06-01T00:00:00Z").toISOString();
+
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course with Dates",
+					description: "Course with start and end dates",
+					createdBy: instructor.id,
+					slug: "course-with-dates",
+					startDate,
+					endDate,
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.startDate).toBe(startDate);
+				expect(result.value.endDate).toBe(endDate);
+			}
+		});
+
+		test("should create course with only startDate", async () => {
+			const startDate = new Date("2025-02-01T00:00:00Z").toISOString();
+
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course with Start Date",
+					description: "Course with only start date",
+					createdBy: instructor.id,
+					slug: "course-with-start-date",
+					startDate,
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.startDate).toBe(startDate);
+				expect(result.value.endDate).toBeNull();
+			}
+		});
+
+		test("should create course with only endDate", async () => {
+			const endDate = new Date("2025-06-01T00:00:00Z").toISOString();
+
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course with End Date",
+					description: "Course with only end date",
+					createdBy: instructor.id,
+					slug: "course-with-end-date",
+					endDate,
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.startDate).toBeNull();
+				expect(result.value.endDate).toBe(endDate);
+			}
+		});
+
+		test("should create course without dates (backward compatibility)", async () => {
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course without Dates",
+					description: "Course without any dates",
+					createdBy: instructor.id,
+					slug: "course-without-dates",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.startDate).toBeNull();
+				expect(result.value.endDate).toBeNull();
+			}
+		});
+
+		test("should fail when endDate is before startDate", async () => {
+			const startDate = new Date("2025-06-01T00:00:00Z").toISOString();
+			const endDate = new Date("2025-02-01T00:00:00Z").toISOString();
+
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Invalid Date Course",
+					description: "Course with invalid date range",
+					createdBy: instructor.id,
+					slug: "invalid-date-course",
+					startDate,
+					endDate,
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.message).toContain("End date must be after start date");
+			}
+		});
 	});
 
 	describe("tryUpdateCourse", () => {
@@ -634,6 +759,129 @@ describe("Course Management Functions", () => {
 			expect(findResult.ok).toBe(true);
 			if (findResult.ok) {
 				expect(findResult.value.category?.id).toBe(catResult.value.id);
+			}
+		});
+
+		test("should update course with startDate and endDate", async () => {
+			// First create a course
+			const createArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course to Update Dates",
+					description: "Original description",
+					createdBy: instructor.id,
+					slug: "course-to-update-dates",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateCourse(createArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) throw new Error("Failed to create course");
+
+			const startDate = new Date("2025-02-01T00:00:00Z").toISOString();
+			const endDate = new Date("2025-06-01T00:00:00Z").toISOString();
+
+			const updateResult = await tryUpdateCourse({
+				payload,
+				courseId: createResult.value.id,
+				data: {
+					startDate,
+					endDate,
+				},
+				req: {
+					user: instructor as TypedUser,
+				},
+				overrideAccess: true,
+			});
+
+			expect(updateResult.ok).toBe(true);
+			if (!updateResult.ok) throw new Error("Failed to update course dates");
+			expect(updateResult.value.startDate).toBe(startDate);
+			expect(updateResult.value.endDate).toBe(endDate);
+		});
+
+		test("should update course to remove dates", async () => {
+			// First create a course with dates
+			const startDate = new Date("2025-02-01T00:00:00Z").toISOString();
+			const endDate = new Date("2025-06-01T00:00:00Z").toISOString();
+
+			const createArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course with Dates to Remove",
+					description: "Original description",
+					createdBy: instructor.id,
+					slug: "course-with-dates-to-remove",
+					startDate,
+					endDate,
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateCourse(createArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) throw new Error("Failed to create course");
+
+			// Update to remove dates
+			const updateResult = await tryUpdateCourse({
+				payload,
+				courseId: createResult.value.id,
+				data: {
+					startDate: null,
+					endDate: null,
+				},
+				req: {
+					user: instructor as TypedUser,
+				},
+				overrideAccess: true,
+			});
+
+			expect(updateResult.ok).toBe(true);
+			if (!updateResult.ok) throw new Error("Failed to update course dates");
+			expect(updateResult.value.startDate).toBeNull();
+			expect(updateResult.value.endDate).toBeNull();
+		});
+
+		test("should fail to update course when endDate is before startDate", async () => {
+			// First create a course
+			const createArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course for Invalid Date Update",
+					description: "Original description",
+					createdBy: instructor.id,
+					slug: "course-for-invalid-date-update",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateCourse(createArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) throw new Error("Failed to create course");
+
+			const startDate = new Date("2025-06-01T00:00:00Z").toISOString();
+			const endDate = new Date("2025-02-01T00:00:00Z").toISOString();
+
+			const updateResult = await tryUpdateCourse({
+				payload,
+				courseId: createResult.value.id,
+				data: {
+					startDate,
+					endDate,
+				},
+				req: {
+					user: instructor as TypedUser,
+				},
+				overrideAccess: true,
+			});
+
+			expect(updateResult.ok).toBe(false);
+			if (!updateResult.ok) {
+				expect(updateResult.error.message).toContain("End date must be after start date");
 			}
 		});
 	});

@@ -16,6 +16,7 @@ import {
 	Title,
 } from "@mantine/core";
 import {
+	IconCalendar,
 	IconLayoutGrid,
 	IconList,
 	IconPlus,
@@ -24,6 +25,7 @@ import {
 import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "app/utils/router/responses";
@@ -90,6 +92,31 @@ function CourseCardGrid({ courses }: CourseCardGridProps) {
 									{course.title}
 								</Text>
 
+								{(course.startDate || course.endDate) && (
+									<Stack gap={4}>
+										{course.startDate && (
+											<Group gap={4}>
+												<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+												<Text size="xs" c="dimmed">
+													Start: {formatDateTimeForDisplay(course.startDate, {
+														style: "dayjs",
+													})}
+												</Text>
+											</Group>
+										)}
+										{course.endDate && (
+											<Group gap={4}>
+												<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+												<Text size="xs" c="dimmed">
+													End: {formatDateTimeForDisplay(course.endDate, {
+														style: "dayjs",
+													})}
+												</Text>
+											</Group>
+										)}
+									</Stack>
+								)}
+
 								{course.enrollmentStatus && (
 									<Badge
 										size="sm"
@@ -128,6 +155,7 @@ function CourseTable({ courses, onCourseClick }: CourseTableProps) {
 			<Table.Thead>
 				<Table.Tr>
 					<Table.Th>Title</Table.Th>
+					<Table.Th>Dates</Table.Th>
 					<Table.Th>Status</Table.Th>
 					<Table.Th>Completion</Table.Th>
 				</Table.Tr>
@@ -141,6 +169,34 @@ function CourseTable({ courses, onCourseClick }: CourseTableProps) {
 					>
 						<Table.Td>
 							<Text fw={500}>{course.title}</Text>
+						</Table.Td>
+						<Table.Td>
+							{course.startDate || course.endDate ? (
+								<Stack gap={2}>
+									{course.startDate && (
+										<Group gap={4}>
+											<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+											<Text size="sm" c="dimmed">
+												Start: {formatDateTimeForDisplay(course.startDate, {
+													style: "dayjs",
+												})}
+											</Text>
+										</Group>
+									)}
+									{course.endDate && (
+										<Group gap={4}>
+											<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+											<Text size="sm" c="dimmed">
+												End: {formatDateTimeForDisplay(course.endDate, {
+													style: "dayjs",
+												})}
+											</Text>
+										</Group>
+									)}
+								</Stack>
+							) : (
+								<Text c="dimmed">-</Text>
+							)}
 						</Table.Td>
 						<Table.Td>
 							{course.enrollmentStatus ? (

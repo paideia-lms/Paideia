@@ -1,4 +1,9 @@
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 /**
  * Formats a date in the specified timezone as YYYY-MM-DD.
@@ -21,6 +26,54 @@ export function formatDateInTimeZone(date: string | Date, tz?: string): string {
 	}
 	// Otherwise use dayjs which will use local timezone
 	return dayjs(dateObj).format("YYYY-MM-DD");
+}
+
+/**
+ * Formats a date and time for display.
+ * Returns a user-friendly date-time string.
+ *
+ * @param dateString - Date string, Date object, or null/undefined to format
+ * @param options - Optional formatting options
+ * @param options.timeZone - Optional timezone string (e.g., "America/Vancouver")
+ * @param options.includeWeekday - Whether to include weekday (e.g., "Mon, Jan 01, 2025 9:00 AM")
+ * @param options.style - Format style: "medium" (default) uses Intl.DateTimeFormat, "dayjs" uses dayjs formatting
+ * @returns Formatted date string or "-" if date is null/undefined
+ */
+export function formatDateTimeForDisplay(
+	dateString: string | Date | null | undefined,
+	options?: {
+		timeZone?: string;
+		includeWeekday?: boolean;
+		style?: "medium" | "dayjs";
+	},
+): string {
+	if (!dateString) return "-";
+
+	const { timeZone, includeWeekday = false, style = "medium" } = options || {};
+
+	try {
+		if (style === "medium") {
+			// Use Intl.DateTimeFormat for consistent medium style formatting
+			const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+			return new Intl.DateTimeFormat("en-US", {
+				dateStyle: "medium",
+				timeStyle: "medium",
+				timeZone,
+			}).format(date);
+		}
+
+		// Use dayjs for custom formatting
+		const formatted = timeZone
+			? dayjs(dateString).tz(timeZone)
+			: dayjs(dateString);
+
+		if (includeWeekday) {
+			return formatted.format("ddd, MMM DD, YYYY h:mm A");
+		}
+		return formatted.format("MMM DD, YYYY h:mm A");
+	} catch {
+		return typeof dateString === "string" ? dateString : "-";
+	}
 }
 
 /**

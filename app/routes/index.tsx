@@ -50,6 +50,7 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -194,6 +195,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 			completionPercentage: 65,
 			thumbnailUrl: null,
 			schedule: "Monday and Wednesday, 10:00 AM - 12:00 PM",
+			startDate: null as string | null,
+			endDate: null as string | null,
 		},
 		{
 			id: 2,
@@ -206,6 +209,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 			completionPercentage: 45,
 			thumbnailUrl: null,
 			schedule: "Tuesday and Thursday, 2:00 PM - 4:00 PM",
+			startDate: null as string | null,
+			endDate: null as string | null,
 		},
 		{
 			id: 3,
@@ -218,6 +223,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 			completionPercentage: 80,
 			thumbnailUrl: null,
 			schedule: "Monday, Wednesday, and Friday, 9:00 AM - 10:00 AM",
+			startDate: null as string | null,
+			endDate: null as string | null,
 		},
 		{
 			id: 4,
@@ -230,6 +237,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 			completionPercentage: 100,
 			thumbnailUrl: null,
 			schedule: "Tuesday and Thursday, 10:00 AM - 12:00 PM",
+			startDate: null as string | null,
+			endDate: null as string | null,
 		},
 	];
 
@@ -1348,6 +1357,36 @@ function AuthenticatedDashboard({
 											<Text fw={500} lineClamp={2}>
 												{course.title}
 											</Text>
+											{(course.startDate || course.endDate) && (
+												<Stack gap={4}>
+													{course.startDate && (
+														<Group gap={4}>
+															<IconCalendar
+																size={14}
+																color="var(--mantine-color-dimmed)"
+															/>
+															<Text size="xs" c="dimmed" lineClamp={1}>
+																Start: {formatDateTimeForDisplay(course.startDate, {
+																	style: "dayjs",
+																})}
+															</Text>
+														</Group>
+													)}
+													{course.endDate && (
+														<Group gap={4}>
+															<IconCalendar
+																size={14}
+																color="var(--mantine-color-dimmed)"
+															/>
+															<Text size="xs" c="dimmed" lineClamp={1}>
+																End: {formatDateTimeForDisplay(course.endDate, {
+																	style: "dayjs",
+																})}
+															</Text>
+														</Group>
+													)}
+												</Stack>
+											)}
 											{course.schedule && (
 												<Group gap={4}>
 													<IconClock

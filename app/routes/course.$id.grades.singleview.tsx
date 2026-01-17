@@ -16,9 +16,7 @@ import {
 } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import dayjs from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { parseAsInteger } from "nuqs";
 import { useState } from "react";
 import { href, Link } from "react-router";
@@ -35,9 +33,6 @@ import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 
 type GradebookSetupItem =
 	Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 const defaultSingleUserGradesResult = {
 	json: null,
@@ -209,20 +204,6 @@ const getStatusLabel = (status: string) => {
 	}
 };
 
-const formatDate = (
-	dateString: string | null | undefined,
-	timeZone?: string,
-) => {
-	if (!dateString) return "-";
-	try {
-		if (timeZone) {
-			return dayjs(dateString).tz(timeZone).format("MMM DD, YYYY h:mm A");
-		}
-		return dayjs(dateString).format("MMM DD, YYYY h:mm A");
-	} catch {
-		return dateString;
-	}
-};
 
 type GradeItemWithData = GradebookSetupItem & {
 	gradeData?: {
@@ -416,7 +397,12 @@ function GradeItemRow({
 							-
 						</Text>
 					) : (
-						<Text size="sm">{formatDate(gradeData.graded_at, timeZone)}</Text>
+						<Text size="sm">
+							{formatDateTimeForDisplay(gradeData.graded_at, {
+								timeZone,
+								style: "dayjs",
+							})}
+						</Text>
 					)}
 				</Table.Td>
 				<Table.Td>
@@ -426,7 +412,10 @@ function GradeItemRow({
 						</Text>
 					) : (
 						<Text size="sm">
-							{formatDate(gradeData.submitted_at, timeZone)}
+							{formatDateTimeForDisplay(gradeData.submitted_at, {
+								timeZone,
+								style: "dayjs",
+							})}
 						</Text>
 					)}
 				</Table.Td>
