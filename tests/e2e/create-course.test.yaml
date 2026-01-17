@@ -1,0 +1,60 @@
+name: Create Course E2E Test
+description: Test the complete course creation flow from navigation to course creation confirmation. This test ensures the course creation flow is not broken when code changes.
+baseUrl: http://localhost:3000
+
+steps:
+  - name: Navigate to My Courses page
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+      - Create course button is visible
+
+  - name: Click Create Course button
+    action: click
+    target: Create course button (+ Create course)
+    verify:
+      - User is navigated to course creation form
+      - Create New Course form is visible
+
+  - name: Fill in course title
+    action: type
+    target: Title field
+    value: Advanced Data Structures and Algorithms
+    verify:
+      - Title field is populated
+
+  - name: Fill in course slug
+    action: type
+    target: Slug field
+    value: advanced-data-structures-algorithms
+    verify:
+      - Slug field is populated with valid format (lowercase, numbers, hyphens)
+
+  - name: Fill in course description
+    action: type
+    target: Description field
+    value: An advanced course covering complex data structures and algorithmic problem-solving techniques.
+    verify:
+      - Description field is populated
+
+  - name: Select course status
+    action: select
+    target: Status dropdown
+    value: Draft
+    verify:
+      - Status is set to Draft (or selected value)
+
+  - name: Submit course creation form
+    action: click
+    target: Create Course button
+    verify:
+      - Form submission is successful
+      - User is redirected away from creation form
+
+  - name: Verify course was created
+    action: verify
+    verify:
+      - User is redirected to course page or course list
+      - New course appears in the course list or course details page is visible
+      - Course title is visible on the page

@@ -65,6 +65,8 @@ if you really want a completely isolated test, you should always create a new ro
 
 when we need to test result ok and then do type narrowing, we should use `expect(result.ok).toBe(true); if (!result.ok) {` pattern for early return so we don't need to have nested if statements. 
 
+for UI e2e testing, we should use AI agent to test browser. you should write test in `tests/e2e`. see `tests/e2e/login.test.yaml` for example. It use `describe`, `it`, `expect` and `beforeEach`, `AfterEach`, `Before`, `After` to write the test. we don't need to be very rigorous because the UI might change.
+
 ## error handling
 
 we **should not** use try catch, especially not in internal functions which we use typescript result, it will be confusing and hard to manage. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.

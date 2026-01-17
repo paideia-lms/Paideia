@@ -46,7 +46,6 @@ import {
 	tryUpdatePageInfo,
 	tryUpdateQuestion,
 	tryUpdateQuestionScoring,
-	tryUpdateQuizInfo,
 	tryUpdateQuizResource,
 	tryUpdateMultipleChoiceQuestion,
 	tryUpdateChoiceQuestion,
@@ -57,7 +56,6 @@ import {
 	tryUpdateSingleSelectionMatrixQuestion,
 	tryUpdateMultipleSelectionMatrixQuestion,
 } from "server/internal/quiz-module-management";
-import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";

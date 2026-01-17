@@ -24,7 +24,6 @@ import {
 } from "./utils/internal-function-utils";
 import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
 import { tryCreateMedia } from "./media-management";
-import { href } from "react-router";
 
 export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -177,9 +176,12 @@ export function tryCreateCourse(args: CreateCourseArgs) {
 		},
 		(error) =>
 			transformError(error) ??
-			new UnknownError("Failed to create course", {
-				cause: error,
-			}),
+			new UnknownError(
+				error instanceof Error ? error.message : "Failed to create course",
+				{
+					cause: error,
+				},
+			),
 	);
 }
 
