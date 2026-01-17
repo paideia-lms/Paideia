@@ -18,8 +18,8 @@ import {
   serial,
   boolean,
   numeric,
-  type AnyPgColumn,
   jsonb,
+  type AnyPgColumn,
   pgEnum,
 } from "@payloadcms/db-postgres/drizzle/pg-core";
 import { sql, relations } from "@payloadcms/db-postgres/drizzle";
@@ -248,6 +248,7 @@ export const courses = pgTable(
     slug: varchar("slug").notNull(),
     description: varchar("description").notNull(),
     status: enum_courses_status("status").notNull().default("draft"),
+    schedule: jsonb("schedule"),
     thumbnail: integer("thumbnail_id").references(() => media.id, {
       onDelete: "set null",
     }),

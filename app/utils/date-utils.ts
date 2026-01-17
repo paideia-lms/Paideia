@@ -54,7 +54,8 @@ export function formatDateTimeForDisplay(
 	try {
 		if (style === "medium") {
 			// Use Intl.DateTimeFormat for consistent medium style formatting
-			const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+			const date =
+				typeof dateString === "string" ? new Date(dateString) : dateString;
 			return new Intl.DateTimeFormat("en-US", {
 				dateStyle: "medium",
 				timeStyle: "medium",

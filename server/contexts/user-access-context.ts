@@ -10,47 +10,43 @@ import { tryGetUserActivityModules } from "server/internal/activity-module-manag
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
-import type {
-	ActivityModule as PayloadActivityModule,
-	Course as PayloadCourse,
-	Enrollment as PayloadEnrollment,
-} from "server/payload-types";
 
-type Course = {
-	id: number;
-	title: string;
-	slug: string;
-	status: PayloadCourse["status"];
-	description: string;
-	createdAt: string;
-	updatedAt: string;
-	category?: number | null;
-	startDate?: string | null;
-	endDate?: string | null;
-};
+// type Course = {
+// 	id: number;
+// 	title: string;
+// 	slug: string;
+// 	status: PayloadCourse["status"];
+// 	description: string;
+// 	createdAt: string;
+// 	updatedAt: string;
+// 	category?: number | null;
+// 	startDate?: string | null;
+// 	endDate?: string | null;
+// 	schedule?: unknown;
+// };
 
-type ActivityModule = {
-	id: number;
-	title: string;
-	description: string;
-	createdAt: string;
-	updatedAt: string;
-	type: PayloadActivityModule["type"];
-	linkedCourses: number[];
-	accessType: "owned" | "granted" | "readonly";
-};
+// type ActivityModule = {
+// 	id: number;
+// 	title: string;
+// 	description: string;
+// 	createdAt: string;
+// 	updatedAt: string;
+// 	type: PayloadActivityModule["type"];
+// 	linkedCourses: number[];
+// 	accessType: "owned" | "granted" | "readonly";
+// };
 
-/**
- * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
- */
-export type Enrollment = {
-	id: number;
-	role: PayloadEnrollment["role"];
-	status: PayloadEnrollment["status"];
-	enrolledAt?: string | null;
-	completedAt?: string | null;
-	course: Course;
-};
+// /**
+//  * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
+//  */
+// export type Enrollment = {
+// 	id: number;
+// 	role: PayloadEnrollment["role"];
+// 	status: PayloadEnrollment["status"];
+// 	enrolledAt?: string | null;
+// 	completedAt?: string | null;
+// 	course: Course;
+// };
 
 // export interface UserAccessContext {
 // 	activityModules: ActivityModule[];
@@ -100,10 +96,30 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 			updatedAt: enrollment.course.updatedAt,
 			category: enrollment.course.category ?? null,
 			thumbnail: enrollment.course.thumbnail ?? null,
-			startDate: enrollment.course.startDate ?? null,
-			endDate: enrollment.course.endDate ?? null,
+			recurringSchedules:
+				(
+					enrollment.course as unknown as {
+						recurringSchedules?: Array<{
+							daysOfWeek?: Array<{ day?: number }>;
+							startTime?: string;
+							endTime?: string;
+							startDate?: string | Date;
+							endDate?: string | Date;
+						}>;
+					}
+				).recurringSchedules ?? null,
+			specificDates:
+				(
+					enrollment.course as unknown as {
+						specificDates?: Array<{
+							date?: string | Date;
+							startTime?: string;
+							endTime?: string;
+						}>;
+					}
+				).specificDates ?? null,
 		},
-	})) satisfies Enrollment[];
+	}));
 
 	const activityModules = [
 		...modulesOwnedOrGranted.map((module) => ({
@@ -127,7 +143,7 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 			linkedCourses: module.linkedCourses.map((c) => c.id),
 			accessType: "readonly" as const,
 		})),
-	] satisfies ActivityModule[];
+	];
 
 	// Fetch notes and heatmap data
 	const heatmapResult = await tryGenerateNoteHeatmap({

@@ -33,6 +33,7 @@ import type { Route } from "./+types/course";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
+	formatSchedule,
 } from "app/utils/course-view-utils";
 
 export type { Route };
@@ -92,29 +93,13 @@ function CourseCardGrid({ courses }: CourseCardGridProps) {
 									{course.title}
 								</Text>
 
-								{(course.startDate || course.endDate) && (
-									<Stack gap={4}>
-										{course.startDate && (
-											<Group gap={4}>
-												<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
-												<Text size="xs" c="dimmed">
-													Start: {formatDateTimeForDisplay(course.startDate, {
-														style: "dayjs",
-													})}
-												</Text>
-											</Group>
-										)}
-										{course.endDate && (
-											<Group gap={4}>
-												<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
-												<Text size="xs" c="dimmed">
-													End: {formatDateTimeForDisplay(course.endDate, {
-														style: "dayjs",
-													})}
-												</Text>
-											</Group>
-										)}
-									</Stack>
+								{formatSchedule(course as any) && (
+									<Group gap={4}>
+										<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+										<Text size="xs" c="dimmed" lineClamp={2}>
+											{formatSchedule(course as any)}
+										</Text>
+									</Group>
 								)}
 
 								{course.enrollmentStatus && (
@@ -171,29 +156,13 @@ function CourseTable({ courses, onCourseClick }: CourseTableProps) {
 							<Text fw={500}>{course.title}</Text>
 						</Table.Td>
 						<Table.Td>
-							{course.startDate || course.endDate ? (
-								<Stack gap={2}>
-									{course.startDate && (
-										<Group gap={4}>
-											<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
-											<Text size="sm" c="dimmed">
-												Start: {formatDateTimeForDisplay(course.startDate, {
-													style: "dayjs",
-												})}
-											</Text>
-										</Group>
-									)}
-									{course.endDate && (
-										<Group gap={4}>
-											<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
-											<Text size="sm" c="dimmed">
-												End: {formatDateTimeForDisplay(course.endDate, {
-													style: "dayjs",
-												})}
-											</Text>
-										</Group>
-									)}
-								</Stack>
+							{formatSchedule(course as any) ? (
+								<Group gap={4}>
+									<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+									<Text size="sm" c="dimmed" lineClamp={2}>
+										{formatSchedule(course as any)}
+									</Text>
+								</Group>
 							) : (
 								<Text c="dimmed">-</Text>
 							)}
@@ -264,8 +233,38 @@ export const loader = createRouteLoader()(async ({ context }) => {
 				mediaId: enrollment.course.thumbnail.toString(),
 			})
 			: null;
+
+		// Transform schedule data to match CourseScheduleV1 structure
+		const schedule = {
+			version: "v1",
+			recurring:
+				enrollment.course.recurringSchedules?.map((item) => ({
+					daysOfWeek:
+						item.daysOfWeek
+							?.map((d) => d.day)
+							.filter((d): d is number => d != null) ?? [],
+					startTime: item.startTime ?? "00:00",
+					endTime: item.endTime ?? "00:00",
+					startDate: item.startDate
+						? new Date(item.startDate).toISOString().split("T")[0]
+						: undefined,
+					endDate: item.endDate
+						? new Date(item.endDate).toISOString().split("T")[0]
+						: undefined,
+				})) ?? [],
+			specificDates:
+				enrollment.course.specificDates?.map((item) => ({
+					date: item.date
+						? new Date(item.date).toISOString().split("T")[0]
+						: "",
+					startTime: item.startTime ?? "00:00",
+					endTime: item.endTime ?? "00:00",
+				})) ?? [],
+		};
+
 		return {
 			...enrollment.course,
+			schedule,
 			enrollmentStatus: enrollment.status,
 			completionPercentage: enrollment.status === "completed" ? 100 : 0,
 			createdBy: 0, // We don't have this info in the enrollment data

@@ -24,6 +24,10 @@ import {
 } from "./utils/internal-function-utils";
 import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
 import { tryCreateMedia } from "./media-management";
+import type {
+	RecurringScheduleItem,
+	SpecificDateItem,
+} from "../utils/schedule-types";
 
 export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -35,8 +39,6 @@ export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 		thumbnail?: number;
 		tags?: { tag?: string }[];
 		category?: number;
-		startDate?: string | null;
-		endDate?: string | null;
 	};
 }
 
@@ -118,8 +120,6 @@ export function tryCreateCourse(args: CreateCourseArgs) {
 							thumbnail,
 							tags,
 							category,
-							startDate: args.data.startDate ?? undefined,
-							endDate: args.data.endDate ?? undefined,
 						},
 						depth: 1,
 						req: txInfo.reqWithTransaction,
@@ -198,8 +198,6 @@ export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
 		thumbnail?: File | null;
 		tags?: { tag?: string }[];
 		category?: number | null;
-		startDate?: string | null;
-		endDate?: string | null;
 	};
 }
 export function tryUpdateCourse(args: UpdateCourseArgs) {
@@ -215,7 +213,7 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 
 			// Check if course exists
 			const existingCourse = await payload.findByID({
-				collection: "courses",
+				collection: Courses.slug,
 				id: courseId,
 				req,
 				overrideAccess,
@@ -282,6 +280,371 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 			// Preserve original error message if available
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to update course";
+			return new UnknownError(errorMessage, {
+				cause: error,
+			});
+		},
+	);
+}
+
+// ============================================================================
+// SCHEDULE MANAGEMENT FUNCTIONS
+// ============================================================================
+
+export interface AddRecurringScheduleArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	data: RecurringScheduleItem;
+}
+
+export interface AddSpecificDateArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	data: SpecificDateItem;
+}
+
+export interface RemoveRecurringScheduleArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	index: number;
+}
+
+export interface RemoveSpecificDateArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	index: number;
+}
+
+/**
+ * Adds a recurring schedule item to a course
+ */
+export function tryAddRecurringSchedule(args: AddRecurringScheduleArgs) {
+	return Result.try(
+		async () => {
+			const { payload, courseId, data, req, overrideAccess = false } = args;
+
+			// Check if course exists
+			const existingCourse = await payload.findByID({
+				collection: Courses.slug,
+				id: courseId,
+				req,
+				overrideAccess,
+			});
+
+			if (!existingCourse) {
+				throw new Error(`Course with ID ${courseId} not found`);
+			}
+
+			// Validate time range
+			if (data.startTime >= data.endTime) {
+				throw new InvalidArgumentError(
+					"End time must be later than start time",
+				);
+			}
+
+			// Validate date range if both are provided
+			if (data.startDate && data.endDate) {
+				const startDate = new Date(data.startDate);
+				const endDate = new Date(data.endDate);
+				if (endDate < startDate) {
+					throw new InvalidArgumentError(
+						"End date must be later than or equal to start date",
+					);
+				}
+			}
+
+			// Get current recurring schedules
+			const courseData = existingCourse as unknown as {
+				recurringSchedules?: Array<{
+					daysOfWeek?: Array<{ day?: number }>;
+					startTime?: string;
+					endTime?: string;
+					startDate?: string | Date;
+					endDate?: string | Date;
+				}>;
+			};
+			const currentRecurring = courseData.recurringSchedules ?? [];
+
+			// Convert RecurringScheduleItem to Payload array format
+			const newItem = {
+				daysOfWeek: data.daysOfWeek.map((day) => ({ day })),
+				startTime: data.startTime,
+				endTime: data.endTime,
+				startDate: data.startDate ? new Date(data.startDate) : undefined,
+				endDate: data.endDate ? new Date(data.endDate) : undefined,
+			};
+
+			// Add the new item
+			const updatedRecurring = [...currentRecurring, newItem];
+
+			// Update the course
+			const updatedCourse = await payload
+				.update({
+					collection: Courses.slug,
+					id: courseId,
+					data: {
+						recurringSchedules: updatedRecurring,
+					} as any,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryAddRecurringSchedule",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
+
+			return updatedCourse;
+		},
+		(error) => {
+			const transformed = transformError(error);
+			if (transformed) return transformed;
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: "Failed to add recurring schedule";
+			return new UnknownError(errorMessage, {
+				cause: error,
+			});
+		},
+	);
+}
+
+/**
+ * Adds a specific date schedule item to a course
+ */
+export function tryAddSpecificDate(args: AddSpecificDateArgs) {
+	return Result.try(
+		async () => {
+			const { payload, courseId, data, req, overrideAccess = false } = args;
+
+			// Check if course exists
+			const existingCourse = await payload.findByID({
+				collection: Courses.slug,
+				id: courseId,
+				req,
+				overrideAccess,
+			});
+
+			if (!existingCourse) {
+				throw new Error(`Course with ID ${courseId} not found`);
+			}
+
+			// Validate time range
+			if (data.startTime >= data.endTime) {
+				throw new InvalidArgumentError(
+					"End time must be later than start time",
+				);
+			}
+
+			// Get current specific dates
+			const courseData = existingCourse as unknown as {
+				specificDates?: Array<{
+					date?: string | Date;
+					startTime?: string;
+					endTime?: string;
+				}>;
+			};
+			const currentSpecific = courseData.specificDates ?? [];
+
+			// Convert SpecificDateItem to Payload array format
+			const newItem = {
+				date: new Date(data.date),
+				startTime: data.startTime,
+				endTime: data.endTime,
+			};
+
+			// Add the new item
+			const updatedSpecific = [...currentSpecific, newItem];
+
+			// Update the course
+			const updatedCourse = await payload
+				.update({
+					collection: Courses.slug,
+					id: courseId,
+					data: {
+						specificDates: updatedSpecific,
+					} as any,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryAddSpecificDate",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
+
+			return updatedCourse;
+		},
+		(error) => {
+			const transformed = transformError(error);
+			if (transformed) return transformed;
+			const errorMessage =
+				error instanceof Error ? error.message : "Failed to add specific date";
+			return new UnknownError(errorMessage, {
+				cause: error,
+			});
+		},
+	);
+}
+
+/**
+ * Removes a recurring schedule item from a course by index
+ */
+export function tryRemoveRecurringSchedule(args: RemoveRecurringScheduleArgs) {
+	return Result.try(
+		async () => {
+			const { payload, courseId, index, req, overrideAccess = false } = args;
+
+			// Check if course exists
+			const existingCourse = await payload.findByID({
+				collection: Courses.slug,
+				id: courseId,
+				req,
+				overrideAccess,
+			});
+
+			if (!existingCourse) {
+				throw new Error(`Course with ID ${courseId} not found`);
+			}
+
+			// Get current recurring schedules
+			const courseData = existingCourse as unknown as {
+				recurringSchedules?: Array<{
+					daysOfWeek?: Array<{ day?: number }>;
+					startTime?: string;
+					endTime?: string;
+					startDate?: string | Date;
+					endDate?: string | Date;
+				}>;
+			};
+			const currentRecurring = courseData.recurringSchedules ?? [];
+
+			// Validate index
+			if (index < 0 || index >= currentRecurring.length) {
+				throw new InvalidArgumentError(
+					`Invalid index ${index}. Recurring schedules array has ${currentRecurring.length} items.`,
+				);
+			}
+
+			// Remove the item at the specified index
+			const updatedRecurring = currentRecurring.filter((_, i) => i !== index);
+
+			// Update the course
+			const updatedCourse = await payload
+				.update({
+					collection: Courses.slug,
+					id: courseId,
+					data: {
+						recurringSchedules: updatedRecurring,
+					} as any,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryRemoveRecurringSchedule",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
+
+			return updatedCourse;
+		},
+		(error) => {
+			const transformed = transformError(error);
+			if (transformed) return transformed;
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: "Failed to remove recurring schedule";
+			return new UnknownError(errorMessage, {
+				cause: error,
+			});
+		},
+	);
+}
+
+/**
+ * Removes a specific date schedule item from a course by index
+ */
+export function tryRemoveSpecificDate(args: RemoveSpecificDateArgs) {
+	return Result.try(
+		async () => {
+			const { payload, courseId, index, req, overrideAccess = false } = args;
+
+			// Check if course exists
+			const existingCourse = await payload.findByID({
+				collection: Courses.slug,
+				id: courseId,
+				req,
+				overrideAccess,
+			});
+
+			if (!existingCourse) {
+				throw new Error(`Course with ID ${courseId} not found`);
+			}
+
+			// Get current specific dates
+			const courseData = existingCourse as unknown as {
+				specificDates?: Array<{
+					date?: string | Date;
+					startTime?: string;
+					endTime?: string;
+				}>;
+			};
+			const currentSpecific = courseData.specificDates ?? [];
+
+			// Validate index
+			if (index < 0 || index >= currentSpecific.length) {
+				throw new InvalidArgumentError(
+					`Invalid index ${index}. Specific dates array has ${currentSpecific.length} items.`,
+				);
+			}
+
+			// Remove the item at the specified index
+			const updatedSpecific = currentSpecific.filter((_, i) => i !== index);
+
+			// Update the course
+			const updatedCourse = await payload
+				.update({
+					collection: Courses.slug,
+					id: courseId,
+					data: {
+						specificDates: updatedSpecific,
+					} as any,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryRemoveSpecificDate",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
+
+			return updatedCourse;
+		},
+		(error) => {
+			const transformed = transformError(error);
+			if (transformed) return transformed;
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: "Failed to remove specific date";
 			return new UnknownError(errorMessage, {
 				cause: error,
 			});

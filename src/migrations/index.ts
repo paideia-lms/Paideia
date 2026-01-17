@@ -16,6 +16,9 @@ import * as migration_20260114_033031 from './20260114_033031';
 import * as migration_20260115_135441 from './20260115_135441';
 import * as migration_20260115_232850 from './20260115_232850';
 import * as migration_20260117_021638 from './20260117_021638';
+import * as migration_20260117_094611 from './20260117_094611';
+import * as migration_20260117_100436 from './20260117_100436';
+import * as migration_20260117_102301_add_course_schedule_array_fields from './20260117_102301_add_course_schedule_array_fields';
 
 export const migrations = [
   {
@@ -106,6 +109,21 @@ export const migrations = [
   {
     up: migration_20260117_021638.up,
     down: migration_20260117_021638.down,
-    name: '20260117_021638'
+    name: '20260117_021638',
+  },
+  {
+    up: migration_20260117_094611.up,
+    down: migration_20260117_094611.down,
+    name: '20260117_094611',
+  },
+  {
+    up: migration_20260117_100436.up,
+    down: migration_20260117_100436.down,
+    name: '20260117_100436',
+  },
+  {
+    up: migration_20260117_102301_add_course_schedule_array_fields.up,
+    down: migration_20260117_102301_add_course_schedule_array_fields.down,
+    name: '20260117_102301_add_course_schedule_array_fields'
   },
 ];

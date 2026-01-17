@@ -1,0 +1,225 @@
+name: Course Schedule Settings E2E Test
+description: Test the course schedule functionality including recurring patterns and specific dates. This test ensures that schedule can be set, updated, and displayed correctly.
+baseUrl: http://localhost:3000
+
+steps:
+  - name: Navigate to My Courses page
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+      - Create course button is visible
+
+  - name: Click Create Course button
+    action: click
+    target: Create course button (+ Create course)
+    verify:
+      - User is navigated to course creation form
+      - Create New Course form is visible
+
+  - name: Fill in course title
+    action: type
+    target: Title field
+    value: Course for Schedule Test
+    verify:
+      - Title field is populated
+
+  - name: Fill in course slug
+    action: type
+    target: Slug field
+    value: course-for-schedule-test
+    verify:
+      - Slug field is populated with valid format
+
+  - name: Fill in course description
+    action: type
+    target: Description field
+    value: A test course for testing schedule functionality.
+    verify:
+      - Description field is populated
+
+  - name: Select course status
+    action: select
+    target: Status dropdown
+    value: Draft
+    verify:
+      - Status is set to Draft
+
+  - name: Submit course creation form
+    action: click
+    target: Create Course button
+    verify:
+      - Form submission is successful
+      - User is redirected to course page
+
+  - name: Navigate to course settings page
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+
+  - name: Find and click on the test course
+    action: click
+    target: Course for Schedule Test
+    verify:
+      - Course page loads successfully
+
+  - name: Navigate to course settings
+    action: click
+    target: Settings link or button
+    verify:
+      - Course settings page loads successfully
+      - Edit Course form is visible
+      - Schedule section is visible
+      - FullCalendar component is visible
+
+  - name: Add a recurring pattern
+    action: click
+    target: Add Pattern button (in Recurring Patterns section)
+    verify:
+      - Recurring pattern editor is visible
+      - Day checkboxes are visible
+      - Time inputs are visible
+
+  - name: Select days for recurring pattern
+    action: click
+    target: Monday checkbox
+    verify:
+      - Monday is selected
+
+  - name: Select additional day
+    action: click
+    target: Wednesday checkbox
+    verify:
+      - Wednesday is selected
+
+  - name: Set start time for recurring pattern
+    action: type
+    target: Start Time field (in recurring pattern editor)
+    value: 09:00
+    verify:
+      - Start time field is populated with 09:00
+
+  - name: Set end time for recurring pattern
+    action: type
+    target: End Time field (in recurring pattern editor)
+    value: 12:00
+    verify:
+      - End time field is populated with 12:00
+
+  - name: Save recurring pattern
+    action: click
+    target: Save button (in recurring pattern editor)
+    verify:
+      - Recurring pattern is saved
+      - Pattern appears in the recurring patterns list
+      - Calendar shows the recurring events
+
+  - name: Add a specific date
+    action: click
+    target: Add Date button (in Specific Dates section)
+    verify:
+      - Specific date editor is visible
+      - Date picker is visible
+      - Time inputs are visible
+
+  - name: Set date for specific session
+    action: type
+    target: Date field (in specific date editor)
+    value: 2025-03-15
+    verify:
+      - Date field is populated
+
+  - name: Set start time for specific date
+    action: type
+    target: Start Time field (in specific date editor)
+    value: 14:00
+    verify:
+      - Start time field is populated with 14:00
+
+  - name: Set end time for specific date
+    action: type
+    target: End Time field (in specific date editor)
+    value: 16:00
+    verify:
+      - End time field is populated with 16:00
+
+  - name: Save specific date
+    action: click
+    target: Save button (in specific date editor)
+    verify:
+      - Specific date is saved
+      - Date appears in the specific dates list
+      - Calendar shows the specific date event
+
+  - name: Submit course update with schedule
+    action: click
+    target: Update Course button
+    verify:
+      - Form submission is successful
+      - Success notification is shown
+      - User is redirected to course page
+
+  - name: Navigate back to course list
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+      - Course for Schedule Test is visible
+      - Schedule information is displayed (formatted schedule string)
+
+  - name: Navigate back to course settings
+    action: navigate
+    url: http://localhost:3000/course
+    verify:
+      - My Courses page loads successfully
+
+  - name: Click on the test course again
+    action: click
+    target: Course for Schedule Test
+    verify:
+      - Course page loads successfully
+
+  - name: Navigate to course settings again
+    action: click
+    target: Settings link or button
+    verify:
+      - Course settings page loads successfully
+      - Schedule section shows the previously set recurring pattern
+      - Schedule section shows the previously set specific date
+      - Calendar displays the events
+
+  - name: Edit recurring pattern
+    action: click
+    target: Edit button (calendar icon) on recurring pattern
+    verify:
+      - Recurring pattern editor opens
+      - Existing values are populated
+
+  - name: Add Friday to recurring pattern
+    action: click
+    target: Friday checkbox
+    verify:
+      - Friday is selected
+
+  - name: Update recurring pattern
+    action: click
+    target: Save button (in recurring pattern editor)
+    verify:
+      - Recurring pattern is updated
+      - Calendar reflects the updated pattern
+
+  - name: Delete specific date
+    action: click
+    target: Delete button (trash icon) on specific date
+    verify:
+      - Specific date is removed from the list
+      - Calendar no longer shows that specific date
+
+  - name: Submit course update with modified schedule
+    action: click
+    target: Update Course button
+    verify:
+      - Form submission is successful
+      - Success notification is shown
+      - Course is updated with modified schedule

@@ -1,5 +1,4 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
-import { ValidationError } from "app/utils/error";
 import { richTextContent } from "./utils/rich-text-content";
 
 // Courses collection - core LMS content
@@ -68,24 +67,113 @@ export const Courses = {
 			required: true,
 		},
 		{
-			name: "startDate",
-			type: "date",
-			label: "Start Date",
-			admin: {
-				date: {
-					pickerAppearance: "dayAndTime",
+			name: "recurringSchedules",
+			type: "array",
+			label: "Recurring Schedules",
+			fields: [
+				{
+					name: "daysOfWeek",
+					type: "array",
+					label: "Days of Week",
+					required: true,
+					fields: [
+						{
+							name: "day",
+							type: "number",
+							required: true,
+							min: 0,
+							max: 6,
+						},
+					],
+					minRows: 1,
 				},
-			},
+				{
+					name: "startTime",
+					type: "text",
+					label: "Start Time",
+					required: true,
+					validate: ((value: string | undefined) => {
+						if (value && !/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
+							return "Time must be in HH:mm format";
+						}
+						return true as const;
+					}) as TextFieldValidation,
+				},
+				{
+					name: "endTime",
+					type: "text",
+					label: "End Time",
+					required: true,
+					validate: ((value: string | undefined) => {
+						if (value && !/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
+							return "Time must be in HH:mm format";
+						}
+						return true as const;
+					}) as TextFieldValidation,
+				},
+				{
+					name: "startDate",
+					type: "date",
+					label: "Start Date (optional)",
+					admin: {
+						date: {
+							pickerAppearance: "dayOnly",
+						},
+					},
+				},
+				{
+					name: "endDate",
+					type: "date",
+					label: "End Date (optional)",
+					admin: {
+						date: {
+							pickerAppearance: "dayOnly",
+						},
+					},
+				},
+			],
 		},
 		{
-			name: "endDate",
-			type: "date",
-			label: "End Date",
-			admin: {
-				date: {
-					pickerAppearance: "dayAndTime",
+			name: "specificDates",
+			type: "array",
+			label: "Specific Dates",
+			fields: [
+				{
+					name: "date",
+					type: "date",
+					label: "Date",
+					required: true,
+					admin: {
+						date: {
+							pickerAppearance: "dayOnly",
+						},
+					},
 				},
-			},
+				{
+					name: "startTime",
+					type: "text",
+					label: "Start Time",
+					required: true,
+					validate: ((value: string | undefined) => {
+						if (value && !/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
+							return "Time must be in HH:mm format";
+						}
+						return true as const;
+					}) as TextFieldValidation,
+				},
+				{
+					name: "endTime",
+					type: "text",
+					label: "End Time",
+					required: true,
+					validate: ((value: string | undefined) => {
+						if (value && !/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
+							return "Time must be in HH:mm format";
+						}
+						return true as const;
+					}) as TextFieldValidation,
+				},
+			],
 		},
 		{
 			name: "thumbnail",
@@ -147,28 +235,4 @@ export const Courses = {
 			maxDepth: 2,
 		},
 	],
-	hooks: {
-		beforeValidate: [
-			async ({ data, operation }) => {
-				// Only validate on create/update operations
-				if (operation !== "create" && operation !== "update") {
-					return data;
-				}
-
-				// Validate that endDate is after startDate if both are provided
-				if (data?.startDate && data?.endDate) {
-					const startDate = new Date(data.startDate);
-					const endDate = new Date(data.endDate);
-
-					if (endDate <= startDate) {
-						throw new ValidationError(
-							"End date must be after start date",
-						);
-					}
-				}
-
-				return data;
-			},
-		],
-	},
 } as const satisfies CollectionConfig;

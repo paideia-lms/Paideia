@@ -10,14 +10,18 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useId, useRef, useState } from "react";
+import { CourseScheduleManager } from "app/components/course-schedule-manager";
+import {
+	recurringScheduleItemSchema,
+	specificDateItemSchema,
+} from "app/utils/schedule-types";
 import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "app/utils/router/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -26,7 +30,13 @@ import {
 	type CategoryTreeNode,
 	tryGetCategoryTree,
 } from "server/internal/course-category-management";
-import { tryUpdateCourse } from "server/internal/course-management";
+import {
+	tryAddRecurringSchedule,
+	tryAddSpecificDate,
+	tryRemoveRecurringSchedule,
+	tryRemoveSpecificDate,
+	tryUpdateCourse,
+} from "server/internal/course-management";
 
 import type { RichTextEditorRef } from "app/components/rich-text/rich-text-editor";
 import { RichTextEditor } from "app/components/rich-text/rich-text-editor";
@@ -44,19 +54,18 @@ import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 type Course = Route.ComponentProps["loaderData"]["course"];
 
+enum Action {
+	UpdateCourse = "updateCourse",
+	AddRecurringSchedule = "addRecurringSchedule",
+	AddSpecificDate = "addSpecificDate",
+	RemoveRecurringSchedule = "removeRecurringSchedule",
+	RemoveSpecificDate = "removeSpecificDate",
+}
+
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/course/:courseId/settings",
 });
 
-// Helper function to convert Date to ISO string or null
-const toISOStringOrNull = (
-	value: Date | string | null | undefined,
-): string | null => {
-	if (!value) return null;
-	if (value instanceof Date) return value.toISOString();
-	if (typeof value === "string") return value;
-	return null;
-};
 
 const updateCourseRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -73,8 +82,6 @@ const updateCourseRpc = createActionRpc({
 		description: z.string().min(1, "Description is required").optional(),
 		status: z.enum(["draft", "published", "archived"]).optional(),
 		category: z.coerce.number().nullish(),
-		startDate: z.coerce.date().nullish(),
-		endDate: z.coerce.date().nullish(),
 		redirectTo: z
 			.union([z.string(), z.null()])
 			.optional()
@@ -97,6 +104,7 @@ const updateCourseRpc = createActionRpc({
 			),
 	}),
 	method: "POST",
+	action: Action.UpdateCourse,
 });
 
 const updateCourseAction = updateCourseRpc.createAction(
@@ -132,8 +140,6 @@ const updateCourseAction = updateCourseRpc.createAction(
 			courseId: Number(courseId),
 			data: {
 				...formData,
-				startDate: toISOStringOrNull(formData.startDate),
-				endDate: toISOStringOrNull(formData.endDate),
 			},
 			req: payloadRequest,
 			overrideAccess: false,
@@ -154,10 +160,252 @@ const updateCourseAction = updateCourseRpc.createAction(
 	},
 );
 
-const useEditCourse = updateCourseRpc.createHook<typeof updateCourseAction>();
+// Add Recurring Schedule Action
+const addRecurringScheduleRpc = createActionRpc({
+	formDataSchema: z.object({
+		data: recurringScheduleItemSchema,
+	}),
+	method: "POST",
+	action: Action.AddRecurringSchedule,
+});
 
-// Export hook for use in component
-export { useEditCourse };
+const addRecurringScheduleAction = addRecurringScheduleRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+		if (!courseContext) {
+			return badRequest({
+				success: false,
+				error: "Invalid course ID",
+			});
+		}
+
+		const courseId = courseContext.course.id;
+
+		if (!courseContext.permissions.canEdit.allowed) {
+			return unauthorized({
+				success: false,
+				error: "You don't have permission to edit this course",
+			});
+		}
+
+		const result = await tryAddRecurringSchedule({
+			payload,
+			courseId: Number(courseId),
+			data: formData.data,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!result.ok) {
+			return badRequest({
+				success: false,
+				error: result.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "Recurring schedule added successfully",
+		});
+	},
+);
+
+// Add Specific Date Action
+const addSpecificDateRpc = createActionRpc({
+	formDataSchema: z.object({
+		data: specificDateItemSchema,
+	}),
+	method: "POST",
+	action: Action.AddSpecificDate,
+});
+
+const addSpecificDateAction = addSpecificDateRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+		if (!courseContext) {
+			return badRequest({
+				success: false,
+				error: "Invalid course ID",
+			});
+		}
+
+		const courseId = courseContext.course.id;
+
+		if (!courseContext.permissions.canEdit.allowed) {
+			return unauthorized({
+				success: false,
+				error: "You don't have permission to edit this course",
+			});
+		}
+
+		const result = await tryAddSpecificDate({
+			payload,
+			courseId: Number(courseId),
+			data: formData.data,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!result.ok) {
+			return badRequest({
+				success: false,
+				error: result.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "Specific date added successfully",
+		});
+	},
+);
+
+// Remove Recurring Schedule Action
+const removeRecurringScheduleRpc = createActionRpc({
+	formDataSchema: z.object({
+		index: z.number().int().min(0),
+	}),
+	method: "POST",
+	action: Action.RemoveRecurringSchedule,
+});
+
+const removeRecurringScheduleAction = removeRecurringScheduleRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+		if (!courseContext) {
+			return badRequest({
+				success: false,
+				error: "Invalid course ID",
+			});
+		}
+
+		const courseId = courseContext.course.id;
+
+		if (!courseContext.permissions.canEdit.allowed) {
+			return unauthorized({
+				success: false,
+				error: "You don't have permission to edit this course",
+			});
+		}
+
+		const result = await tryRemoveRecurringSchedule({
+			payload,
+			courseId: Number(courseId),
+			index: formData.index,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!result.ok) {
+			return badRequest({
+				success: false,
+				error: result.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "Recurring schedule removed successfully",
+		});
+	},
+);
+
+// Remove Specific Date Action
+const removeSpecificDateRpc = createActionRpc({
+	formDataSchema: z.object({
+		index: z.number().int().min(0),
+	}),
+	method: "POST",
+	action: Action.RemoveSpecificDate,
+});
+
+const removeSpecificDateAction = removeSpecificDateRpc.createAction(
+	async ({ context, formData }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({
+				success: false,
+				error: "Unauthorized",
+			});
+		}
+		if (!courseContext) {
+			return badRequest({
+				success: false,
+				error: "Invalid course ID",
+			});
+		}
+
+		const courseId = courseContext.course.id;
+
+		if (!courseContext.permissions.canEdit.allowed) {
+			return unauthorized({
+				success: false,
+				error: "You don't have permission to edit this course",
+			});
+		}
+
+		const result = await tryRemoveSpecificDate({
+			payload,
+			courseId: Number(courseId),
+			index: formData.index,
+			req: payloadRequest,
+			overrideAccess: false,
+		});
+
+		if (!result.ok) {
+			return badRequest({
+				success: false,
+				error: result.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "Specific date removed successfully",
+		});
+	},
+);
+
+const useEditCourse = updateCourseRpc.createHook<typeof updateCourseAction>();
+const useAddRecurringSchedule = addRecurringScheduleRpc.createHook<typeof addRecurringScheduleAction>();
+const useAddSpecificDate = addSpecificDateRpc.createHook<typeof addSpecificDateAction>();
+const useRemoveRecurringSchedule = removeRecurringScheduleRpc.createHook<typeof removeRecurringScheduleAction>();
+const useRemoveSpecificDate = removeSpecificDateRpc.createHook<typeof removeSpecificDateAction>();
+
+// Export hooks for use in component
+export {
+	useAddRecurringSchedule,
+	useAddSpecificDate,
+	useEditCourse,
+	useRemoveRecurringSchedule,
+	useRemoveSpecificDate,
+};
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -209,27 +457,54 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 });
 
-export const action = updateCourseAction;
+const [action] = createActionMap({
+	[Action.UpdateCourse]: updateCourseAction,
+	[Action.AddRecurringSchedule]: addRecurringScheduleAction,
+	[Action.AddSpecificDate]: addSpecificDateAction,
+	[Action.RemoveRecurringSchedule]: removeRecurringScheduleAction,
+	[Action.RemoveSpecificDate]: removeSpecificDateAction,
+});
 
-export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+export { action };
+
+export async function clientAction({ serverAction, request }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
+	const url = new URL(request.url);
+	const actionParam = url.searchParams.get("action");
+
+	if (!actionData) return;
 
 	if (actionData?.status === StatusCode.Ok) {
-		notifications.show({
-			title: "Course updated",
-			message: actionData.message,
-			color: "green",
-		});
-		// Redirect to the course's view page
-		return redirect(
-			href("/course/:courseId", { courseId: String(actionData.id) }),
-		);
+		if (actionParam === Action.UpdateCourse) {
+			notifications.show({
+				title: "Course updated",
+				message: actionData.message,
+				color: "green",
+			});
+			// Redirect to the course's view page
+			if ("id" in actionData && actionData.id) {
+				return redirect(
+					href("/course/:courseId", { courseId: String(actionData.id) }),
+				);
+			}
+		} else if (
+			actionParam === Action.AddRecurringSchedule ||
+			actionParam === Action.AddSpecificDate ||
+			actionParam === Action.RemoveRecurringSchedule ||
+			actionParam === Action.RemoveSpecificDate
+		) {
+			notifications.show({
+				title: "Success",
+				message: actionData.message,
+				color: "green",
+			});
+		}
 	} else if (
 		actionData?.status === StatusCode.BadRequest ||
 		actionData?.status === StatusCode.Unauthorized
 	) {
 		notifications.show({
-			title: "Update failed",
+			title: "Operation failed",
 			message: actionData.error,
 			color: "red",
 		});
@@ -368,8 +643,7 @@ const useEditCourseForm = (
 			category: course.category?.id ?? null,
 			description: course.description,
 			thumbnail: null as File | null,
-			startDate: course.startDate ? new Date(course.startDate) : null,
-			endDate: course.endDate ? new Date(course.endDate) : null,
+
 		},
 		validate: {
 			title: (value) => (!value ? "Title is required" : null),
@@ -382,18 +656,6 @@ const useEditCourseForm = (
 			},
 			status: (value) => (!value ? "Status is required" : null),
 			description: (value) => (!value ? "Description is required" : null),
-			startDate: (value, values) => {
-				if (value && values.endDate && value >= values.endDate) {
-					return "Start date must be before end date";
-				}
-				return null;
-			},
-			endDate: (value, values) => {
-				if (value && values.startDate && value <= values.startDate) {
-					return "End date must be after start date";
-				}
-				return null;
-			},
 		},
 	});
 
@@ -507,24 +769,6 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							]}
 						/>
 
-						<DateTimePicker
-							{...form.getInputProps("startDate")}
-							key={form.key("startDate")}
-							label="Start Date"
-							placeholder="Select start date and time"
-							clearable
-							description="When the course becomes active"
-						/>
-
-						<DateTimePicker
-							{...form.getInputProps("endDate")}
-							key={form.key("endDate")}
-							label="End Date"
-							placeholder="Select end date and time"
-							clearable
-							description="When the course ends"
-						/>
-
 						<Select
 							{...form.getInputProps("category")}
 							key={form.key("category")}
@@ -541,6 +785,33 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 						</Group>
 					</Stack>
 				</form>
+			</Paper>
+
+			{/* Schedule Section */}
+			<Paper withBorder shadow="md" p="xl" radius="md" mt="xl">
+				<CourseScheduleManager
+					courseId={course.id}
+					recurringSchedules={
+						(course as unknown as {
+							recurringSchedules?: Array<{
+								daysOfWeek?: Array<{ day?: number }>;
+								startTime?: string;
+								endTime?: string;
+								startDate?: string | Date;
+								endDate?: string | Date;
+							}>;
+						}).recurringSchedules ?? null
+					}
+					specificDates={
+						(course as unknown as {
+							specificDates?: Array<{
+								date?: string | Date;
+								startTime?: string;
+								endTime?: string;
+							}>;
+						}).specificDates ?? null
+					}
+				/>
 			</Paper>
 		</Container>
 	);

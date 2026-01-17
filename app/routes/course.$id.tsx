@@ -1,4 +1,5 @@
 import {
+	Accordion,
 	Avatar,
 	Badge,
 	Button,
@@ -22,11 +23,13 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
+	formatSchedule,
 } from "app/utils/course-view-utils";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
+import { CourseCalendarView } from "app/components/course-calendar-view";
 
 export const loaderSearchParams = {
 	reload: parseAsBoolean.withDefault(false),
@@ -99,6 +102,14 @@ function CourseInfo({ course }: CourseInfoProps) {
 				</div>
 
 				<Group grow>
+					<Card withBorder>
+						<Text fw={600} size="sm" c="dimmed" mb="xs">
+							Schedule
+						</Text>
+						{/* biome-ignore lint/suspicious/noExplicitAny: <explanation> */}
+						<Text>{formatSchedule(course as any)}</Text>
+					</Card>
+
 					<Card withBorder>
 						<Text fw={600} size="sm" c="dimmed" mb="xs">
 							Instructors
@@ -218,6 +229,16 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<CourseInfo course={course} />
+
+
+				<Paper shadow="sm" p="md" withBorder>
+
+					<CourseCalendarView
+						recurringSchedules={course.recurringSchedules}
+						specificDates={course.specificDates}
+					/>
+				</Paper>
+
 
 				<Paper shadow="sm" p="md" withBorder>
 					<Stack gap="md">

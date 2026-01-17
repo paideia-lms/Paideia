@@ -297,8 +297,27 @@ export interface Course {
   description: string;
   descriptionMedia?: (number | Media)[] | null;
   status: 'draft' | 'published' | 'archived';
-  startDate?: string | null;
-  endDate?: string | null;
+  recurringSchedules?:
+    | {
+        daysOfWeek: {
+          day: number;
+          id?: string | null;
+        }[];
+        startTime: string;
+        endTime: string;
+        startDate?: string | null;
+        endDate?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  specificDates?:
+    | {
+        date: string;
+        startTime: string;
+        endTime: string;
+        id?: string | null;
+      }[]
+    | null;
   thumbnail?: (number | null) | Media;
   tags?:
     | {
@@ -1323,8 +1342,29 @@ export interface CoursesSelect<T extends boolean = true> {
   description?: T;
   descriptionMedia?: T;
   status?: T;
-  startDate?: T;
-  endDate?: T;
+  recurringSchedules?:
+    | T
+    | {
+        daysOfWeek?:
+          | T
+          | {
+              day?: T;
+              id?: T;
+            };
+        startTime?: T;
+        endTime?: T;
+        startDate?: T;
+        endDate?: T;
+        id?: T;
+      };
+  specificDates?:
+    | T
+    | {
+        date?: T;
+        startTime?: T;
+        endTime?: T;
+        id?: T;
+      };
   thumbnail?: T;
   tags?:
     | T
