@@ -26,7 +26,6 @@ import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { formatDateTimeForDisplay } from "app/utils/date-utils";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course";
@@ -95,7 +94,10 @@ function CourseCardGrid({ courses }: CourseCardGridProps) {
 
 								{formatSchedule(course as any) && (
 									<Group gap={4}>
-										<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+										<IconCalendar
+											size={14}
+											color="var(--mantine-color-dimmed)"
+										/>
 										<Text size="xs" c="dimmed" lineClamp={2}>
 											{formatSchedule(course as any)}
 										</Text>
@@ -212,13 +214,8 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
-	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	if (!userAccessContext) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
@@ -226,12 +223,12 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Extract courses from enrollments
-	const courses = userAccessContext.enrollments.map((enrollment) => {
+	const courses = userSession.enrollments.map((enrollment) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		const thumbnailUrl = enrollment.course.thumbnail
 			? href(`/api/media/file/:mediaId`, {
-				mediaId: enrollment.course.thumbnail.toString(),
-			})
+					mediaId: enrollment.course.thumbnail.toString(),
+				})
 			: null;
 
 		// Transform schedule data to match CourseScheduleV1 structure

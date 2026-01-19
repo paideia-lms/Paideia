@@ -15,7 +15,6 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseSectionContextKey } from "server/contexts/course-section-context";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import type {
 	CourseStructureItem,
@@ -60,7 +59,6 @@ export const loader = createRouteLoader({
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseSectionContext = context.get(courseSectionContextKey);
-	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -87,19 +85,19 @@ export const loader = createRouteLoader({
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-			(item): item is CourseStructureSection => item.type === "section",
-		)
+				(item): item is CourseStructureSection => item.type === "section",
+			)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-			(item): item is CourseStructureItem => item.type === "activity-module",
-		)
+				(item): item is CourseStructureItem => item.type === "activity-module",
+			)
 		: [];
 
-	// Get available modules from user access context
+	// Get available modules from user session (merged from userAccessContext)
 	const availableModules =
-		userAccessContext?.activityModules.map((module) => ({
+		userSession.activityModules.map((module) => ({
 			id: module.id,
 			title: module.title,
 			description: module.description,

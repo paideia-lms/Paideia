@@ -21,7 +21,6 @@ import { courseModuleContextKey } from "./contexts/course-module-context";
 import { courseSectionContextKey } from "./contexts/course-section-context";
 import { enrolmentContextKey } from "./contexts/enrolment-context";
 import { globalContextKey } from "./contexts/global-context";
-import { userAccessContextKey } from "./contexts/user-access-context";
 import { userContextKey } from "./contexts/user-context";
 import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
@@ -165,7 +164,6 @@ async function startServer() {
 						c.set(enrolmentContextKey, null);
 						c.set(courseModuleContextKey, null);
 						c.set(courseSectionContextKey, null);
-						c.set(userAccessContextKey, null);
 						c.set(userProfileContextKey, null);
 						c.set(userModuleContextKey, null);
 						return c;

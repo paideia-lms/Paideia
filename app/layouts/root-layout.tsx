@@ -206,7 +206,7 @@ export function HeaderTabs({
 		if (pageInfo.is["routes/course"]) return Tab.MyCourses;
 
 		// Default to Dashboard for root and other routes
-		if (pageInfo.is["routes/index"]) return Tab.Dashboard;
+		if (pageInfo.is["routes/index/route"]) return Tab.Dashboard;
 
 		return null;
 	};

@@ -33,7 +33,9 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 
 	if (userSession?.isAuthenticated) {
-		return redirect(getRouteUrl("/", {}));
+		return redirect(getRouteUrl("/", {
+			searchParams: {}
+		}));
 	}
 
 	const { payload } = context.get(globalContextKey);
@@ -93,7 +95,7 @@ const loginAction = loginRpc.createAction(
 		const { payload, requestInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (userSession?.isAuthenticated) {
-			return redirect(getRouteUrl("/", {}));
+			return redirect(getRouteUrl("/", { searchParams: {} }));
 		}
 
 		const loginResult = await tryLogin({
@@ -112,7 +114,7 @@ const loginAction = loginRpc.createAction(
 
 		const { token, exp } = loginResult.value;
 
-		return redirect(getRouteUrl("/", {}), {
+		return redirect(getRouteUrl("/", { searchParams: {} }), {
 			headers: {
 				"Set-Cookie": setCookie(
 					token,

@@ -53,7 +53,6 @@ import type { Route } from "./+types/route";
 import classes from "../clock-neon-theme.module.css";
 import { tryFindNotesByUser } from "server/internal/note-management";
 import { getTextContentFromHtmlServerFirstParagraph } from "app/utils/html-utils";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { CurriculumMap } from "./components/cirriculum-map";
 import { CalendarWidget } from "./components/calendar-widget";
 import { RecentNotesSection } from "./components/recent-notes";
@@ -107,7 +106,6 @@ export const loader = createRouteLoaderWithParams(
 	async ({ context, searchParams }) => {
 		const { payload, hints, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
-		const userAccessContext = context.get(userAccessContextKey);
 		const timeZone = hints.timeZone;
 
 		if (!userSession?.isAuthenticated) {
@@ -187,10 +185,6 @@ export const loader = createRouteLoaderWithParams(
 		}
 
 		// ! user has been login in now
-
-		if (!userAccessContext) {
-			throw new InternalServerErrorResponse("User access context not found");
-		}
 
 		// Authenticated user
 		const currentUser =
@@ -296,7 +290,7 @@ export const loader = createRouteLoaderWithParams(
 				courseId: 3,
 			},
 		].concat(
-			userAccessContext.enrollments.map((enrollment, index) => {
+			userSession.enrollments.map((enrollment, index) => {
 				return {
 					id: index + 2,
 					shortcode: enrollment.course.slug,
@@ -319,31 +313,31 @@ export const loader = createRouteLoaderWithParams(
 			courseTitle: string;
 			courseId: number;
 		}> = [
-				{
-					id: 1,
-					title: "Databases CW1",
-					type: "assignment" as const,
-					dueDate: dayjs().hour(10).minute(0).toISOString(),
-					courseTitle: "Databases",
-					courseId: 2,
-				},
-				{
-					id: 2,
-					title: "Functional Programming CW2",
-					type: "assignment" as const,
-					dueDate: dayjs().hour(16).minute(0).toISOString(),
-					courseTitle: "Functional Programming",
-					courseId: 3,
-				},
-				{
-					id: 3,
-					title: "Week 1: Object Oriented vs Functional Programming",
-					type: "discussion" as const,
-					dueDate: dayjs().hour(23).minute(59).toISOString(),
-					courseTitle: "Functional Programming",
-					courseId: 3,
-				},
-			];
+			{
+				id: 1,
+				title: "Databases CW1",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(10).minute(0).toISOString(),
+				courseTitle: "Databases",
+				courseId: 2,
+			},
+			{
+				id: 2,
+				title: "Functional Programming CW2",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(16).minute(0).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+			{
+				id: 3,
+				title: "Week 1: Object Oriented vs Functional Programming",
+				type: "discussion" as const,
+				dueDate: dayjs().hour(23).minute(59).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+		];
 
 		// Mock program data
 		const mockProgram = {
@@ -894,19 +888,19 @@ function AuthenticatedDashboard({
 	const neonClassNames =
 		colorScheme === "dark"
 			? {
-				glassWrapper: classes.glassWrapper,
-				clockFace: classes.clockFace,
-				hourTick: classes.hourTick,
-				minuteTick: classes.minuteTick,
-				primaryNumber: classes.primaryNumber,
-				secondaryNumber: classes.secondaryNumber,
-				hourHand: classes.hourHand,
-				minuteHand: classes.minuteHand,
-				secondHand: classes.secondHand,
-				secondHandCounterweight: classes.secondHandCounterweight,
-				centerDot: classes.centerDot,
-				centerBlur: classes.centerBlur,
-			}
+					glassWrapper: classes.glassWrapper,
+					clockFace: classes.clockFace,
+					hourTick: classes.hourTick,
+					minuteTick: classes.minuteTick,
+					primaryNumber: classes.primaryNumber,
+					secondaryNumber: classes.secondaryNumber,
+					hourHand: classes.hourHand,
+					minuteHand: classes.minuteHand,
+					secondHand: classes.secondHand,
+					secondHandCounterweight: classes.secondHandCounterweight,
+					centerDot: classes.centerDot,
+					centerBlur: classes.centerBlur,
+				}
 			: undefined;
 
 	// Sort today's schedule by start time, then end time
