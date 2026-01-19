@@ -96,28 +96,8 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 			updatedAt: enrollment.course.updatedAt,
 			category: enrollment.course.category ?? null,
 			thumbnail: enrollment.course.thumbnail ?? null,
-			recurringSchedules:
-				(
-					enrollment.course as unknown as {
-						recurringSchedules?: Array<{
-							daysOfWeek?: Array<{ day?: number }>;
-							startTime?: string;
-							endTime?: string;
-							startDate?: string | Date;
-							endDate?: string | Date;
-						}>;
-					}
-				).recurringSchedules ?? null,
-			specificDates:
-				(
-					enrollment.course as unknown as {
-						specificDates?: Array<{
-							date?: string | Date;
-							startTime?: string;
-							endTime?: string;
-						}>;
-					}
-				).specificDates ?? null,
+			recurringSchedules: enrollment.course.recurringSchedules ?? [],
+			specificDates: enrollment.course.specificDates ?? [],
 		},
 	}));
 
