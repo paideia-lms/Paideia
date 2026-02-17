@@ -9,16 +9,7 @@ import * as migration_20251129_010524_v0_7_3 from './20251129_010524_v0_7_3';
 import * as migration_20251231_201458_v0_7_7 from './20251231_201458_v0_7_7';
 import * as migration_20260109_112642_v0_7_10 from './20260109_112642_v0_7_10';
 import * as migration_20260110_213305_v0_7_12 from './20260110_213305_v0_7_12';
-import * as migration_20260111_083034 from './20260111_083034';
-import * as migration_20260112_225108 from './20260112_225108';
-import * as migration_20260114_031123 from './20260114_031123';
-import * as migration_20260114_033031 from './20260114_033031';
-import * as migration_20260115_135441 from './20260115_135441';
-import * as migration_20260115_232850 from './20260115_232850';
-import * as migration_20260117_021638 from './20260117_021638';
-import * as migration_20260117_094611 from './20260117_094611';
-import * as migration_20260117_100436 from './20260117_100436';
-import * as migration_20260117_102301_add_course_schedule_array_fields from './20260117_102301_add_course_schedule_array_fields';
+import * as migration_20260217_212003_v0_7_14 from './20260217_212003_v0_7_14';
 
 export const migrations = [
   {
@@ -77,53 +68,8 @@ export const migrations = [
     name: '20260110_213305_v0_7_12',
   },
   {
-    up: migration_20260111_083034.up,
-    down: migration_20260111_083034.down,
-    name: '20260111_083034',
-  },
-  {
-    up: migration_20260112_225108.up,
-    down: migration_20260112_225108.down,
-    name: '20260112_225108',
-  },
-  {
-    up: migration_20260114_031123.up,
-    down: migration_20260114_031123.down,
-    name: '20260114_031123',
-  },
-  {
-    up: migration_20260114_033031.up,
-    down: migration_20260114_033031.down,
-    name: '20260114_033031',
-  },
-  {
-    up: migration_20260115_135441.up,
-    down: migration_20260115_135441.down,
-    name: '20260115_135441',
-  },
-  {
-    up: migration_20260115_232850.up,
-    down: migration_20260115_232850.down,
-    name: '20260115_232850',
-  },
-  {
-    up: migration_20260117_021638.up,
-    down: migration_20260117_021638.down,
-    name: '20260117_021638',
-  },
-  {
-    up: migration_20260117_094611.up,
-    down: migration_20260117_094611.down,
-    name: '20260117_094611',
-  },
-  {
-    up: migration_20260117_100436.up,
-    down: migration_20260117_100436.down,
-    name: '20260117_100436',
-  },
-  {
-    up: migration_20260117_102301_add_course_schedule_array_fields.up,
-    down: migration_20260117_102301_add_course_schedule_array_fields.down,
-    name: '20260117_102301_add_course_schedule_array_fields'
+    up: migration_20260217_212003_v0_7_14.up,
+    down: migration_20260217_212003_v0_7_14.down,
+    name: '20260217_212003_v0_7_14'
   },
 ];
