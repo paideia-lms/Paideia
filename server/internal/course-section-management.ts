@@ -331,7 +331,6 @@ export function tryDeleteSection(args: DeleteSectionArgs) {
 								equals: sectionId,
 							},
 						},
-						depth: 1,
 						req: txInfo.reqWithTransaction,
 						// ! system request, we don't care about access control here
 						overrideAccess: true,

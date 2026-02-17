@@ -554,7 +554,7 @@ export function tryRegisterFirstUser(args: RegisterFirstUserArgs) {
 
 				const { exp, token, user } = loginResult;
 
-				if (!exp || !token) {
+				if (!exp || !token || !user) {
 					throw new Error("Login failed: missing token or expiration");
 				}
 

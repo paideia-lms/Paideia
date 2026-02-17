@@ -185,7 +185,7 @@ for (const buildConfig of buildTargets) {
 			asset: "[dir]/[name].[ext]",
 		},
 		compile: {
-			target: buildConfig.target as Bun.Build.Target,
+			target: buildConfig.target as Bun.Build.CompileTarget,
 			outfile: buildConfig.outfile,
 			execArgv: ['--asset-naming="[name].[ext]"'],
 		},
