@@ -1,8 +1,8 @@
 import { Container, Paper, Text, Title } from "@mantine/core";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.bin";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();

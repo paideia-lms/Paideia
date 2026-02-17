@@ -3,14 +3,15 @@ import { Badge, Box, Paper, Stack, Table, Text, Title } from "@mantine/core";
 import { useInterval } from "@mantine/hooks";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useRevalidator } from "react-router";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetCronJobs } from "server/internal/cron-jobs-management";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
-} from "~/utils/responses";
-import { typeCreateLoader } from "app/utils/loader-utils";
+} from "app/utils/router/responses";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/cron-jobs";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
@@ -52,26 +53,6 @@ function getStatusBadge(isActive: boolean) {
 	return <Badge color="gray">Inactive</Badge>;
 }
 
-function formatDate(date: Date | null): string {
-	if (!date) return "-";
-	return new Intl.DateTimeFormat("en-US", {
-		dateStyle: "medium",
-		timeStyle: "medium",
-	}).format(date);
-}
-
-function formatDateString(dateString: string | null): string {
-	if (!dateString) return "-";
-	try {
-		const date = new Date(dateString);
-		return new Intl.DateTimeFormat("en-US", {
-			dateStyle: "medium",
-			timeStyle: "medium",
-		}).format(date);
-	} catch {
-		return dateString;
-	}
-}
 
 function getJobName(taskSlug: string | null, queue: string | null): string {
 	if (taskSlug) {
@@ -125,10 +106,14 @@ export default function CronJobsPage({ loaderData }: Route.ComponentProps) {
 			</Table.Td>
 			<Table.Td>{getStatusBadge(job.isActive)}</Table.Td>
 			<Table.Td>
-				<Text size="sm">{formatDate(job.nextRun)}</Text>
+				<Text size="sm">
+					{formatDateTimeForDisplay(job.nextRun, { style: "medium" })}
+				</Text>
 			</Table.Td>
 			<Table.Td>
-				<Text size="sm">{formatDate(job.previousRun)}</Text>
+				<Text size="sm">
+					{formatDateTimeForDisplay(job.previousRun, { style: "medium" })}
+				</Text>
 			</Table.Td>
 		</Table.Tr>
 	));
@@ -220,12 +205,16 @@ export default function CronJobsPage({ loaderData }: Route.ComponentProps) {
 											</Table.Td>
 											<Table.Td>
 												<Text size="sm">
-													{formatDateString(entry.executedAt)}
+													{formatDateTimeForDisplay(entry.executedAt, {
+														style: "medium",
+													})}
 												</Text>
 											</Table.Td>
 											<Table.Td>
 												<Text size="sm">
-													{formatDateString(entry.completedAt)}
+													{formatDateTimeForDisplay(entry.completedAt, {
+														style: "medium",
+													})}
 												</Text>
 											</Table.Td>
 											<Table.Td>

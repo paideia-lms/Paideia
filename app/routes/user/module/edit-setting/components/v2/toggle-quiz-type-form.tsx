@@ -1,7 +1,7 @@
 import { Button, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useToggleQuizType } from "app/routes/user/module/edit-setting/route";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface ToggleQuizTypeFormProps {
 	moduleId: number;

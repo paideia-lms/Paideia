@@ -8,7 +8,9 @@ import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import {
+	type StartPreviewQuizAttemptArgs,
 	type StartQuizAttemptArgs,
+	tryStartPreviewQuizAttempt,
 	tryStartQuizAttempt,
 } from "./quiz-submission-management";
 import { tryCreateUser } from "./user-management";
@@ -22,6 +24,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 	let student: TryResultValue<typeof tryCreateUser>;
 	let course: TryResultValue<typeof tryCreateCourse>;
 	let enrollment: TryResultValue<typeof tryCreateEnrollment>;
+	let teacherEnrollment: TryResultValue<typeof tryCreateEnrollment>;
 	let section: TryResultValue<typeof tryCreateSection>;
 	let courseActivityModuleLink: TryResultValue<
 		typeof tryCreateCourseActivityModuleLink
@@ -86,12 +89,22 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 			req: undefined,
 		}).getOrThrow();
 
-		// Create enrollment
+		// Create enrollments
 		enrollment = await tryCreateEnrollment({
 			payload,
 			userId: student.id,
 			course: course.id,
 			role: "student",
+			status: "active",
+			overrideAccess: true,
+			req: undefined,
+		}).getOrThrow();
+
+		teacherEnrollment = await tryCreateEnrollment({
+			payload,
+			userId: teacher.id,
+			course: course.id,
+			role: "teacher",
 			status: "active",
 			overrideAccess: true,
 			req: undefined,
@@ -187,5 +200,64 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 		expect(startResult2.error.message).toContain(
 			"Cannot start a new quiz attempt while another attempt is in progress",
 		);
+	});
+
+	test("should allow starting real attempt even when preview exists", async () => {
+		// Clean up any existing attempts from previous tests
+		const existingAttempts = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseActivityModuleLink.id } },
+					{ student: { equals: student.id } },
+				],
+			},
+			limit: 100,
+			overrideAccess: true,
+		});
+
+		// Delete any existing attempts for clean state
+		for (const attempt of existingAttempts.docs) {
+			await payload.delete({
+				collection: "quiz-submissions",
+				id: attempt.id,
+				overrideAccess: true,
+			});
+		}
+
+		// Start a preview attempt (as instructor)
+		const previewArgs: StartPreviewQuizAttemptArgs = {
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			userId: teacher.id,
+			enrollmentId: teacherEnrollment.id,
+			overrideAccess: true,
+		};
+
+		const previewResult = await tryStartPreviewQuizAttempt(previewArgs);
+		expect(previewResult.ok).toBe(true);
+		if (!previewResult.ok) return;
+
+		// Should be able to start a real attempt even with preview existing
+		// (preview is for teacher, real attempt is for student - different users)
+		const startArgs: StartQuizAttemptArgs = {
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
+			attemptNumber: 1,
+			overrideAccess: true,
+		};
+
+		const startResult = await tryStartQuizAttempt(startArgs);
+		expect(startResult.ok).toBe(true);
 	});
 });

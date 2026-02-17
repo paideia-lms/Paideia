@@ -23,10 +23,10 @@ import {
 	notFound,
 	NotFoundResponse,
 	StatusCode,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/profile";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 enum Action {
 	Impersonate = "impersonate",

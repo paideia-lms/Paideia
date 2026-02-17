@@ -1,8 +1,8 @@
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindMediaUsages } from "server/internal/media-management";
-import { badRequest, ok, unauthorized } from "~/utils/responses";
-import { typeCreateLoaderRpc } from "~/utils/loader-utils";
+import { badRequest, ok, unauthorized } from "app/utils/router/responses";
+import { typeCreateLoaderRpc } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/media-usage";
 
 const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>({

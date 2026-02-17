@@ -108,6 +108,16 @@ export const QuizSubmissions = {
 			label: "Status",
 		},
 		{
+			name: "isPreview",
+			type: "checkbox",
+			defaultValue: false,
+			label: "Is Preview",
+			admin: {
+				description:
+					"Marks this submission as a preview attempt. Preview attempts are excluded from normal display and don't count toward attempt limits.",
+			},
+		},
+		{
 			name: "startedAt",
 			type: "date",
 			label: "Started At",
@@ -205,6 +215,8 @@ export const QuizSubmissions = {
 				{
 					name: "questionId",
 					type: "text",
+					required: true,
+					label: "Flagged Question ID",
 				},
 			],
 			label: "Flagged Questions by student during the quiz attempt",
@@ -239,6 +251,51 @@ export const QuizSubmissions = {
 			type: "checkbox",
 			defaultValue: false,
 			label: "Auto Graded",
+		},
+		{
+			name: "grade",
+			type: "number",
+			label: "Grade",
+			min: 0,
+		},
+		{
+			name: "feedback",
+			type: "textarea",
+			label: "Feedback",
+		},
+		{
+			name: "gradedBy",
+			type: "relationship",
+			relationTo: "users",
+			label: "Graded By",
+		},
+		{
+			name: "gradedAt",
+			type: "date",
+			label: "Graded At",
+		},
+		{
+			name: "completedNestedQuizzes",
+			type: "array",
+			fields: [
+				{
+					name: "nestedQuizId",
+					type: "text",
+					required: true,
+					label: "Nested Quiz ID",
+				},
+				{
+					name: "startedAt",
+					type: "date",
+					label: "Started At",
+				},
+				{
+					name: "completedAt",
+					type: "date",
+					label: "Completed At",
+				},
+			],
+			label: "Completed or In Progress Nested Quizzes",
 		},
 	],
 	indexes: [

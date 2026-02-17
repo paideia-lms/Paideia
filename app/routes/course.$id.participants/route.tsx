@@ -1,7 +1,7 @@
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href } from "react-router";
-import { typeCreateActionRpc, createActionMap } from "~/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -19,10 +19,10 @@ import {
 	ForbiddenResponse,
 	ok,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { parseAsStringEnum } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 export type { Route };
 

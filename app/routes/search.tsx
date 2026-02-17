@@ -15,15 +15,15 @@ import { parseAsInteger, parseAsString } from "nuqs/server";
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { useDebouncedCallback } from "@mantine/hooks";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import {
 	getRouteUrl,
 	useNuqsSearchParams,
-} from "app/utils/search-params-utils";
+} from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGlobalSearch } from "server/internal/search-management";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/search";
 
 export type { Route };

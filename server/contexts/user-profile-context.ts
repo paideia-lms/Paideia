@@ -9,7 +9,6 @@
  * This context is for the user whose profile is being viewed (could be self or another user)
  */
 import { createContext, href } from "react-router";
-import type { UserAccessContext } from "server/contexts/user-access-context";
 import type { GlobalContext } from "server/contexts/global-context";
 import type { UserSession } from "server/contexts/user-context";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
@@ -109,11 +108,10 @@ export const userProfileContext = createContext<UserProfileContext | null>(
 export { userProfileContextKey } from "./utils/context-keys";
 
 /**
- * Convert UserAccessContext to UserProfileContext
+ * Convert UserSession to UserProfileContext
  * This is useful when viewing your own profile to avoid duplicate queries
  */
 export const convertUserAccessContextToUserProfileContext = (
-	userAccessContext: UserAccessContext,
 	userSession: UserSession,
 	globalContext: GlobalContext,
 ) => {
@@ -198,11 +196,11 @@ export const convertUserAccessContextToUserProfileContext = (
 		profileUserId: currentUser.id,
 		profileUser,
 		currentUser,
-		activityModules: userAccessContext.activityModules,
-		enrollments: userAccessContext.enrollments,
-		notes: userAccessContext.notes,
-		heatmapData: userAccessContext.heatmapData,
-		availableYears: userAccessContext.availableYears,
+		activityModules: userSession.activityModules,
+		enrollments: userSession.enrollments,
+		notes: userSession.notes,
+		heatmapData: userSession.heatmapData,
+		availableYears: userSession.availableYears,
 		permissions: profilePermissions,
 	} satisfies UserProfileContext;
 };

@@ -1,11 +1,11 @@
 import { notifications } from "@mantine/notifications";
 import { href, redirect } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryDeleteActivityModule } from "server/internal/activity-module-management";
 import { z } from "zod";
-import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
+import { badRequest, StatusCode, unauthorized } from "app/utils/router/responses";
 import type { Route } from "./+types/activity-module-delete";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

@@ -1,0 +1,89 @@
+name: Create User E2E Test
+description: Test the complete user creation flow from navigation to user creation confirmation. This test ensures the user creation flow is not broken when code changes.
+baseUrl: http://localhost:3000
+
+steps:
+  - name: Navigate to Site Admin
+    action: navigate
+    url: http://localhost:3000/admin
+    verify:
+      - Site Admin page loads successfully
+      - Users tab is visible in the navigation
+
+  - name: Click Users tab
+    action: click
+    target: Users tab
+    verify:
+      - Users page loads
+      - Browse list of users option or user list is visible
+
+  - name: Navigate to user list page
+    action: navigate
+    url: http://localhost:3000/admin/users
+    verify:
+      - User list page loads successfully
+      - Add User button (+ Add User) is visible
+
+  - name: Click Add User button
+    action: click
+    target: Add User button (+ Add User)
+    verify:
+      - User is navigated to user creation form
+      - Create New User form is visible
+
+  - name: Fill in user email
+    action: type
+    target: Email field
+    value: test.user@example.com
+    verify:
+      - Email field is populated with valid email format
+
+  - name: Fill in user password
+    action: type
+    target: Password field
+    value: testpassword123
+    verify:
+      - Password field is populated (at least 8 characters)
+
+  - name: Fill in first name
+    action: type
+    target: First Name field
+    value: Test
+    verify:
+      - First Name field is populated
+
+  - name: Fill in last name
+    action: type
+    target: Last Name field
+    value: User
+    verify:
+      - Last Name field is populated
+
+  - name: Select user role
+    action: select
+    target: Role dropdown
+    value: Student
+    verify:
+      - Role is set to Student (or selected value)
+
+  - name: Fill in user bio (optional)
+    action: type
+    target: Bio field
+    value: A test user created for testing purposes.
+    verify:
+      - Bio field is populated (optional field)
+
+  - name: Submit user creation form
+    action: click
+    target: Create User button
+    verify:
+      - Form submission is successful
+      - User is redirected away from creation form
+
+  - name: Verify user was created
+    action: verify
+    verify:
+      - User is redirected to user list or user details page
+      - New user appears in the user list or user details page is visible
+      - User email or name is visible on the page
+      - Success notification is displayed

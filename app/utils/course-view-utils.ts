@@ -133,3 +133,45 @@ export const getUserRoleLabel = (role: User["role"]) => {
 			return "User";
 	}
 };
+
+import dayjs from "dayjs";
+
+export const formatSchedule = (course: {
+	recurringSchedules?: Array<{
+		daysOfWeek?: Array<{ day?: number }>;
+		startTime?: string;
+		endTime?: string;
+	}> | null;
+	specificDates?: Array<{
+		date?: string | Date;
+		startTime?: string;
+		endTime?: string;
+	}> | null;
+}) => {
+	const parts: string[] = [];
+	const DAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+	if (course.recurringSchedules && course.recurringSchedules.length > 0) {
+		for (const schedule of course.recurringSchedules) {
+			if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
+				const days = schedule.daysOfWeek
+					.map((d) => (d.day !== undefined ? DAY_ABBREVS[d.day] : ""))
+					.filter(Boolean)
+					.join(", ");
+				parts.push(`${days} ${schedule.startTime}-${schedule.endTime}`);
+			}
+		}
+	}
+
+	if (course.specificDates && course.specificDates.length > 0) {
+		for (const date of course.specificDates) {
+			if (date.date) {
+				const dateStr = dayjs(date.date).format("MMM D");
+				parts.push(`${dateStr} ${date.startTime}-${date.endTime}`);
+			}
+		}
+	}
+
+	if (parts.length === 0) return "No schedule";
+	return parts.join("; ");
+};

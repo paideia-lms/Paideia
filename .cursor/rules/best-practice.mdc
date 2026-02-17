@@ -25,9 +25,15 @@ in `clientAction`, we should use `notifications` from `@mantine/notifications` t
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
 
-use interface but not type for component props.
+use interface but not type for component props except for `createRouteComponent` where we can use type.
 
 in the loader, we should always throw ErrorResponse if fail, unless it is a non component route. in action, we return error response from `utils/responses` instead of throwing error.
+
+we should not use `as` operator for type casting, especially in the UI components. we should fix the type in the upstream internal functions or context. 
+
+avoid create complex props type for component, try infer type from loader data `Route.ComponentProps["loaderData"]` if possible.
+
+we should break down the components so that each component only use one action hook. 
 
 ## Routing
 
@@ -58,6 +64,8 @@ each test files should only have one describe block. each test file related to d
 if you really want a completely isolated test, you should always create a new root describe block and its own beforeAll and AfterAll. beforeAll and AfterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite. in test case, we should try to provide the test user so that we can test the authentication unless otherwise specified.
 
 when we need to test result ok and then do type narrowing, we should use `expect(result.ok).toBe(true); if (!result.ok) {` pattern for early return so we don't need to have nested if statements. 
+
+for UI e2e testing, we should use AI agent to test browser. you should write test in `tests/e2e`. see `tests/e2e/login.test.yaml` for example. It use `describe`, `it`, `expect` and `beforeEach`, `AfterEach`, `Before`, `After` to write the test. we don't need to be very rigorous because the UI might change.
 
 ## error handling
 

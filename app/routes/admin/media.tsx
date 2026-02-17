@@ -40,7 +40,7 @@ import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
 import { parseAsInteger, parseAsStringEnum } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import React, {
+import {
 	forwardRef,
 	useEffect,
 	useImperativeHandle,
@@ -49,9 +49,9 @@ import React, {
 	useState,
 } from "react";
 import { href, Link } from "react-router";
-import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
-import { createContext } from "app/utils/create-context";
-import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
+import { constate } from "app/utils/ui/constate";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -86,10 +86,10 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/media";
 import { z } from "zod";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 // Define search params
 export const loaderSearchParams = {
@@ -177,24 +177,24 @@ export const loader = createRouteLoader({
 
 	const mediaResult = userId
 		? await tryFindMediaByUser({
-				payload,
-				userId,
-				limit,
-				page,
-				depth: 1, // Include createdBy user info
-				req: payloadRequest,
-				overrideAccess: true,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch media");
-			})
+			payload,
+			userId,
+			limit,
+			page,
+			depth: 1, // Include createdBy user info
+			req: payloadRequest,
+			overrideAccess: true,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch media");
+		})
 		: await tryGetAllMedia({
-				payload,
-				limit,
-				page,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch media");
-			});
+			payload,
+			limit,
+			page,
+			req: payloadRequest,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch media");
+		});
 	const mediaWithPermissions = mediaResult.docs.map((file) => ({
 		...file,
 		deletePermission: { allowed: true, reason: "" },
@@ -202,18 +202,18 @@ export const loader = createRouteLoader({
 
 	const stats = userId
 		? await tryGetUserMediaStats({
-				payload,
-				userId,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch user media stats");
-			})
+			payload,
+			userId,
+			req: payloadRequest,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch user media stats");
+		})
 		: await tryGetSystemMediaStats({
-				payload,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch system media stats");
-			});
+			payload,
+			req: payloadRequest,
+		}).getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch system media stats");
+		});
 
 	const systemStats = await tryGetSystemMediaStats({
 		payload,
@@ -657,16 +657,6 @@ function MediaHeader({
 }
 
 // Media Selection Context
-interface MediaSelectionProviderProps {
-	media: Route.ComponentProps["loaderData"]["media"];
-	children:
-		| React.ReactNode
-		| ((props: {
-				selectedCardIds: number[];
-				selectedRecords: Route.ComponentProps["loaderData"]["media"];
-		  }) => React.ReactNode);
-}
-
 interface UseMediaSelectionValueProps {
 	media: Route.ComponentProps["loaderData"]["media"];
 }
@@ -699,34 +689,9 @@ function useMediaSelectionValue({ media }: UseMediaSelectionValueProps) {
 	};
 }
 
-const [MediaSelectionContext, useMediaSelection] = createContext(
+const [MediaSelectionProvider, useMediaSelection] = constate(
 	useMediaSelectionValue,
 );
-
-function MediaSelectionProvider({
-	media,
-	children,
-}: MediaSelectionProviderProps) {
-	const values = useMediaSelectionValue({ media });
-	return (
-		<MediaSelectionContext.Provider value={values}>
-			{typeof children === "function"
-				? children({
-						selectedCardIds: values.selectedCardIds,
-						selectedRecords: values.selectedRecords,
-					})
-				: React.Children.map(children, (child) => {
-						if (React.isValidElement(child)) {
-							return React.cloneElement(child as React.ReactElement<any>, {
-								selectedCardIds: values.selectedCardIds,
-								selectedRecords: values.selectedRecords,
-							});
-						}
-						return child;
-					})}
-		</MediaSelectionContext.Provider>
-	);
-}
 
 // Batch Actions Component
 function BatchActions({
@@ -1034,8 +999,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1222,8 +1187,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1326,8 +1291,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: file.id.toString(),
-			})
+			mediaId: file.id.toString(),
+		})
 		: undefined;
 
 	// Get creator info
@@ -1338,7 +1303,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-				"Unknown"
+			"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1349,13 +1314,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: creatorAvatarId.toString(),
-			})
+			mediaId: creatorAvatarId.toString(),
+		})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-				id: creatorId.toString(),
-			})
+			id: creatorId.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1556,7 +1521,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-							"Unknown"
+						"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1567,13 +1532,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:mediaId`, {
-							mediaId: creatorAvatarId.toString(),
-						})
+						mediaId: creatorAvatarId.toString(),
+					})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-							id: creatorId.toString(),
-						})
+						id: creatorId.toString(),
+					})
 					: undefined;
 
 				return (
@@ -1747,14 +1712,13 @@ function useOrphanedMediaSelectionValue({
 	};
 }
 
-const [OrphanedMediaSelectionContext, useOrphanedMediaSelection] =
-	createContext(useOrphanedMediaSelectionValue);
+const [OrphanedMediaSelectionProvider, useOrphanedMediaSelection] =
+	constate(useOrphanedMediaSelectionValue);
 
 // Orphaned Media Table Component
 function OrphanedMediaTable({
 	files,
 	pagination,
-	selectedOrphanedIds,
 }: {
 	files: OrphanedMediaFile[];
 	pagination: {
@@ -1763,9 +1727,8 @@ function OrphanedMediaTable({
 		hasPrevPage: boolean;
 		hasNextPage: boolean;
 	};
-	selectedOrphanedIds: string[];
 }) {
-	const { handleTableSelectionChange, clearSelection } =
+	const { selectedOrphanedIds, handleTableSelectionChange, clearSelection } =
 		useOrphanedMediaSelection();
 	const { submit: deleteOrphanedMedia, isLoading } = useDeleteOrphanedMedia();
 
@@ -1886,15 +1849,6 @@ function OrphanedMediaSection({
 		Route.ComponentProps["loaderData"]["orphanedMedia"]
 	>;
 }) {
-	const {
-		selectedOrphanedIds,
-		setSelectedOrphanedIds,
-		handleTableSelectionChange,
-		clearSelection,
-	} = useOrphanedMediaSelectionValue({
-		orphanedPage: orphanedMedia.page,
-	});
-
 	return (
 		<Card withBorder padding="lg" radius="md">
 			<Stack gap="lg">
@@ -1914,12 +1868,8 @@ function OrphanedMediaSection({
 						No orphaned media files found.
 					</Text>
 				) : (
-					<OrphanedMediaSelectionContext.Provider
-						value={{
-							setSelectedOrphanedIds,
-							handleTableSelectionChange,
-							clearSelection,
-						}}
+					<OrphanedMediaSelectionProvider
+						orphanedPage={orphanedMedia.page}
 					>
 						<OrphanedMediaTable
 							files={orphanedMedia.files}
@@ -1929,9 +1879,8 @@ function OrphanedMediaSection({
 								hasPrevPage: orphanedMedia.hasPrevPage,
 								hasNextPage: orphanedMedia.hasNextPage,
 							}}
-							selectedOrphanedIds={selectedOrphanedIds}
 						/>
-					</OrphanedMediaSelectionContext.Provider>
+					</OrphanedMediaSelectionProvider>
 				)}
 			</Stack>
 		</Card>
@@ -2072,15 +2021,12 @@ function MediaViews({
 	viewMode,
 	media,
 	pagination,
-	selectedCardIds,
-	selectedRecords,
 }: {
 	viewMode: "card" | "table";
 	media: Route.ComponentProps["loaderData"]["media"];
 	pagination: Route.ComponentProps["loaderData"]["pagination"];
-	selectedCardIds: number[];
-	selectedRecords: Route.ComponentProps["loaderData"]["media"];
 }) {
+	const { selectedCardIds, selectedRecords } = useMediaSelection();
 	return viewMode === "card" ? (
 		<>
 			<BatchActions
@@ -2158,15 +2104,11 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 					</Text>
 				) : (
 					<MediaSelectionProvider media={media}>
-						{({ selectedCardIds, selectedRecords }) => (
-							<MediaViews
-								viewMode={viewMode}
-								media={media}
-								pagination={pagination}
-								selectedCardIds={selectedCardIds}
-								selectedRecords={selectedRecords}
-							/>
-						)}
+						<MediaViews
+							viewMode={viewMode}
+							media={media}
+							pagination={pagination}
+						/>
 					</MediaSelectionProvider>
 				)}
 

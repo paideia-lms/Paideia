@@ -1,11 +1,11 @@
 import { notifications } from "@mantine/notifications";
 import { href } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCategory } from "server/internal/course-category-management";
 import { z } from "zod";
-import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
+import { badRequest, ok, StatusCode, unauthorized } from "app/utils/router/responses";
 import type { Route } from "./+types/category-reorder";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

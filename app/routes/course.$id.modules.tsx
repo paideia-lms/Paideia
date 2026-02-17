@@ -16,12 +16,14 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { notifications } from "@mantine/notifications";
 import { Link, redirect } from "react-router";
-import { createActionMap, typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import {
+	createActionMap,
+	typeCreateActionRpc,
+} from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateCourseActivityModuleLink,
@@ -43,10 +45,10 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.modules";
 import { tryFindUserEnrollmentInCourse } from "server/internal/enrollment-management";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
 
 enum Action {
@@ -88,7 +90,6 @@ export const loader = createRouteLoader({
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
-	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -107,9 +108,9 @@ export const loader = createRouteLoader({
 		);
 	}
 
-	// Get available modules from user access context
+	// Get available modules from user session (merged from userAccessContext)
 	const availableModules =
-		userAccessContext?.activityModules.map((module) => ({
+		userSession.activityModules.map((module) => ({
 			id: module.id,
 			title: module.title,
 			description: module.description,

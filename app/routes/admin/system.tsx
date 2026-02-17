@@ -20,8 +20,8 @@ import {
 	detectSystemResources,
 	getServerTimezone,
 } from "server/utils/bun-system-resources";
-import { ForbiddenResponse } from "~/utils/responses";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { ForbiddenResponse } from "app/utils/router/responses";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/system";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();

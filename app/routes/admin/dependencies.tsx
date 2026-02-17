@@ -1,8 +1,8 @@
 import { Alert, Badge, Box, Paper, Stack, Table, Title } from "@mantine/core";
 import { userContextKey } from "server/contexts/user-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
-import { ForbiddenResponse } from "~/utils/responses";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { ForbiddenResponse } from "app/utils/router/responses";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/dependencies";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();

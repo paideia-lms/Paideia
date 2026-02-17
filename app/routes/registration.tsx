@@ -14,7 +14,7 @@ import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { href, Link, redirect } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
@@ -30,7 +30,7 @@ import {
 	badRequest,
 	ForbiddenResponse,
 	InternalServerErrorResponse,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/registration";
 
 export async function loader({ context }: Route.LoaderArgs) {

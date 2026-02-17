@@ -22,7 +22,7 @@ export const routes = [
 	route("api/section-update", "routes/api/section-update.tsx"),
 	route("api/activity-module-delete", "routes/api/activity-module-delete.tsx"),
 	layout("layouts/root-layout.tsx", [
-		index("routes/index.tsx"),
+		index("routes/index/route.tsx"),
 		route("catalog", "routes/catalog.tsx"),
 		route("search", "routes/search.tsx"),
 		// every user will see this page the same except some permission difference
@@ -68,6 +68,10 @@ export const routes = [
 					route(
 						"course/module/:moduleLinkId/submissions",
 						"routes/course/module.$id.submissions/route.tsx",
+					),
+					route(
+						"course/module/:moduleLinkId/submissions/:submissionId",
+						"routes/course/module.$id.submissions.$submissionId/route.tsx",
 					),
 				]),
 				layout("layouts/course-section-layout.tsx", [

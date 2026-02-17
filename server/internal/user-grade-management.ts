@@ -17,7 +17,7 @@ import {
 	UnknownError,
 	UserGradeNotFoundError,
 	UserNotFoundError,
-} from "~/utils/error";
+} from "app/utils/error";
 import type { GradebookItem, UserGrade } from "../payload-types";
 import { tryListDiscussionSubmissions } from "./discussion-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";

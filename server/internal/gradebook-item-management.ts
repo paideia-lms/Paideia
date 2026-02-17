@@ -8,7 +8,7 @@ import {
 	transformError,
 	UnknownError,
 	WeightExceedsLimitError,
-} from "~/utils/error";
+} from "app/utils/error";
 import {
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,

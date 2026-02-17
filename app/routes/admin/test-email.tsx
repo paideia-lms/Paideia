@@ -19,8 +19,8 @@ import {
 	IconMail,
 } from "@tabler/icons-react";
 import { href } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { trySendEmail } from "server/internal/email";
@@ -30,7 +30,7 @@ import {
 	ForbiddenResponse,
 	ok,
 	StatusCode,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/test-email";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
@@ -251,15 +251,15 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 				values:
 					values.messageType === "custom"
 						? {
-								messageType: "custom",
-								recipient: values.recipient,
-								subject: values.subject,
-								body: values.body,
-							}
+							messageType: "custom",
+							recipient: values.recipient,
+							subject: values.subject,
+							body: values.body,
+						}
 						: {
-								messageType: "predefined",
-								recipient: values.recipient,
-							},
+							messageType: "predefined",
+							recipient: values.recipient,
+						},
 			});
 		}
 		// If email is not configured, show confirmation modal

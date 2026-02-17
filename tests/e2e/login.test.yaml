@@ -1,0 +1,38 @@
+name: Login Flow E2E Test
+description: Test the complete login flow from navigation to dashboard redirect. This test ensures the login flow is not broken when code changes.
+baseUrl: http://localhost:3000
+
+steps:
+  - name: Navigate to home page
+    action: navigate
+    url: http://localhost:3000
+    verify:
+      - The page loads successfully
+      - User is either logged in (shows dashboard) or redirected to login
+
+  - name: Navigate to login page
+    action: navigate
+    url: http://localhost:3000/login
+    verify:
+      - Login page loads
+      - Login form is visible
+
+  - name: Use auto-fill to populate credentials
+    action: click
+    target: Auto-fill button (dev only)
+    verify:
+      - Form fields are populated with test credentials
+
+  - name: Submit login form
+    action: click
+    target: Login button
+    verify:
+      - Form submission is successful
+      - User is redirected away from login page
+
+  - name: Verify successful login as admin
+    action: verify
+    verify:
+      - User is redirected to dashboard (URL contains "/" and not "/login")
+      - Dashboard content is visible (user can see their courses or dashboard elements)
+      - User is authenticated as admin (user menu or profile indicator is visible)

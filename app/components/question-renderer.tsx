@@ -72,7 +72,7 @@ import type {
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "./activity-module-forms/use-whiteboard-data";
 import { SimpleRichTextEditor } from "./rich-text/simple-rich-text-editor";
-import { useEffectForAnyObject } from "app/utils/form-utils";
+import { useEffectForAnyObject } from "~/utils/ui/better-effect";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>

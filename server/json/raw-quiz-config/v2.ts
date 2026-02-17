@@ -300,18 +300,6 @@ export type TypedQuestionAnswer =
 	| { type: "multiple-selection-matrix"; value: Record<string, string> } // Map of row key to column key
 	| { type: "whiteboard"; value: string }; // JSON string of Excalidraw data
 
-// Type guard: Check if a quiz is a container quiz with nested quizzes
-export function isContainerQuiz(
-	config: QuizConfig,
-): config is ContainerQuizConfig {
-	return config.type === "container";
-}
-
-// Type guard: Check if a quiz is a regular quiz with pages
-export function isRegularQuiz(config: QuizConfig): config is RegularQuizConfig {
-	return config.type === "regular";
-}
-
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================

@@ -13,9 +13,9 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
 import { parseAsStringEnum } from "nuqs/server";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import prettyBytes from "pretty-bytes";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -31,7 +31,7 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/logo";
 import { z } from "zod";
 
@@ -50,7 +50,6 @@ enum Field {
 
 // Define search params for logo actions
 export const logoSearchParams = {
-	action: parseAsStringEnum(Object.values(Action)),
 	field: parseAsStringEnum(Object.values(Field)),
 };
 
@@ -229,7 +228,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
-			message: actionData.message || "Logo uploaded successfully",
+			message: actionData.message,
 			color: "green",
 		});
 	} else if (
@@ -239,7 +238,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	) {
 		notifications.show({
 			title: "Error",
-			message: actionData?.error || "Failed to upload logo",
+			message: actionData.error,
 			color: "red",
 		});
 	}
@@ -301,8 +300,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-				mediaId: logo.id.toString(),
-			})
+			mediaId: logo.id.toString(),
+		})
 		: null;
 
 	return (

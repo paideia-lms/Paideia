@@ -1,8 +1,8 @@
 import type { UseFormReturnType } from "@mantine/form";
 import { Input } from "@mantine/core";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { FileUploader } from "../file-uploader";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import type { ComponentProps } from "react";
 import type { Path } from "node_modules/@mantine/form/lib/paths.types";
 

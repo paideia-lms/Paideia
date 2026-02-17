@@ -18,8 +18,8 @@ import {
   serial,
   boolean,
   numeric,
-  type AnyPgColumn,
   jsonb,
+  type AnyPgColumn,
   pgEnum,
 } from "@payloadcms/db-postgres/drizzle/pg-core";
 import { sql, relations } from "@payloadcms/db-postgres/drizzle";
@@ -178,7 +178,7 @@ export const users = pgTable(
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
     direction: enum_users_direction("direction").notNull().default("ltr"),
-    avatar: integer("avatar_id").references(() => media.id, {
+    avatar: integer("avatar_id").references(() : AnyPgColumn => media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
@@ -248,6 +248,7 @@ export const courses = pgTable(
     slug: varchar("slug").notNull(),
     description: varchar("description").notNull(),
     status: enum_courses_status("status").notNull().default("draft"),
+    schedule: jsonb("schedule"),
     thumbnail: integer("thumbnail_id").references(() => media.id, {
       onDelete: "set null",
     }),
@@ -1372,7 +1373,7 @@ export const quiz_submissions_flagged_questions = pgTable(
     _order: integer("_order").notNull(),
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
-    questionId: varchar("question_id"),
+    questionId: varchar("question_id").notNull(),
   },
   (columns) => [
     index("quiz_submissions_flagged_questions_order_idx").on(columns._order),
@@ -1383,6 +1384,39 @@ export const quiz_submissions_flagged_questions = pgTable(
       columns: [columns["_parentID"]],
       foreignColumns: [quiz_submissions.id],
       name: "quiz_submissions_flagged_questions_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const quiz_submissions_completed_nested_quizzes = pgTable(
+  "quiz_submissions_completed_nested_quizzes",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    nestedQuizId: varchar("nested_quiz_id").notNull(),
+    startedAt: timestamp("started_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    completedAt: timestamp("completed_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+  },
+  (columns) => [
+    index("quiz_submissions_completed_nested_quizzes_order_idx").on(
+      columns._order,
+    ),
+    index("quiz_submissions_completed_nested_quizzes_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [quiz_submissions.id],
+      name: "quiz_submissions_completed_nested_quizzes_parent_id_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -1412,6 +1446,7 @@ export const quiz_submissions = pgTable(
     status: enum_quiz_submissions_status("status")
       .notNull()
       .default("in_progress"),
+    isPreview: boolean("is_preview").default(false),
     startedAt: timestamp("started_at", {
       mode: "string",
       withTimezone: true,
@@ -1428,6 +1463,16 @@ export const quiz_submissions = pgTable(
     percentage: numeric("percentage", { mode: "number" }),
     isLate: boolean("is_late").default(false),
     autoGraded: boolean("auto_graded").default(false),
+    grade: numeric("grade", { mode: "number" }),
+    feedback: varchar("feedback"),
+    gradedBy: integer("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1449,6 +1494,7 @@ export const quiz_submissions = pgTable(
     ),
     index("quiz_submissions_student_idx").on(columns.student),
     index("quiz_submissions_enrollment_idx").on(columns.enrollment),
+    index("quiz_submissions_graded_by_idx").on(columns.gradedBy),
     index("quiz_submissions_updated_at_idx").on(columns.updatedAt),
     index("quiz_submissions_created_at_idx").on(columns.createdAt),
     index("courseModuleLink_1_idx").on(columns.courseModuleLink),
@@ -3142,6 +3188,16 @@ export const relations_quiz_submissions_flagged_questions = relations(
     }),
   }),
 );
+export const relations_quiz_submissions_completed_nested_quizzes = relations(
+  quiz_submissions_completed_nested_quizzes,
+  ({ one }) => ({
+    _parentID: one(quiz_submissions, {
+      fields: [quiz_submissions_completed_nested_quizzes._parentID],
+      references: [quiz_submissions.id],
+      relationName: "completedNestedQuizzes",
+    }),
+  }),
+);
 export const relations_quiz_submissions = relations(
   quiz_submissions,
   ({ one, many }) => ({
@@ -3165,6 +3221,14 @@ export const relations_quiz_submissions = relations(
     }),
     flaggedQuestions: many(quiz_submissions_flagged_questions, {
       relationName: "flaggedQuestions",
+    }),
+    gradedBy: one(users, {
+      fields: [quiz_submissions.gradedBy],
+      references: [users.id],
+      relationName: "gradedBy",
+    }),
+    completedNestedQuizzes: many(quiz_submissions_completed_nested_quizzes, {
+      relationName: "completedNestedQuizzes",
     }),
   }),
 );
@@ -3735,6 +3799,7 @@ type DatabaseSchema = {
   quiz_submissions_answers_multiple_choice_answers: typeof quiz_submissions_answers_multiple_choice_answers;
   quiz_submissions_answers: typeof quiz_submissions_answers;
   quiz_submissions_flagged_questions: typeof quiz_submissions_flagged_questions;
+  quiz_submissions_completed_nested_quizzes: typeof quiz_submissions_completed_nested_quizzes;
   quiz_submissions: typeof quiz_submissions;
   discussion_submissions_attachments: typeof discussion_submissions_attachments;
   discussion_submissions_upvotes: typeof discussion_submissions_upvotes;
@@ -3799,6 +3864,7 @@ type DatabaseSchema = {
   relations_quiz_submissions_answers_multiple_choice_answers: typeof relations_quiz_submissions_answers_multiple_choice_answers;
   relations_quiz_submissions_answers: typeof relations_quiz_submissions_answers;
   relations_quiz_submissions_flagged_questions: typeof relations_quiz_submissions_flagged_questions;
+  relations_quiz_submissions_completed_nested_quizzes: typeof relations_quiz_submissions_completed_nested_quizzes;
   relations_quiz_submissions: typeof relations_quiz_submissions;
   relations_discussion_submissions_attachments: typeof relations_discussion_submissions_attachments;
   relations_discussion_submissions_upvotes: typeof relations_discussion_submissions_upvotes;

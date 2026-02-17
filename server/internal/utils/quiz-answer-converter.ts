@@ -4,7 +4,7 @@ import type {
 	TypedQuestionAnswer,
 } from "server/json/raw-quiz-config/v2";
 import type { QuizSubmission } from "server/payload-types";
-import { InvalidArgumentError } from "~/utils/error";
+import { InvalidArgumentError } from "app/utils/error";
 import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
 
 /**
@@ -322,16 +322,6 @@ export function findQuestionInConfig(
 	}
 
 	return null;
-}
-
-/**
- * Type guard to check if answer type matches question type
- */
-export function validateAnswerTypeMatchesQuestion(
-	question: Question,
-	answer: TypedQuestionAnswer,
-): boolean {
-	return answer.type === question.type;
 }
 
 /**

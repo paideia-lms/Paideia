@@ -11,12 +11,12 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
+import { ForbiddenResponse, NotFoundResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { getRouteUrl } from "~/utils/search-params-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 enum UserTab {
 	Profile = "profile",

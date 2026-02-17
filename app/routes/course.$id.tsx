@@ -1,4 +1,5 @@
 import {
+	Accordion,
 	Avatar,
 	Badge,
 	Button,
@@ -15,18 +16,20 @@ import {
 } from "@mantine/core";
 import { IconEdit, IconFolder, IconPlus } from "@tabler/icons-react";
 import { href, Link } from "react-router";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
+	formatSchedule,
 } from "app/utils/course-view-utils";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
+import { CourseCalendarView } from "app/components/course-calendar-view";
 
 export const loaderSearchParams = {
 	reload: parseAsBoolean.withDefault(false),
@@ -101,6 +104,14 @@ function CourseInfo({ course }: CourseInfoProps) {
 				<Group grow>
 					<Card withBorder>
 						<Text fw={600} size="sm" c="dimmed" mb="xs">
+							Schedule
+						</Text>
+						{/* biome-ignore lint/suspicious/noExplicitAny: <explanation> */}
+						<Text>{formatSchedule(course as any)}</Text>
+					</Card>
+
+					<Card withBorder>
+						<Text fw={600} size="sm" c="dimmed" mb="xs">
 							Instructors
 						</Text>
 						{course.enrollments.length > 0 ? (
@@ -130,10 +141,10 @@ function CourseInfo({ course }: CourseInfoProps) {
 											src={
 												instructor.user.avatar
 													? getRouteUrl("/api/user/:id/avatar", {
-															params: {
-																id: instructor.user.id.toString(),
-															},
-														})
+														params: {
+															id: instructor.user.id.toString(),
+														},
+													})
 													: undefined
 											}
 											name={
@@ -218,6 +229,16 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<CourseInfo course={course} />
+
+
+				<Paper shadow="sm" p="md" withBorder>
+
+					<CourseCalendarView
+						recurringSchedules={course.recurringSchedules}
+						specificDates={course.specificDates}
+					/>
+				</Paper>
+
 
 				<Paper shadow="sm" p="md" withBorder>
 					<Stack gap="md">

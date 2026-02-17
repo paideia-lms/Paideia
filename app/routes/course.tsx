@@ -16,6 +16,7 @@ import {
 	Title,
 } from "@mantine/core";
 import {
+	IconCalendar,
 	IconLayoutGrid,
 	IconList,
 	IconPlus,
@@ -23,14 +24,15 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { userAccessContextKey } from "server/contexts/user-access-context";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
+	formatSchedule,
 } from "app/utils/course-view-utils";
 
 export type { Route };
@@ -90,6 +92,18 @@ function CourseCardGrid({ courses }: CourseCardGridProps) {
 									{course.title}
 								</Text>
 
+								{formatSchedule(course as any) && (
+									<Group gap={4}>
+										<IconCalendar
+											size={14}
+											color="var(--mantine-color-dimmed)"
+										/>
+										<Text size="xs" c="dimmed" lineClamp={2}>
+											{formatSchedule(course as any)}
+										</Text>
+									</Group>
+								)}
+
 								{course.enrollmentStatus && (
 									<Badge
 										size="sm"
@@ -128,6 +142,7 @@ function CourseTable({ courses, onCourseClick }: CourseTableProps) {
 			<Table.Thead>
 				<Table.Tr>
 					<Table.Th>Title</Table.Th>
+					<Table.Th>Dates</Table.Th>
 					<Table.Th>Status</Table.Th>
 					<Table.Th>Completion</Table.Th>
 				</Table.Tr>
@@ -141,6 +156,18 @@ function CourseTable({ courses, onCourseClick }: CourseTableProps) {
 					>
 						<Table.Td>
 							<Text fw={500}>{course.title}</Text>
+						</Table.Td>
+						<Table.Td>
+							{formatSchedule(course as any) ? (
+								<Group gap={4}>
+									<IconCalendar size={14} color="var(--mantine-color-dimmed)" />
+									<Text size="sm" c="dimmed" lineClamp={2}>
+										{formatSchedule(course as any)}
+									</Text>
+								</Group>
+							) : (
+								<Text c="dimmed">-</Text>
+							)}
 						</Table.Td>
 						<Table.Td>
 							{course.enrollmentStatus ? (
@@ -187,13 +214,8 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
-	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	if (!userAccessContext) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
@@ -201,15 +223,45 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Extract courses from enrollments
-	const courses = userAccessContext.enrollments.map((enrollment) => {
+	const courses = userSession.enrollments.map((enrollment) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		const thumbnailUrl = enrollment.course.thumbnail
 			? href(`/api/media/file/:mediaId`, {
 					mediaId: enrollment.course.thumbnail.toString(),
 				})
 			: null;
+
+		// Transform schedule data to match CourseScheduleV1 structure
+		const schedule = {
+			version: "v1",
+			recurring:
+				enrollment.course.recurringSchedules?.map((item) => ({
+					daysOfWeek:
+						item.daysOfWeek
+							?.map((d) => d.day)
+							.filter((d): d is number => d != null) ?? [],
+					startTime: item.startTime ?? "00:00",
+					endTime: item.endTime ?? "00:00",
+					startDate: item.startDate
+						? new Date(item.startDate).toISOString().split("T")[0]
+						: undefined,
+					endDate: item.endDate
+						? new Date(item.endDate).toISOString().split("T")[0]
+						: undefined,
+				})) ?? [],
+			specificDates:
+				enrollment.course.specificDates?.map((item) => ({
+					date: item.date
+						? new Date(item.date).toISOString().split("T")[0]
+						: "",
+					startTime: item.startTime ?? "00:00",
+					endTime: item.endTime ?? "00:00",
+				})) ?? [],
+		};
+
 		return {
 			...enrollment.course,
+			schedule,
 			enrollmentStatus: enrollment.status,
 			completionPercentage: enrollment.status === "completed" ? 100 : 0,
 			createdBy: 0, // We don't have this info in the enrollment data

@@ -2,7 +2,7 @@ import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { useUpdateQuiz } from "app/routes/user/module/edit-setting/route";
 import type { Route } from "../../+types/route";
 import { useForm } from "@mantine/form";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface ModuleInfoFormProps {
 	module: Extract<

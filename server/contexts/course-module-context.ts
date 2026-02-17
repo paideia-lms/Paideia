@@ -4,7 +4,7 @@ import type { LatestCourseQuizSettings } from "server/json/course-module-setting
 import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { calculateTotalPoints } from "server/json/raw-quiz-config/v2";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "~/utils/error";
+import { transformError, UnknownError } from "app/utils/error";
 import { tryListAssignmentSubmissions } from "../internal/assignment-submission-management";
 import { tryFindCourseActivityModuleLinkById } from "../internal/course-activity-module-link-management";
 import { tryGetPreviousNextModule } from "../internal/course-section-management";
@@ -98,7 +98,7 @@ export interface QuizData {
 	maxAttempts: number | null;
 	timeLimit: number | null; // in minutes
 	points: number | null;
-	rawQuizConfig: LatestQuizConfig | null;
+	rawQuizConfig: LatestQuizConfig;
 }
 
 export interface QuizSubmissionData {
@@ -114,7 +114,8 @@ export interface TryGetCourseModuleContextArgs
 	moduleLinkId: number;
 	courseId: number;
 	enrolment: { role?: "student" | "teacher" | "ta" | "manager" } | null;
-	threadId?: string | null;
+	threadId?: number | null;
+	submissionId?: number | null;
 }
 
 /**
@@ -130,6 +131,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				courseId,
 				enrolment,
 				threadId,
+				submissionId,
 
 				req,
 				overrideAccess = false,
@@ -144,6 +146,10 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					enrolment ?? undefined,
 				),
 				canSeeSubmissions: permissions.course.module.canSeeSubmissions(
+					user ?? undefined,
+					enrolment ?? undefined,
+				),
+				canDelete: permissions.course.module.canDelete(
 					user ?? undefined,
 					enrolment ?? undefined,
 				),
@@ -314,12 +320,14 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				// Fetch quiz submissions
 				// Only filter by studentId if user is a student
 				// Teachers/admins should see all submissions in the submissions table
+				// Include preview submissions so they can be retrieved when needed (e.g., via viewSubmission param)
 				const isStudent = enrolment?.role === "student";
 				const submissionsResult = await tryListQuizSubmissions({
 					payload,
 					courseModuleLinkId: moduleLinkId,
 					studentId: isStudent ? req?.user?.id : undefined,
 					limit: 1000,
+					includePreview: true, // Include previews so they can be retrieved when viewing
 					req,
 					overrideAccess,
 				}).getOrThrow();
@@ -329,42 +337,58 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				// userSubmissions should always be filtered to current user's submissions
 				// regardless of role (for display in module page)
 				// submissions field contains all submissions (for admin/teacher view in submissions table)
+				// Include preview attempts in userSubmissions so they can be retrieved when needed (e.g., via viewSubmission param)
 				const userSubmissions = allSubmissions.filter(
 					(sub) => sub.student.id === req?.user?.id,
 				);
 
 				// Get the latest submission (in_progress or most recent)
+				// Exclude preview attempts from the latest submission logic
 				const userSubmission =
-					userSubmissions.find((sub) => sub.status === "in_progress") ||
-					[...userSubmissions].sort((a, b) => {
-						const aDate =
-							typeof a.createdAt === "string"
-								? new Date(a.createdAt).getTime()
-								: 0;
-						const bDate =
-							typeof b.createdAt === "string"
-								? new Date(b.createdAt).getTime()
-								: 0;
-						return bDate - aDate;
-					})[0] ||
+					userSubmissions
+						.filter((sub) => !sub.isPreview)
+						.find((sub) => sub.status === "in_progress") ||
+					[...userSubmissions]
+						.filter((sub) => !sub.isPreview)
+						.sort((a, b) => {
+							const aDate =
+								typeof a.createdAt === "string"
+									? new Date(a.createdAt).getTime()
+									: 0;
+							const bDate =
+								typeof b.createdAt === "string"
+									? new Date(b.createdAt).getTime()
+									: 0;
+							return bDate - aDate;
+						})[0] ||
 					null;
 
 				// Calculate quiz-specific display data
-				const quizSubmissionsForDisplay = userSubmissions.map((sub) => ({
-					id: sub.id,
-					status: sub.status as
-						| "in_progress"
-						| "completed"
-						| "graded"
-						| "returned",
-					submittedAt: sub.submittedAt ?? null,
-					startedAt: sub.startedAt ?? null,
-					attemptNumber: sub.attemptNumber ?? 1,
-				}));
+				// Exclude preview attempts from display (submission history)
+				const quizSubmissionsForDisplay = userSubmissions
+					.filter((sub) => !sub.isPreview)
+					.map((sub) => ({
+						id: sub.id,
+						status: sub.status as
+							| "in_progress"
+							| "completed"
+							| "graded"
+							| "returned",
+						submittedAt: sub.submittedAt ?? null,
+						startedAt: sub.startedAt ?? null,
+						attemptNumber: sub.attemptNumber ?? 1,
+					}));
 
-				const hasActiveQuizAttempt = userSubmissions.some(
-					(sub) => sub.status === "in_progress",
-				);
+				// Find the active in_progress submission
+				// Exclude preview attempts from active submission
+				const activeSubmission =
+					userSubmission &&
+					"status" in userSubmission &&
+					userSubmission.status === "in_progress"
+						? userSubmission
+						: null;
+
+				const hasActiveQuizAttempt = activeSubmission !== null;
 
 				// Calculate quiz remaining time if applicable
 				let quizRemainingTime: number | undefined;
@@ -435,14 +459,24 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					}
 				}
 
+				const activeSubmissionResult = activeSubmission
+					? {
+							hasActiveQuizAttempt: true as const,
+							activeSubmission,
+						}
+					: {
+							hasActiveQuizAttempt: false as const,
+							activeSubmission: null,
+						};
+
 				return {
 					...moduleLink,
+					...activeSubmissionResult,
 					submissions: allSubmissions,
 					userSubmissions,
 					userSubmission,
 					quiz,
 					allQuizSubmissionsForDisplay,
-					hasActiveQuizAttempt,
 					quizRemainingTime,
 					initialAnswers,
 					// formattedModuleSettings,
@@ -494,13 +528,9 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					courseModuleLinkId: moduleLinkId,
 					req,
 					overrideAccess,
-				});
+				}).getOrThrow();
 
-				if (!threadsResult.ok) {
-					throw threadsResult.error;
-				}
-
-				const threads = threadsResult.value.threads.map((threadData) => {
+				const threads = threadsResult.threads.map((threadData) => {
 					const thread = threadData.thread;
 					const student = thread.student;
 					const authorName = student
@@ -515,18 +545,9 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 						: "U";
 
 					const isUpvoted =
-						thread.upvotes?.some(
-							(upvote: {
-								user: number | { id: number };
-								upvotedAt: string;
-							}) => {
-								const upvoteUser =
-									typeof upvote.user === "object" && upvote.user !== null
-										? upvote.user
-										: null;
-								return upvoteUser?.id === req?.user?.id;
-							},
-						) ?? false;
+						// ? NOT SURE if the of upvote.user is right here, if not right, don't fix here, fix upstream
+						thread.upvotes?.some((upvote) => upvote.user === req?.user?.id) ??
+						false;
 
 					// Calculate total reply count (replies + comments)
 					const replyCount = threadData.repliesTotal + threadData.commentsTotal;
@@ -557,26 +578,134 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				};
 
 				// Fetch thread and replies if threadId is provided
-				let thread: DiscussionThread | null = null;
-				let replies: DiscussionReply[] = [];
-
-				if (threadId) {
-					const threadIdNumber = Number.parseInt(threadId, 10);
-					if (!Number.isNaN(threadIdNumber)) {
-						const threadResult = await tryGetDiscussionThreadWithReplies({
+				const threadData = threadId
+					? await tryGetDiscussionThreadWithReplies({
 							payload,
-							threadId: threadIdNumber,
+							threadId,
 							courseModuleLinkId: moduleLinkId,
 							req,
 							overrideAccess,
-						});
+						}).getOrNull()
+					: null;
 
-						if (threadResult.ok) {
-							thread = threadResult.value.thread;
-							replies = threadResult.value.replies;
-						}
-					}
-				}
+				const thread = threadData?.thread ?? null;
+				const replies = threadData?.replies ?? [];
+
+				// Process submission for grading view if submissionId is provided
+				const gradingSubmission =
+					submissionId !== null && submissionId !== undefined
+						? (() => {
+								const submission = allSubmissions.find(
+									(sub) => sub.id === submissionId,
+								);
+
+								if (!submission) {
+									return null;
+								}
+
+								// Get student ID from submission
+								const studentId = submission.student.id;
+
+								// Build a map of ALL submissions by ID for parent lookup
+								const allSubmissionsMap = new Map(
+									allSubmissions.map((sub) => {
+										const parentThreadId = sub.parentThread?.id ?? null;
+
+										// Extract student/author information
+										const student = sub.student;
+										const author = student ?? null;
+
+										return [
+											sub.id,
+											{
+												id: sub.id,
+												status: sub.status,
+												postType: sub.postType,
+												title: sub.title ?? null,
+												content: sub.content,
+												publishedAt: sub.publishedAt ?? null,
+												createdAt: sub.createdAt,
+												grade: sub.grade ?? null,
+												feedback: sub.feedback ?? null,
+												gradedAt: sub.gradedAt ?? null,
+												parentThread: parentThreadId,
+												author,
+											},
+										];
+									}),
+								);
+
+								// Filter all discussion submissions for this student
+								const studentSubmissions = allSubmissions
+									.filter((sub) => {
+										return sub.student.id === studentId;
+									})
+									.map((sub) => {
+										const parentThreadId = sub.parentThread?.id ?? null;
+										return {
+											id: sub.id,
+											status: sub.status,
+											postType: sub.postType,
+											title: sub.title ?? null,
+											content: sub.content,
+											publishedAt: sub.publishedAt ?? null,
+											createdAt: sub.createdAt,
+											grade: sub.grade ?? null,
+											feedback: sub.feedback ?? null,
+											gradedAt: sub.gradedAt ?? null,
+											parentThread: parentThreadId,
+										};
+									});
+
+								// Add parentPost and ancestors references to each submission
+								type SubmissionWithAuthor = NonNullable<
+									ReturnType<typeof allSubmissionsMap.get>
+								>;
+
+								const studentSubmissionsWithParents = studentSubmissions.map(
+									(sub) => {
+										const parentPost =
+											sub.parentThread && sub.postType !== "thread"
+												? (allSubmissionsMap.get(sub.parentThread) ?? null)
+												: null;
+
+										// Build ancestors chain (all parents up to thread)
+										// Ancestors come from allSubmissionsMap which includes author
+										const ancestors: SubmissionWithAuthor[] = [];
+										if (parentPost) {
+											let current: SubmissionWithAuthor | null = parentPost;
+											while (current) {
+												ancestors.push(current);
+												// Stop at thread (root)
+												if (current.postType === "thread") {
+													break;
+												}
+												// Get next parent
+												if (current.parentThread) {
+													current =
+														allSubmissionsMap.get(current.parentThread) ?? null;
+												} else {
+													current = null;
+												}
+											}
+											// Reverse to show from thread to direct parent
+											ancestors.reverse();
+										}
+
+										return {
+											...sub,
+											parentPost,
+											ancestors,
+										};
+									},
+								);
+
+								return {
+									...submission,
+									studentSubmissions: studentSubmissionsWithParents,
+								};
+							})()
+						: null;
 
 				return {
 					...moduleLink,
@@ -586,6 +715,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 					discussion,
 					thread,
 					replies,
+					gradingSubmission,
 					previousModule,
 					nextModule,
 					// formattedModuleSettings,

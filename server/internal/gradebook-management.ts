@@ -7,7 +7,7 @@ import {
 	GradebookNotFoundError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import type { CategoryData, ItemData } from "./utils/build-gradebook-structure";
 import { buildCategoryStructure } from "./utils/build-gradebook-structure";
 import {

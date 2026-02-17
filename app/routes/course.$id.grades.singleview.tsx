@@ -16,28 +16,23 @@ import {
 } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import dayjs from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { parseAsInteger } from "nuqs";
 import { useState } from "react";
 import { href, Link } from "react-router";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import type { SingleUserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { tryGetAdjustedSingleUserGrades } from "server/internal/user-grade-management";
 import { getModuleIcon } from "~/utils/module-helper";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
-import { useNuqsSearchParams } from "app/utils/search-params-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 
 type GradebookSetupItem =
 	Route.ComponentProps["loaderData"]["gradebookSetupForUI"]["gradebook_setup"]["items"][number];
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 const defaultSingleUserGradesResult = {
 	json: null,
@@ -89,11 +84,11 @@ export const loader = createRouteLoader(
 		const singleUserGradesResult =
 			userId && enrollment
 				? await tryGetAdjustedSingleUserGrades({
-						payload,
-						req: payloadRequest,
-						courseId: courseContext.course.id,
-						enrollmentId: enrollment.id,
-					}).getOrDefault(defaultSingleUserGradesResult)
+					payload,
+					req: payloadRequest,
+					courseId: courseContext.course.id,
+					enrollmentId: enrollment.id,
+				}).getOrDefault(defaultSingleUserGradesResult)
 				: defaultSingleUserGradesResult;
 
 		return {
@@ -209,20 +204,6 @@ const getStatusLabel = (status: string) => {
 	}
 };
 
-const formatDate = (
-	dateString: string | null | undefined,
-	timeZone?: string,
-) => {
-	if (!dateString) return "-";
-	try {
-		if (timeZone) {
-			return dayjs(dateString).tz(timeZone).format("MMM DD, YYYY h:mm A");
-		}
-		return dayjs(dateString).format("MMM DD, YYYY h:mm A");
-	} catch {
-		return dateString;
-	}
-};
 
 type GradeItemWithData = GradebookSetupItem & {
 	gradeData?: {
@@ -416,7 +397,12 @@ function GradeItemRow({
 							-
 						</Text>
 					) : (
-						<Text size="sm">{formatDate(gradeData.graded_at, timeZone)}</Text>
+						<Text size="sm">
+							{formatDateTimeForDisplay(gradeData.graded_at, {
+								timeZone,
+								style: "dayjs",
+							})}
+						</Text>
 					)}
 				</Table.Td>
 				<Table.Td>
@@ -426,7 +412,10 @@ function GradeItemRow({
 						</Text>
 					) : (
 						<Text size="sm">
-							{formatDate(gradeData.submitted_at, timeZone)}
+							{formatDateTimeForDisplay(gradeData.submitted_at, {
+								timeZone,
+								style: "dayjs",
+							})}
 						</Text>
 					)}
 				</Table.Td>
@@ -480,15 +469,15 @@ function matchItemsToStructure(
 				weight: gradeData?.weight ?? item.weight,
 				gradeData: gradeData
 					? {
-							base_grade: gradeData.base_grade ?? null,
-							override_grade: gradeData.override_grade ?? null,
-							is_overridden: gradeData.is_overridden,
-							feedback: gradeData.feedback ?? null,
-							graded_at: gradeData.graded_at ?? null,
-							submitted_at: gradeData.submitted_at ?? null,
-							status: gradeData.status,
-							adjustments: gradeData.adjustments ?? [],
-						}
+						base_grade: gradeData.base_grade ?? null,
+						override_grade: gradeData.override_grade ?? null,
+						is_overridden: gradeData.is_overridden,
+						feedback: gradeData.feedback ?? null,
+						graded_at: gradeData.graded_at ?? null,
+						submitted_at: gradeData.submitted_at ?? null,
+						status: gradeData.status,
+						adjustments: gradeData.adjustments ?? [],
+					}
 					: undefined,
 			});
 		}
@@ -602,7 +591,7 @@ function SingleUserGradeTableView({
 							</Text>
 							<Text size="lg" fw={700}>
 								{enrollment.final_grade !== null &&
-								enrollment.final_grade !== undefined
+									enrollment.final_grade !== undefined
 									? enrollment.final_grade.toFixed(2)
 									: "-"}
 							</Text>

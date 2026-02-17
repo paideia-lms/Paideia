@@ -1,10 +1,9 @@
-import { tryGetContext } from "app/utils/try-get-context";
+// import { tryGetContext } from "app/utils/try-get-context";
 import type { AccessResult, CollectionConfig } from "payload";
-import { stripDepth } from "server/internal/utils/internal-function-utils";
-import {
-	courseContextKey,
-	enrolmentContextKey,
-} from "server/contexts/utils/context-keys";
+// import {
+// 	courseContextKey,
+// 	enrolmentContextKey,
+// } from "server/contexts/utils/context-keys";
 
 // Assignments collection - assignment-specific configuration
 export const Assignments = {
@@ -15,70 +14,73 @@ export const Assignments = {
 			if (!req.user) return false;
 			if (req.user.role === "admin") return true;
 
-			const context = req.context.routerContext ?? req._c;
-			if (context) {
-				const courseContext = tryGetContext(context, courseContextKey);
-				const enrolmentContext = tryGetContext(context, enrolmentContextKey);
+			return true;
 
-				if (courseContext && enrolmentContext) {
-					// the user has an enrolment to this course
-					// TODO: do something, for now, we just let it pass
-					return true;
-				}
-			}
+			// const context = req.context.routerContext ?? req._c;
+			// if (context) {
+			// 	const courseContext = tryGetContext(context, courseContextKey);
+			// 	const enrolmentContext = tryGetContext(context, enrolmentContextKey);
 
-			// Allow access if user created it or has access to any activity module using this assignment
-			const activityModules = await req.payload
-				.find({
-					collection: "activity-modules",
-					where: {
-						assignment: { exists: true },
-					},
-					depth: 0,
-				})
-				.then(stripDepth<0, "find">());
+			// 	if (courseContext && enrolmentContext) {
+			// 		// the user has an enrolment to this course
+			// 		// TODO: do something, for now, we just let it pass
+			// 		return true;
+			// 	}
+			// }
 
-			const accessibleModuleIds = activityModules.docs
-				.filter((mod) => {
-					return mod.owner === req.user?.id || mod.createdBy === req.user?.id;
-				})
-				.map((mod) => mod.assignment)
-				.filter(Boolean);
+			// // Allow access if user created it or has access to any activity module using this assignment
+			// const activityModules = await req.payload
+			// 	.find({
+			// 		collection: "activity-modules",
+			// 		where: {
+			// 			assignment: { exists: true },
+			// 		},
+			// 		depth: 0,
+			// 	})
+			// 	.then(stripDepth<0, "find">());
 
-			return {
-				or: [
-					{ createdBy: { equals: req.user.id } },
-					{ id: { in: accessibleModuleIds } },
-				],
-			};
+			// const accessibleModuleIds = activityModules.docs
+			// 	.filter((mod) => {
+			// 		return mod.owner === req.user?.id || mod.createdBy === req.user?.id;
+			// 	})
+			// 	.map((mod) => mod.assignment)
+			// 	.filter(Boolean);
+
+			// return {
+			// 	or: [
+			// 		{ createdBy: { equals: req.user.id } },
+			// 		{ id: { in: accessibleModuleIds } },
+			// 	],
+			// };
 		},
 		update: async ({ req }): Promise<AccessResult> => {
 			if (!req.user) return false;
 			if (req.user.role === "admin") return true;
 
-			const activityModules = await req.payload
-				.find({
-					collection: "activity-modules",
-					where: {
-						assignment: { exists: true },
-					},
-					depth: 0,
-				})
-				.then(stripDepth<0, "find">());
+			return true;
+			// const activityModules = await req.payload
+			// 	.find({
+			// 		collection: "activity-modules",
+			// 		where: {
+			// 			assignment: { exists: true },
+			// 		},
+			// 		depth: 0,
+			// 	})
+			// 	.then(stripDepth<0, "find">());
 
-			const accessibleModuleIds = activityModules.docs
-				.filter((mod) => {
-					return mod.owner === req.user?.id || mod.createdBy === req.user?.id;
-				})
-				.map((mod) => mod.assignment)
-				.filter(Boolean);
+			// const accessibleModuleIds = activityModules.docs
+			// 	.filter((mod) => {
+			// 		return mod.owner === req.user?.id || mod.createdBy === req.user?.id;
+			// 	})
+			// 	.map((mod) => mod.assignment)
+			// 	.filter(Boolean);
 
-			return {
-				or: [
-					{ createdBy: { equals: req.user.id } },
-					{ id: { in: accessibleModuleIds } },
-				],
-			};
+			// return {
+			// 	or: [
+			// 		{ createdBy: { equals: req.user.id } },
+			// 		{ id: { in: accessibleModuleIds } },
+			// 	],
+			// };
 		},
 		delete: ({ req }): AccessResult => {
 			if (!req.user) return false;

@@ -12,8 +12,8 @@ import {
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { Link, redirect } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
@@ -21,9 +21,9 @@ import { tryGetUserCount, tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
-import { badRequest, InternalServerErrorResponse } from "~/utils/responses";
+import { badRequest, InternalServerErrorResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/login";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
@@ -33,7 +33,9 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 
 	if (userSession?.isAuthenticated) {
-		return redirect(getRouteUrl("/", {}));
+		return redirect(getRouteUrl("/", {
+			searchParams: {}
+		}));
 	}
 
 	const { payload } = context.get(globalContextKey);
@@ -93,7 +95,7 @@ const loginAction = loginRpc.createAction(
 		const { payload, requestInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (userSession?.isAuthenticated) {
-			return redirect(getRouteUrl("/", {}));
+			return redirect(getRouteUrl("/", { searchParams: {} }));
 		}
 
 		const loginResult = await tryLogin({
@@ -112,7 +114,7 @@ const loginAction = loginRpc.createAction(
 
 		const { token, exp } = loginResult.value;
 
-		return redirect(getRouteUrl("/", {}), {
+		return redirect(getRouteUrl("/", { searchParams: {} }), {
 			headers: {
 				"Set-Cookie": setCookie(
 					token,

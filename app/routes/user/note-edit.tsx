@@ -11,8 +11,8 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -22,7 +22,7 @@ import {
 } from "server/internal/note-management";
 import { permissions } from "server/utils/permissions";
 import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
-import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
+import { badRequest, NotFoundResponse, StatusCode } from "app/utils/router/responses";
 import type { Route } from "./+types/note-edit";
 import { z } from "zod";
 

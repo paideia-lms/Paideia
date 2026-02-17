@@ -11,7 +11,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -24,7 +24,7 @@ import {
 	forbidden,
 	ok,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/sitepolicies";
 
 type SitePoliciesGlobal = {
@@ -246,12 +246,12 @@ export default function AdminSitePolicies({
 						values: {
 							userMediaStorageTotal:
 								values.userMediaStorageTotal !== undefined &&
-								values.userMediaStorageTotal !== null
+									values.userMediaStorageTotal !== null
 									? values.userMediaStorageTotal
 									: null,
 							siteUploadLimit:
 								values.siteUploadLimit !== undefined &&
-								values.siteUploadLimit !== null
+									values.siteUploadLimit !== null
 									? values.siteUploadLimit
 									: null,
 						},

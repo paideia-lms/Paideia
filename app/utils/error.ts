@@ -1,3 +1,8 @@
+import {
+	QuizConfigValidationError,
+	QuizElementNotFoundError,
+} from "server/json/raw-quiz-config/v2";
+
 export class ContextNotFoundError extends Error {
 	static readonly type = "ContextNotFoundError";
 	get type() {
@@ -257,6 +262,13 @@ export class NotImplementedError extends Error {
 	}
 }
 
+export class ValidationError extends Error {
+	static readonly type = "ValidationError";
+	get type() {
+		return ValidationError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	// we don't know the error so we want to it log it out in development and test environments
 	if (
@@ -303,6 +315,9 @@ export function transformError(error: unknown) {
 	else if (error instanceof EnrollmentCourseMismatchError) return error;
 	else if (error instanceof NotImplementedError) return error;
 	else if (error instanceof UnknownError) return error;
+	else if (error instanceof QuizConfigValidationError) return error;
+	else if (error instanceof QuizElementNotFoundError) return error;
+	else if (error instanceof ValidationError) return error;
 	// ! we let user handle the unknown error
 	else {
 		return undefined;

@@ -9,7 +9,7 @@ import {
 	transformError,
 	UnknownError,
 	WeightExceedsLimitError,
-} from "~/utils/error";
+} from "app/utils/error";
 import type { GradebookCategory } from "../payload-types";
 import { tryValidateOverallWeightTotal } from "./gradebook-item-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";

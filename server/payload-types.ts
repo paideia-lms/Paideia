@@ -199,9 +199,7 @@ export interface Config {
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
-  user: User & {
-    collection: 'users';
-  };
+  user: User;
   jobs: {
     tasks: {
       sandboxReset: TaskSandboxReset;
@@ -264,6 +262,7 @@ export interface User {
       }[]
     | null;
   password?: string | null;
+  collection: 'users';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -297,6 +296,27 @@ export interface Course {
   description: string;
   descriptionMedia?: (number | Media)[] | null;
   status: 'draft' | 'published' | 'archived';
+  recurringSchedules?:
+    | {
+        daysOfWeek: {
+          day: number;
+          id?: string | null;
+        }[];
+        startTime: string;
+        endTime: string;
+        startDate?: string | null;
+        endDate?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  specificDates?:
+    | {
+        date: string;
+        startTime: string;
+        endTime: string;
+        id?: string | null;
+      }[]
+    | null;
   thumbnail?: (number | null) | Media;
   tags?:
     | {
@@ -768,6 +788,10 @@ export interface QuizSubmission {
   courseTitle?: string | null;
   attemptNumber: number;
   status: 'in_progress' | 'completed' | 'graded' | 'returned';
+  /**
+   * Marks this submission as a preview attempt. Preview attempts are excluded from normal display and don't count toward attempt limits.
+   */
+  isPreview?: boolean | null;
   startedAt?: string | null;
   submittedAt?: string | null;
   timeSpent?: number | null;
@@ -793,7 +817,7 @@ export interface QuizSubmission {
     | null;
   flaggedQuestions?:
     | {
-        questionId?: string | null;
+        questionId: string;
         id?: string | null;
       }[]
     | null;
@@ -802,6 +826,18 @@ export interface QuizSubmission {
   percentage?: number | null;
   isLate?: boolean | null;
   autoGraded?: boolean | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
+  completedNestedQuizzes?:
+    | {
+        nestedQuizId: string;
+        startedAt?: string | null;
+        completedAt?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1305,6 +1341,29 @@ export interface CoursesSelect<T extends boolean = true> {
   description?: T;
   descriptionMedia?: T;
   status?: T;
+  recurringSchedules?:
+    | T
+    | {
+        daysOfWeek?:
+          | T
+          | {
+              day?: T;
+              id?: T;
+            };
+        startTime?: T;
+        endTime?: T;
+        startDate?: T;
+        endDate?: T;
+        id?: T;
+      };
+  specificDates?:
+    | T
+    | {
+        date?: T;
+        startTime?: T;
+        endTime?: T;
+        id?: T;
+      };
   thumbnail?: T;
   tags?:
     | T
@@ -1669,6 +1728,7 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   courseTitle?: T;
   attemptNumber?: T;
   status?: T;
+  isPreview?: T;
   startedAt?: T;
   submittedAt?: T;
   timeSpent?: T;
@@ -1703,6 +1763,18 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   percentage?: T;
   isLate?: T;
   autoGraded?: T;
+  grade?: T;
+  feedback?: T;
+  gradedBy?: T;
+  gradedAt?: T;
+  completedNestedQuizzes?:
+    | T
+    | {
+        nestedQuizId?: T;
+        startedAt?: T;
+        completedAt?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }

@@ -2,7 +2,7 @@ import { Button, Stack, Textarea, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useUpdateNestedQuizInfo } from "app/routes/user/module/edit-setting/route";
 import type { NestedQuizConfig } from "./types";
-import { useFormWithSyncedInitialValues } from "app/utils/form-utils";
+import { useFormWithSyncedInitialValues } from "app/utils/ui/form-utils";
 
 interface UpdateNestedQuizInfoFormProps {
 	moduleId: number;

@@ -7,7 +7,7 @@ import type {
 } from "payload";
 import { Forbidden } from "payload";
 import type { Simplify, Subtract, Sum } from "type-fest";
-import { QuizTimeLimitExceededError } from "~/utils/error";
+import { QuizTimeLimitExceededError } from "app/utils/error";
 
 interface BaseUser extends Omit<TypedUser, "avatar"> {}
 

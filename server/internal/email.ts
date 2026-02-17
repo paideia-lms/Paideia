@@ -1,5 +1,5 @@
 import { Result } from "typescript-result";
-import { EmailSendError } from "~/utils/error";
+import { EmailSendError } from "app/utils/error";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { z } from "zod";
 

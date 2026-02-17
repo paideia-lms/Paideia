@@ -31,3 +31,4 @@ test.ts
 *.tsbuildinfo
 trace_output    
 trace.txt
+.agents

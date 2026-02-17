@@ -4,7 +4,6 @@ import type { courseModuleContext } from "../course-module-context";
 import type { courseSectionContext } from "../course-section-context";
 import type { userContext } from "../user-context";
 import type { globalContext } from "../global-context";
-import type { userAccessContext } from "../user-access-context";
 import type { userProfileContext } from "../user-profile-context";
 import type { userModuleContext } from "../user-module-context";
 
@@ -17,8 +16,6 @@ export const courseSectionContextKey =
 	"courseSectionContext" as typeof courseSectionContext;
 export const userContextKey = "userContext" as typeof userContext;
 export const globalContextKey = "globalContext" as typeof globalContext;
-export const userAccessContextKey =
-	"userAccessContext" as typeof userAccessContext;
 export const userProfileContextKey =
 	"userProfileContext" as typeof userProfileContext;
 export const userModuleContextKey =

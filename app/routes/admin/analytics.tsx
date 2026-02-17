@@ -25,16 +25,16 @@ import {
 	tryUpdateAnalyticsSettings,
 } from "server/internal/analytics-settings";
 import { z } from "zod";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import {
 	ForbiddenResponse,
 	forbidden,
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/analytics";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 
 type AnalyticsGlobal = {
 	id: number;
@@ -253,7 +253,7 @@ function AnalyticsScriptCard({
 				required
 				error={
 					form.getValues().scripts[index]?.src &&
-					!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
+						!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
 						? "Must be a valid HTTP or HTTPS URL"
 						: undefined
 				}
@@ -461,7 +461,7 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 										: undefined,
 								dataMeasurementId:
 									script.dataMeasurementId &&
-									script.dataMeasurementId.trim() !== ""
+										script.dataMeasurementId.trim() !== ""
 										? script.dataMeasurementId
 										: undefined,
 							}),

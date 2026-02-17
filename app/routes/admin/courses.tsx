@@ -47,11 +47,11 @@ import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "app/utils/course-view-utils";
-import { ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "app/utils/router/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 
 type Course = Route.ComponentProps["loaderData"]["courses"][number];
 
@@ -119,7 +119,7 @@ export const loader = createRouteLoader({
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -382,8 +382,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																		(id) => id !== course.id,
-																	),
+																	(id) => id !== course.id,
+																),
 														)
 													}
 												/>

@@ -46,7 +46,6 @@ import {
 	tryUpdatePageInfo,
 	tryUpdateQuestion,
 	tryUpdateQuestionScoring,
-	tryUpdateQuizInfo,
 	tryUpdateQuizResource,
 	tryUpdateMultipleChoiceQuestion,
 	tryUpdateChoiceQuestion,
@@ -57,7 +56,6 @@ import {
 	tryUpdateSingleSelectionMatrixQuestion,
 	tryUpdateMultipleSelectionMatrixQuestion,
 } from "server/internal/quiz-module-management";
-import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
@@ -75,11 +73,11 @@ import {
 	NotFoundResponse,
 	ok,
 	StatusCode,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import { z } from "zod";
-import { typeCreateActionRpc, createActionMap } from "app/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
@@ -685,7 +683,7 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 
 		const allowedFileTypes =
 			formData.assignmentAllowedFileTypes &&
-			formData.assignmentAllowedFileTypes.length > 0
+				formData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 				: undefined;
 

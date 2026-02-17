@@ -5,10 +5,14 @@ import sanitizedConfig from "../payload.config";
 import { tryCreateCategory } from "./course-category-management";
 import {
 	type CreateCourseArgs,
+	tryAddRecurringSchedule,
+	tryAddSpecificDate,
 	tryCreateCourse,
 	tryDeleteCourse,
 	tryFindCourseById,
 	tryGetUserAccessibleCourses,
+	tryRemoveRecurringSchedule,
+	tryRemoveSpecificDate,
 	trySearchCourses,
 	tryUpdateCourse,
 	type UpdateCourseArgs,
@@ -18,6 +22,10 @@ import { tryCreateMedia } from "./media-management";
 import { tryCreateUser } from "./user-management";
 import type { TryResultValue } from "server/utils/types";
 import { createLocalReq } from "./utils/internal-function-utils";
+import type {
+	RecurringScheduleItem,
+	SpecificDateItem,
+} from "../utils/schedule-types";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -151,6 +159,24 @@ describe("Course Management Functions", () => {
 			const result = await tryCreateCourse(courseArgs);
 
 			expect(result.ok).toBe(false);
+		});
+
+		test("should create course without dates (backward compatibility)", async () => {
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course without Dates",
+					description: "Course without any dates",
+					createdBy: instructor.id,
+					slug: "course-without-dates",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(true);
 		});
 	});
 
@@ -1683,6 +1709,618 @@ describe("Course Management Functions", () => {
 				expect(course?.enrollmentStatus).toBe("active");
 				expect(course?.createdBy).toBe(testUser.id);
 			}
+		});
+
+		describe("Schedule Management", () => {
+			test("should add recurring schedule to course", async () => {
+				// Create course without schedule
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Recurring Schedule",
+						description: "A course to add recurring schedule",
+						createdBy: instructor.id,
+						slug: "course-recurring-schedule",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Add recurring schedule
+				const recurringItem: RecurringScheduleItem = {
+					daysOfWeek: [1, 3], // Monday, Wednesday
+					startTime: "09:00",
+					endTime: "12:00",
+				};
+
+				const addResult = await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: recurringItem,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+
+				expect(addResult.ok).toBe(true);
+				if (!addResult.ok) throw new Error("Failed to add recurring schedule");
+
+				// Verify schedule was added
+				const findResult = await tryFindCourseById({
+					payload,
+					courseId: createResult.value.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+
+				expect(findResult.ok).toBe(true);
+				if (!findResult.ok) throw new Error("Failed to find course");
+
+				const course = findResult.value;
+				const courseData = course as unknown as {
+					recurringSchedules?: Array<{
+						daysOfWeek?: Array<{ day?: number }>;
+						startTime?: string;
+						endTime?: string;
+					}>;
+				};
+				const recurringSchedules = courseData.recurringSchedules;
+				expect(recurringSchedules).toBeDefined();
+				expect(recurringSchedules).toHaveLength(1);
+				expect(recurringSchedules?.[0]?.startTime).toBe("09:00");
+				expect(recurringSchedules?.[0]?.endTime).toBe("12:00");
+				expect(recurringSchedules?.[0]?.daysOfWeek).toHaveLength(2);
+				expect(recurringSchedules?.[0]?.daysOfWeek?.[0]?.day).toBe(1);
+				expect(recurringSchedules?.[0]?.daysOfWeek?.[1]?.day).toBe(3);
+			});
+
+			test("should add specific date to course", async () => {
+				// Create course without schedule
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Specific Date",
+						description: "A course to add specific date",
+						createdBy: instructor.id,
+						slug: "course-specific-date",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Add specific date
+				const specificItem: SpecificDateItem = {
+					date: "2025-02-15",
+					startTime: "14:00",
+					endTime: "16:00",
+				};
+
+				const addResult = await tryAddSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					data: specificItem,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+
+				expect(addResult.ok).toBe(true);
+				if (!addResult.ok) throw new Error("Failed to add specific date");
+
+				// Verify schedule was added
+				const findResult = await tryFindCourseById({
+					payload,
+					courseId: createResult.value.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+
+				expect(findResult.ok).toBe(true);
+				if (!findResult.ok) throw new Error("Failed to find course");
+
+				const course = findResult.value;
+				const courseData = course as unknown as {
+					specificDates?: Array<{
+						date?: string | Date;
+						startTime?: string;
+						endTime?: string;
+					}>;
+				};
+				const specificDates = courseData.specificDates;
+				expect(specificDates).toBeDefined();
+				expect(specificDates).toHaveLength(1);
+				expect(specificDates?.[0]?.startTime).toBe("14:00");
+				expect(specificDates?.[0]?.endTime).toBe("16:00");
+				// Check date (may be Date object or string)
+				const dateValue = specificDates?.[0]?.date;
+				expect(dateValue).toBeDefined();
+				if (dateValue instanceof Date) {
+					expect(dateValue.toISOString().split("T")[0]).toBe("2025-02-15");
+				} else if (typeof dateValue === "string") {
+					expect(dateValue.split("T")[0]).toBe("2025-02-15");
+				}
+			});
+
+			test("should reject recurring schedule with end time before start time", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Validation Test",
+						description: "A course to test validation",
+						createdBy: instructor.id,
+						slug: "course-validation-test",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Try to add recurring schedule with invalid time range
+				const invalidRecurring: RecurringScheduleItem = {
+					daysOfWeek: [1],
+					startTime: "12:00",
+					endTime: "09:00", // End time before start time
+				};
+
+				const addResult = await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: invalidRecurring,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+
+				expect(addResult.ok).toBe(false);
+				if (addResult.ok) throw new Error("Should have failed validation");
+			});
+
+			test("should reject recurring schedule with end date before start date", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Date Validation Test",
+						description: "A course to test date validation",
+						createdBy: instructor.id,
+						slug: "course-date-validation-test",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Try to add recurring schedule with invalid date range
+				const invalidRecurring: RecurringScheduleItem = {
+					daysOfWeek: [1],
+					startTime: "09:00",
+					endTime: "12:00",
+					startDate: "2025-05-15",
+					endDate: "2025-01-15", // End date before start date
+				};
+
+				const addResult = await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: invalidRecurring,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+
+				expect(addResult.ok).toBe(false);
+				if (addResult.ok) throw new Error("Should have failed validation");
+			});
+
+			test("should reject specific date with end time before start time", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Specific Date Validation Test",
+						description: "A course to test specific date validation",
+						createdBy: instructor.id,
+						slug: "course-specific-date-validation-test",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Try to add specific date with invalid time range
+				const invalidSpecific: SpecificDateItem = {
+					date: "2025-02-15",
+					startTime: "16:00",
+					endTime: "14:00", // End time before start time
+				};
+
+				const addResult = await tryAddSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					data: invalidSpecific,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+
+				expect(addResult.ok).toBe(false);
+				if (addResult.ok) throw new Error("Should have failed validation");
+			});
+
+			test("should add multiple recurring schedules and specific dates", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course with Multiple Schedules",
+						description: "A course with multiple schedules",
+						createdBy: instructor.id,
+						slug: "course-multiple-schedules",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Add first recurring schedule
+				const recurring1: RecurringScheduleItem = {
+					daysOfWeek: [1, 3], // Monday, Wednesday
+					startTime: "09:00",
+					endTime: "12:00",
+				};
+
+				const addRecurring1 = await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: recurring1,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+				expect(addRecurring1.ok).toBe(true);
+
+				// Add second recurring schedule
+				const recurring2: RecurringScheduleItem = {
+					daysOfWeek: [5], // Friday
+					startTime: "14:00",
+					endTime: "16:00",
+					startDate: "2025-01-15",
+					endDate: "2025-05-15",
+				};
+
+				const addRecurring2 = await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: recurring2,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+				expect(addRecurring2.ok).toBe(true);
+
+				// Add first specific date
+				const specific1: SpecificDateItem = {
+					date: "2025-03-10",
+					startTime: "10:00",
+					endTime: "12:00",
+				};
+
+				const addSpecific1 = await tryAddSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					data: specific1,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+				expect(addSpecific1.ok).toBe(true);
+
+				// Add second specific date
+				const specific2: SpecificDateItem = {
+					date: "2025-04-01",
+					startTime: "13:00",
+					endTime: "15:00",
+				};
+
+				const addSpecific2 = await tryAddSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					data: specific2,
+					req: {
+						user: instructor as TypedUser,
+					},
+					overrideAccess: true,
+				});
+				expect(addSpecific2.ok).toBe(true);
+
+				// Verify all schedules were added
+				const findResult = await tryFindCourseById({
+					payload,
+					courseId: createResult.value.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+
+				expect(findResult.ok).toBe(true);
+				if (!findResult.ok) throw new Error("Failed to find course");
+
+				const course = findResult.value;
+				const courseData = course as unknown as {
+					recurringSchedules?: Array<{
+						daysOfWeek?: Array<{ day?: number }>;
+						startTime?: string;
+						endTime?: string;
+					}>;
+					specificDates?: Array<{
+						date?: string | Date;
+						startTime?: string;
+						endTime?: string;
+					}>;
+				};
+				const recurringSchedules = courseData.recurringSchedules;
+				const specificDates = courseData.specificDates;
+
+				expect(recurringSchedules).toHaveLength(2);
+				expect(specificDates).toHaveLength(2);
+			});
+
+			test("should remove recurring schedule from course", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course to Remove Recurring",
+						description: "A course to remove recurring schedule",
+						createdBy: instructor.id,
+						slug: "course-remove-recurring",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Add two recurring schedules
+				const recurring1: RecurringScheduleItem = {
+					daysOfWeek: [1],
+					startTime: "09:00",
+					endTime: "12:00",
+				};
+				const recurring2: RecurringScheduleItem = {
+					daysOfWeek: [3],
+					startTime: "14:00",
+					endTime: "16:00",
+				};
+
+				await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: recurring1,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+				await tryAddRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					data: recurring2,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+
+				// Remove the first one (index 0)
+				const removeResult = await tryRemoveRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					index: 0,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+
+				expect(removeResult.ok).toBe(true);
+				if (!removeResult.ok)
+					throw new Error("Failed to remove recurring schedule");
+
+				// Verify only one remains
+				const findResult = await tryFindCourseById({
+					payload,
+					courseId: createResult.value.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+
+				expect(findResult.ok).toBe(true);
+				if (!findResult.ok) throw new Error("Failed to find course");
+
+				const course = findResult.value;
+				const courseData = course as unknown as {
+					recurringSchedules?: Array<{
+						daysOfWeek?: Array<{ day?: number }>;
+						startTime?: string;
+						endTime?: string;
+					}>;
+				};
+				const recurringSchedules = courseData.recurringSchedules;
+				expect(recurringSchedules).toHaveLength(1);
+				// The remaining one should be the second one (index 1 originally, now index 0)
+				expect(recurringSchedules?.[0]?.startTime).toBe("14:00");
+			});
+
+			test("should remove specific date from course", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course to Remove Specific",
+						description: "A course to remove specific date",
+						createdBy: instructor.id,
+						slug: "course-remove-specific",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Add two specific dates
+				const specific1: SpecificDateItem = {
+					date: "2025-02-15",
+					startTime: "10:00",
+					endTime: "12:00",
+				};
+				const specific2: SpecificDateItem = {
+					date: "2025-03-20",
+					startTime: "14:00",
+					endTime: "16:00",
+				};
+
+				await tryAddSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					data: specific1,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+				await tryAddSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					data: specific2,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+
+				// Remove the first one (index 0)
+				const removeResult = await tryRemoveSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					index: 0,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+
+				expect(removeResult.ok).toBe(true);
+				if (!removeResult.ok) throw new Error("Failed to remove specific date");
+
+				// Verify only one remains
+				const findResult = await tryFindCourseById({
+					payload,
+					courseId: createResult.value.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+
+				expect(findResult.ok).toBe(true);
+				if (!findResult.ok) throw new Error("Failed to find course");
+
+				const course = findResult.value;
+				const courseData = course as unknown as {
+					specificDates?: Array<{
+						date?: string | Date;
+						startTime?: string;
+						endTime?: string;
+					}>;
+				};
+				const specificDates = courseData.specificDates;
+				expect(specificDates).toHaveLength(1);
+				// The remaining one should be the second one (index 1 originally, now index 0)
+				expect(specificDates?.[0]?.startTime).toBe("14:00");
+			});
+
+			test("should fail to remove recurring schedule with invalid index", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Invalid Index",
+						description: "A course to test invalid index",
+						createdBy: instructor.id,
+						slug: "course-invalid-index",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Try to remove with invalid index
+				const removeResult = await tryRemoveRecurringSchedule({
+					payload,
+					courseId: createResult.value.id,
+					index: 0,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+
+				expect(removeResult.ok).toBe(false);
+				if (removeResult.ok) throw new Error("Should have failed");
+				expect(removeResult.error.message).toContain("Invalid index");
+			});
+
+			test("should fail to remove specific date with invalid index", async () => {
+				// Create course
+				const createArgs: CreateCourseArgs = {
+					payload,
+					data: {
+						title: "Course for Invalid Index 2",
+						description: "A course to test invalid index",
+						createdBy: instructor.id,
+						slug: "course-invalid-index-2",
+					},
+					overrideAccess: true,
+					req: undefined,
+				};
+
+				const createResult = await tryCreateCourse(createArgs);
+				expect(createResult.ok).toBe(true);
+				if (!createResult.ok) throw new Error("Failed to create course");
+
+				// Try to remove with invalid index
+				const removeResult = await tryRemoveSpecificDate({
+					payload,
+					courseId: createResult.value.id,
+					index: 0,
+					req: { user: instructor as TypedUser },
+					overrideAccess: true,
+				});
+
+				expect(removeResult.ok).toBe(false);
+				if (removeResult.ok) throw new Error("Should have failed");
+				expect(removeResult.error.message).toContain("Invalid index");
+			});
 		});
 	});
 });

@@ -20,7 +20,7 @@ import {
 } from "@mantine/hooks";
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import type {
 	FormPathValue,
 	Path,

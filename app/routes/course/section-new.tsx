@@ -14,8 +14,8 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { parseAsInteger } from "nuqs/server";
 import { href, redirect, useNavigate } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -30,9 +30,9 @@ import {
 	ForbiddenResponse,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/section-new";
-import { getRouteUrl } from "app/utils/search-params-utils";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 
 // Define search params for parent section prefill
 export const loaderSearchParams = {

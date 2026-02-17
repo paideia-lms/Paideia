@@ -52,10 +52,6 @@ import { useEffect } from "react";
 import { useRevalidator } from "react-router";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import {
-	getUserAccessContext,
-	userAccessContextKey,
-} from "server/contexts/user-access-context";
-import {
 	tryGetUserContext,
 	userContextKey,
 } from "server/contexts/user-context";
@@ -80,15 +76,17 @@ import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
 	InternalServerErrorResponse,
 	MaintenanceModeResponse,
-} from "./utils/responses";
+} from "./utils/router/responses";
 import {
 	type RouteId,
 	type RouteParams,
 	tryGetRouteHierarchy,
-} from "./utils/routes-utils";
+} from "./utils/router/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { parseParams } from "app/utils/route-params-schema";
+import { parseParams } from "app/utils/router/route-params-schema";
+import { parseSearchParamsForRoute } from "app/utils/router/parse-search-params";
+import { isNotNil } from "es-toolkit";
 
 const searchParams = {
 	threadId: parseAsInteger,
@@ -100,14 +98,36 @@ export const middleware = [
 	 * update the page info to the global context
 	 */
 	async ({ request, context, params }) => {
-		const routeHierarchy = tryGetRouteHierarchy(new URL(request.url).pathname);
+		const url = new URL(request.url);
+		const routeHierarchy = tryGetRouteHierarchy(url.pathname);
 		const parsedParams = parseParams(params);
-		const is: PageInfo["is"] = Object.fromEntries(
-			routeHierarchy.map((route) => [
-				route.id,
-				{ params: parsedParams as RouteParams<RouteId> },
-			]),
-		) as PageInfo["is"];
+
+		// Parse search params for each route in the hierarchy
+		const isEntries = await Promise.all(
+			routeHierarchy.map(async (route) => {
+				const searchParams = await parseSearchParamsForRoute(route.id, url);
+				return [
+					route.id,
+					{
+						params: parsedParams as RouteParams<RouteId>,
+						...(searchParams !== undefined ? { searchParams } : {}),
+					},
+				] as const;
+			}),
+		);
+		// Collect all search params from all routes (for top-level searchParams)
+		const allSearchParams: Record<string, unknown> = isEntries.reduce(
+			(acc, entry) => {
+				const [, routeInfo] = entry;
+				if (routeInfo.searchParams) {
+					Object.assign(acc, routeInfo.searchParams);
+				}
+				return acc;
+			},
+			{} as Record<string, unknown>,
+		);
+
+		const is: PageInfo["is"] = Object.fromEntries(isEntries) as PageInfo["is"];
 
 		// set the route hierarchy and page info to the context
 		context.set(globalContextKey, {
@@ -116,40 +136,33 @@ export const middleware = [
 			pageInfo: {
 				is: is,
 				params: parsedParams,
+				...(Object.keys(allSearchParams).length > 0
+					? { searchParams: allSearchParams }
+					: {}),
 			},
 		});
 	},
 	/**
-	 * set the user context
+	 * set the user context and payload request to the global context
 	 */
 	async ({ request, context }) => {
 		const { payload } = context.get(globalContextKey);
 
-		const userSession = await tryGetUserContext({
+		const result = await tryGetUserContext({
 			payload,
 			// ! we need to create local request here because user is not set
 			req: createLocalReq({ request, context: { routerContext: context } }),
+			request,
+			routerContext: context,
 		});
 
 		// Set the user context
-		context.set(userContextKey, userSession);
-	},
-	/**
-	 * set the payload request to the global context
-	 */
-	async ({ request, context }) => {
-		const userSession = context.get(userContextKey);
-		const currentUser =
-			userSession?.effectiveUser ?? userSession?.authenticatedUser;
-		// ! we need to create local request here because we now know whether user is authenticated or not
-		const payloadRequest = createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		});
+		context.set(userContextKey, result.userSession);
+
+		// Set the payload request in global context
 		context.set(globalContextKey, {
 			...context.get(globalContextKey),
-			payloadRequest,
+			payloadRequest: result.payloadRequest,
 		});
 	},
 	/**
@@ -211,7 +224,7 @@ export const middleware = [
 			// Block non-admin users
 			if (!currentUser || currentUser.role !== "admin") {
 				// If we're already on the root route, throw error instead of redirecting
-				if (pageInfo.is["routes/index"]) {
+				if (pageInfo.is["routes/index/route"]) {
 					throw new MaintenanceModeResponse(
 						"The system is currently under maintenance. Only administrators can access the system at this time.",
 					);
@@ -310,29 +323,11 @@ export const middleware = [
 			}
 		}
 	},
-	// set the user access context
-	async ({ context, request }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
-
-		const currentUser =
-			userSession?.effectiveUser || userSession?.authenticatedUser;
-
-		if (userSession?.isAuthenticated && currentUser) {
-			const userAccessContext = await getUserAccessContext({
-				payload,
-				userId: currentUser.id,
-				req: payloadRequest,
-			});
-			context.set(userAccessContextKey, userAccessContext);
-		}
-	},
 	// set the user profile context
 	async ({ context, params, request }) => {
 		const globalContext = context.get(globalContextKey);
 		const { pageInfo } = globalContext;
 		const userSession = context.get(userContextKey);
-		const userAccessContext = context.get(userAccessContextKey);
 
 		const currentUser =
 			userSession?.effectiveUser || userSession?.authenticatedUser;
@@ -342,8 +337,6 @@ export const middleware = [
 		if (
 			userSession?.isAuthenticated &&
 			currentUser &&
-			// if user login, he must have user access context
-			userAccessContext &&
 			(pageInfo.is["layouts/user-layout"] ||
 				pageInfo.is["routes/user/overview"] ||
 				pageInfo.is["routes/user/profile"])
@@ -355,7 +348,6 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
 								userSession,
 								globalContext,
 							)
@@ -396,19 +388,20 @@ export const middleware = [
 			pageInfo.is["layouts/course-module-layout"] &&
 			courseContext
 		) {
-			const { moduleLinkId } =
+			const { moduleLinkId, submissionId } =
 				pageInfo.is["layouts/course-module-layout"].params;
 
-			// Get module link ID from params
-			// Extract threadId from URL search params if present
-			const { threadId } = loadSearchParams(request);
+			const { threadId } =
+				pageInfo.is["routes/course/module.$id/route"]?.searchParams ?? {};
 
+			// Get module link ID from params
 			const courseModuleContext = await tryGetCourseModuleContext({
 				payload,
 				moduleLinkId: moduleLinkId,
 				courseId: courseContext.courseId,
 				enrolment: enrolmentContext?.enrolment ?? null,
-				threadId: threadId !== null ? String(threadId) : null,
+				threadId: isNotNil(threadId) ? threadId : null,
+				submissionId: submissionId !== null ? submissionId : null,
 				req: payloadRequest,
 			}).getOrNull();
 
@@ -528,6 +521,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 			faviconMedia,
 			isSandboxMode,
 			nextResetTime,
+			enableDebugLogs:
+				process.env.NODE_ENV === "development" && envVars.DEBUG_LOGS.enabled,
 		};
 	}
 
@@ -562,12 +557,13 @@ export async function loader({ context }: Route.LoaderArgs) {
 						enrolmentContext: context.get(enrolmentContextKey),
 						userModuleContext: context.get(userModuleContextKey),
 						userProfileContext: context.get(userProfileContextKey),
-						userAccessContext: context.get(userAccessContextKey),
 						userContext: context.get(userContextKey),
 						systemGlobals: systemGlobals,
 					},
 		isSandboxMode,
 		nextResetTime,
+		enableDebugLogs:
+			process.env.NODE_ENV === "development" && envVars.DEBUG_LOGS.enabled,
 	};
 }
 

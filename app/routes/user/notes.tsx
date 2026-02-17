@@ -36,11 +36,11 @@ import {
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/notes";
-import { typeCreateActionRpc } from "~/utils/action-utils";
-import { typeCreateLoader } from "app/utils/loader-utils";
-import { useNuqsSearchParams } from "~/utils/search-params-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
+import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 
 type Note = Route.ComponentProps["loaderData"]["notes"][number];
 
@@ -233,10 +233,9 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${
-							value === null || value === 0
-								? "No notes"
-								: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
+							? "No notes"
+							: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}

@@ -1,7 +1,7 @@
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "~/utils/error";
+import { transformError, UnknownError } from "app/utils/error";
 import type { User } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
@@ -554,7 +554,7 @@ export function tryRegisterFirstUser(args: RegisterFirstUserArgs) {
 
 				const { exp, token, user } = loginResult;
 
-				if (!exp || !token) {
+				if (!exp || !token || !user) {
 					throw new Error("Login failed: missing token or expiration");
 				}
 

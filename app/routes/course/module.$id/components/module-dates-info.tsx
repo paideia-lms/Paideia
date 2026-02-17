@@ -1,23 +1,11 @@
 import { Group, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconCalendar, IconClock, IconInfoCircle } from "@tabler/icons-react";
+import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import type { Route } from "../route";
 
 interface ModuleDatesInfoProps {
 	settings: Route.ComponentProps["loaderData"]["settings"];
 }
-
-// Helper to format dates consistently
-const formatDateForDisplay = (dateString: string) => {
-	const date = new Date(dateString);
-	return date.toLocaleString("en-US", {
-		weekday: "short",
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-};
 
 // Helper to format module settings with date strings
 // Only assignment, quiz, and discussion have dates to display
@@ -35,17 +23,26 @@ const formatModuleSettingsForDisplay = (
 			dates: [
 				settings.allowSubmissionsFrom && {
 					label: "Available from",
-					value: formatDateForDisplay(settings.allowSubmissionsFrom),
+					value: formatDateTimeForDisplay(settings.allowSubmissionsFrom, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: false,
 				},
 				settings.dueDate && {
 					label: "Due",
-					value: formatDateForDisplay(settings.dueDate),
+					value: formatDateTimeForDisplay(settings.dueDate, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: new Date(settings.dueDate) < now,
 				},
 				settings.cutoffDate && {
 					label: "Final deadline",
-					value: formatDateForDisplay(settings.cutoffDate),
+					value: formatDateTimeForDisplay(settings.cutoffDate, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: new Date(settings.cutoffDate) < now,
 				},
 			].filter(Boolean),
@@ -59,12 +56,18 @@ const formatModuleSettingsForDisplay = (
 			dates: [
 				settings.openingTime && {
 					label: "Opens",
-					value: formatDateForDisplay(settings.openingTime),
+					value: formatDateTimeForDisplay(settings.openingTime, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: false,
 				},
 				settings.closingTime && {
 					label: "Closes",
-					value: formatDateForDisplay(settings.closingTime),
+					value: formatDateTimeForDisplay(settings.closingTime, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: new Date(settings.closingTime) < now,
 				},
 			].filter(Boolean),
@@ -78,12 +81,18 @@ const formatModuleSettingsForDisplay = (
 			dates: [
 				settings.dueDate && {
 					label: "Due",
-					value: formatDateForDisplay(settings.dueDate),
+					value: formatDateTimeForDisplay(settings.dueDate, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: new Date(settings.dueDate) < now,
 				},
 				settings.cutoffDate && {
 					label: "Final deadline",
-					value: formatDateForDisplay(settings.cutoffDate),
+					value: formatDateTimeForDisplay(settings.cutoffDate, {
+						includeWeekday: true,
+						style: "dayjs",
+					}),
 					isOverdue: new Date(settings.cutoffDate) < now,
 				},
 			].filter(Boolean),

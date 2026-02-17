@@ -5,11 +5,10 @@ import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
 import {
 	convertQuestionAnswerToDatabaseFormat,
 	findQuestionInConfig,
-	validateAnswerTypeMatchesQuestion,
 } from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
 import { JobQueue } from "../utils/job-queue";
-import type { QuizSubmission } from "server/payload-types";
+import type { QuizSubmission, UserGrade } from "server/payload-types";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -17,8 +16,12 @@ import {
 	QuizTimeLimitExceededError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
-import { tryCreateUserGrade } from "./user-grade-management";
+} from "app/utils/error";
+import {
+	tryCreateUserGrade,
+	tryFindUserGradeByEnrollmentAndItem,
+	tryUpdateUserGrade,
+} from "./user-grade-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	assertTimeLimit,
@@ -27,6 +30,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
+import { debugLog } from "../utils/debug";
 
 /**
  * Common arguments for quiz question operations
@@ -152,6 +156,12 @@ export interface StartQuizAttemptArgs extends BaseInternalFunctionArgs {
 	attemptNumber?: number;
 }
 
+export interface StartPreviewQuizAttemptArgs extends BaseInternalFunctionArgs {
+	courseModuleLinkId: number;
+	userId: number;
+	enrollmentId: number;
+}
+
 export interface AnswerQuizQuestionArgs extends BaseInternalFunctionArgs {
 	submissionId: number;
 	questionId: string;
@@ -198,6 +208,10 @@ export interface ListQuizSubmissionsArgs extends BaseInternalFunctionArgs {
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
+	/**
+	 * Whether to include preview submissions. Defaults to false.
+	 */
+	includePreview?: boolean;
 	limit?: number;
 	page?: number;
 }
@@ -232,6 +246,20 @@ export interface MarkQuizAttemptAsCompleteArgs
 	// 	}>;
 	// }>;
 	// timeSpent?: number;
+	/**
+	 * If true, bypasses the time limit check (useful for auto-submit)
+	 */
+	bypassTimeLimit?: boolean;
+}
+
+export interface StartNestedQuizArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	nestedQuizId: string;
+}
+
+export interface MarkNestedQuizAsCompleteArgs extends BaseInternalFunctionArgs {
+	submissionId: number;
+	nestedQuizId: string;
 	/**
 	 * If true, bypasses the time limit check (useful for auto-submit)
 	 */
@@ -539,6 +567,7 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 			}
 
 			// Check if there's an existing in_progress submission for this student and quiz
+			// Exclude preview attempts from this check
 			const existingInProgressSubmission = await payload
 				.find({
 					collection: "quiz-submissions",
@@ -551,6 +580,7 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 									equals: "in_progress" satisfies QuizSubmission["status"],
 								},
 							},
+							{ isPreview: { not_equals: true } },
 						],
 					},
 					depth: 1,
@@ -690,6 +720,131 @@ export function tryStartQuizAttempt(args: StartQuizAttemptArgs) {
 }
 
 /**
+ * Starts a preview quiz attempt for instructors
+ * Deletes any existing preview submission for the same user/module and creates a new one
+ * Preview attempts use isPreview: true, status: "in_progress", and attemptNumber: 0
+ */
+export function tryStartPreviewQuizAttempt(args: StartPreviewQuizAttemptArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				courseModuleLinkId,
+				userId,
+				enrollmentId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate required fields
+			if (!courseModuleLinkId) {
+				throw new InvalidArgumentError("Course module link ID is required");
+			}
+			if (!userId) {
+				throw new InvalidArgumentError("User ID is required");
+			}
+			if (!enrollmentId) {
+				throw new InvalidArgumentError("Enrollment ID is required");
+			}
+
+			// Get course module link to access quiz
+			const courseModuleLink = await payload
+				.findByID({
+					collection: "course-activity-module-links",
+					id: courseModuleLinkId,
+					depth: 2, // Need to get activity module and quiz
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<2, "findByID">());
+
+			if (!courseModuleLink) {
+				throw new InvalidArgumentError("Course module link not found");
+			}
+
+			// Get quiz from activity module
+			const activityModule = courseModuleLink.activityModule;
+			const quiz = activityModule.quiz;
+
+			if (!quiz) {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const startedAt = new Date().toISOString();
+
+			// Use transaction to delete old preview and create new one atomically
+			const transactionInfo = await handleTransactionId(payload, req);
+			const submission = await transactionInfo.tx(
+				async ({ reqWithTransaction }) => {
+					// Delete any existing preview submission for this user and module
+					const existingPreviewSubmissions = await payload.find({
+						collection: "quiz-submissions",
+						where: {
+							and: [
+								{ courseModuleLink: { equals: courseModuleLinkId } },
+								{ student: { equals: userId } },
+								{ isPreview: { equals: true } },
+							],
+						},
+						limit: 100,
+						req: reqWithTransaction,
+						overrideAccess,
+					});
+
+					// Delete all existing preview submissions in parallel
+					await Promise.all(
+						existingPreviewSubmissions.docs.map((existingPreview) =>
+							payload.delete({
+								collection: "quiz-submissions",
+								id: existingPreview.id,
+								req: reqWithTransaction,
+								overrideAccess,
+							}),
+						),
+					);
+
+					// Create new preview submission
+					// Use a high attempt number (999999) for previews to avoid conflicts with real attempts
+					// This is an internal attempt number that users don't see
+					const newSubmission = await payload
+						.create({
+							collection: "quiz-submissions",
+							data: {
+								courseModuleLink: courseModuleLinkId,
+								student: userId,
+								enrollment: enrollmentId,
+								attemptNumber: 999999,
+								status: "in_progress",
+								isPreview: true,
+								startedAt,
+								answers: [],
+								isLate: false,
+							},
+							depth: 1,
+							req: reqWithTransaction,
+							overrideAccess,
+						})
+						.then(stripDepth<1, "create">());
+
+					return newSubmission;
+				},
+			);
+
+			return {
+				...submission,
+				courseModuleLink: submission.courseModuleLink.id,
+				student: submission.student.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to start preview quiz attempt", {
+				cause: error,
+			}),
+	);
+}
+
+/**
  * Answers a quiz question by updating the submission's answers array
  * This function handles validation, time limit checking, and atomic updates
  */
@@ -716,7 +871,7 @@ export function tryAnswerQuizQuestion(args: AnswerQuizQuestionArgs) {
 				}).getOrThrow();
 
 			// Validate answer type matches question type (in-memory operation)
-			if (!validateAnswerTypeMatchesQuestion(question, answer)) {
+			if (question.type !== answer.type) {
 				throw new InvalidArgumentError(
 					`Answer type "${answer.type}" does not match question type "${question.type}"`,
 				);
@@ -877,6 +1032,18 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			// Get current flagged questions array
 			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
 
+			debugLog("tryFlagQuizQuestion Debug", {
+				submissionId,
+				questionId,
+				questionIdType: typeof questionId,
+				currentFlaggedQuestions,
+				currentFlaggedQuestionsStructure: currentFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
+
 			// Check if question is already flagged
 			const isAlreadyFlagged = currentFlaggedQuestions.some(
 				(flagged) => flagged.questionId === questionId,
@@ -891,12 +1058,32 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 			}
 
 			// Add the question to flagged list
+			// The `questionId` field stores the question ID (as a string)
+			// Note: `id` is the auto-generated primary key, `questionId` is the data field
 			const updatedFlaggedQuestions = [
 				...currentFlaggedQuestions,
-				{ questionId },
+				{ questionId: String(questionId) },
 			];
 
+			debugLog("tryFlagQuizQuestion Updated array", {
+				updatedFlaggedQuestions,
+				updatedFlaggedQuestionsStructure: updatedFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
+
 			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
+			debugLog("tryFlagQuizQuestion About to update with", {
+				collection: "quiz-submissions",
+				id: submissionId,
+				data: {
+					flaggedQuestions: updatedFlaggedQuestions,
+				},
+				flaggedQuestionsValue: JSON.stringify(updatedFlaggedQuestions),
+			});
+
 			const updatedSubmission = await payload
 				.update({
 					collection: "quiz-submissions",
@@ -908,7 +1095,19 @@ export function tryFlagQuizQuestion(args: FlagQuizQuestionArgs) {
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<1, "update">());
+				.then(stripDepth<1, "update">())
+				.catch((error: unknown) => {
+					debugLog("tryFlagQuizQuestion Update error", {
+						error: error instanceof Error ? error.message : String(error),
+						errorData:
+							error && typeof error === "object" && "data" in error
+								? error.data
+								: undefined,
+						errorStack: error instanceof Error ? error.stack : undefined,
+						fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+					});
+					throw error;
+				});
 
 			return {
 				...updatedSubmission,
@@ -951,10 +1150,24 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 			// Get current flagged questions array
 			const currentFlaggedQuestions = currentSubmission.flaggedQuestions || [];
 
+			debugLog("tryUnflagQuizQuestion Debug", {
+				submissionId,
+				questionId,
+				questionIdType: typeof questionId,
+				currentFlaggedQuestions,
+				currentFlaggedQuestionsStructure: currentFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
+
 			// Find existing flagged question index (if any)
 			const existingFlaggedIndex = currentFlaggedQuestions.findIndex(
 				(flagged) => flagged.questionId === questionId,
 			);
+
+			debugLog("tryUnflagQuizQuestion Found index", existingFlaggedIndex);
 
 			// If no flag exists, there's nothing to remove - return success (idempotent)
 			if (existingFlaggedIndex === -1) {
@@ -967,6 +1180,15 @@ export function tryUnflagQuizQuestion(args: UnflagQuizQuestionArgs) {
 			// Remove the flag from the array
 			const updatedFlaggedQuestions = [...currentFlaggedQuestions];
 			updatedFlaggedQuestions.splice(existingFlaggedIndex, 1);
+
+			debugLog("tryUnflagQuizQuestion Updated array", {
+				updatedFlaggedQuestions,
+				updatedFlaggedQuestionsStructure: updatedFlaggedQuestions.map((f) => ({
+					questionId: f.questionId,
+					questionIdType: typeof f.questionId,
+					fullObject: f,
+				})),
+			});
 
 			// Update the submission with updated flagged questions array (only mutation - single operation, no transaction needed)
 			const updatedSubmission = await payload
@@ -1009,30 +1231,15 @@ export function tryGetQuizSubmissionById(args: GetQuizSubmissionByIdArgs) {
 			}
 
 			// Fetch the quiz submission
-			const submissionResult = await payload
-				.find({
+			const submission = await payload
+				.findByID({
 					collection: "quiz-submissions",
-					where: {
-						and: [
-							{
-								id: { equals: id },
-							},
-						],
-					},
+					id,
 					depth: 1, // Fetch related data
-
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<1, "find">());
-
-			const submission = submissionResult.docs[0];
-
-			if (!submission) {
-				throw new NonExistingQuizSubmissionError(
-					`Quiz submission with id '${id}' not found`,
-				);
-			}
+				.then(stripDepth<1, "findByID">());
 
 			return {
 				...submission,
@@ -1078,6 +1285,13 @@ export function tryMarkQuizAttemptAsComplete(
 					overrideAccess,
 				})
 				.then(stripDepth<1, "findByID">());
+
+			// Reject preview attempts - previews cannot be marked as complete
+			if (currentSubmission.isPreview === true) {
+				throw new InvalidArgumentError(
+					"Preview attempts cannot be marked as complete",
+				);
+			}
 
 			if (currentSubmission.status !== "in_progress") {
 				throw new InvalidArgumentError(
@@ -1142,6 +1356,341 @@ export function tryMarkQuizAttemptAsComplete(
 		(error) =>
 			transformError(error) ??
 			new UnknownError("Failed to submit quiz", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Starts a nested quiz by recording the start time
+ * This is used when a student enters a nested quiz in a container quiz
+ */
+export function tryStartNestedQuiz(args: StartNestedQuizArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				nestedQuizId,
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Get the current submission
+			const currentSubmission = await payload
+				.findByID({
+					collection: "quiz-submissions",
+					id: submissionId,
+					req,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (currentSubmission.status !== "in_progress") {
+				throw new InvalidArgumentError(
+					"Only in-progress submissions can be updated",
+				);
+			}
+
+			// Get course module link to access quiz config
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: currentSubmission.courseModuleLink.id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			if (courseModuleLink.activityModule.type !== "quiz") {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const rawConfig = courseModuleLink.activityModule.rawQuizConfig;
+
+			// Verify the quiz is a container quiz
+			if (rawConfig.type !== "container") {
+				throw new InvalidArgumentError(
+					"This function is only for container quizzes",
+				);
+			}
+
+			// Verify the nested quiz exists
+			const nestedQuiz = rawConfig.nestedQuizzes?.find(
+				(nq) => nq.id === nestedQuizId,
+			);
+
+			if (!nestedQuiz) {
+				throw new InvalidArgumentError(
+					`Nested quiz with id '${nestedQuizId}' not found in container quiz`,
+				);
+			}
+
+			// Get current completedNestedQuizzes array
+			const currentCompletedNestedQuizzes =
+				currentSubmission.completedNestedQuizzes || [];
+
+			// Check if there's already an in-progress nested quiz (different from the one we're trying to start)
+			const inProgressNestedQuiz = currentCompletedNestedQuizzes.find(
+				(entry) =>
+					entry.nestedQuizId !== nestedQuizId &&
+					entry.startedAt !== null &&
+					entry.startedAt !== undefined &&
+					(entry.completedAt === null || entry.completedAt === undefined),
+			);
+
+			if (inProgressNestedQuiz) {
+				throw new InvalidArgumentError(
+					"Cannot start a new nested quiz while another nested quiz is in progress",
+				);
+			}
+
+			// Find existing entry for this nested quiz by matching the nestedQuizId field
+			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
+				(entry) => entry.nestedQuizId === nestedQuizId,
+			);
+
+			const startedAt = new Date().toISOString();
+
+			// Update or insert the entry
+			const updatedCompletedNestedQuizzes = [...currentCompletedNestedQuizzes];
+			if (existingEntryIndex >= 0) {
+				// Update existing entry (preserve completedAt if already set)
+				const existingEntry = updatedCompletedNestedQuizzes[existingEntryIndex];
+				if (existingEntry) {
+					updatedCompletedNestedQuizzes[existingEntryIndex] = {
+						...existingEntry,
+						startedAt,
+					};
+				}
+			} else {
+				// Add new entry with nestedQuizId
+				// Note: id is auto-generated as primary key, we only set nestedQuizId
+				updatedCompletedNestedQuizzes.push({
+					nestedQuizId,
+					startedAt,
+					completedAt: null,
+				});
+			}
+
+			// Update the submission with new completedNestedQuizzes array
+			const updatedSubmission = await payload
+				.update({
+					collection: "quiz-submissions",
+					id: submissionId,
+					data: {
+						completedNestedQuizzes: updatedCompletedNestedQuizzes,
+					},
+					depth: 1,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryStartNestedQuiz",
+						args,
+					});
+					throw error;
+				});
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to start nested quiz", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Marks a nested quiz as complete by recording the completion time
+ * This is used when a student completes a nested quiz in a container quiz
+ *
+ * if the nested quiz already be marked as complete, it cannot be marked as complete again.
+ *
+ * if all nested quizzes are marked as complete, the submission should be marked as complete.
+ */
+export function tryMarkNestedQuizAsComplete(
+	args: MarkNestedQuizAsCompleteArgs,
+) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				submissionId,
+				nestedQuizId,
+				req,
+				overrideAccess = false,
+				bypassTimeLimit = false,
+			} = args;
+
+			// Validate required fields
+			if (!submissionId) {
+				throw new InvalidArgumentError("Quiz submission ID is required");
+			}
+			if (!nestedQuizId) {
+				throw new InvalidArgumentError("Nested quiz ID is required");
+			}
+
+			// Get the current submission
+			const currentSubmission = await payload
+				.findByID({
+					collection: "quiz-submissions",
+					id: submissionId,
+					req,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (currentSubmission.status !== "in_progress") {
+				throw new InvalidArgumentError(
+					"Only in-progress submissions can be updated",
+				);
+			}
+
+			// Get course module link to access quiz config
+			const courseModuleLink = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: currentSubmission.courseModuleLink.id,
+				req,
+				overrideAccess,
+			}).getOrThrow();
+
+			if (courseModuleLink.activityModule.type !== "quiz") {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
+			const rawConfig = courseModuleLink.activityModule
+				.rawQuizConfig as unknown as LatestQuizConfig | null;
+
+			if (!rawConfig) {
+				throw new InvalidArgumentError("Quiz configuration not found");
+			}
+
+			// Verify the quiz is a container quiz
+			if (rawConfig.type !== "container") {
+				throw new InvalidArgumentError(
+					"This function is only for container quizzes",
+				);
+			}
+
+			// Verify the nested quiz exists
+			const nestedQuiz = rawConfig.nestedQuizzes?.find(
+				(nq) => nq.id === nestedQuizId,
+			);
+
+			if (!nestedQuiz) {
+				throw new InvalidArgumentError(
+					`Nested quiz with id '${nestedQuizId}' not found in container quiz`,
+				);
+			}
+
+			// Get current completedNestedQuizzes array
+			const currentCompletedNestedQuizzes =
+				currentSubmission.completedNestedQuizzes || [];
+
+			// Find existing entry for this nested quiz by matching the nestedQuizId field
+			const existingEntryIndex = currentCompletedNestedQuizzes.findIndex(
+				(entry) => entry.nestedQuizId === nestedQuizId,
+			);
+
+			// Check if nested quiz was started
+			if (existingEntryIndex === -1) {
+				throw new InvalidArgumentError(
+					`Nested quiz '${nestedQuizId}' must be started before it can be marked as complete`,
+				);
+			}
+
+			const existingEntry = currentCompletedNestedQuizzes[existingEntryIndex];
+
+			if (!existingEntry) {
+				throw new InvalidArgumentError(
+					`Nested quiz entry for '${nestedQuizId}' not found`,
+				);
+			}
+
+			// Check if already completed
+			if (existingEntry.completedAt) {
+				throw new InvalidArgumentError(
+					`Nested quiz '${nestedQuizId}' already marked as complete`,
+				);
+			}
+
+			// Check time limit if nested quiz has one (unless bypassed for auto-submit)
+			if (!bypassTimeLimit && nestedQuiz.globalTimer) {
+				// Use startedAt from the nested quiz entry (not submission startedAt)
+				const nestedQuizStartedAt = existingEntry.startedAt;
+				if (nestedQuizStartedAt) {
+					assertTimeLimit({
+						startedAt: nestedQuizStartedAt,
+						globalTimer: nestedQuiz.globalTimer,
+						bypassTimeLimit,
+					});
+				}
+			}
+
+			const completedAt = new Date().toISOString();
+
+			// Update the entry to set completedAt
+			const updatedCompletedNestedQuizzes = [...currentCompletedNestedQuizzes];
+			updatedCompletedNestedQuizzes[existingEntryIndex] = {
+				...existingEntry,
+				completedAt,
+			};
+
+			const transactionInfo = await handleTransactionId(payload, req);
+			const result = await transactionInfo.tx(
+				async ({ reqWithTransaction }) => {
+					// Update the submission with updated completedNestedQuizzes array
+					const updatedSubmission = await payload
+						.update({
+							collection: "quiz-submissions",
+							id: submissionId,
+							data: {
+								completedNestedQuizzes: updatedCompletedNestedQuizzes,
+							},
+							depth: 1,
+							req: reqWithTransaction,
+							overrideAccess,
+						})
+						.then(stripDepth<1, "update">());
+
+					const isLastNestedQuiz =
+						updatedCompletedNestedQuizzes.length ===
+						rawConfig.nestedQuizzes?.length;
+
+					// if all nested quizzes are marked as complete, the submission should be marked as complete.
+					if (isLastNestedQuiz) {
+						await tryMarkQuizAttemptAsComplete({
+							payload,
+							submissionId,
+							req: reqWithTransaction,
+							overrideAccess,
+						});
+					}
+
+					return {
+						updatedSubmission,
+						isLastNestedQuiz,
+					};
+				},
+			);
+
+			return {
+				...result.updatedSubmission,
+				courseModuleLink: result.updatedSubmission.courseModuleLink.id,
+				isLastNestedQuiz: result.isLastNestedQuiz,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to mark nested quiz as complete", {
 				cause: error,
 			}),
 	);
@@ -1265,7 +1814,7 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 						collection: "course-activity-module-links",
 						id: currentSubmission.courseModuleLink,
 						depth: 2,
-						req: transactionInfo.reqWithTransaction,
+						req: reqWithTransaction,
 
 						overrideAccess,
 					})
@@ -1335,34 +1884,73 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 					})
 					.then(stripDepth<1, "update">());
 
-				// Create user grade in gradebook
+				// Check if user grade already exists
 				const submittedAtString =
 					submittedAt !== undefined
 						? String(submittedAt)
 						: updatedSubmission.submittedAt !== undefined
 							? String(updatedSubmission.submittedAt)
 							: undefined;
-				const userGradeResult = await tryCreateUserGrade({
+
+				const existingGradeResult = await tryFindUserGradeByEnrollmentAndItem({
 					payload,
-					req: transactionInfo.reqWithTransaction,
+					req: reqWithTransaction,
 					overrideAccess,
 					enrollmentId,
 					gradebookItemId,
-					baseGrade: gradeData.totalScore,
-					baseGradeSource: "submission",
-					submission: id,
-					submissionType: "quiz",
-					feedback: gradeData.feedback,
-					gradedBy,
-					submittedAt: submittedAtString,
 				});
 
-				if (!userGradeResult.ok) {
-					throw new Error(
-						`Failed to create gradebook entry: ${userGradeResult.error}`,
-					);
+				let userGradeResult: UserGrade;
+
+				if (existingGradeResult.ok) {
+					// Update existing grade with latest submission's data
+					const updateResult = await tryUpdateUserGrade({
+						payload,
+						req: reqWithTransaction,
+						overrideAccess,
+						gradeId: existingGradeResult.value.id,
+						baseGrade: gradeData.totalScore,
+						feedback: gradeData.feedback || undefined,
+						gradedBy,
+						submittedAt: submittedAtString,
+						submission: id,
+						submissionType: "quiz",
+					});
+
+					if (!updateResult.ok) {
+						throw new UnknownError("Failed to update user grade", {
+							cause: updateResult.error,
+						});
+					}
+
+					userGradeResult = updateResult.value;
+					payload.logger.info("User grade updated successfully");
+				} else {
+					// Create new grade
+					const createResult = await tryCreateUserGrade({
+						payload,
+						req: reqWithTransaction,
+						overrideAccess,
+						enrollmentId,
+						gradebookItemId,
+						baseGrade: gradeData.totalScore,
+						baseGradeSource: "submission",
+						submission: id,
+						submissionType: "quiz",
+						feedback: gradeData.feedback,
+						gradedBy,
+						submittedAt: submittedAtString,
+					});
+
+					if (!createResult.ok) {
+						throw new UnknownError("Failed to create user grade", {
+							cause: createResult.error,
+						});
+					}
+
+					userGradeResult = createResult.value;
+					payload.logger.info("User grade created successfully");
 				}
-				payload.logger.info("User grade created successfully");
 
 				return {
 					...updatedSubmission,
@@ -1372,7 +1960,7 @@ export function tryGradeQuizSubmission(args: GradeQuizSubmissionArgs) {
 					percentage: gradeData.percentage,
 					feedback: gradeData.feedback,
 					gradedBy,
-					userGrade: userGradeResult.value,
+					userGrade: userGradeResult,
 					questionResults: gradeData.questionResults,
 				};
 			});
@@ -1397,6 +1985,7 @@ export function tryListQuizSubmissions(args: ListQuizSubmissionsArgs) {
 				studentId,
 				enrollmentId,
 				status,
+				includePreview = false,
 				limit = 10,
 				page = 1,
 
@@ -1404,44 +1993,26 @@ export function tryListQuizSubmissions(args: ListQuizSubmissionsArgs) {
 				overrideAccess = false,
 			} = args;
 
-			const whereConditions: Array<Record<string, { equals: unknown }>> = [];
-
-			if (courseModuleLinkId) {
-				whereConditions.push({
-					courseModuleLink: { equals: courseModuleLinkId },
-				});
-			}
-
-			if (studentId) {
-				whereConditions.push({
-					student: { equals: studentId },
-				});
-			}
-
-			if (enrollmentId) {
-				whereConditions.push({
-					enrollment: { equals: enrollmentId },
-				});
-			}
-
-			if (status) {
-				whereConditions.push({
-					status: { equals: status },
-				});
-			}
-
-			const where =
-				whereConditions.length > 0 ? { and: whereConditions } : undefined;
-
 			const result = await payload
 				.find({
 					collection: "quiz-submissions",
-					where,
+					where: {
+						and: [
+							...(!includePreview ? [{ isPreview: { not_equals: true } }] : []),
+							...(status ? [{ status: { equals: status } }] : []),
+							...(enrollmentId
+								? [{ enrollment: { equals: enrollmentId } }]
+								: []),
+							...(studentId ? [{ student: { equals: studentId } }] : []),
+							...(courseModuleLinkId
+								? [{ courseModuleLink: { equals: courseModuleLinkId } }]
+								: []),
+						],
+					},
 					limit,
 					page,
 					sort: "-createdAt",
 					depth: 1, // Fetch related data
-
 					req,
 					overrideAccess,
 				})
@@ -1507,6 +2078,7 @@ export function tryCheckInProgressSubmission(
 						{ courseModuleLink: { equals: courseModuleLinkId } },
 						{ student: { equals: studentId } },
 						{ status: { equals: "in_progress" } },
+						{ isPreview: { not_equals: true } },
 					],
 				},
 				limit: 1,
@@ -1514,10 +2086,19 @@ export function tryCheckInProgressSubmission(
 				overrideAccess,
 			});
 
-			return {
-				hasInProgress: result.docs.length > 0,
-				submission: result.docs[0] || null,
-			};
+			const hasInProgress = result.docs.length > 0;
+
+			if (hasInProgress) {
+				return {
+					hasInProgress: true as const,
+					submission: result.docs[0]!,
+				};
+			} else {
+				return {
+					hasInProgress: false as const,
+					submission: null,
+				};
+			}
 		},
 		(error) =>
 			transformError(error) ??

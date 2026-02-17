@@ -19,8 +19,8 @@ import { courseSectionContextKey } from "server/contexts/course-section-context"
 import { userContextKey } from "server/contexts/user-context";
 import { useDeleteCourseSection } from "~/routes/api/section-delete";
 import { useUpdateCourseSection } from "~/routes/api/section-update";
-import { ForbiddenResponse, ok } from "~/utils/responses";
-import { typeCreateLoader } from "app/utils/loader-utils";
+import { ForbiddenResponse, ok } from "app/utils/router/responses";
+import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/section-edit";
 
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();

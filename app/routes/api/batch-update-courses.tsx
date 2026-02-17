@@ -1,19 +1,17 @@
 import { notifications } from "@mantine/notifications";
-import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCourse } from "server/internal/course-management";
 import z from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
 	StatusCode,
 	unauthorized,
-} from "~/utils/responses";
+} from "app/utils/router/responses";
 import type { Route } from "./+types/batch-update-courses";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/api/batch-update-courses",
@@ -35,7 +33,7 @@ const batchUpdateCoursesRpc = createActionRpc({
 });
 
 const batchUpdateCoursesAction = batchUpdateCoursesRpc.createAction(
-	async ({ request, context }) => {
+	async ({ request, context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -50,13 +48,13 @@ const batchUpdateCoursesAction = batchUpdateCoursesRpc.createAction(
 			throw new ForbiddenResponse("Only admins can batch update courses");
 		}
 
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		const parsed = inputSchema.safeParse(data);
-		if (!parsed.success) {
-			return badRequest({ error: z.prettifyError(parsed.error) });
-		}
+		// const { data } = await getDataAndContentTypeFromRequest(request);
+		// const parsed = inputSchema.safeParse(data);
+		// if (!parsed.success) {
+		// 	return badRequest({ error: z.prettifyError(parsed.error) });
+		// }
 
-		const { courseIds, status, category } = parsed.data;
+		const { courseIds, status, category } = formData;
 
 		// Perform per-course updates; keep simple and robust
 		for (const courseId of courseIds) {

@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 import { href } from "react-router";
-import { typeCreateActionRpc } from "~/utils/action-utils";
+import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
 import { z } from "zod";
 import { renderD2ToSvg } from "~/utils/d2-render";
-import { badRequest } from "~/utils/responses";
+import { badRequest } from "app/utils/router/responses";
 import type { Route } from "./+types/d2-render";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

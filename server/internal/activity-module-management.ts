@@ -9,7 +9,7 @@ import {
 	NonExistingActivityModuleError,
 	transformError,
 	UnknownError,
-} from "~/utils/error";
+} from "app/utils/error";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
