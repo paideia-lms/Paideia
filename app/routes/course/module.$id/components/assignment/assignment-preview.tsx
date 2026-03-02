@@ -482,7 +482,7 @@ function InstructionsView({
 function AssignmentDebugInfo() {
 	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
 
-	if (loaderData.type !== "assignment") {
+	if (loaderData.type !== "assignment" || !loaderData.isDevelopment) {
 		return null;
 	}
 
