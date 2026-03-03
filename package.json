@@ -4,6 +4,7 @@
 	"type": "module",
 	"workspaces": ["apps/*"],
 	"scripts": {
+		"build": "bun run --cwd apps/paideia build",
 		"lefthook:install": "lefthook install"
 	}
 }
