@@ -51,17 +51,17 @@ pre-commit:
           exit 1
         fi
     - name: typecheck
-      run: bun typecheck
+      run: bun run --cwd apps/paideia typecheck
       stage_fixed: true
     - name: lint
-      run: bun lint --diagnostic-level error
+      run: bun run --cwd apps/paideia lint
       stage_fixed: true
     # - name: lint-project
-    #   run: bun lint:project
+    #   run: bun run --cwd apps/paideia lint:project
     #   stage_fixed: true
     # - name: knip
-    #   run: bun knip
+    #   run: bun run --cwd apps/paideia knip
     #   stage_fixed: true
     # - name: test
-    #   run: bun test 
+    #   run: bun run --cwd apps/paideia test
     #   stage_fixed: true

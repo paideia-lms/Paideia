@@ -43,7 +43,6 @@
 		"docker:prune": "docker image prune -f",
 		"typegen": "PAYLOAD_CONFIG_PATH=server/payload.config.ts bunx payload --disable-transpile generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts bunx payload --disable-transpile generate:db-schema && react-router typegen",
 		"typecheck": "tsgo --noEmit --extendedDiagnostics",
-		"lefthook:install": "lefthook install",
 		"knip": "knip",
 		"dedupe": "bunx nypm dedupe"
 	},

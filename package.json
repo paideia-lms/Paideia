@@ -4,27 +4,6 @@
 	"type": "module",
 	"workspaces": ["apps/*"],
 	"scripts": {
-		"build": "bun run --cwd apps/paideia build",
-		"start": "bun run --cwd apps/paideia start",
-		"dev": "bun run --cwd apps/paideia dev",
-		"lint": "bun run --cwd apps/paideia lint",
-		"lint:project": "bun run --cwd apps/paideia lint:project",
-		"test:all": "bun run --cwd apps/paideia test:all",
-		"migrate:create": "bun run --cwd apps/paideia migrate:create",
-		"migrate:status": "bun run --cwd apps/paideia migrate:status",
-		"migrate:up": "bun run --cwd apps/paideia migrate:up",
-		"migrate:down": "bun run --cwd apps/paideia migrate:down",
-		"migrate:refresh": "bun run --cwd apps/paideia migrate:refresh",
-		"migrate:reset": "bun run --cwd apps/paideia migrate:reset",
-		"migrate:fresh": "bun run --cwd apps/paideia migrate:fresh",
-		"typegen": "bun run --cwd apps/paideia typegen",
-		"typecheck": "bun run --cwd apps/paideia typecheck",
-		"docker:build": "bun run --cwd apps/paideia docker:build",
-		"docker:update": "bun run --cwd apps/paideia docker:update",
-		"docker:run": "bun run --cwd apps/paideia docker:run",
-		"docker:prune": "bun run --cwd apps/paideia docker:prune",
-		"lefthook:install": "bun run --cwd apps/paideia lefthook:install",
-		"knip": "bun run --cwd apps/paideia knip",
-		"dedupe": "bun run --cwd apps/paideia dedupe"
+		"lefthook:install": "lefthook install"
 	}
 }
