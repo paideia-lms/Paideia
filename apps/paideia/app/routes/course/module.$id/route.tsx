@@ -234,6 +234,7 @@ export const loader = createLoaderRpc({
 		activeSubmission,
 		searchParams,
 		params,
+		isDevelopment: process.env.NODE_ENV === "development",
 	};
 });
 

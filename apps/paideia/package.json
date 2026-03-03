@@ -1,7 +1,7 @@
 {
 	"name": "paideia",
 	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
-	"version": "0.7.14",
+	"version": "0.7.15",
 	"keywords": [
 		"paideia",
 		"lms",
@@ -43,7 +43,6 @@
 		"docker:prune": "docker image prune -f",
 		"typegen": "PAYLOAD_CONFIG_PATH=server/payload.config.ts bunx payload --disable-transpile generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts bunx payload --disable-transpile generate:db-schema && react-router typegen",
 		"typecheck": "tsgo --noEmit --extendedDiagnostics",
-		"lefthook:install": "lefthook install",
 		"knip": "knip",
 		"dedupe": "bunx nypm dedupe"
 	},
