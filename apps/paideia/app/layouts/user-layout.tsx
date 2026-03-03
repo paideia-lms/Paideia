@@ -11,7 +11,10 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse, NotFoundResponse } from "app/utils/router/responses";
+import {
+	ForbiddenResponse,
+	NotFoundResponse,
+} from "app/utils/router/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
 import { userProfileContextKey } from "server/contexts/user-profile-context";

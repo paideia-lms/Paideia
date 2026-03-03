@@ -16,7 +16,10 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
-import { useGradeSubmission, useReleaseGrade } from "app/routes/course/module.$id.submissions/route";
+import {
+	useGradeSubmission,
+	useReleaseGrade,
+} from "app/routes/course/module.$id.submissions/route";
 import type { Route } from "../../route";
 
 // ============================================================================
@@ -43,17 +46,17 @@ export interface QuizGradingViewProps {
 	moduleLinkId: QuizGradingLoaderData["moduleLinkId"];
 	grade: QuizGradingLoaderData["gradingGrade"];
 	enrollment?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	courseModuleLink?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 }
 
 // ============================================================================
@@ -111,7 +114,7 @@ export function QuizGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-			student.email
+				student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 

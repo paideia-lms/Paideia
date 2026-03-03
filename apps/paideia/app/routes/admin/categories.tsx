@@ -485,11 +485,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent("category:none")
+								"?query=" +
+								encodeURIComponent("category:none")
 							: href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent(`category:"${d.name}"`);
+								"?query=" +
+								encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">

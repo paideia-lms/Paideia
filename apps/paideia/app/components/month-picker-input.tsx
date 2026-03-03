@@ -36,7 +36,9 @@ export function MonthPickerInput({
 						onClick={() => setOpened((o) => !o)}
 						style={{ textAlign: "left" }}
 					>
-						{displayValue || <Input.Placeholder>Select month</Input.Placeholder>}
+						{displayValue || (
+							<Input.Placeholder>Select month</Input.Placeholder>
+						)}
 					</Input>
 				</Popover.Target>
 				<Popover.Dropdown>

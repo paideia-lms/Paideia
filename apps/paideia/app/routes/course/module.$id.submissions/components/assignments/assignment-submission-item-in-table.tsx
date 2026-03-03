@@ -8,7 +8,12 @@ import {
 	Text,
 } from "@mantine/core";
 import { IconDots, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
-import { Link, useLoaderData, useMatches, useRouteLoaderData } from "react-router";
+import {
+	Link,
+	useLoaderData,
+	useMatches,
+	useRouteLoaderData,
+} from "react-router";
 import type { Route } from "app/routes/course/module.$id.submissions/route";
 import { useRemoveGrade } from "app/routes/course/module.$id.submissions/route";
 import { Anchor, Box, ScrollArea, Tooltip, Typography } from "@mantine/core";
@@ -35,14 +40,14 @@ type AssignmentSubmissionData = NonNullable<
 
 type AttachmentItem = {
 	file:
-	| number
-	| {
-		id: number;
-		filename?: string | null;
-		mimeType?: string | null;
-		filesize?: number | null;
-		url?: string | null;
-	};
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+				url?: string | null;
+		  };
 	description?: string | null;
 	id?: string | null;
 };
@@ -57,7 +62,9 @@ function SubmissionAttachments({
 	attachments: Array<AttachmentItem>;
 }) {
 	const matches = useMatches() as Route.ComponentProps["matches"];
-	const { loaderData: { enableDebugLogs } } = matches[0]
+	const {
+		loaderData: { enableDebugLogs },
+	} = matches[0];
 	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
 
 	return (
@@ -190,8 +197,8 @@ export function AssignmentSubmissionItemInTable({
 
 	const startedAt =
 		"startedAt" in submission &&
-			submission.startedAt &&
-			typeof submission.startedAt === "string"
+		submission.startedAt &&
+		typeof submission.startedAt === "string"
 			? submission.startedAt
 			: null;
 
@@ -222,7 +229,7 @@ export function AssignmentSubmissionItemInTable({
 							submission.grade?.baseGrade !== undefined && (
 								<Badge color="green" variant="filled">
 									{submission.grade.maxGrade !== null &&
-										submission.grade.maxGrade !== undefined
+									submission.grade.maxGrade !== undefined
 										? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
 										: submission.grade.baseGrade}
 								</Badge>
@@ -260,9 +267,15 @@ export function AssignmentSubmissionItemInTable({
 									{showGrade && moduleLinkId && (
 										<Menu.Item
 											component={Link}
-											to={getRouteUrl("/course/module/:moduleLinkId/submissions/:submissionId", {
-												params: { moduleLinkId: moduleLinkId.toString(), submissionId: submission.id.toString() },
-											})}
+											to={getRouteUrl(
+												"/course/module/:moduleLinkId/submissions/:submissionId",
+												{
+													params: {
+														moduleLinkId: moduleLinkId.toString(),
+														submissionId: submission.id.toString(),
+													},
+												},
+											)}
 											leftSection={<IconPencil size={16} />}
 										>
 											Grade

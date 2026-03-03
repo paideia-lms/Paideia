@@ -84,11 +84,11 @@ export const loader = createRouteLoader(
 		const singleUserGradesResult =
 			userId && enrollment
 				? await tryGetAdjustedSingleUserGrades({
-					payload,
-					req: payloadRequest,
-					courseId: courseContext.course.id,
-					enrollmentId: enrollment.id,
-				}).getOrDefault(defaultSingleUserGradesResult)
+						payload,
+						req: payloadRequest,
+						courseId: courseContext.course.id,
+						enrollmentId: enrollment.id,
+					}).getOrDefault(defaultSingleUserGradesResult)
 				: defaultSingleUserGradesResult;
 
 		return {
@@ -203,7 +203,6 @@ const getStatusLabel = (status: string) => {
 			return status;
 	}
 };
-
 
 type GradeItemWithData = GradebookSetupItem & {
 	gradeData?: {
@@ -469,15 +468,15 @@ function matchItemsToStructure(
 				weight: gradeData?.weight ?? item.weight,
 				gradeData: gradeData
 					? {
-						base_grade: gradeData.base_grade ?? null,
-						override_grade: gradeData.override_grade ?? null,
-						is_overridden: gradeData.is_overridden,
-						feedback: gradeData.feedback ?? null,
-						graded_at: gradeData.graded_at ?? null,
-						submitted_at: gradeData.submitted_at ?? null,
-						status: gradeData.status,
-						adjustments: gradeData.adjustments ?? [],
-					}
+							base_grade: gradeData.base_grade ?? null,
+							override_grade: gradeData.override_grade ?? null,
+							is_overridden: gradeData.is_overridden,
+							feedback: gradeData.feedback ?? null,
+							graded_at: gradeData.graded_at ?? null,
+							submitted_at: gradeData.submitted_at ?? null,
+							status: gradeData.status,
+							adjustments: gradeData.adjustments ?? [],
+						}
 					: undefined,
 			});
 		}
@@ -591,7 +590,7 @@ function SingleUserGradeTableView({
 							</Text>
 							<Text size="lg" fw={700}>
 								{enrollment.final_grade !== null &&
-									enrollment.final_grade !== undefined
+								enrollment.final_grade !== undefined
 									? enrollment.final_grade.toFixed(2)
 									: "-"}
 							</Text>

@@ -11,9 +11,18 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { IconCheck, IconClock, IconInfoCircle, IconLock } from "@tabler/icons-react";
+import {
+	IconCheck,
+	IconClock,
+	IconInfoCircle,
+	IconLock,
+} from "@tabler/icons-react";
 import { StartNestedQuizButton } from "./start-nested-quiz-button";
-import { loaderSearchParams, type Route, useMarkQuizAttemptAsComplete } from "../../route";
+import {
+	loaderSearchParams,
+	type Route,
+	useMarkQuizAttemptAsComplete,
+} from "../../route";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useNestedQuizContext } from "./nested-quiz-context";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
@@ -21,15 +30,17 @@ import { useMatches } from "react-router";
 import { CodeHighlight } from "@mantine/code-highlight";
 
 /**
- * this component allow user to select a nested quiz to start / continue. 
- * 
+ * this component allow user to select a nested quiz to start / continue.
+ *
  * by default, the server will treat the quiz as complete if all nested quizzes are completed.
- * but user can still manually mark the quiz as complete using the "Mark as Complete" button. 
+ * but user can still manually mark the quiz as complete using the "Mark as Complete" button.
  * it is just that user will be warned if an nested quiz is not completed.
  */
 export function NestedQuizSelector() {
 	const matches = useMatches() as Route.ComponentProps["matches"];
-	const { loaderData: { enableDebugLogs } } = matches[0]
+	const {
+		loaderData: { enableDebugLogs },
+	} = matches[0];
 	// Get all data from contexts
 	const {
 		quizConfig,
@@ -138,33 +149,38 @@ export function NestedQuizSelector() {
 	return (
 		<Stack gap="lg">
 			{/* Debug Section */}
-			{enableDebugLogs && <Paper withBorder p="md" radius="sm" bg="yellow.0">
-				<Stack gap="xs">
-					<Text size="sm" fw={600} c="yellow.9">
-						Debug Info
-					</Text>
-					<CodeHighlight code={JSON.stringify(
-						{
-							completedNestedQuizzes,
-							completedQuizIds,
-							inProgressQuizIds,
-							completionProgress,
-							allQuizzesCompleted: allCompleted,
-							submissionId,
-						}, null, 2)}
-						language="json"
-						withCopyButton
-					/>
-				</Stack>
-			</Paper>}
+			{enableDebugLogs && (
+				<Paper withBorder p="md" radius="sm" bg="yellow.0">
+					<Stack gap="xs">
+						<Text size="sm" fw={600} c="yellow.9">
+							Debug Info
+						</Text>
+						<CodeHighlight
+							code={JSON.stringify(
+								{
+									completedNestedQuizzes,
+									completedQuizIds,
+									inProgressQuizIds,
+									completionProgress,
+									allQuizzesCompleted: allCompleted,
+									submissionId,
+								},
+								null,
+								2,
+							)}
+							language="json"
+							withCopyButton
+						/>
+					</Stack>
+				</Paper>
+			)}
 			{/* Header with progress */}
-			{readonly ?
+			{readonly ? (
 				<Alert color="blue" title="Read-only Mode">
-					You are viewing a previously submitted quiz. No changes can be
-					made.
+					You are viewing a previously submitted quiz. No changes can be made.
 				</Alert>
-
-				: <Card withBorder p="lg" radius="md">
+			) : (
+				<Card withBorder p="lg" radius="md">
 					<Stack gap="md">
 						<Group justify="space-between" align="flex-start">
 							<div>
@@ -188,7 +204,8 @@ export function NestedQuizSelector() {
 							</Text>
 						)}
 					</Stack>
-				</Card>}
+				</Card>
+			)}
 
 			{/* Quiz list */}
 			{nestedQuizzes.map((quiz, index) => {
@@ -214,30 +231,28 @@ export function NestedQuizSelector() {
 										<Badge variant="outline" size="lg">
 											Quiz {index + 1}
 										</Badge>
-										{
-											readonly ? (
-												<Badge color="gray" leftSection={<IconLock size={14} />}>
-													Readonly
-												</Badge>
-											) :
-												isCompleted ? (
-													<Badge
-														color="green"
-														leftSection={<IconCheck size={14} />}
-													>
-														Completed
-													</Badge>
-												) : isInProgress ? (
-													<Badge color="blue" leftSection={<IconClock size={14} />}>
-														In Progress
-													</Badge>
-												) : isLocked ? (
-													<Badge color="gray" leftSection={<IconLock size={14} />}>
-														Locked
-													</Badge>
-												) : (
-													<Badge color="blue">Available</Badge>
-												)}
+										{readonly ? (
+											<Badge color="gray" leftSection={<IconLock size={14} />}>
+												Readonly
+											</Badge>
+										) : isCompleted ? (
+											<Badge
+												color="green"
+												leftSection={<IconCheck size={14} />}
+											>
+												Completed
+											</Badge>
+										) : isInProgress ? (
+											<Badge color="blue" leftSection={<IconClock size={14} />}>
+												In Progress
+											</Badge>
+										) : isLocked ? (
+											<Badge color="gray" leftSection={<IconLock size={14} />}>
+												Locked
+											</Badge>
+										) : (
+											<Badge color="blue">Available</Badge>
+										)}
 									</Group>
 									<Title order={3}>{quiz.title}</Title>
 									{quiz.description && (
@@ -251,8 +266,13 @@ export function NestedQuizSelector() {
 											0,
 										);
 										return totalQuestions === 0 ? (
-											<Alert color="yellow" icon={<IconInfoCircle size={16} />} mt="xs">
-												This nested quiz has no questions. Please add questions before students can take it.
+											<Alert
+												color="yellow"
+												icon={<IconInfoCircle size={16} />}
+												mt="xs"
+											>
+												This nested quiz has no questions. Please add questions
+												before students can take it.
 											</Alert>
 										) : null;
 									})()}

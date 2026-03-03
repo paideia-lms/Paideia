@@ -141,10 +141,10 @@ function CourseInfo({ course }: CourseInfoProps) {
 											src={
 												instructor.user.avatar
 													? getRouteUrl("/api/user/:id/avatar", {
-														params: {
-															id: instructor.user.id.toString(),
-														},
-													})
+															params: {
+																id: instructor.user.id.toString(),
+															},
+														})
 													: undefined
 											}
 											name={
@@ -230,15 +230,12 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 
 				<CourseInfo course={course} />
 
-
 				<Paper shadow="sm" p="md" withBorder>
-
 					<CourseCalendarView
 						recurringSchedules={course.recurringSchedules}
 						specificDates={course.specificDates}
 					/>
 				</Paper>
-
 
 				<Paper shadow="sm" p="md" withBorder>
 					<Stack gap="md">

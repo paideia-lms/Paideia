@@ -34,7 +34,10 @@ import {
 	StatusCode,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/edit-access";
-import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
+import {
+	createActionMap,
+	typeCreateActionRpc,
+} from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 
 enum Action {

@@ -49,7 +49,10 @@ import {
 	useState,
 } from "react";
 import { href, Link } from "react-router";
-import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
+import {
+	createActionMap,
+	typeCreateActionRpc,
+} from "app/utils/router/action-utils";
 import { constate } from "app/utils/ui/constate";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
@@ -177,24 +180,24 @@ export const loader = createRouteLoader({
 
 	const mediaResult = userId
 		? await tryFindMediaByUser({
-			payload,
-			userId,
-			limit,
-			page,
-			depth: 1, // Include createdBy user info
-			req: payloadRequest,
-			overrideAccess: true,
-		}).getOrElse(() => {
-			throw new ForbiddenResponse("Failed to fetch media");
-		})
+				payload,
+				userId,
+				limit,
+				page,
+				depth: 1, // Include createdBy user info
+				req: payloadRequest,
+				overrideAccess: true,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch media");
+			})
 		: await tryGetAllMedia({
-			payload,
-			limit,
-			page,
-			req: payloadRequest,
-		}).getOrElse(() => {
-			throw new ForbiddenResponse("Failed to fetch media");
-		});
+				payload,
+				limit,
+				page,
+				req: payloadRequest,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch media");
+			});
 	const mediaWithPermissions = mediaResult.docs.map((file) => ({
 		...file,
 		deletePermission: { allowed: true, reason: "" },
@@ -202,18 +205,18 @@ export const loader = createRouteLoader({
 
 	const stats = userId
 		? await tryGetUserMediaStats({
-			payload,
-			userId,
-			req: payloadRequest,
-		}).getOrElse(() => {
-			throw new ForbiddenResponse("Failed to fetch user media stats");
-		})
+				payload,
+				userId,
+				req: payloadRequest,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch user media stats");
+			})
 		: await tryGetSystemMediaStats({
-			payload,
-			req: payloadRequest,
-		}).getOrElse(() => {
-			throw new ForbiddenResponse("Failed to fetch system media stats");
-		});
+				payload,
+				req: payloadRequest,
+			}).getOrElse(() => {
+				throw new ForbiddenResponse("Failed to fetch system media stats");
+			});
 
 	const systemStats = await tryGetSystemMediaStats({
 		payload,
@@ -999,8 +1002,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1187,8 +1190,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1291,8 +1294,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	// Get creator info
@@ -1303,7 +1306,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-			"Unknown"
+				"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1314,13 +1317,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: creatorAvatarId.toString(),
-		})
+				mediaId: creatorAvatarId.toString(),
+			})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-			id: creatorId.toString(),
-		})
+				id: creatorId.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1521,7 +1524,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-						"Unknown"
+							"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1532,13 +1535,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:mediaId`, {
-						mediaId: creatorAvatarId.toString(),
-					})
+							mediaId: creatorAvatarId.toString(),
+						})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-						id: creatorId.toString(),
-					})
+							id: creatorId.toString(),
+						})
 					: undefined;
 
 				return (
@@ -1712,8 +1715,9 @@ function useOrphanedMediaSelectionValue({
 	};
 }
 
-const [OrphanedMediaSelectionProvider, useOrphanedMediaSelection] =
-	constate(useOrphanedMediaSelectionValue);
+const [OrphanedMediaSelectionProvider, useOrphanedMediaSelection] = constate(
+	useOrphanedMediaSelectionValue,
+);
 
 // Orphaned Media Table Component
 function OrphanedMediaTable({
@@ -1868,9 +1872,7 @@ function OrphanedMediaSection({
 						No orphaned media files found.
 					</Text>
 				) : (
-					<OrphanedMediaSelectionProvider
-						orphanedPage={orphanedMedia.page}
-					>
+					<OrphanedMediaSelectionProvider orphanedPage={orphanedMedia.page}>
 						<OrphanedMediaTable
 							files={orphanedMedia.files}
 							pagination={{

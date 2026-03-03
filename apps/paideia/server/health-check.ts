@@ -3,7 +3,9 @@ import { sql } from "@payloadcms/db-postgres/drizzle";
 import { envVars } from "./env";
 import { s3Client } from "./utils/s3-client";
 
-export async function testDbConnection(payload: Awaited<ReturnType<typeof import("payload").getPayload>>) {
+export async function testDbConnection(
+	payload: Awaited<ReturnType<typeof import("payload").getPayload>>,
+) {
 	try {
 		await payload.db.drizzle.execute(sql`SELECT 1`);
 		console.log("✅ Database connection successful");
@@ -40,7 +42,9 @@ export async function testS3Connection() {
 	}
 }
 
-export async function testConnections(payload: Awaited<ReturnType<typeof import("payload").getPayload>>) {
+export async function testConnections(
+	payload: Awaited<ReturnType<typeof import("payload").getPayload>>,
+) {
 	console.log("\n🔍 Testing dependencies connectivity...\n");
 
 	const dbOk = await testDbConnection(payload);

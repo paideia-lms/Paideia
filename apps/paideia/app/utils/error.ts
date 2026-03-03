@@ -1,4 +1,3 @@
-
 import {
 	QuizConfigValidationError,
 	QuizElementNotFoundError,
@@ -277,7 +276,9 @@ export class ValidationError extends Error {
 	}
 }
 
-function isNoSuchBucketError(error: unknown): error is { name: string; BucketName?: string } {
+function isNoSuchBucketError(
+	error: unknown,
+): error is { name: string; BucketName?: string } {
 	return (
 		error !== null &&
 		typeof error === "object" &&

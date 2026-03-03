@@ -87,12 +87,15 @@ export function QuizSubmissionItemInTable({
 							<Menu.Dropdown>
 								<Menu.Item
 									component={Link}
-									to={getRouteUrl("/course/module/:moduleLinkId/submissions/:submissionId", {
-										params: {
-											moduleLinkId: moduleLinkId.toString(),
-											submissionId: submission.id.toString(),
+									to={getRouteUrl(
+										"/course/module/:moduleLinkId/submissions/:submissionId",
+										{
+											params: {
+												moduleLinkId: moduleLinkId.toString(),
+												submissionId: submission.id.toString(),
+											},
 										},
-									})}
+									)}
 									leftSection={<IconPencil size={16} />}
 								>
 									Grade

@@ -78,10 +78,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
+				const attemptA = a.attemptNumber || 0;
+				const attemptB = b.attemptNumber || 0;
+				return attemptB - attemptA;
+			})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -111,7 +111,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-			gradedSubmissions.length
+				gradedSubmissions.length
 			: null;
 
 	return (
@@ -233,10 +233,13 @@ function QuizStudentSubmissionRow({
 								<Menu.Dropdown>
 									<Menu.Item
 										component={Link}
-										to={href("/course/module/:moduleLinkId/submissions/:submissionId", {
-											moduleLinkId: moduleLinkId.toString(),
-											submissionId: latestSubmission.id.toString(),
-										})}
+										to={href(
+											"/course/module/:moduleLinkId/submissions/:submissionId",
+											{
+												moduleLinkId: moduleLinkId.toString(),
+												submissionId: latestSubmission.id.toString(),
+											},
+										)}
 										leftSection={<IconPencil size={14} />}
 									>
 										Grade

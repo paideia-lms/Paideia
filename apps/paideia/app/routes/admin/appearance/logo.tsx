@@ -13,7 +13,10 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import {
+	typeCreateActionRpc,
+	createActionMap,
+} from "app/utils/router/action-utils";
 import { parseAsStringEnum } from "nuqs/server";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import prettyBytes from "pretty-bytes";
@@ -300,8 +303,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: logo.id.toString(),
-		})
+				mediaId: logo.id.toString(),
+			})
 		: null;
 
 	return (

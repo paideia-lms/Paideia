@@ -133,16 +133,24 @@ export function QuizInstructionsView({
 	}
 
 	// Check if quiz has no content (no questions for regular quiz, no nested quizzes for container quiz)
-	const quizConfig = loaderData.type === "quiz" ? loaderData.quiz.rawQuizConfig : null;
+	const quizConfig =
+		loaderData.type === "quiz" ? loaderData.quiz.rawQuizConfig : null;
 	const isRegularQuiz = quizConfig?.type === "regular";
 	const isContainerQuiz = quizConfig?.type === "container";
-	const hasNoQuestions = isRegularQuiz && quizConfig
-		? quizConfig.pages.reduce((total, page) => total + page.questions.length, 0) === 0
-		: false;
-	const hasNoNestedQuizzes = isContainerQuiz && quizConfig
-		? (quizConfig.nestedQuizzes?.length ?? 0) === 0
-		: false;
-	const shouldShowAlert = (isRegularQuiz && hasNoQuestions) || (isContainerQuiz && hasNoNestedQuizzes);
+	const hasNoQuestions =
+		isRegularQuiz && quizConfig
+			? quizConfig.pages.reduce(
+					(total, page) => total + page.questions.length,
+					0,
+				) === 0
+			: false;
+	const hasNoNestedQuizzes =
+		isContainerQuiz && quizConfig
+			? (quizConfig.nestedQuizzes?.length ?? 0) === 0
+			: false;
+	const shouldShowAlert =
+		(isRegularQuiz && hasNoQuestions) ||
+		(isContainerQuiz && hasNoNestedQuizzes);
 
 	// Count all attempts that have been started (including in_progress)
 	// This gives a more accurate count of attempts used
@@ -234,9 +242,7 @@ export function QuizInstructionsView({
 					>
 						{attemptCount} of {maxAttempts} attempt
 						{maxAttempts !== 1 ? "s" : ""} used
-						{!canStartMore &&
-							!canStartAttempt &&
-							" - Maximum attempts reached"}
+						{!canStartMore && !canStartAttempt && " - Maximum attempts reached"}
 					</Alert>
 				)}
 
@@ -246,8 +252,7 @@ export function QuizInstructionsView({
 							Time Limit: {formatTimeLimit(effectiveTimeLimit)}
 						</Text>
 						<Text size="xs" c="dimmed" mt={4}>
-							The timer will start when you begin the quiz and cannot be
-							paused.
+							The timer will start when you begin the quiz and cannot be paused.
 						</Text>
 					</Alert>
 				) : (

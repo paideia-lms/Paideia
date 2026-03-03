@@ -81,8 +81,8 @@ export const loader = createRouteLoader({
 	const users = usersResult.value.docs.map((user) => {
 		const avatarUrl = user.avatar
 			? href(`/api/media/file/:mediaId`, {
-				mediaId: user.avatar.id.toString(),
-			})
+					mediaId: user.avatar.id.toString(),
+				})
 			: null;
 
 		return {

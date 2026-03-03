@@ -59,8 +59,9 @@ async function startServer() {
 		payload,
 		migrations: migrations as MigrationType[],
 	});
-	const pendingCount =
-		(migrationStatuses ?? []).filter((s) => s.Ran === "No").length;
+	const pendingCount = (migrationStatuses ?? []).filter(
+		(s) => s.Ran === "No",
+	).length;
 	if (pendingCount > 0) {
 		const isInteractive = Boolean(process.stdin.isTTY);
 		if (isInteractive) {

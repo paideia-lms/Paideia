@@ -63,13 +63,13 @@ export const loader = createLoader({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? permissions.admin.canImpersonateUser(
-			userSession.authenticatedUser,
-			{
-				id: userId,
-				role: "student", // Enrolled users are not admins
-			},
-			userSession.isImpersonating,
-		).allowed
+				userSession.authenticatedUser,
+				{
+					id: userId,
+					role: "student", // Enrolled users are not admins
+				},
+				userSession.isImpersonating,
+			).allowed
 		: false;
 
 	return {
@@ -175,8 +175,8 @@ export default function CourseParticipantsProfilePage({
 								src={
 									selectedEnrollment.user.avatar
 										? href(`/api/media/file/:mediaId`, {
-											mediaId: selectedEnrollment.user.avatar.toString(),
-										})
+												mediaId: selectedEnrollment.user.avatar.toString(),
+											})
 										: undefined
 								}
 								alt={

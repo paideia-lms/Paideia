@@ -1850,7 +1850,10 @@ export function tryGetCourseStructure(args: GetCourseStructureArgs) {
 					},
 				]),
 			);
-			const sectionModulesMap = new Map<number, typeof activityModuleLinks.docs>();
+			const sectionModulesMap = new Map<
+				number,
+				typeof activityModuleLinks.docs
+			>();
 			for (const link of activityModuleLinks.docs) {
 				const sectionId = link.section.id;
 				const links = sectionModulesMap.get(sectionId);

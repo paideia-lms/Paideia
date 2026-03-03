@@ -5,7 +5,11 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryDeleteActivityModule } from "server/internal/activity-module-management";
 import { z } from "zod";
-import { badRequest, StatusCode, unauthorized } from "app/utils/router/responses";
+import {
+	badRequest,
+	StatusCode,
+	unauthorized,
+} from "app/utils/router/responses";
 import type { Route } from "./+types/activity-module-delete";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({

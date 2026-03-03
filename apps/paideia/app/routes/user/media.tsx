@@ -51,7 +51,10 @@ import {
 import type React from "react";
 import { href } from "react-router";
 import { z } from "zod";
-import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import {
+	typeCreateActionRpc,
+	createActionMap,
+} from "app/utils/router/action-utils";
 import { constate } from "app/utils/ui/constate";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
@@ -780,13 +783,10 @@ const [MediaSelectionProvider, useMediaSelection] = constate(
 );
 
 // Batch Actions Component
-function BatchActions({
-	userId,
-}: {
-	userId: number;
-}) {
+function BatchActions({ userId }: { userId: number }) {
 	const { submit: deleteMedia } = useDelete();
-	const { selectedCardIds, selectedRecords, clearSelection } = useMediaSelection();
+	const { selectedCardIds, selectedRecords, clearSelection } =
+		useMediaSelection();
 
 	const selectedCount =
 		selectedRecords.length > 0
@@ -1178,8 +1178,8 @@ export const MediaPreviewModal = forwardRef<
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1271,8 +1271,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	const handleDelete = async () => {
@@ -1384,8 +1384,8 @@ function MediaCard({
 
 	const mediaUrl = file.id
 		? href(`/api/media/file/:mediaId`, {
-			mediaId: file.id.toString(),
-		})
+				mediaId: file.id.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1742,13 +1742,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 					<MediaSelectionProvider media={media}>
 						{viewMode === "card" ? (
 							<>
-								<BatchActions
-									userId={user.id}
-								/>
-								<MediaCardView
-									media={media}
-									userId={user.id}
-								/>
+								<BatchActions userId={user.id} />
+								<MediaCardView media={media} userId={user.id} />
 								<MediaPagination
 									totalPages={pagination.totalPages}
 									currentPage={pagination.page}
@@ -1756,13 +1751,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 							</>
 						) : (
 							<>
-								<BatchActions
-									userId={user.id}
-								/>
-								<MediaTableView
-									media={media}
-									userId={user.id}
-								/>
+								<BatchActions userId={user.id} />
+								<MediaTableView media={media} userId={user.id} />
 								<MediaPagination
 									totalPages={pagination.totalPages}
 									currentPage={pagination.page}

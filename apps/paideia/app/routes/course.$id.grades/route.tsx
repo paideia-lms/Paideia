@@ -2,7 +2,10 @@ import { notifications } from "@mantine/notifications";
 import { parseAsStringEnum } from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
-import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
+import {
+	createActionMap,
+	typeCreateActionRpc,
+} from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
 import {
@@ -172,8 +175,8 @@ export const loader = createRouteLoader({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0 ||
-			gradebookSetupForUI.extraCreditCategories.length > 0
+				gradebookSetupForUI.extraCreditItems.length > 0 ||
+				gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],

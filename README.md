@@ -54,6 +54,11 @@ Access:
 
 **Binary installation:** Download from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) and configure environment variables as shown in the docker-compose files.
 
+Or use the install script:
+```sh
+curl -sSL https://raw.githubusercontent.com/paideia-lms/paideia/main/scripts/install.sh | bash
+```
+
 See `apps/paideia/server/env.ts` for environment variable documentation.
 
 ## Development

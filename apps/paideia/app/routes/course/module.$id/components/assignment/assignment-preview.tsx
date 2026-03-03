@@ -450,8 +450,9 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
-							} used`
+							? `${submittedCount} of ${maxAttempts} attempt${
+									maxAttempts !== 1 ? "s" : ""
+								} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
@@ -490,23 +491,40 @@ function AssignmentDebugInfo() {
 		<Paper withBorder p="md" radius="md" style={{ backgroundColor: "#fff3cd" }}>
 			<Stack gap="sm">
 				<Title order={4}>Debug: Assignment Data</Title>
-				<Text size="sm" fw={500}>Assignment Object:</Text>
-				<Code block style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}>
+				<Text size="sm" fw={500}>
+					Assignment Object:
+				</Text>
+				<Code
+					block
+					style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}
+				>
 					{JSON.stringify(loaderData.assignment, null, 2)}
 				</Code>
-				<Text size="sm" fw={500}>Activity Module:</Text>
-				<Code block style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}>
+				<Text size="sm" fw={500}>
+					Activity Module:
+				</Text>
+				<Code
+					block
+					style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}
+				>
 					{JSON.stringify(
 						{
-							requireTextSubmission: loaderData.activityModule.requireTextSubmission,
-							requireFileSubmission: loaderData.activityModule.requireFileSubmission,
+							requireTextSubmission:
+								loaderData.activityModule.requireTextSubmission,
+							requireFileSubmission:
+								loaderData.activityModule.requireFileSubmission,
 						},
 						null,
 						2,
 					)}
 				</Code>
-				<Text size="sm" fw={500}>Full Loader Data (assignment type only):</Text>
-				<Code block style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}>
+				<Text size="sm" fw={500}>
+					Full Loader Data (assignment type only):
+				</Text>
+				<Code
+					block
+					style={{ fontSize: "12px", maxHeight: "300px", overflow: "auto" }}
+				>
 					{JSON.stringify(loaderData, null, 2)}
 				</Code>
 			</Stack>

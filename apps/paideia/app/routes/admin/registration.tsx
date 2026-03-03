@@ -1,7 +1,10 @@
 import { Button, Group, Stack, Switch, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { createActionMap, typeCreateActionRpc } from "app/utils/router/action-utils";
+import {
+	createActionMap,
+	typeCreateActionRpc,
+} from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
