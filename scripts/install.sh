@@ -1,11 +1,56 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
+
+Color_Off=''
+Red=''
+Green=''
+Yellow=''
+Dim=''
+
+Bold_White=''
+Bold_Green=''
+Bold_Yellow=''
+
+if [[ -t 1 ]]; then
+    Color_Off='\033[0m'
+    Red='\033[0;31m'
+    Green='\033[0;32m'
+    Yellow='\033[0;33m'
+    Dim='\033[0;2m'
+    Bold_White='\033[1m'
+    Bold_Green='\033[1;32m'
+    Bold_Yellow='\033[1;33m'
+fi
+
+error() {
+    echo -e "${Red}error${Color_Off}:" "$@" >&2
+    exit 1
+}
+
+info() {
+    echo -e "${Dim}$@${Color_Off}"
+}
+
+info_bold() {
+    echo -e "${Bold_White}$@${Color_Off}"
+}
+
+success() {
+    echo -e "${Green}$@${Color_Off}"
+}
+
+warn() {
+    echo -e "${Yellow}$@${Color_Off}" >&2
+}
+
+command -v curl >/dev/null || error 'curl is required to install paideia'
 
 REPO="paideia-lms/paideia"
 BINARY_NAME="paideia"
 GH_API="https://api.github.com"
 GH_REPO="$GH_API/repos/$REPO"
 
+platform=$(uname -ms)
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
@@ -17,16 +62,14 @@ case "$ARCH" in
     ARCH="arm64"
     ;;
   *)
-    echo "Error: Unsupported architecture: $ARCH" >&2
-    exit 1
+    error "Unsupported architecture: $ARCH"
     ;;
 esac
 
 case "$OS" in
   darwin)
     if [ "$ARCH" != "arm64" ]; then
-      echo "Error: Intel Mac is not supported. Only Apple Silicon (arm64) is supported." >&2
-      exit 1
+      error "Intel Mac is not supported. Only Apple Silicon (arm64) is supported."
     fi
     ASSET_NAME="paideia-macos-arm64"
     ;;
@@ -37,11 +80,11 @@ case "$OS" in
     ASSET_NAME="paideia.exe"
     ;;
   *)
-    echo "Error: Unsupported OS: $OS" >&2
-    exit 1
+    error "Unsupported OS: $OS"
     ;;
 esac
 
+info "Fetching latest release..."
 RELEASE_JSON=$(curl -sf "$GH_REPO/releases/latest")
 
 get_asset_id() {
@@ -58,25 +101,23 @@ for a in data.get('assets', []):
     break
 " "$RELEASE_JSON" "$ASSET_NAME" 2>/dev/null
   else
-    echo "Error: Neither jq nor python3 found. Please install one to parse the release JSON." >&2
-    exit 1
+    error "Neither jq nor python3 found. Please install one to parse the release JSON."
   fi
 }
 
 ASSET_ID=$(get_asset_id)
 
 if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
-  echo "Error: Asset '$ASSET_NAME' not found in latest release." >&2
-  exit 1
+  error "Asset '$ASSET_NAME' not found in latest release."
 fi
 
 TMP_DIR=$(mktemp -d)
 trap "rm -rf $TMP_DIR" EXIT
 cd "$TMP_DIR"
 
-echo "Downloading $BINARY_NAME ($ASSET_NAME)..."
+info "Downloading $BINARY_NAME ($ASSET_NAME)..."
 
-curl -sfL \
+curl --fail --location --progress-bar \
   -H "Accept: application/octet-stream" \
   "$GH_REPO/releases/assets/$ASSET_ID" \
   -o "$ASSET_NAME"
@@ -93,14 +134,21 @@ else
   INSTALL_DIR="$HOME/.local/bin"
   mkdir -p "$INSTALL_DIR"
   if [ ! -w "$INSTALL_DIR" ]; then
-    echo "Error: Cannot write to $INSTALL_DIR or /usr/local/bin. Fix permissions and try again." >&2
-    exit 1
+    error "Cannot write to $INSTALL_DIR or /usr/local/bin. Fix permissions and try again."
   fi
 fi
 
 mv "$ASSET_NAME" "$INSTALL_DIR/$BINARY_NAME"
 
-echo "Installed $BINARY_NAME to $INSTALL_DIR/$BINARY_NAME"
+tildify() {
+    if [[ $1 = $HOME/* ]]; then
+        echo "${1/$HOME\//\~/}"
+    else
+        echo "$1"
+    fi
+}
+
+success "Installed ${Bold_Green}$(tildify "$INSTALL_DIR/$BINARY_NAME")${Color_Off}"
 
 add_to_path() {
   local path_export="export PATH=\"\$PATH:$INSTALL_DIR\""
@@ -115,26 +163,25 @@ add_to_path() {
   fi
 
   echo "" >> "$config_file"
-  echo "# Added by paideia install script" >> "$config_file"
+  echo "# paideia" >> "$config_file"
   echo "$path_export" >> "$config_file"
   return 0
 }
 
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
   if add_to_path "$HOME/.bashrc"; then
-    echo "Added $INSTALL_DIR to PATH in ~/.bashrc"
-    echo "Run 'source ~/.bashrc' or restart your terminal to use paideia."
+    info "Added $(tildify "$INSTALL_DIR") to \$PATH in ~/.bashrc"
+    info_bold "Run 'source ~/.bashrc' or restart your terminal to use paideia."
   elif add_to_path "$HOME/.zshrc"; then
-    echo "Added $INSTALL_DIR to PATH in ~/.zshrc"
-    echo "Run 'source ~/.zshrc' or restart your terminal to use paideia."
+    info "Added $(tildify "$INSTALL_DIR") to \$PATH in ~/.zshrc"
+    info_bold "Run 'source ~/.zshrc' or restart your terminal to use paideia."
   elif add_to_path "$HOME/.profile"; then
-    echo "Added $INSTALL_DIR to PATH in ~/.profile"
-    echo "Run 'source ~/.profile' or restart your terminal to use paideia."
+    info "Added $(tildify "$INSTALL_DIR") to \$PATH in ~/.profile"
+    info_bold "Run 'source ~/.profile' or restart your terminal to use paideia."
   else
-    echo "" >&2
-    echo "Note: Add $INSTALL_DIR to your PATH. For example:" >&2
-    echo "  export PATH=\"\$PATH:$INSTALL_DIR\"" >&2
+    warn "Add $(tildify "$INSTALL_DIR") to your PATH. For example:"
+    info_bold "  export PATH=\"\$PATH:$INSTALL_DIR\""
   fi
 else
-  echo "You can run 'paideia' now."
+  info_bold "You can run 'paideia' now."
 fi
