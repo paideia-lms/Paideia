@@ -2,7 +2,7 @@ import { sum } from "es-toolkit";
 import {
 	WeightExceedsLimitError,
 	WeightZeroRequiredError,
-} from "app/utils/error";
+} from "../../errors";
 import type { GradebookSetupItem } from "../gradebook-management";
 
 /**

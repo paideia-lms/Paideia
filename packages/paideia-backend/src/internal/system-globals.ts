@@ -1,5 +1,5 @@
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "app/utils/error";
+import { transformError, UnknownError } from "../errors";
 import { tryGetAnalyticsSettings } from "./analytics-settings";
 import { tryGetAppearanceSettings } from "./appearance-settings";
 import { tryGetMaintenanceSettings } from "./maintenance-settings";

@@ -4,7 +4,7 @@ import {
 	transformError,
 	UnauthorizedError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,

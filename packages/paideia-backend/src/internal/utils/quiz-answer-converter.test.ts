@@ -10,7 +10,7 @@ import {
 	convertQuestionAnswerToDatabaseFormat,
 	findQuestionInConfig,
 } from "./quiz-answer-converter";
-import { InvalidArgumentError } from "app/utils/error";
+import { InvalidArgumentError } from "../../errors";
 
 describe("Quiz Answer Converter Utilities", () => {
 	const regularQuizConfig: LatestQuizConfig = {

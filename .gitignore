@@ -21,8 +21,8 @@ references/
 /playwright/.auth/
 
 # Paideia data directory
-/paideia_data
-/tests/reports/
+paideia_data/
+tests/reports/
 
 tcg.config.ts
 test.ts

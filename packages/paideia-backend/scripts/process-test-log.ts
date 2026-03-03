@@ -8,7 +8,6 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { spawn } from "node:child_process";
 
 const logFile = process.argv[2];
@@ -127,6 +126,11 @@ async function cleanLogFile(filePath: string) {
 
 			// Append summary to log file
 			await appendSummaryToLog(filePath, falseAlarms, realFailures);
+
+			if (realFailures.length > 0) {
+				console.log(`\n❌ Tests failed. Exiting with code 1.`);
+				process.exit(1);
+			}
 		} else {
 			console.log("\n✅ No failed test files found.");
 		}

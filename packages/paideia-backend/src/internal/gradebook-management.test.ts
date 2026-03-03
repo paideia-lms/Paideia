@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/types";
-import { DuplicateGradebookError } from "app/utils/error";
+import { DuplicateGradebookError } from "../errors";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";

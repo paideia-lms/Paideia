@@ -6,7 +6,7 @@ import type {
 	TypedUser,
 } from "payload";
 import type { Simplify, Subtract, Sum } from "type-fest";
-import { QuizTimeLimitExceededError } from "app/utils/error";
+import { QuizTimeLimitExceededError } from "../../errors";
 
 interface BaseUser extends Omit<TypedUser, "avatar"> {}
 

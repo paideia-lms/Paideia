@@ -6,7 +6,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import type { CategoryRoleAssignment } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {

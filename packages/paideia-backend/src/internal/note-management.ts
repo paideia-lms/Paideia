@@ -6,7 +6,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,

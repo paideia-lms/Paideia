@@ -1,7 +1,17 @@
 import { HeadBucketCommand } from "@aws-sdk/client-s3";
 import { sql } from "@payloadcms/db-postgres/drizzle";
+import { ensureBucket } from "../scripts/ensure-s3-bucket";
 import { envVars } from "./env";
 import { s3Client } from "./utils/s3-client";
+
+function isBucketNotFoundError(error: unknown): boolean {
+	const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+	return (
+		err?.name === "NotFound" ||
+		err?.name === "NoSuchBucket" ||
+		err?.$metadata?.httpStatusCode === 404
+	);
+}
 
 export async function testDbConnection(
 	payload: Awaited<ReturnType<typeof import("payload").getPayload>>,
@@ -19,12 +29,14 @@ export async function testDbConnection(
 	}
 }
 
-export async function testS3Connection() {
+export async function testS3Connection(): Promise<
+	{ ok: true } | { ok: false; error: unknown }
+> {
 	try {
 		const bucket = envVars.S3_BUCKET.value;
 		if (!bucket) {
 			console.warn("⚠️  S3_BUCKET not set, skipping S3 connection test");
-			return true;
+			return { ok: true };
 		}
 		await s3Client.send(
 			new HeadBucketCommand({
@@ -32,13 +44,13 @@ export async function testS3Connection() {
 			}),
 		);
 		console.log("✅ S3 connection successful");
-		return true;
+		return { ok: true };
 	} catch (error) {
 		console.error("❌ S3 connection failed:");
 		if (error instanceof Error) {
 			console.error(`   ${error.message}`);
 		}
-		return false;
+		return { ok: false, error };
 	}
 }
 
@@ -48,9 +60,22 @@ export async function testConnections(
 	console.log("\n🔍 Testing dependencies connectivity...\n");
 
 	const dbOk = await testDbConnection(payload);
-	const s3Ok = await testS3Connection();
+	let s3Result = await testS3Connection();
 
-	if (!dbOk || !s3Ok) {
+	if (!s3Result.ok && isBucketNotFoundError(s3Result.error)) {
+		// Bucket does not exist; create it and retry
+		try {
+			await ensureBucket();
+			s3Result = await testS3Connection();
+		} catch (error) {
+			console.error("❌ Failed to create S3 bucket:");
+			if (error instanceof Error) {
+				console.error(`   ${error.message}`);
+			}
+		}
+	}
+
+	if (!dbOk || !s3Result.ok) {
 		console.error("\n❌ One or more dependency connections failed. Exiting.\n");
 		process.exit(1);
 	}

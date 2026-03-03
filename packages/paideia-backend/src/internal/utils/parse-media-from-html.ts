@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "app/utils/error";
+import { transformError, UnknownError } from "../../errors";
 
 /**
  * Parses HTML content to extract media file references

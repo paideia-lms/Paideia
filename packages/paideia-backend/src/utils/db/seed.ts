@@ -1,4 +1,4 @@
-import { SeedDataLoadError, transformError } from "app/utils/error";
+import { SeedDataLoadError, transformError } from "../../errors";
 import { Result } from "typescript-result";
 import { tryGetUserCount } from "../../internal/user-management";
 import { testData } from "./predefined-seed-data";

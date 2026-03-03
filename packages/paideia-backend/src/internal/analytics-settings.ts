@@ -3,7 +3,7 @@ import {
 	DevelopmentError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { AnalyticsSettings } from "server/collections/globals";
 import { stripDepth } from "./utils/internal-function-utils";

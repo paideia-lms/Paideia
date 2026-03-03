@@ -16,7 +16,7 @@ import {
 	QuizTimeLimitExceededError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import {
 	tryCreateUserGrade,
 	tryFindUserGradeByEnrollmentAndItem,

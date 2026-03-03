@@ -2,7 +2,7 @@ import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
 import { z } from "zod";
-import { transformError, UnknownError } from "app/utils/error";
+import { transformError, UnknownError } from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,

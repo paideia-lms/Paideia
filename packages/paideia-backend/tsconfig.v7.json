@@ -1,0 +1,13 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"types": ["bun"],
+		"paths": {
+			"server/*": ["./src/*"],
+			"*": ["./*"]
+		},
+	},
+	"include": ["src", "../../apps/paideia/server/types.ts"],
+	"exclude": ["node_modules", "src/payload-generated-schema.ts"]
+}

@@ -1,4 +1,4 @@
-import { SandboxResetError, transformError } from "app/utils/error";
+import { SandboxResetError, transformError } from "../../errors";
 import { Result } from "typescript-result";
 import { envVars } from "../../env";
 import { tryLoadSeedData } from "./load-seed-data";

@@ -12,7 +12,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import type { Course, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";

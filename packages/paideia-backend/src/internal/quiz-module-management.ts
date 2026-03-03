@@ -2,7 +2,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { Result } from "typescript-result";
 import {

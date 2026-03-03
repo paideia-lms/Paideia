@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { SeedDataLoadError } from "app/utils/error";
+import { SeedDataLoadError } from "../../errors";
 import { Result } from "typescript-result";
 import { testData } from "./predefined-seed-data";
 import { seedDataSchema } from "./seed-schema";

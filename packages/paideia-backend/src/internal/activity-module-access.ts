@@ -7,7 +7,7 @@ import {
 	NonExistingActivityModuleError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../errors";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,

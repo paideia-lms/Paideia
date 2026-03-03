@@ -22,11 +22,12 @@
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bunx payload --disable-transpile migrate:reset",
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bunx payload --disable-transpile migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts",
 		"typegen": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bunx payload --disable-transpile generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bunx payload --disable-transpile generate:db-schema", 
-		"typecheck": "tsgo --noEmit",
+		"typecheck": "tsgo --noEmit --project tsconfig.v7.json",
 		"knip": "knip",
 		"dedupe": "bunx nypm dedupe",
 		"lint:project": "bun scripts/lint-project.ts",
 		"test:all": "mkdir -p tests/reports && LOG_FILE=tests/reports/$(date +%Y-%m-%d).log && (bun test $(find . -type f -name '*.test.ts' -not -path './node_modules/*') 2>&1 | tee \"$LOG_FILE\") && bun scripts/process-test-log.ts \"$LOG_FILE\"",
+		"ensure-bucket": "bun scripts/ensure-s3-bucket.ts",
 		"fix-types": "bun scripts/fix-types.ts"
 	},
 	"dependencies": {
