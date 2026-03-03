@@ -55,17 +55,17 @@ export interface DiscussionGradingViewProps {
 	moduleLinkId: DiscussionGradingLoaderData["moduleLinkId"];
 	grade: DiscussionGradingLoaderData["gradingGrade"];
 	enrollment?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	courseModuleLink?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	maxGrade: DiscussionGradingLoaderData["maxGrade"];
 }
 
@@ -115,8 +115,8 @@ function PostContextCollapse({
 					{ancestors.map((ancestor, index) => {
 						const authorName = ancestor.author
 							? `${ancestor.author.firstName ?? ""} ${ancestor.author.lastName ?? ""}`.trim() ||
-							ancestor.author.email ||
-							"Unknown"
+								ancestor.author.email ||
+								"Unknown"
 							: "Unknown";
 
 						const getAvatarUrl = (): string | undefined => {
@@ -125,7 +125,11 @@ function PostContextCollapse({
 							if (typeof avatar === "number") {
 								return `/api/media/file/${avatar}`;
 							}
-							if (typeof avatar === "object" && avatar !== null && "id" in avatar) {
+							if (
+								typeof avatar === "object" &&
+								avatar !== null &&
+								"id" in avatar
+							) {
 								const avatarObj = avatar as { id: number };
 								return `/api/media/file/${avatarObj.id}`;
 							}
@@ -388,7 +392,7 @@ export function DiscussionGradingView({
 								)
 							</Text>
 							{submission.studentSubmissions &&
-								submission.studentSubmissions.length > 0 ? (
+							submission.studentSubmissions.length > 0 ? (
 								<Stack gap="md">
 									{submission.studentSubmissions
 										.sort((a, b) => {
@@ -434,7 +438,7 @@ export function DiscussionGradingView({
 																	post.grade !== undefined && (
 																		<Badge color="green" variant="filled">
 																			{maxGrade !== null &&
-																				maxGrade !== undefined
+																			maxGrade !== undefined
 																				? `${post.grade}/${maxGrade}`
 																				: String(post.grade)}
 																		</Badge>

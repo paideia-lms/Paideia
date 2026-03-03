@@ -67,7 +67,7 @@ export function AssignmentGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-			student.email
+				student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -160,12 +160,12 @@ export function AssignmentGradingView({
 														typeof file === "object"
 															? file
 															: {
-																id: file,
-																filename: null,
-																mimeType: null,
-																filesize: null,
-																url: null,
-															};
+																	id: file,
+																	filename: null,
+																	mimeType: null,
+																	filesize: null,
+																	url: null,
+																};
 													const filename =
 														fileData.filename || `File ${fileData.id}`;
 													const isExpanded =

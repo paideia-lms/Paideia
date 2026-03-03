@@ -51,15 +51,23 @@ export const recurringScheduleItemSchema = z.object({
 	endTime: z
 		.string()
 		.regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:mm format"),
-	startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional(),
-	endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional(),
+	startDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+		.optional(),
+	endDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+		.optional(),
 });
 
 /**
  * Zod schema for SpecificDateItem
  */
 export const specificDateItemSchema = z.object({
-	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+	date: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
 	startTime: z
 		.string()
 		.regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:mm format"),

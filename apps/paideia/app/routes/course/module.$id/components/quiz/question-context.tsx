@@ -44,13 +44,8 @@ interface QuestionContextProps {
 const [QuestionContextProvider, useQuestionContext] = constate(
 	(props: QuestionContextProps) => {
 		// Get readonly, isDisabled, moduleLinkId, quizPageIndex, and nestedQuizId from parent context
-		const {
-			readonly,
-			isDisabled,
-			moduleLinkId,
-			quizPageIndex,
-			nestedQuizId,
-		} = useRegularQuizAttemptContext();
+		const { readonly, isDisabled, moduleLinkId, quizPageIndex, nestedQuizId } =
+			useRegularQuizAttemptContext();
 
 		return {
 			...props,

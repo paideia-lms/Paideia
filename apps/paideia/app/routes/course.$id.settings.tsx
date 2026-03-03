@@ -21,7 +21,10 @@ import {
 	specificDateItemSchema,
 } from "app/utils/schedule-types";
 import { href, redirect } from "react-router";
-import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import {
+	typeCreateActionRpc,
+	createActionMap,
+} from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -65,7 +68,6 @@ enum Action {
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/course/:courseId/settings",
 });
-
 
 const updateCourseRpc = createActionRpc({
 	formDataSchema: z.object({
@@ -393,10 +395,14 @@ const removeSpecificDateAction = removeSpecificDateRpc.createAction(
 );
 
 const useEditCourse = updateCourseRpc.createHook<typeof updateCourseAction>();
-const useAddRecurringSchedule = addRecurringScheduleRpc.createHook<typeof addRecurringScheduleAction>();
-const useAddSpecificDate = addSpecificDateRpc.createHook<typeof addSpecificDateAction>();
-const useRemoveRecurringSchedule = removeRecurringScheduleRpc.createHook<typeof removeRecurringScheduleAction>();
-const useRemoveSpecificDate = removeSpecificDateRpc.createHook<typeof removeSpecificDateAction>();
+const useAddRecurringSchedule =
+	addRecurringScheduleRpc.createHook<typeof addRecurringScheduleAction>();
+const useAddSpecificDate =
+	addSpecificDateRpc.createHook<typeof addSpecificDateAction>();
+const useRemoveRecurringSchedule =
+	removeRecurringScheduleRpc.createHook<typeof removeRecurringScheduleAction>();
+const useRemoveSpecificDate =
+	removeSpecificDateRpc.createHook<typeof removeSpecificDateAction>();
 
 // Export hooks for use in component
 export {
@@ -467,7 +473,10 @@ const [action] = createActionMap({
 
 export { action };
 
-export async function clientAction({ serverAction, request }: Route.ClientActionArgs) {
+export async function clientAction({
+	serverAction,
+	request,
+}: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 	const url = new URL(request.url);
 	const actionParam = url.searchParams.get("action");
@@ -643,7 +652,6 @@ const useEditCourseForm = (
 			category: course.category?.id ?? null,
 			description: course.description,
 			thumbnail: null as File | null,
-
 		},
 		validate: {
 			title: (value) => (!value ? "Title is required" : null),
@@ -731,9 +739,9 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							initialPreviewUrl={
 								course.thumbnail
 									? getRouteUrl("/api/media/file/:mediaId", {
-										params: { mediaId: course.thumbnail.id.toString() },
-										searchParams: {},
-									})
+											params: { mediaId: course.thumbnail.id.toString() },
+											searchParams: {},
+										})
 									: null
 							}
 						/>
@@ -792,24 +800,28 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 				<CourseScheduleManager
 					courseId={course.id}
 					recurringSchedules={
-						(course as unknown as {
-							recurringSchedules?: Array<{
-								daysOfWeek?: Array<{ day?: number }>;
-								startTime?: string;
-								endTime?: string;
-								startDate?: string | Date;
-								endDate?: string | Date;
-							}>;
-						}).recurringSchedules ?? null
+						(
+							course as unknown as {
+								recurringSchedules?: Array<{
+									daysOfWeek?: Array<{ day?: number }>;
+									startTime?: string;
+									endTime?: string;
+									startDate?: string | Date;
+									endDate?: string | Date;
+								}>;
+							}
+						).recurringSchedules ?? null
 					}
 					specificDates={
-						(course as unknown as {
-							specificDates?: Array<{
-								date?: string | Date;
-								startTime?: string;
-								endTime?: string;
-							}>;
-						}).specificDates ?? null
+						(
+							course as unknown as {
+								specificDates?: Array<{
+									date?: string | Date;
+									startTime?: string;
+									endTime?: string;
+								}>;
+							}
+						).specificDates ?? null
 					}
 				/>
 			</Paper>

@@ -54,12 +54,12 @@ interface DiscussionSubmissionItem {
 		lastName?: string | null;
 		email?: string | null;
 		avatar?:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-		}
-		| null;
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+			  }
+			| null;
 	} | null;
 }
 
@@ -69,20 +69,20 @@ export interface DiscussionGradingViewProps {
 		status: "draft" | "submitted" | "graded" | "returned";
 		submittedAt?: string | null;
 		student:
-		| {
-			id: number;
-			firstName?: string | null;
-			lastName?: string | null;
-			email?: string | null;
-			avatar?:
-			| number
 			| {
-				id: number;
-				filename?: string | null;
-			}
-			| null;
-		}
-		| number;
+					id: number;
+					firstName?: string | null;
+					lastName?: string | null;
+					email?: string | null;
+					avatar?:
+						| number
+						| {
+								id: number;
+								filename?: string | null;
+						  }
+						| null;
+			  }
+			| number;
 		studentSubmissions?: DiscussionSubmissionItem[];
 	};
 	module: {
@@ -106,17 +106,17 @@ export interface DiscussionGradingViewProps {
 		feedback: string | null;
 	} | null;
 	enrollment?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	courseModuleLink?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	maxGrade?: number | null;
 }
 
@@ -166,8 +166,8 @@ function PostContextCollapse({
 					{ancestors.map((ancestor, index) => {
 						const authorName = ancestor.author
 							? `${ancestor.author.firstName ?? ""} ${ancestor.author.lastName ?? ""}`.trim() ||
-							ancestor.author.email ||
-							"Unknown"
+								ancestor.author.email ||
+								"Unknown"
 							: "Unknown";
 
 						const getAvatarUrl = (): string | undefined => {
@@ -363,7 +363,7 @@ export function DiscussionGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-			student.email
+				student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -442,7 +442,7 @@ export function DiscussionGradingView({
 								)
 							</Text>
 							{submission.studentSubmissions &&
-								submission.studentSubmissions.length > 0 ? (
+							submission.studentSubmissions.length > 0 ? (
 								<Stack gap="md">
 									{submission.studentSubmissions
 										.sort((a, b) => {
@@ -488,7 +488,7 @@ export function DiscussionGradingView({
 																	post.grade !== undefined && (
 																		<Badge color="green" variant="filled">
 																			{maxGrade !== null &&
-																				maxGrade !== undefined
+																			maxGrade !== undefined
 																				? `${post.grade}/${maxGrade}`
 																				: String(post.grade)}
 																		</Badge>

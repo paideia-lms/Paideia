@@ -3,9 +3,7 @@ import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
-import {
-	courseModuleContextKey,
-} from "server/contexts/course-module-context";
+import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -25,7 +23,10 @@ import {
 	tryReleaseQuizGrade,
 } from "server/internal/user-grade-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { typeCreateActionRpc, createActionMap } from "app/utils/router/action-utils";
+import {
+	typeCreateActionRpc,
+	createActionMap,
+} from "app/utils/router/action-utils";
 import { AssignmentSubmissionTable } from "app/routes/course/module.$id.submissions/components/assignments/assignment-submission-table";
 import { QuizSubmissionTable } from "app/routes/course/module.$id.submissions/components/quiz/quiz-submission-table";
 import { DiscussionSubmissionTable } from "app/routes/course/module.$id.submissions/components/discussion/discussion-submission-table";
@@ -149,14 +150,13 @@ export const loader = createRouteLoader({
 			return {
 				...submission,
 				grade:
-					submission.grade !== null &&
-						submission.grade !== undefined
+					submission.grade !== null && submission.grade !== undefined
 						? {
-							baseGrade: submission.grade,
-							maxGrade,
-							gradedAt: submission.gradedAt || null,
-							feedback: submission.feedback || null,
-						}
+								baseGrade: submission.grade,
+								maxGrade,
+								gradedAt: submission.gradedAt || null,
+								feedback: submission.feedback || null,
+							}
 						: null,
 			};
 		});
@@ -164,9 +164,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -190,14 +190,13 @@ export const loader = createRouteLoader({
 			return {
 				...submission,
 				grade:
-					submission.grade !== null &&
-						submission.grade !== undefined
+					submission.grade !== null && submission.grade !== undefined
 						? {
-							baseGrade: submission.grade,
-							maxGrade,
-							gradedAt: submission.gradedAt || null,
-							feedback: submission.feedback || null,
-						}
+								baseGrade: submission.grade,
+								maxGrade,
+								gradedAt: submission.gradedAt || null,
+								feedback: submission.feedback || null,
+							}
 						: null,
 			};
 		});
@@ -205,9 +204,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -231,14 +230,13 @@ export const loader = createRouteLoader({
 			return {
 				...submission,
 				grade:
-					submission.grade !== null &&
-						submission.grade !== undefined
+					submission.grade !== null && submission.grade !== undefined
 						? {
-							baseGrade: submission.grade,
-							maxGrade,
-							gradedAt: submission.gradedAt || null,
-							feedback: submission.feedback || null,
-						}
+								baseGrade: submission.grade,
+								maxGrade,
+								gradedAt: submission.gradedAt || null,
+								feedback: submission.feedback || null,
+							}
 						: null,
 			};
 		});
@@ -246,9 +244,9 @@ export const loader = createRouteLoader({
 		// Wrap settings back to match what grading views expect
 		const moduleSettings = isNotNil(courseModuleContext.settings)
 			? {
-				version: "v2" as const,
-				settings: courseModuleContext.settings,
-			}
+					version: "v2" as const,
+					settings: courseModuleContext.settings,
+				}
 			: null;
 		return {
 			mode: "list" as const,
@@ -268,7 +266,7 @@ export const loader = createRouteLoader({
 });
 
 const deleteSubmissionAction = deleteSubmissionRpc.createAction(
-	async ({ context, formData, }) => {
+	async ({ context, formData }) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
@@ -384,8 +382,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 					}
 
 					const submission = submissionResult.value;
-					const enrollmentId =
-						submission.enrollment?.id ?? null;
+					const enrollmentId = submission.enrollment?.id ?? null;
 
 					// Get gradebook item
 					const gradebookItemResult =
@@ -491,25 +488,25 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 			const releaseResult =
 				moduleType === "assignment"
 					? await tryReleaseAssignmentGrade({
-						payload,
-						req: reqWithTransaction,
-						courseActivityModuleLinkId: courseModuleLinkIdValue,
-						enrollmentId: enrollmentIdValue,
-					})
-					: moduleType === "discussion"
-						? await tryReleaseDiscussionGrade({
 							payload,
 							req: reqWithTransaction,
 							courseActivityModuleLinkId: courseModuleLinkIdValue,
 							enrollmentId: enrollmentIdValue,
 						})
-						: moduleType === "quiz"
-							? await tryReleaseQuizGrade({
+					: moduleType === "discussion"
+						? await tryReleaseDiscussionGrade({
 								payload,
 								req: reqWithTransaction,
 								courseActivityModuleLinkId: courseModuleLinkIdValue,
 								enrollmentId: enrollmentIdValue,
 							})
+						: moduleType === "quiz"
+							? await tryReleaseQuizGrade({
+									payload,
+									req: reqWithTransaction,
+									courseActivityModuleLinkId: courseModuleLinkIdValue,
+									enrollmentId: enrollmentIdValue,
+								})
 							: null;
 
 			if (!releaseResult) {
@@ -584,12 +581,18 @@ const removeGradeAction = removeGradeRpc.createAction(
 				});
 			} else if (moduleType === "quiz") {
 				console.log("Remove grade for quiz not yet implemented", { id });
-				return badRequest({ error: "Remove grade for quiz not yet implemented" });
+				return badRequest({
+					error: "Remove grade for quiz not yet implemented",
+				});
 			} else if (moduleType === "discussion") {
 				console.log("Remove grade for discussion not yet implemented", { id });
-				return badRequest({ error: "Remove grade for discussion not yet implemented" });
+				return badRequest({
+					error: "Remove grade for discussion not yet implemented",
+				});
 			} else {
-				return badRequest({ error: "Unsupported module type for removing grades" });
+				return badRequest({
+					error: "Unsupported module type for removing grades",
+				});
 			}
 		});
 	},
@@ -597,7 +600,12 @@ const removeGradeAction = removeGradeRpc.createAction(
 
 const useRemoveGrade = removeGradeRpc.createHook<typeof removeGradeAction>();
 
-export { useDeleteSubmission, useGradeSubmission, useReleaseGrade, useRemoveGrade };
+export {
+	useDeleteSubmission,
+	useGradeSubmission,
+	useReleaseGrade,
+	useRemoveGrade,
+};
 
 const [action] = createActionMap({
 	[Action.DeleteSubmission]: deleteSubmissionAction,
@@ -666,39 +674,37 @@ export default function ModuleSubmissionsPage({
 				content={`${loaderData.module.title} submissions`}
 			/>
 
-			{
-				loaderData.moduleType === "assignment" ? (
-					<AssignmentSubmissionTable
-						courseId={loaderData.course.id}
-						enrollments={loaderData.enrollments}
-						canDelete={loaderData.canDelete}
-						submissions={
-							loaderData.submissions as Parameters<
-								typeof AssignmentSubmissionTable
-							>[0]["submissions"]
-						}
-						moduleLinkId={loaderData.moduleLinkId}
-					/>
-				) : loaderData.moduleType === "quiz" ? (
-					<QuizSubmissionTable
-						courseId={loaderData.course.id}
-						enrollments={loaderData.enrollments}
-						submissions={
-							loaderData.submissions as Parameters<
-								typeof QuizSubmissionTable
-							>[0]["submissions"]
-						}
-						moduleLinkId={loaderData.moduleLinkId}
-					/>
-				) : loaderData.moduleType === "discussion" ? (
-					<DiscussionSubmissionTable
-						courseId={loaderData.course.id}
-						enrollments={loaderData.enrollments}
-						submissions={loaderData.submissions}
-						moduleLinkId={loaderData.moduleLinkId}
-					/>
-				) : null
-			}
+			{loaderData.moduleType === "assignment" ? (
+				<AssignmentSubmissionTable
+					courseId={loaderData.course.id}
+					enrollments={loaderData.enrollments}
+					canDelete={loaderData.canDelete}
+					submissions={
+						loaderData.submissions as Parameters<
+							typeof AssignmentSubmissionTable
+						>[0]["submissions"]
+					}
+					moduleLinkId={loaderData.moduleLinkId}
+				/>
+			) : loaderData.moduleType === "quiz" ? (
+				<QuizSubmissionTable
+					courseId={loaderData.course.id}
+					enrollments={loaderData.enrollments}
+					submissions={
+						loaderData.submissions as Parameters<
+							typeof QuizSubmissionTable
+						>[0]["submissions"]
+					}
+					moduleLinkId={loaderData.moduleLinkId}
+				/>
+			) : loaderData.moduleType === "discussion" ? (
+				<DiscussionSubmissionTable
+					courseId={loaderData.course.id}
+					enrollments={loaderData.enrollments}
+					submissions={loaderData.submissions}
+					moduleLinkId={loaderData.moduleLinkId}
+				/>
+			) : null}
 		</Container>
 	);
 }

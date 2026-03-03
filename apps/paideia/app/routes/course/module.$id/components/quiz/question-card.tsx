@@ -13,10 +13,7 @@ import {
 	IconInfoCircle,
 	IconX,
 } from "@tabler/icons-react";
-import type {
-	Question,
-	QuestionAnswer,
-} from "server/json/raw-quiz-config/v2";
+import type { Question, QuestionAnswer } from "server/json/raw-quiz-config/v2";
 import {
 	getQuestionPoints,
 	getScoringDescription,

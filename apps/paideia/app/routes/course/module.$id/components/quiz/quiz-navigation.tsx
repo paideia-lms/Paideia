@@ -10,10 +10,7 @@ import {
 } from "@mantine/core";
 import { IconFlag } from "@tabler/icons-react";
 import { useRef } from "react";
-import type {
-	Question,
-	QuestionAnswer,
-} from "server/json/raw-quiz-config/v2";
+import type { Question, QuestionAnswer } from "server/json/raw-quiz-config/v2";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { loaderSearchParams } from "../../route";
 import {
@@ -60,7 +57,10 @@ function isQuestionAnswered(
 
 	// For array values (fill-in-the-blank, choice, ranking)
 	if (Array.isArray(value)) {
-		return value.length > 0 && value.some((v) => v && typeof v === "string" && v.trim().length > 0);
+		return (
+			value.length > 0 &&
+			value.some((v) => v && typeof v === "string" && v.trim().length > 0)
+		);
 	}
 
 	// For object values (matrix questions)
@@ -95,7 +95,8 @@ export function QuizNavigation() {
 						const answerValue = answers[item.questionId];
 						const isAnswered = isQuestionAnswered(item.question, answerValue);
 						const isFlaggedValue = flaggedQuestions.some(
-							(flaggedQuestion) => flaggedQuestion.questionId === item.questionId,
+							(flaggedQuestion) =>
+								flaggedQuestion.questionId === item.questionId,
 						);
 						const isCurrent = currentPageIndex === item.pageIndex;
 
@@ -123,10 +124,10 @@ export function QuizNavigation() {
 										style={
 											isCurrent
 												? {
-													borderWidth: 3,
-													borderStyle: "solid",
-													borderColor: "var(--mantine-color-blue-6)",
-												}
+														borderWidth: 3,
+														borderStyle: "solid",
+														borderColor: "var(--mantine-color-blue-6)",
+													}
 												: undefined
 										}
 									>
@@ -183,10 +184,10 @@ interface QuizNavigationButtonsProps {
 	isGlobalTimerExpired: boolean;
 }
 
-/** 
- * this componnent can change page. If it is in a nested quiz, it have an exit button to go back to nested quiz selector. 
- * 
- * if it is 
+/**
+ * this componnent can change page. If it is in a nested quiz, it have an exit button to go back to nested quiz selector.
+ *
+ * if it is
  */
 export function QuizNavigationButtons({
 	isGlobalTimerExpired,

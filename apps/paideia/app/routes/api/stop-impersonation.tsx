@@ -5,7 +5,11 @@ import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { removeImpersonationCookie } from "~/utils/cookie";
-import { badRequest, StatusCode, unauthorized } from "app/utils/router/responses";
+import {
+	badRequest,
+	StatusCode,
+	unauthorized,
+} from "app/utils/router/responses";
 import type { Route } from "./+types/stop-impersonation";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 
@@ -36,37 +40,37 @@ const stopImpersonationAction = stopImpersonationRpc.createAction(
 		const redirectTo = pageInfo.is["layouts/course-layout"]
 			? pageInfo.is["layouts/course-layout"].params.courseId
 				? getRouteUrl("/course/:courseId", {
-					params: {
-						courseId:
-							pageInfo.is["layouts/course-layout"].params.courseId.toString(),
-					},
-					searchParams: { reload: true },
-				})
+						params: {
+							courseId:
+								pageInfo.is["layouts/course-layout"].params.courseId.toString(),
+						},
+						searchParams: { reload: true },
+					})
 				: pageInfo.is["layouts/course-layout"].params.moduleLinkId
 					? getRouteUrl("/course/module/:moduleLinkId", {
-						params: {
-							moduleLinkId:
-								pageInfo.is[
-									"layouts/course-layout"
-								].params.moduleLinkId.toString(),
-						},
-						searchParams: {
-							view: null,
-							threadId: null,
-							replyTo: null,
-							viewSubmission: null,
-						},
-					})
-					: pageInfo.is["layouts/course-layout"].params.sectionId
-						? getRouteUrl("/course/section/:sectionId", {
 							params: {
-								sectionId:
+								moduleLinkId:
 									pageInfo.is[
 										"layouts/course-layout"
-									].params.sectionId.toString(),
+									].params.moduleLinkId.toString(),
 							},
-							searchParams: { reload: true },
+							searchParams: {
+								view: null,
+								threadId: null,
+								replyTo: null,
+								viewSubmission: null,
+							},
 						})
+					: pageInfo.is["layouts/course-layout"].params.sectionId
+						? getRouteUrl("/course/section/:sectionId", {
+								params: {
+									sectionId:
+										pageInfo.is[
+											"layouts/course-layout"
+										].params.sectionId.toString(),
+								},
+								searchParams: { reload: true },
+							})
 						: href("/")
 			: href("/");
 

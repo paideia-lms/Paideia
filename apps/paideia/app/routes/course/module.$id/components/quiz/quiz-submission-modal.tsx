@@ -27,9 +27,9 @@ type QuizSubmissionModalProps = {
 	answers?: QuizAnswers;
 };
 
-/** 
- * this modal handle the submission of a quiz or a nested quiz. when it is a regular quiz, it use markQuizAttemptAsComplete. if it is a nested quiz, it use markNestedQuizAsComplete. 
- * when it is in a nested quiz, it should mark the nested quiz as complete. 
+/**
+ * this modal handle the submission of a quiz or a nested quiz. when it is a regular quiz, it use markQuizAttemptAsComplete. if it is a nested quiz, it use markNestedQuizAsComplete.
+ * when it is in a nested quiz, it should mark the nested quiz as complete.
  */
 export const QuizSubmissionModal = forwardRef<
 	QuizSubmissionModalHandle,
@@ -46,7 +46,8 @@ export const QuizSubmissionModal = forwardRef<
 	} = useMarkNestedQuizAsComplete();
 	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
 	const moduleLinkId = loaderData.params.moduleLinkId;
-	const { questionMap, nestedQuizId, submission } = useRegularQuizAttemptContext();
+	const { questionMap, nestedQuizId, submission } =
+		useRegularQuizAttemptContext();
 
 	// Check if we're in a nested quiz
 	const isInNestedQuiz = nestedQuizId !== null;
@@ -87,7 +88,11 @@ export const QuizSubmissionModal = forwardRef<
 				</Text>
 
 				<ScrollArea h={400}>
-					<CodeHighlight withCopyButton language="json" code={JSON.stringify(readableAnswers, null, 2)} />
+					<CodeHighlight
+						withCopyButton
+						language="json"
+						code={JSON.stringify(readableAnswers, null, 2)}
+					/>
 				</ScrollArea>
 
 				<Group justify="flex-end" gap="sm">

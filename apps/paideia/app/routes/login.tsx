@@ -21,7 +21,10 @@ import { tryGetUserCount, tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
-import { badRequest, InternalServerErrorResponse } from "app/utils/router/responses";
+import {
+	badRequest,
+	InternalServerErrorResponse,
+} from "app/utils/router/responses";
 import type { Route } from "./+types/login";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 
@@ -33,9 +36,11 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	const userSession = context.get(userContextKey);
 
 	if (userSession?.isAuthenticated) {
-		return redirect(getRouteUrl("/", {
-			searchParams: {}
-		}));
+		return redirect(
+			getRouteUrl("/", {
+				searchParams: {},
+			}),
+		);
 	}
 
 	const { payload } = context.get(globalContextKey);

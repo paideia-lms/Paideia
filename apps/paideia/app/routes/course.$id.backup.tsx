@@ -53,8 +53,8 @@ export const loader = createRouteLoader()(async ({ context, params }) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				role: enrolmentContext.enrolment.role,
-			}
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 

@@ -3,7 +3,10 @@ import { IconInfoCircle } from "@tabler/icons-react";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import { ForbiddenResponse, NotFoundResponse } from "app/utils/router/responses";
+import {
+	ForbiddenResponse,
+	NotFoundResponse,
+} from "app/utils/router/responses";
 import type { Route } from "./+types/grades";
 
 const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();

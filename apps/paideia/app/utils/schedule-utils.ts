@@ -84,12 +84,12 @@ function formatSpecificDates(items: SpecificDateItem[]): string {
 function isCourseScheduleV1(value: unknown): value is CourseScheduleV1 {
 	if (typeof value !== "object" || value === null) return false;
 	const schedule = value as Record<string, unknown>;
-	
+
 	if (schedule.version !== "v1") return false;
-	
+
 	if (!Array.isArray(schedule.recurring)) return false;
 	if (!Array.isArray(schedule.specificDates)) return false;
-	
+
 	// Use Zod schema for validation
 	try {
 		courseScheduleV1Schema.parse(schedule);

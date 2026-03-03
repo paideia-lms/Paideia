@@ -36,11 +36,9 @@ interface QuizHeaderProps {
 	progressValue: number;
 }
 
-function QuizHeader({
-	remainingTime,
-	progressValue,
-}: QuizHeaderProps) {
-	const { quizConfig, quizPageIndex, readonly } = useRegularQuizAttemptContext();
+function QuizHeader({ remainingTime, progressValue }: QuizHeaderProps) {
+	const { quizConfig, quizPageIndex, readonly } =
+		useRegularQuizAttemptContext();
 	const grading = "grading" in quizConfig ? quizConfig.grading : undefined;
 	return (
 		<>
@@ -71,7 +69,7 @@ function QuizHeader({
 						key={`timer-${remainingTime ?? quizConfig.globalTimer}`}
 						initialTime={quizConfig.globalTimer}
 						remainingTime={remainingTime}
-						onExpire={() => { }}
+						onExpire={() => {}}
 					/>
 				)}
 			</Group>
@@ -153,8 +151,7 @@ export function RegularQuizAttemptComponent({
 				{/* Readonly Banner */}
 				{readonly && (
 					<Alert color="blue" title="Read-only Mode">
-						You are viewing a previously submitted quiz. No changes can be
-						made.
+						You are viewing a previously submitted quiz. No changes can be made.
 					</Alert>
 				)}
 
@@ -221,8 +218,7 @@ export function RegularQuizAttemptComponent({
 
 					<Stack gap="xl">
 						{currentPage.questions.map((question, questionIndex) => {
-							const questionNumber =
-								currentQuestionStartNumber + questionIndex;
+							const questionNumber = currentQuestionStartNumber + questionIndex;
 							// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
 							// For regular quizzes, just use question.id
 							const fullQuestionId = nestedQuizId
@@ -250,9 +246,7 @@ export function RegularQuizAttemptComponent({
 					</Stack>
 				</div>
 
-				<QuizNavigationButtons
-					isGlobalTimerExpired={isGlobalTimerExpired}
-				/>
+				<QuizNavigationButtons isGlobalTimerExpired={isGlobalTimerExpired} />
 			</Stack>
 		</Paper>
 	);
@@ -265,10 +259,21 @@ export function RegularQuizAttemptComponent({
 // 	completedAt?: string | null;
 // }
 
-type QuizLoaderData = Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
-type RegularQuizConfig = Extract<QuizLoaderData['quiz']['rawQuizConfig'], { type: "regular" }>
-type ContainerQuizConfig = Extract<QuizLoaderData['quiz']['rawQuizConfig'], { type: "container" }>;
-type Submission = NonNullable<Extract<QuizLoaderData, { type: "quiz" }>['viewedSubmission']>;
+type QuizLoaderData = Extract<
+	Route.ComponentProps["loaderData"],
+	{ type: "quiz" }
+>;
+type RegularQuizConfig = Extract<
+	QuizLoaderData["quiz"]["rawQuizConfig"],
+	{ type: "regular" }
+>;
+type ContainerQuizConfig = Extract<
+	QuizLoaderData["quiz"]["rawQuizConfig"],
+	{ type: "container" }
+>;
+type Submission = NonNullable<
+	Extract<QuizLoaderData, { type: "quiz" }>["viewedSubmission"]
+>;
 
 interface QuizAttemptComponentProps {
 	quizConfig: RegularQuizConfig | ContainerQuizConfig;
@@ -276,155 +281,169 @@ interface QuizAttemptComponentProps {
 	remainingTime?: number;
 }
 
-const [RegularQuizAttemptContextProvider, useRegularQuizAttemptContext] = constate((props: {
-	/** 
-	 * The quiz config for the attempt.
-	 * Can be RegularQuizConfig or NestedQuizConfig (for nested quizzes in containers).
-	 */
-	quizConfig: RegularQuizConfig | NestedQuizConfig;
-	/** 
-	 * the current submission for the attempt
-	 */
-	submission: Submission;
-	/** 
-	 * Time remaining in seconds for the quiz attempt.
-	 */
-	remainingTime?: number;
-	/**
-	 * Whether interactions should be disabled (e.g., parent timer expired)
-	 */
-	disableInteraction?: boolean;
-}) => {
-	// Get route params from loader data
-	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
-	const moduleLinkId = Number(loaderData.params.moduleLinkId);
-	const quizPageIndex = loaderData.searchParams.quizPageIndex;
-	const nestedQuizId = loaderData.searchParams.nestedQuizId;
+const [RegularQuizAttemptContextProvider, useRegularQuizAttemptContext] =
+	constate(
+		(props: {
+			/**
+			 * The quiz config for the attempt.
+			 * Can be RegularQuizConfig or NestedQuizConfig (for nested quizzes in containers).
+			 */
+			quizConfig: RegularQuizConfig | NestedQuizConfig;
+			/**
+			 * the current submission for the attempt
+			 */
+			submission: Submission;
+			/**
+			 * Time remaining in seconds for the quiz attempt.
+			 */
+			remainingTime?: number;
+			/**
+			 * Whether interactions should be disabled (e.g., parent timer expired)
+			 */
+			disableInteraction?: boolean;
+		}) => {
+			// Get route params from loader data
+			const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
+			const moduleLinkId = Number(loaderData.params.moduleLinkId);
+			const quizPageIndex = loaderData.searchParams.quizPageIndex;
+			const nestedQuizId = loaderData.searchParams.nestedQuizId;
 
-	// Check if the current nested quiz is completed
-	// A nested quiz is completed if it has a completedAt value
-	const isNestedQuizCompleted =
-		nestedQuizId !== null &&
-		props.submission.completedNestedQuizzes?.some(
-			(q) =>
-				q.nestedQuizId === nestedQuizId &&
-				q.completedAt !== null &&
-				q.completedAt !== undefined,
-		);
+			// Check if the current nested quiz is completed
+			// A nested quiz is completed if it has a completedAt value
+			const isNestedQuizCompleted =
+				nestedQuizId !== null &&
+				props.submission.completedNestedQuizzes?.some(
+					(q) =>
+						q.nestedQuizId === nestedQuizId &&
+						q.completedAt !== null &&
+						q.completedAt !== undefined,
+				);
 
-	// Compute readonly from submission status or nested quiz completion
-	const readonly =
-		props.submission.status !== "in_progress" || isNestedQuizCompleted;
+			// Compute readonly from submission status or nested quiz completion
+			const readonly =
+				props.submission.status !== "in_progress" || isNestedQuizCompleted;
 
-	// TODO: Implement actual timer expiration check
-	const isGlobalTimerExpired = false;
+			// TODO: Implement actual timer expiration check
+			const isGlobalTimerExpired = false;
 
-	// Compute isDisabled from readonly, timer, and disableInteraction
-	const isDisabled = readonly || isGlobalTimerExpired || (props.disableInteraction ?? false);
+			// Compute isDisabled from readonly, timer, and disableInteraction
+			const isDisabled =
+				readonly || isGlobalTimerExpired || (props.disableInteraction ?? false);
 
-	// Compute page navigation states
-	const isFirstPage = quizPageIndex === 0;
-	const isLastPage = props.quizConfig.pages
-		? quizPageIndex === props.quizConfig.pages.length - 1
-		: false;
+			// Compute page navigation states
+			const isFirstPage = quizPageIndex === 0;
+			const isLastPage = props.quizConfig.pages
+				? quizPageIndex === props.quizConfig.pages.length - 1
+				: false;
 
-	// Convert submission answers array to QuizAnswers object
-	// This is used by multiple components (QuizNavigation, QuizNavigationButtons, etc.)
-	const answers = mapValues(
-		keyBy(
-			(props.submission.answers ?? []).filter(
-				(answer) => answer.selectedAnswer !== null && answer.selectedAnswer !== undefined,
-			),
-			(answer) => answer.questionId,
-		),
-		(answer) => answer.selectedAnswer,
-	) as QuizAnswers;
+			// Convert submission answers array to QuizAnswers object
+			// This is used by multiple components (QuizNavigation, QuizNavigationButtons, etc.)
+			const answers = mapValues(
+				keyBy(
+					(props.submission.answers ?? []).filter(
+						(answer) =>
+							answer.selectedAnswer !== null &&
+							answer.selectedAnswer !== undefined,
+					),
+					(answer) => answer.questionId,
+				),
+				(answer) => answer.selectedAnswer,
+			) as QuizAnswers;
 
-	// Build question map for navigation
-	// For nested quizzes, questionId should include the nestedQuizId prefix
-	const questionMap = props.quizConfig.pages.reduce<Array<{
-		questionId: string;
-		questionNumber: number;
-		pageIndex: number;
-		questionIndex: number;
-		prompt: string;
-		question: Question;
-	}>>((acc, page, pageIndex) => {
-		const mappedQuestions = page.questions.map((question, questionIndex) => {
-			// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
-			const fullQuestionId = nestedQuizId
-				? `${nestedQuizId}:${question.id}`
-				: question.id;
+			// Build question map for navigation
+			// For nested quizzes, questionId should include the nestedQuizId prefix
+			const questionMap = props.quizConfig.pages.reduce<
+				Array<{
+					questionId: string;
+					questionNumber: number;
+					pageIndex: number;
+					questionIndex: number;
+					prompt: string;
+					question: Question;
+				}>
+			>((acc, page, pageIndex) => {
+				const mappedQuestions = page.questions.map(
+					(question, questionIndex) => {
+						// Construct full questionId: for nested quizzes, use "nestedQuizId:questionId" format
+						const fullQuestionId = nestedQuizId
+							? `${nestedQuizId}:${question.id}`
+							: question.id;
+						return {
+							questionId: fullQuestionId,
+							questionNumber: acc.length + questionIndex + 1, // running global number
+							pageIndex,
+							questionIndex,
+							prompt: question.prompt,
+							question,
+						};
+					},
+				);
+				acc.push(...mappedQuestions);
+				return acc;
+			}, []);
+
 			return {
-				questionId: fullQuestionId,
-				questionNumber: acc.length + questionIndex + 1, // running global number
-				pageIndex,
-				questionIndex,
-				prompt: question.prompt,
-				question,
+				...props,
+				moduleLinkId,
+				quizPageIndex,
+				nestedQuizId,
+				readonly,
+				isDisabled,
+				isFirstPage,
+				isLastPage,
+				answers,
+				questionMap,
 			};
-		});
-		acc.push(...mappedQuestions);
-		return acc;
-	}, []);
+		},
+	);
 
-	return {
-		...props,
-		moduleLinkId,
-		quizPageIndex,
-		nestedQuizId,
-		readonly,
-		isDisabled,
-		isFirstPage,
-		isLastPage,
-		answers,
-		questionMap,
-	};
-})
+const [ContainerQuizAttemptContextProvider, useContainerQuizAttemptContext] =
+	constate(
+		(props: {
+			/**
+			 * The quiz config for the attempt.
+			 */
+			quizConfig: ContainerQuizConfig;
+			/**
+			 * the current submission for the attempt
+			 */
+			submission: Submission;
+			/**
+			 * Time remaining in seconds for the quiz attempt.
+			 */
+			remainingTime?: number;
+			/**
+			 * Whether interactions should be disabled (e.g., parent timer expired)
+			 */
+			disableInteraction?: boolean;
+		}) => {
+			// Get route params from loader data
+			const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
+			const moduleLinkId = loaderData.params.moduleLinkId;
+			const quizPageIndex = loaderData.searchParams.quizPageIndex;
+			const nestedQuizId = loaderData.searchParams.nestedQuizId;
 
-const [ContainerQuizAttemptContextProvider, useContainerQuizAttemptContext] = constate((props: {
-	/** 
-	 * The quiz config for the attempt.
-	 */
-	quizConfig: ContainerQuizConfig;
-	/** 
-	 * the current submission for the attempt
-	 */
-	submission: Submission;
-	/** 
-	 * Time remaining in seconds for the quiz attempt.
-	 */
-	remainingTime?: number;
-	/**
-	 * Whether interactions should be disabled (e.g., parent timer expired)
-	 */
-	disableInteraction?: boolean;
-}) => {
-	// Get route params from loader data
-	const loaderData = useLoaderData<Route.ComponentProps["loaderData"]>();
-	const moduleLinkId = loaderData.params.moduleLinkId;
-	const quizPageIndex = loaderData.searchParams.quizPageIndex;
-	const nestedQuizId = loaderData.searchParams.nestedQuizId;
+			// Compute readonly from submission status
+			const readonly = props.submission.status !== "in_progress";
 
-	// Compute readonly from submission status
-	const readonly = props.submission.status !== "in_progress";
+			// Compute isDisabled from readonly and disableInteraction
+			const isDisabled = readonly || (props.disableInteraction ?? false);
 
-	// Compute isDisabled from readonly and disableInteraction
-	const isDisabled = readonly || (props.disableInteraction ?? false);
+			// Get completedNestedQuizzes directly from submission to ensure fresh data after revalidation
+			const completedNestedQuizzes =
+				props.submission.completedNestedQuizzes ?? [];
 
-	// Get completedNestedQuizzes directly from submission to ensure fresh data after revalidation
-	const completedNestedQuizzes = props.submission.completedNestedQuizzes ?? [];
-
-	return {
-		...props,
-		moduleLinkId,
-		quizPageIndex,
-		nestedQuizId,
-		readonly,
-		isDisabled,
-		completedNestedQuizzes,
-	};
-})
+			return {
+				...props,
+				moduleLinkId,
+				quizPageIndex,
+				nestedQuizId,
+				readonly,
+				isDisabled,
+				completedNestedQuizzes,
+			};
+		},
+	);
 
 export {
 	useRegularQuizAttemptContext,

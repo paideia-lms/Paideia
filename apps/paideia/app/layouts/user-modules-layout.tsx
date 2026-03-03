@@ -24,10 +24,16 @@ import { Link, Outlet } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
-import { ForbiddenResponse, NotFoundResponse } from "app/utils/router/responses";
+import {
+	ForbiddenResponse,
+	NotFoundResponse,
+} from "app/utils/router/responses";
 import type { Route } from "./+types/user-modules-layout";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import { useNuqsSearchParams, getRouteUrl } from "app/utils/router/search-params-utils";
+import {
+	useNuqsSearchParams,
+	getRouteUrl,
+} from "app/utils/router/search-params-utils";
 
 export const loaderSearchParams = {
 	search: parseAsString.withDefault(""),

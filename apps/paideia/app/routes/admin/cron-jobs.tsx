@@ -53,7 +53,6 @@ function getStatusBadge(isActive: boolean) {
 	return <Badge color="gray">Inactive</Badge>;
 }
 
-
 function getJobName(taskSlug: string | null, queue: string | null): string {
 	if (taskSlug) {
 		if (taskSlug === "sandboxReset") {

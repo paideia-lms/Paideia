@@ -36,7 +36,6 @@ import {
 } from "app/routes/course/module.$id.submissions/route";
 import { useState } from "react";
 
-
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
 >[number];
@@ -175,10 +174,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
+				const attemptA = a.attemptNumber || 0;
+				const attemptB = b.attemptNumber || 0;
+				return attemptB - attemptA;
+			})
 		: [];
 
 	// Filter out draft submissions for display
@@ -266,8 +265,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-						"submittedAt" in latestSubmission &&
-						latestSubmission.submittedAt
+					"submittedAt" in latestSubmission &&
+					latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -283,12 +282,13 @@ function StudentSubmissionRow({
 								<Menu.Dropdown>
 									<Menu.Item
 										component={Link}
-										to={
-											href("/course/module/:moduleLinkId/submissions/:submissionId", {
+										to={href(
+											"/course/module/:moduleLinkId/submissions/:submissionId",
+											{
 												moduleLinkId: moduleLinkId.toString(),
 												submissionId: latestSubmission.id.toString(),
-											})
-										}
+											},
+										)}
 										leftSection={<IconPencil size={14} />}
 									>
 										Grade
