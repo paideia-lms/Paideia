@@ -8,17 +8,17 @@
 	"files": {
 		"ignoreUnknown": false,
 		"includes": [
-			"server/**",
-			"src/**",
-			"app/**",
-			"!server/payload-types.ts",
-			"!server/vfs.ts",
-			"!src/migrations",
+			"apps/paideia/server/**",
+			"apps/paideia/src/**",
+			"apps/paideia/app/**",
+			"!apps/paideia/server/payload-types.ts",
+			"!apps/paideia/server/vfs.ts",
+			"!apps/paideia/src/migrations",
 			"!**/dist",
 			"!**/*.json",
 			"!**/*.config.ts",
 			"!node_modules",
-			"!src/payload-generated-schema.ts"
+			"!apps/paideia/src/payload-generated-schema.ts"
 		]
 	},
 	"formatter": {

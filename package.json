@@ -5,6 +5,7 @@
 	"workspaces": ["apps/*"],
 	"scripts": {
 		"build": "bun run --cwd apps/paideia build",
+		"lint": "bun run --cwd apps/paideia lint",
 		"lefthook:install": "lefthook install"
 	}
 }
