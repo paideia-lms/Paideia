@@ -1,16 +1,19 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { BasePayload, PayloadRequest } from "payload";
+import type {
+	BasePayload,
+	PayloadRequest,
+} from "@paideia/paideia-backend/payload";
 import { createContext } from "react-router";
-import type { Media } from "server/payload-types";
+import type { Media } from "@paideia/paideia-backend";
 import type { Storage } from "unstorage";
-import type { RouteId, MyRouteInfo } from "app/utils/router/routes-utils";
-import type { TypeSafeRouteParams } from "app/utils/router/route-params-schema";
-import type { TypeSafeRouteSearchParams } from "app/utils/router/search-params-utils";
-import type { envVars } from "../env";
+import type { RouteId, MyRouteInfo } from "../../app/utils/router/routes-utils";
+import type { TypeSafeRouteParams } from "../../app/utils/router/route-params-schema";
+import type { TypeSafeRouteSearchParams } from "../../app/utils/router/search-params-utils";
+import type { envVars } from "@paideia/paideia-backend";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
-import type { ParamsType } from "app/utils/router/route-params-schema";
+import type { ParamsType } from "../../app/utils/router/route-params-schema";
 
 export type PageInfo = {
 	is: Partial<{

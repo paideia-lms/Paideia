@@ -1,0 +1,13 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"app/*": ["./app/*"],
+			"server/*": ["./server/*", "../../packages/paideia-backend/src/*"],
+			"~/*": ["./app/*"],
+			"app/utils/error": ["./app/utils/error", "../../packages/paideia-backend/src/errors"],
+			"@mantine/form/lib/paths.types": ["./node_modules/@mantine/form/lib/paths.types"]
+		}
+	}
+}

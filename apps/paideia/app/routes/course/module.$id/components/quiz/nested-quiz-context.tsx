@@ -1,7 +1,7 @@
 import type {
 	ContainerQuizConfig,
 	NestedQuizConfig,
-} from "server/json/raw-quiz-config/v2";
+} from "@paideia/paideia-backend";
 import { constate } from "app/utils/ui/constate";
 import { useLoaderData } from "react-router";
 import type { Route } from "../../route";

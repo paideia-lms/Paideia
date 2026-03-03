@@ -8,9 +8,9 @@ import {
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetAssignmentSubmissionById } from "server/internal/assignment-submission-management";
-import { tryFindGradebookItemByCourseModuleLink } from "server/internal/gradebook-item-management";
-import { tryGetQuizSubmissionById } from "server/internal/quiz-submission-management";
+import { tryGetAssignmentSubmissionById } from "@paideia/paideia-backend";
+import { tryFindGradebookItemByCourseModuleLink } from "@paideia/paideia-backend";
+import { tryGetQuizSubmissionById } from "@paideia/paideia-backend";
 import {
 	badRequest,
 	BadRequestResponse,

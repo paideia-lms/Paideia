@@ -2,7 +2,7 @@ import { TagsInput } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindAllUsers } from "server/internal/user-management";
+import { tryFindAllUsers } from "@paideia/paideia-backend";
 import { parseAsInteger, parseAsString } from "nuqs/server";
 import {
 	badRequest,

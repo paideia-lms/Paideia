@@ -3,7 +3,7 @@ import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryDeleteActivityModule } from "server/internal/activity-module-management";
+import { tryDeleteActivityModule } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

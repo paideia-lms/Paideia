@@ -10,19 +10,19 @@ import {
 	tryDeleteAssignmentSubmission,
 	tryGradeAssignmentSubmission,
 	tryRemoveAssignmentSubmissionGrade,
-} from "server/internal/assignment-submission-management";
-import { tryGradeDiscussionSubmission } from "server/internal/discussion-management";
-import { tryFindGradebookItemByCourseModuleLink } from "server/internal/gradebook-item-management";
+} from "@paideia/paideia-backend";
+import { tryGradeDiscussionSubmission } from "@paideia/paideia-backend";
+import { tryFindGradebookItemByCourseModuleLink } from "@paideia/paideia-backend";
 import {
 	tryGetQuizSubmissionById,
 	tryGradeQuizSubmission,
-} from "server/internal/quiz-submission-management";
+} from "@paideia/paideia-backend";
 import {
 	tryReleaseAssignmentGrade,
 	tryReleaseDiscussionGrade,
 	tryReleaseQuizGrade,
-} from "server/internal/user-grade-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
+} from "@paideia/paideia-backend";
+import { handleTransactionId } from "@paideia/paideia-backend";
 import {
 	typeCreateActionRpc,
 	createActionMap,

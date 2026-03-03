@@ -68,9 +68,9 @@ import {
 	tryGetMediaByIds,
 	tryGetUserMediaStats,
 	tryRenameMedia,
-} from "server/internal/media-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import { handleTransactionId } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import {

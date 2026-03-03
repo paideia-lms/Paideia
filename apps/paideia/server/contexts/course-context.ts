@@ -5,27 +5,27 @@
  */
 
 import { createContext } from "react-router";
-import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
-import { tryFindCourseById } from "server/internal/course-management";
-import { tryGetCourseStructure } from "server/internal/course-section-management";
+import { tryFindLinksByCourse } from "@paideia/paideia-backend";
+import { tryFindCourseById } from "@paideia/paideia-backend";
+import { tryGetCourseStructure } from "@paideia/paideia-backend";
 import {
 	type GradebookSetupItemWithCalculations,
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
-} from "server/internal/gradebook-management";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "app/utils/error";
+} from "../../app/utils/error";
 import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
-} from "../utils/course-structure-tree";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+} from "@paideia/paideia-backend";
+import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
 export { courseContextKey } from "./utils/context-keys";
 
 // interface Group {

@@ -6,18 +6,21 @@
  * it stores all the notes created by this user with heatmap data
  */
 
-import { executeAuthStrategies, parseCookies } from "payload";
+import {
+	executeAuthStrategies,
+	parseCookies,
+} from "@paideia/paideia-backend/payload";
 import { createContext, type RouterContextProvider } from "react-router";
-import { tryGetUserActivityModules } from "server/internal/activity-module-management";
-import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
-import { tryGenerateNoteHeatmap } from "server/internal/note-management";
-import { tryHandleImpersonation } from "server/internal/user-management";
+import { tryGetUserActivityModules } from "@paideia/paideia-backend";
+import { tryFindEnrollmentsByUser } from "@paideia/paideia-backend";
+import { tryGenerateNoteHeatmap } from "@paideia/paideia-backend";
+import { tryHandleImpersonation } from "@paideia/paideia-backend";
 import {
 	createLocalReq,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "server/internal/utils/internal-function-utils";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 
 export type UserContextResult = Awaited<ReturnType<typeof tryGetUserContext>>;
 

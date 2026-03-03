@@ -7,5 +7,5 @@
 	"[typescript]": {
 		"editor.defaultFormatter": "biomejs.biome",
 	},
-	"explorer.sortOrder": "mixed"
+	// "explorer.sortOrder": "mixed"
 }

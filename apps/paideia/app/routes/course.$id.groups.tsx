@@ -32,11 +32,8 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateGroup,
-	tryDeleteGroup,
-} from "server/internal/course-management";
-import { permissions } from "server/utils/permissions";
+import { tryCreateGroup, tryDeleteGroup } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 import {
 	badRequest,
 	ForbiddenResponse,

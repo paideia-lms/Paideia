@@ -1,9 +1,9 @@
 import { createContext } from "react-router";
 import { Result } from "typescript-result";
-import { tryFindSectionById } from "../internal/course-section-management";
+import { tryFindSectionById } from "@paideia/paideia-backend";
 export { courseSectionContextKey } from "./utils/context-keys";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
-import { InvalidArgumentError } from "app/utils/error";
+import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
+import { InvalidArgumentError } from "../../app/utils/error";
 
 /**
  * CourseSectionContext is the resolved data for a course section,

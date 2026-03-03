@@ -14,7 +14,7 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetScheduledTasks } from "server/internal/scheduled-tasks-management";
+import { tryGetScheduledTasks } from "@paideia/paideia-backend";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,

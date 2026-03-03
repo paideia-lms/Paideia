@@ -135,3 +135,9 @@ release note should be written in the `release-notes` folder. each release note 
 max line leng per file should be 1000. When exceeding, we should split the code into multiple files for readability.
 
 for complicated code, we should always add comment to explain the code.
+
+avoid function declarations inside blocks (e.g. inside if, for, callbacks) when code may run in strict mode; use arrow functions instead. see `.cursor/skills/linter-config-typescript/SKILL.md` if you hit "Function declarations are not allowed inside blocks".
+
+for tsconfig in monorepo, put shared options in root `tsconfig.json`; child configs extend with `extends`. avoid catch-all `"*"` path—it breaks npm resolution. see `.cursor/skills/tsconfig-monorepo/SKILL.md`.
+
+when `bun run build` fails with "Could not resolve" for path aliases (app/*, server/*) while typecheck passes, use relative imports in server files or add a Bun resolver plugin. see `.cursor/skills/bun-build-monorepo/SKILL.md`.

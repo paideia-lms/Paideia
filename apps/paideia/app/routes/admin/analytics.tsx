@@ -23,7 +23,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetAnalyticsSettings,
 	tryUpdateAnalyticsSettings,
-} from "server/internal/analytics-settings";
+} from "@paideia/paideia-backend";
 import { z } from "zod";
 import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import {

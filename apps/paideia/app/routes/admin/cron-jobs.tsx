@@ -6,7 +6,7 @@ import { useRevalidator } from "react-router";
 import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetCronJobs } from "server/internal/cron-jobs-management";
+import { tryGetCronJobs } from "@paideia/paideia-backend";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,

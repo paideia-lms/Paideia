@@ -68,10 +68,10 @@ import {
 	tryGetUserMediaStats,
 	tryPruneAllOrphanedMedia,
 	tryRenameMedia,
-} from "server/internal/media-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { tryFindAllUsers } from "server/internal/user-management";
-import type { Media } from "server/payload-types";
+} from "@paideia/paideia-backend";
+import { handleTransactionId } from "@paideia/paideia-backend";
+import { tryFindAllUsers } from "@paideia/paideia-backend";
+import type { Media } from "@paideia/paideia-backend";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import {
 	canPreview,

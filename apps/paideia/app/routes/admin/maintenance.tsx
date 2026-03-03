@@ -12,7 +12,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetMaintenanceSettings,
 	tryUpdateMaintenanceSettings,
-} from "server/internal/maintenance-settings";
+} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

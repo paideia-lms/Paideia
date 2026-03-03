@@ -1,22 +1,27 @@
-import { envVars, validateEnvVars } from "./env";
-import { testConnections } from "./health-check";
-
-// ! every env below this already have been validated in the server/env.ts file
-validateEnvVars();
+import {
+	Paideia,
+	asciiLogo,
+	displayHelp,
+	envVars,
+	getMigrationStatus,
+	migrations,
+	s3Client,
+	tryResetSandbox,
+	tryRunSeed,
+	S3BucketNotFoundError,
+	type Migration as MigrationType,
+} from "@paideia/paideia-backend/server";
 
 import { treaty } from "@elysiajs/eden";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
-import { getPayload, type Migration as MigrationType } from "payload";
 import { RouterContextProvider } from "react-router";
-import { migrations } from "src/migrations";
 import { createStorage } from "unstorage";
 // biome-ignore lint/suspicious/noTsIgnore: unstorage driver types
 // @ts-ignore
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
 import packageJson from "../package.json";
-import { configureCommands, displayHelp } from "./cli/commands";
 import { courseContextKey } from "./contexts/course-context";
 import { courseModuleContextKey } from "./contexts/course-module-context";
 import { courseSectionContextKey } from "./contexts/course-section-context";
@@ -26,25 +31,14 @@ import { userContextKey } from "./contexts/user-context";
 import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
 import { reactRouter } from "./elysia-react-router";
-import sanitizedConfig from "./payload.config";
-import { S3BucketNotFoundError } from "app/utils/error";
-import { asciiLogo } from "./utils/constants";
-import { getMigrationStatus } from "./utils/db/migration-status";
-import { tryResetSandbox } from "./utils/db/sandbox-reset";
-import { tryRunSeed } from "./utils/db/seed";
+import { parseParams } from "../app/utils/router/route-params-schema";
 import prompts from "prompts";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
-import { s3Client } from "./utils/s3-client";
-import { parseParams } from "app/utils/router/route-params-schema";
+import vfs from "./vfs";
 
-const payload = await getPayload({
-	config: sanitizedConfig,
-	cron: true,
-	key: "paideia",
-});
-
-await testConnections(payload);
+const paideia = new Paideia();
+const payload = await paideia.init();
 
 // Server startup function
 async function startServer() {
@@ -106,6 +100,7 @@ async function startServer() {
 			payload,
 			req: undefined,
 			overrideAccess: true,
+			vfs: vfs as Record<string, string>,
 		});
 		if (!seedResult.ok) {
 			const err = seedResult.error;
@@ -126,6 +121,7 @@ async function startServer() {
 			payload,
 			req: undefined,
 			overrideAccess: true,
+			vfs: vfs as Record<string, string>,
 		});
 		if (!resetResult.ok) {
 			// crash the server
@@ -239,7 +235,7 @@ async function startServer() {
 }
 
 // Configure Commander.js program with all CLI commands
-const program = configureCommands(payload);
+const program = await paideia.configureCommands();
 
 // Server command
 program

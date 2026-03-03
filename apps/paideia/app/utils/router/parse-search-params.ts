@@ -3,7 +3,7 @@ import { createLoader } from "nuqs/server";
 import type { RouteId } from "app/utils/router/routes-utils";
 import type { TypeSafeRouteSearchParams } from "app/utils/router/search-params-utils";
 import { tryGetSearchParamsParsers } from "app/utils/router/route-module-loader";
-import { debugLog } from "server/utils/debug";
+import { debugLog } from "@paideia/paideia-backend";
 
 /**
  * Parses search params from URL for a specific route

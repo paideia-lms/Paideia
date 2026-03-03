@@ -33,7 +33,7 @@ import { Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryUpdateUser } from "server/internal/user-management";
+import { tryUpdateUser } from "@paideia/paideia-backend";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import {

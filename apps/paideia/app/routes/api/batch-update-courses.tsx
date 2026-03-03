@@ -1,7 +1,7 @@
 import { notifications } from "@mantine/notifications";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateCourse } from "server/internal/course-management";
+import { tryUpdateCourse } from "@paideia/paideia-backend";
 import z from "zod";
 import {
 	badRequest,

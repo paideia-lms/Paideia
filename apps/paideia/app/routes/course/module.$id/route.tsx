@@ -7,12 +7,12 @@ import { courseModuleContextKey } from "server/contexts/utils/context-keys";
 import { enrolmentContextKey } from "server/contexts/utils/context-keys";
 import { globalContextKey } from "server/contexts/utils/context-keys";
 import { userContextKey } from "server/contexts/utils/context-keys";
-import { tryCreateAssignmentSubmission } from "server/internal/assignment-submission-management";
+import { tryCreateAssignmentSubmission } from "@paideia/paideia-backend";
 import {
 	tryCreateDiscussionSubmission,
 	tryRemoveUpvoteDiscussionSubmission,
 	tryUpvoteDiscussionSubmission,
-} from "server/internal/discussion-management";
+} from "@paideia/paideia-backend";
 import {
 	tryAnswerQuizQuestion,
 	tryCheckInProgressSubmission,
@@ -25,9 +25,9 @@ import {
 	tryStartNestedQuiz,
 	tryMarkNestedQuizAsComplete,
 	tryStartPreviewQuizAttempt,
-} from "server/internal/quiz-submission-management";
-import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import type { TypedQuestionAnswer } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 import z from "zod";
 import {
 	badRequest,

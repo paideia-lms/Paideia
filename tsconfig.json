@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"moduleDetection": "force",
+		"resolveJsonModule": true,
+		"target": "ES2022",
+		"skipLibCheck": true,
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"forceConsistentCasingInFileNames": true,
+		"noImplicitAny": true,
+		"noEmit": true,
+		"paths": {
+			"@mantine/form/lib/paths.types": ["./node_modules/@mantine/form/lib/paths.types"]
+		}
+	},
+    "exclude": ["node_modules", "dist", "src/payload-generated-schema.ts", "src/migrations", "opensrc"]
+}

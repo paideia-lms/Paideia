@@ -50,7 +50,7 @@ import {
 	tryGetCategoryTree,
 	tryGetTotalNestedCoursesCount,
 	tryUpdateCategory,
-} from "server/internal/course-category-management";
+} from "@paideia/paideia-backend";
 import { useReorderCategories } from "~/routes/api/category-reorder";
 import {
 	badRequest,

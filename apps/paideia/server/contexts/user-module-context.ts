@@ -1,16 +1,14 @@
 import { createContext } from "react-router";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "app/utils/error";
+import { transformError, UnknownError } from "../../app/utils/error";
 import {
 	tryFindGrantsByActivityModule,
 	tryFindInstructorsForActivityModule,
-} from "../internal/activity-module-access";
-import {
 	type ActivityModuleResult,
 	tryGetActivityModuleById,
-} from "../internal/activity-module-management";
-import { tryFindLinksByActivityModule } from "../internal/course-activity-module-link-management";
+	tryFindLinksByActivityModule,
+} from "@paideia/paideia-backend";
 import type { Course } from "../payload-types";
 
 export interface UserModuleUser {

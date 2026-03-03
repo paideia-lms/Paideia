@@ -4,8 +4,6 @@ import { envOnlyMacros } from "vite-env-only";
 // import babel from "vite-plugin-babel";
 import devtoolsJson from "vite-plugin-devtools-json";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { denyImports } from "vite-env-only"
-
 
 // see https://react.dev/learn/react-compiler/installation#usage-with-react-router
 // const ReactCompilerConfig = {
@@ -18,15 +16,6 @@ export default defineConfig({
 		envOnlyMacros(),
 		tsconfigPaths(),
 		devtoolsJson(),
-		denyImports({
-			client: {
-			  specifiers: ["payload"],
-			  files: ["server/*", "server/internal/*", "server/contexts/*", "server/utils/*", "server/collections/*"],
-			},
-			server: {
-
-			},
-		  }) ,
 	],
 	optimizeDeps: {
 		exclude: ["file-type"],

@@ -6,7 +6,7 @@ import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGeneralMove } from "server/internal/course-section-management";
+import { tryGeneralMove } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

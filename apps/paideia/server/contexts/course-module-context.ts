@@ -1,24 +1,22 @@
 import { createContext } from "react-router";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
-import type { LatestCourseQuizSettings } from "server/json/course-module-settings/version-resolver";
-import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
-import { calculateTotalPoints } from "server/json/raw-quiz-config/v2";
+import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
+import type { LatestCourseQuizSettings } from "@paideia/paideia-backend";
+import type { LatestQuizConfig } from "@paideia/paideia-backend";
+import { calculateTotalPoints } from "@paideia/paideia-backend";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "app/utils/error";
-import { tryListAssignmentSubmissions } from "../internal/assignment-submission-management";
-import { tryFindCourseActivityModuleLinkById } from "../internal/course-activity-module-link-management";
-import { tryGetPreviousNextModule } from "../internal/course-section-management";
+import { transformError, UnknownError } from "../../app/utils/error";
 import {
+	tryListAssignmentSubmissions,
+	tryFindCourseActivityModuleLinkById,
+	tryGetPreviousNextModule,
 	tryGetDiscussionThreadWithReplies,
 	tryGetDiscussionThreadsWithAllReplies,
 	tryListDiscussionSubmissions,
-	type DiscussionReply,
-} from "../internal/discussion-management";
-import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
-import { convertDatabaseAnswersToQuizAnswers } from "../internal/utils/quiz-answer-converter";
-import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
-
-import { permissions } from "../utils/permissions";
+	tryListQuizSubmissions,
+	convertDatabaseAnswersToQuizAnswers,
+	permissions,
+} from "@paideia/paideia-backend";
+import type { QuizAnswers } from "@paideia/paideia-backend";
 export { courseModuleContextKey } from "./utils/context-keys";
 
 export interface ModuleDateInfo {

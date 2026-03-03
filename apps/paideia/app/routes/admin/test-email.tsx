@@ -23,7 +23,7 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { trySendEmail } from "server/internal/email";
+import { trySendEmail } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

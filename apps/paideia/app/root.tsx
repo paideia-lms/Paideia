@@ -64,10 +64,10 @@ import {
 	getUserProfileContext,
 	userProfileContextKey,
 } from "server/contexts/user-profile-context";
-import { tryGetUserCount } from "server/internal/user-management";
-import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
-import { tryFindSectionById } from "server/internal/course-section-management";
-import { tryGetSystemGlobals } from "server/internal/system-globals";
+import { tryGetUserCount } from "@paideia/paideia-backend";
+import { tryFindCourseActivityModuleLinkById } from "@paideia/paideia-backend";
+import { tryFindSectionById } from "@paideia/paideia-backend";
+import { tryGetSystemGlobals } from "@paideia/paideia-backend";
 import { DevTool } from "./root.components/dev-tool";
 import { RootErrorBoundary } from "./root.components/root-mode-error-boundary";
 import { SandboxCountdown } from "./root.components/sandbox-countdown";
@@ -83,7 +83,7 @@ import {
 	tryGetRouteHierarchy,
 } from "./utils/router/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { createLocalReq } from "@paideia/paideia-backend";
 import { parseParams } from "app/utils/router/route-params-schema";
 import { parseSearchParamsForRoute } from "app/utils/router/parse-search-params";
 import { isNotNil } from "es-toolkit";

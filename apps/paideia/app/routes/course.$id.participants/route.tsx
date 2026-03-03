@@ -15,7 +15,7 @@ import {
 	tryDeleteEnrollment,
 	tryFindUserEnrollmentInCourse,
 	tryUpdateEnrollment,
-} from "server/internal/enrollment-management";
+} from "@paideia/paideia-backend";
 import { EnrollmentsSection } from "./components/enrollments-section";
 import {
 	badRequest,

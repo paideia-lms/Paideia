@@ -24,12 +24,12 @@ import {
 	typeCreateActionRpc,
 } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import type { Users } from "server/collections/users";
+import type { Users } from "@paideia/paideia-backend";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateUser } from "server/internal/user-management";
-import type { User } from "server/payload-types";
-import { enum_users_role } from "src/payload-generated-schema";
+import { tryCreateUser } from "@paideia/paideia-backend";
+import type { User } from "@paideia/paideia-backend";
+import { enum_users_role } from "@paideia/paideia-backend/payload-generated-schema";
 import { z } from "zod";
 import {
 	badRequest,

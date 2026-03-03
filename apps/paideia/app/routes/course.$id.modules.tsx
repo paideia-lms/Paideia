@@ -28,14 +28,14 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateCourseActivityModuleLink,
 	tryDeleteCourseActivityModuleLink,
-} from "server/internal/course-activity-module-link-management";
-import { tryCreateSection } from "server/internal/course-section-management";
+} from "@paideia/paideia-backend";
+import { tryCreateSection } from "@paideia/paideia-backend";
 import {
 	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 import { z } from "zod";
 import { getTypeLabel } from "~/utils/course-view-utils";
 import {
@@ -47,7 +47,7 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.modules";
-import { tryFindUserEnrollmentInCourse } from "server/internal/enrollment-management";
+import { tryFindUserEnrollmentInCourse } from "@paideia/paideia-backend";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
 

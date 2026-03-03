@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"types": ["bun"],
+		"paths": {
+			"server/*": ["./src/*"],
+			"app/utils/error": ["./src/errors"],
+			"*": ["./*"]
+		}
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "src/payload-generated-schema.ts"]
+}

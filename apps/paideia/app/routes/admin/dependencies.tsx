@@ -1,6 +1,6 @@
 import { Alert, Badge, Box, Paper, Stack, Table, Title } from "@mantine/core";
 import { userContextKey } from "server/contexts/user-context";
-import { isD2Available } from "server/utils/cli-dependencies-check";
+import { isD2Available } from "@paideia/paideia-backend";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/dependencies";

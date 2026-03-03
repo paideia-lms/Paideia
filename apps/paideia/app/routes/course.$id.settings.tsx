@@ -32,14 +32,14 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	type CategoryTreeNode,
 	tryGetCategoryTree,
-} from "server/internal/course-category-management";
+} from "@paideia/paideia-backend";
 import {
 	tryAddRecurringSchedule,
 	tryAddSpecificDate,
 	tryRemoveRecurringSchedule,
 	tryRemoveSpecificDate,
 	tryUpdateCourse,
-} from "server/internal/course-management";
+} from "@paideia/paideia-backend";
 
 import type { RichTextEditorRef } from "app/components/rich-text/rich-text-editor";
 import { RichTextEditor } from "app/components/rich-text/rich-text-editor";

@@ -163,15 +163,22 @@ Paideia/
 ### New Files
 - Root `package.json` - Workspace configuration and delegating scripts
 - `apps/paideia/` - Entire application (moved from root)
+- `apps/paideia/tsconfig.build.json` - Build-specific tsconfig with backend path fallbacks
+- `packages/paideia-backend/src/tests/errors.ts` - `TestError` fixture for backend tests
 
 ### Modified Files
 - `.github/workflows/release.yml` - Paths updated to `apps/paideia`
+- `tsconfig.json` - Root config; avoid catch-all `*` path (breaks npm resolution)
+- `apps/paideia/tsconfig.json` - Explicit `app/*`, `server/*` paths; `@fullcalendar/core` added
 - `README.md` - Paths and instructions updated for monorepo
 - `.gitignore` - Monorepo layout
-- `apps/paideia/server/index.ts` - Migration check, seed failure handling
-- `apps/paideia/app/utils/error.ts` - `S3BucketNotFoundError`, `isNoSuchBucketError`, `transformError` updates
-- `apps/paideia/scripts/build.ts` - Node modules path resolution for monorepo
+- `apps/paideia/server/index.ts` - Relative imports for app utils, migration check, seed failure handling
+- `apps/paideia/app/utils/error.ts` - Re-exports from `@paideia/paideia-backend` (error consolidation)
+- `apps/paideia/scripts/build.ts` - Node modules path resolution, backend path resolver plugin, tsconfig.build.json
+- `apps/paideia/server/contexts/*.ts` - Relative imports for app/utils; envVars from @paideia/paideia-backend
 - `apps/paideia/scripts/check-native-deps.sh` - Monorepo node_modules resolution
+- `packages/paideia-backend/src/index.ts` - Explicit v2 exports excluding conflicting `*Args` types
+- `packages/paideia-backend/package.json` - Subpath export for `./json/raw-quiz-config/v2`
 
 ### Removed from Root (Moved to apps/paideia)
 - `app/`, `server/`, `src/`, `tests/`
@@ -221,6 +228,56 @@ bun run build
 - **Same commands**: `bun dev`, `bun run build` work from root
 - **Clear errors**: Migration prompt, S3 message, seed failure message
 - **Path updates**: README and CI reference `apps/paideia` consistently
+
+### 6. Backend Package Error Consolidation and Export Fixes
+
+**Features**:
+- Error definitions consolidated in `packages/paideia-backend` as single source of truth
+- App `app/utils/error.ts` re-exports from `@paideia/paideia-backend` (no local definitions)
+- Resolved TypeScript duplicate export conflicts between `quiz-module-management` and `json/raw-quiz-config/v2`
+- Added `TestError` fixture in backend package for tests
+
+**Implementation**:
+- **Error consolidation**: `apps/paideia/app/utils/error.ts` now re-exports all error classes and `transformError` from `@paideia/paideia-backend`
+- **Duplicate exports**: Replaced `export * from "./json/raw-quiz-config/v2"` with explicit exports excluding conflicting `*Args` types (e.g. `AddPageArgs`, `AddNestedQuizArgs`) that clash with `quiz-module-management`'s internal function args
+- **isolatedModules**: Split re-exports into `export type { ... }` and `export { ... }` to satisfy TS1205
+- **Test fixture**: Created `packages/paideia-backend/src/tests/errors.ts` with `TestError` for `parse-media-from-html.test.ts`
+- **Subpath export**: Added `"./json/raw-quiz-config/v2"` to backend package.json for consumers needing raw config types
+
+**Benefits**:
+- ✅ Single source of truth for errors in backend package
+- ✅ No duplicate type definitions across app and backend
+- ✅ Typecheck passes; explicit exports avoid name collisions
+- ✅ Test fixtures available within package boundary
+
+### 7. Linter Config Strict Mode Fix and tsconfig Consolidation
+
+**Features**:
+- Fixed "Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'" in `linter.config.ts`
+- Consolidated common tsconfig options into root `tsconfig.json`; app and backend extend with app-specific overrides
+
+**Implementation**:
+- **Strict mode fix**: In `packages/paideia-backend/linter.config.ts`, replaced function declarations inside blocks with arrow functions
+- **tsconfig consolidation**: Root `tsconfig.json` holds shared options; app and backend extend with app-specific overrides
+
+**References**: `release-notes/incidents/2026-03-03-strict-mode-function-declarations-in-blocks.md`, `.cursor/skills/linter-config-typescript/SKILL.md`
+
+### 8. Bun Build Path Resolution for Monorepo
+
+**Features**:
+- `bun run build` in `apps/paideia` now succeeds; app bundles server entrypoint with `@paideia/paideia-backend` and workspace path aliases
+- TypeScript path aliases (`app/*`, `server/*`) work at compile time but Bun.build does not fully apply tsconfig paths to workspace package sources
+
+**Implementation**:
+- **App server imports**: Switched from path aliases to relative imports in `server/` (e.g. `"app/utils/router/route-params-schema"` → `"../app/utils/router/route-params-schema"`, `"app/utils/error"` → `"../../app/utils/error"`)
+- **Backend path aliases**: Added Bun build plugin in `scripts/build.ts` to resolve backend's `server/*`, `app/utils/error`, `src/*` when bundling (Bun.build tsconfig does not apply to workspace package sources)
+- **tsconfig.build.json**: Build-specific tsconfig with `baseUrl` and fallback paths for app aliases
+- **envVars**: `server/contexts/global-context.ts` imports `envVars` type from `@paideia/paideia-backend` (no `server/env` in app)
+- **tsconfig paths**: Replaced catch-all `"*": ["./*"]` with explicit `app/*`, `server/*` mappings so npm packages (e.g. `nuqs`, `@fullcalendar/core`) resolve from node_modules
+
+**Note**: The build plugin resolves directly into `packages/paideia-backend`; a more ideal approach would keep backend abstracted via the package boundary. This is a pragmatic workaround until Bun supports tsconfig path resolution for workspace packages.
+
+**References**: `release-notes/incidents/2026-03-03-bun-build-path-aliases.md`, `.cursor/skills/bun-build-monorepo/SKILL.md`
 
 ## Related Changes
 

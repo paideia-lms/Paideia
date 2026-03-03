@@ -22,7 +22,7 @@ import { userModuleContextKey } from "server/contexts/user-module-context";
 import {
 	tryGrantAccessToActivityModule,
 	tryRevokeAccessFromActivityModule,
-} from "server/internal/activity-module-access";
+} from "@paideia/paideia-backend";
 import { z } from "zod";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";

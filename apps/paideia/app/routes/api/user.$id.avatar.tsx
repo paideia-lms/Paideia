@@ -1,6 +1,6 @@
 import { globalContextKey } from "server/contexts/global-context";
-import { tryGetMediaStreamFromId } from "server/internal/media-management";
-import { tryFindUserById } from "server/internal/user-management";
+import { tryGetMediaStreamFromId } from "@paideia/paideia-backend";
+import { tryFindUserById } from "@paideia/paideia-backend";
 import type { Route } from "./+types/user.$id.avatar";
 import { badRequest, notFound } from "app/utils/router/responses";
 import {
