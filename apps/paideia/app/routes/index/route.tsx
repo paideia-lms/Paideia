@@ -44,14 +44,14 @@ import { parseAsString } from "nuqs";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetRegistrationSettings } from "server/internal/registration-settings";
+import { tryGetRegistrationSettings } from "@paideia/paideia-backend";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import classes from "../clock-neon-theme.module.css";
-import { tryFindNotesByUser } from "server/internal/note-management";
+import { tryFindNotesByUser } from "@paideia/paideia-backend";
 import { getTextContentFromHtmlServerFirstParagraph } from "app/utils/html-utils";
 import { CurriculumMap } from "./components/cirriculum-map";
 import { CalendarWidget } from "./components/calendar-widget";

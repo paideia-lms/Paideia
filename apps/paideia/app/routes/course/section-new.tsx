@@ -23,8 +23,8 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateSection,
 	tryFindSectionsByCourse,
-} from "server/internal/course-section-management";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 import {
 	badRequest,
 	ForbiddenResponse,

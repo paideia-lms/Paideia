@@ -3,7 +3,7 @@ import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateCategory } from "server/internal/course-category-management";
+import { tryUpdateCategory } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

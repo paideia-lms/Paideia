@@ -11,16 +11,16 @@
 import { createContext, href } from "react-router";
 import type { GlobalContext } from "server/contexts/global-context";
 import type { UserSession } from "server/contexts/user-context";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
-import { tryGetUserActivityModules } from "server/internal/activity-module-management";
-import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
-import { tryGenerateNoteHeatmap } from "server/internal/note-management";
-import { tryFindUserById } from "server/internal/user-management";
+import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
+import { tryGetUserActivityModules } from "@paideia/paideia-backend";
+import { tryFindEnrollmentsByUser } from "@paideia/paideia-backend";
+import { tryGenerateNoteHeatmap } from "@paideia/paideia-backend";
+import { tryFindUserById } from "@paideia/paideia-backend";
 import type {
 	ActivityModule as PayloadActivityModule,
 	Enrollment as PayloadEnrollment,
-} from "server/payload-types";
-import { permissions } from "server/utils/permissions";
+} from "@paideia/paideia-backend";
+import { permissions } from "@paideia/paideia-backend";
 
 type Course = {
 	id: number;

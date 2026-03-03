@@ -1,6 +1,6 @@
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindMediaUsages } from "server/internal/media-management";
+import { tryFindMediaUsages } from "@paideia/paideia-backend";
 import { badRequest, ok, unauthorized } from "app/utils/router/responses";
 import { typeCreateLoaderRpc } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/media-usage";

@@ -9,7 +9,7 @@ import {
 	Text,
 } from "@mantine/core";
 import { href, Link } from "react-router";
-import type { UserGradesJsonRepresentation } from "server/internal/user-grade-management";
+import type { UserGradesJsonRepresentation } from "@paideia/paideia-backend";
 import { getModuleIcon } from "../../utils/module-helper";
 import type { Route } from "app/routes/course.$id.grades/route";
 

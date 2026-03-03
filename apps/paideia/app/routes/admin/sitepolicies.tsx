@@ -17,7 +17,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetSitePolicies,
 	tryUpdateSitePolicies,
-} from "server/internal/site-policies";
+} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	ForbiddenResponse,

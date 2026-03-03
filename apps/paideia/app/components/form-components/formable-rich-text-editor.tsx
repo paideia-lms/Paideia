@@ -4,7 +4,7 @@ import { RichTextEditor } from "../rich-text/rich-text-editor";
 import type {
 	FormPathValue,
 	Path,
-} from "node_modules/@mantine/form/lib/paths.types";
+} from "@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 
 interface FormableRichTextEditorProps<T> {

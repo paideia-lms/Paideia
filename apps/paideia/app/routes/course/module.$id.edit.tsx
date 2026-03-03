@@ -35,7 +35,7 @@ import {
 	tryUpdatePageModuleSettings,
 	tryUpdateQuizModuleSettings,
 	tryUpdateWhiteboardModuleSettings,
-} from "server/internal/course-activity-module-link-management";
+} from "@paideia/paideia-backend";
 import type {
 	LatestCourseAssignmentSettings,
 	LatestCourseDiscussionSettings,
@@ -43,9 +43,9 @@ import type {
 	LatestCourseQuizSettings,
 	LatestCoursePageSettings,
 	LatestCourseWhiteboardSettings,
-} from "server/json/course-module-settings/version-resolver";
+} from "@paideia/paideia-backend";
 
-import { permissions } from "server/utils/permissions";
+import { permissions } from "@paideia/paideia-backend";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import {
 	badRequest,

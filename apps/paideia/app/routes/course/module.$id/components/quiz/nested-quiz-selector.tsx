@@ -25,7 +25,7 @@ import {
 } from "../../route";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { useNestedQuizContext } from "./nested-quiz-context";
-import type { NestedQuizConfig } from "server/json/raw-quiz-config/v2";
+import type { NestedQuizConfig } from "@paideia/paideia-backend";
 import { useMatches } from "react-router";
 import { CodeHighlight } from "@mantine/code-highlight";
 

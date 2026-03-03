@@ -2,10 +2,25 @@
 	"name": "paideia-monorepo",
 	"private": true,
 	"type": "module",
-	"workspaces": ["apps/*"],
+	"workspaces": ["apps/*", "packages/*"],
 	"scripts": {
+		"dev": "bun run --cwd apps/paideia dev",
 		"build": "bun run --cwd apps/paideia build",
 		"lint": "bun run --cwd apps/paideia lint",
-		"lefthook:install": "lefthook install"
+		"lefthook:install": "lefthook install",
+		"dedupe": "bunx nypm dedupe",
+		"lint:project": "bun packages/paideia-backend/scripts/lint-project.ts",
+		"push-docker": "bun scripts/push-docker.ts"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.3.9",
+		"@types/node": "^25.2.3",
+		"@types/request-ip": "^0.0.41",
+		"@total-typescript/ts-reset": "^0.6.1",
+		"@biomejs/biome": "2.3.10",
+		"@typescript/native-preview": "^7.0.0-dev.20260217.1",
+		"lefthook": "^2.1.1",
+		"knip": "^5.83.1",
+		"typescript": "^5.9.3"
 	}
 }

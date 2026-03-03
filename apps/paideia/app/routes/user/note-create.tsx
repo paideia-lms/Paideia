@@ -18,7 +18,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { href, redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateNote } from "server/internal/note-management";
+import { tryCreateNote } from "@paideia/paideia-backend";
 import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import {
 	badRequest,

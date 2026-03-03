@@ -15,7 +15,7 @@ import { IconUserCheck } from "@tabler/icons-react";
 import { href, Link, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryFindUserById } from "server/internal/user-management";
+import { tryFindUserById } from "@paideia/paideia-backend";
 import { setImpersonationCookie } from "~/utils/cookie";
 import { z } from "zod";
 import {

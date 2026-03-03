@@ -18,7 +18,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateCategory,
 	tryFindAllCategories,
-} from "server/internal/course-category-management";
+} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

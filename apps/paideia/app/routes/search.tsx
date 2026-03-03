@@ -22,7 +22,7 @@ import {
 } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGlobalSearch } from "server/internal/search-management";
+import { tryGlobalSearch } from "@paideia/paideia-backend";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/search";
 

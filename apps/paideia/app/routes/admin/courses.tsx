@@ -41,8 +41,8 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	type CategoryTreeNode,
 	tryGetCategoryTree,
-} from "server/internal/course-category-management";
-import { tryFindAllCourses } from "server/internal/course-management";
+} from "@paideia/paideia-backend";
+import { tryFindAllCourses } from "@paideia/paideia-backend";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,

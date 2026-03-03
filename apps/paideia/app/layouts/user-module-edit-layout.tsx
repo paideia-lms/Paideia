@@ -16,7 +16,7 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
-import type { ActivityModule } from "server/payload-types";
+import type { ActivityModule } from "@paideia/paideia-backend";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 

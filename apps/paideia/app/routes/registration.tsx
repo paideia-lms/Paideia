@@ -17,13 +17,13 @@ import { href, Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetRegistrationSettings } from "server/internal/registration-settings";
+import { tryGetRegistrationSettings } from "@paideia/paideia-backend";
 import {
 	tryGetUserCount,
 	tryRegisterFirstUser,
 	tryRegisterUser,
-} from "server/internal/user-management";
-import { devConstants } from "server/utils/constants";
+} from "@paideia/paideia-backend";
+import { devConstants } from "@paideia/paideia-backend";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import {

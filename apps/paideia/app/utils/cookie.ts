@@ -1,4 +1,4 @@
-import { generateCookie, type Payload } from "payload";
+import { generateCookie, type Payload } from "@paideia/paideia-backend/payload";
 
 /**
  * Extract the cookie domain from the request.

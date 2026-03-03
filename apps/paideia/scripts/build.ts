@@ -170,6 +170,37 @@ await Bun.write("server/vfs.ts", await generateVfs());
 
 console.log(`✨ generated server/vfs.ts`);
 
+// Resolve backend path aliases (server/*, app/utils/error) when bundling - Bun.build tsconfig
+// does not apply to workspace package sources, so we use a resolver plugin.
+const backendSrc = resolve(process.cwd(), "../../packages/paideia-backend/src");
+function resolveBackendPath(spec: string): string | undefined {
+	if (spec === "app/utils/error") return resolve(backendSrc, "errors.ts");
+	if (spec.startsWith("src/")) return resolve(backendSrc, spec.replace(/^src\//, "") + ".ts");
+	if (spec.startsWith("server/")) {
+		const sub = spec.replace(/^server\//, "");
+		const candidate = resolve(backendSrc, sub + ".ts");
+		if (existsSync(candidate)) return candidate;
+		const indexCandidate = resolve(backendSrc, sub, "index.ts");
+		if (existsSync(indexCandidate)) return indexCandidate;
+		return undefined;
+	}
+	return undefined;
+}
+
+const backendPathResolver: import("bun").BunPlugin = {
+	name: "backend-path-resolver",
+	setup(build) {
+		build.onResolve(
+			{ filter: /^(server\/|app\/utils\/error|src\/)/ },
+			(args) => {
+				if (!args.importer?.includes("paideia-backend")) return undefined;
+				const resolved = resolveBackendPath(args.path);
+				return resolved ? { path: resolved } : undefined;
+			},
+		);
+	},
+};
+
 // Build binaries for all target platforms
 const entrypoint = resolve(process.cwd(), "./server/index.ts");
 
@@ -180,7 +211,9 @@ for (const buildConfig of buildTargets) {
 	await Bun.build({
 		entrypoints: [entrypoint],
 		outdir: "./dist",
-		root: process.cwd(), // Explicitly set root to current working directory
+		root: process.cwd(),
+		tsconfig: resolve(process.cwd(), "tsconfig.build.json"),
+		plugins: [backendPathResolver],
 		// minify: true,
 		sourcemap: true,
 		define: {

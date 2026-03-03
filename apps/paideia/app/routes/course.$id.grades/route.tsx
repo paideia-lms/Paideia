@@ -14,16 +14,16 @@ import {
 	tryFindGradebookCategoryById,
 	tryGetNextSortOrder,
 	tryUpdateGradebookCategory,
-} from "server/internal/gradebook-category-management";
+} from "@paideia/paideia-backend";
 import {
 	tryCreateGradebookItem,
 	tryDeleteGradebookItem,
 	tryFindGradebookItemById,
 	tryGetNextItemSortOrder,
 	tryUpdateGradebookItem,
-} from "server/internal/gradebook-item-management";
-import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
-import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
+} from "@paideia/paideia-backend";
+import { tryGetGradebookByCourseWithDetails } from "@paideia/paideia-backend";
+import { tryGetUserGradesJsonRepresentation } from "@paideia/paideia-backend";
 import { z } from "zod";
 import { GraderReportView } from "app/routes/course.$id.grades/report-view";
 import { GradebookSetupView } from "app/routes/course.$id.grades/setup-view";

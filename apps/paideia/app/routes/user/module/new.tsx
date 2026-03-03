@@ -20,7 +20,7 @@ import {
 	tryCreatePageModule,
 	tryCreateQuizModule,
 	tryCreateWhiteboardModule,
-} from "server/internal/activity-module-management";
+} from "@paideia/paideia-backend";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
@@ -42,7 +42,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { redirect } from "react-router";
-import type { ActivityModule } from "server/payload-types";
+import type { ActivityModule } from "@paideia/paideia-backend";
 import { useForm } from "@mantine/form";
 
 // Define search params for module creation

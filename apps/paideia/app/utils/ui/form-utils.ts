@@ -1,8 +1,5 @@
 import type { UseFormReturnType } from "@mantine/form";
-import type {
-	FormPathValue,
-	LooseKeys,
-} from "node_modules/@mantine/form/lib/paths.types";
+import type { FormPathValue, LooseKeys } from "@mantine/form/lib/paths.types";
 import { useForceUpdate } from "@mantine/hooks";
 import { type EffectCallback, useEffect } from "react";
 import { keys } from "es-toolkit/compat";

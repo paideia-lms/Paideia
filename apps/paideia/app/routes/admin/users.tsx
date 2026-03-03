@@ -22,7 +22,7 @@ import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindAllUsers } from "server/internal/user-management";
+import { tryFindAllUsers } from "@paideia/paideia-backend";
 import { badRequest, ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/users";
 import {

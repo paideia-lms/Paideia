@@ -24,7 +24,7 @@ import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import type {
 	FormPathValue,
 	Path,
-} from "node_modules/@mantine/form/lib/paths.types";
+} from "@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
 

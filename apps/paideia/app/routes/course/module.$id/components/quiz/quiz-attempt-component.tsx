@@ -17,8 +17,8 @@ import type {
 	NestedQuizConfig,
 	Question,
 	QuizResource,
-} from "server/json/raw-quiz-config/v2";
-import { calculateTotalPoints } from "server/json/raw-quiz-config/v2";
+} from "@paideia/paideia-backend";
+import { calculateTotalPoints } from "@paideia/paideia-backend";
 import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
 import { QuestionCard } from "./question-card";
 import { QuizNavigation, QuizNavigationButtons } from "./quiz-navigation";
@@ -29,7 +29,7 @@ import { constate } from "app/utils/ui/constate";
 import { QuestionContextProvider } from "./question-context";
 import { useLoaderData } from "react-router";
 import { keyBy, mapValues } from "es-toolkit";
-import type { QuizAnswers } from "server/json/raw-quiz-config/v2";
+import type { QuizAnswers } from "@paideia/paideia-backend";
 
 interface QuizHeaderProps {
 	remainingTime?: number;

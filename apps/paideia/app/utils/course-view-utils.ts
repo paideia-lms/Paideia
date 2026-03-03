@@ -3,7 +3,7 @@ import type {
 	Course,
 	Enrollment,
 	User,
-} from "server/payload-types";
+} from "@paideia/paideia-backend";
 
 export const getStatusBadgeColor = (status: Course["status"]) => {
 	switch (status) {

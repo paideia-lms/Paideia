@@ -10,7 +10,7 @@ import {
 } from "@mantine/core";
 import { IconFlag } from "@tabler/icons-react";
 import { useRef } from "react";
-import type { Question, QuestionAnswer } from "server/json/raw-quiz-config/v2";
+import type { Question, QuestionAnswer } from "@paideia/paideia-backend";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { loaderSearchParams } from "../../route";
 import {

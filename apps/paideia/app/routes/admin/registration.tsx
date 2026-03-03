@@ -11,7 +11,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetRegistrationSettings,
 	tryUpdateRegistrationSettings,
-} from "server/internal/registration-settings";
+} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

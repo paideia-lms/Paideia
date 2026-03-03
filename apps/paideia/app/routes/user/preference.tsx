@@ -15,10 +15,7 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryFindUserById,
-	tryUpdateUser,
-} from "server/internal/user-management";
+import { tryFindUserById, tryUpdateUser } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,

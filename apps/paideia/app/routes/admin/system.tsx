@@ -15,7 +15,7 @@ import { useInterval } from "@mantine/hooks";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetLatestVersion } from "server/internal/version-management";
+import { tryGetLatestVersion } from "@paideia/paideia-backend";
 import {
 	detectSystemResources,
 	getServerTimezone,

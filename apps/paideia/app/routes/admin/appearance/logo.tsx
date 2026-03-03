@@ -26,7 +26,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryClearLogo,
 	tryUpdateAppearanceSettings,
-} from "server/internal/appearance-settings";
+} from "@paideia/paideia-backend";
 import {
 	badRequest,
 	ForbiddenResponse,

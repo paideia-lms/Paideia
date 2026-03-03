@@ -1,353 +1,48 @@
-import {
+/**
+ * Re-export all errors and transformError from the backend package.
+ * The backend is the source of truth for error definitions.
+ */
+export {
+	ContextNotFoundError,
+	UnauthorizedError,
+	DuplicateActivityModuleError,
+	InvalidArgumentError,
+	TransactionIdNotFoundError,
+	NonExistingActivityModuleError,
+	UnknownError,
+	EnrollmentNotFoundError,
+	DuplicateEnrollmentError,
+	NonExistingMediaError,
+	DevelopmentError,
+	GradebookNotFoundError,
+	GradebookCategoryNotFoundError,
+	GradebookItemNotFoundError,
+	UserGradeNotFoundError,
+	DuplicateGradebookError,
+	InvalidGradeValueError,
+	InvalidSortOrderError,
+	WeightExceedsLimitError,
+	WeightZeroRequiredError,
+	NonExistingAssignmentSubmissionError,
+	NonExistingQuizSubmissionError,
+	NonExistingDiscussionSubmissionError,
+	ActivityModuleAccessDeniedError,
+	DuplicateAccessGrantError,
+	AccessGrantNotFoundError,
+	InvalidOwnerTransferError,
+	CourseAccessDeniedError,
+	EmailSendError,
+	SeedDataLoadError,
+	SandboxResetError,
+	MediaInUseError,
+	S3BucketNotFoundError,
+	QuizTimeLimitExceededError,
+	DuplicateUserGradeError,
+	UserNotFoundError,
+	EnrollmentCourseMismatchError,
+	NotImplementedError,
+	ValidationError,
 	QuizConfigValidationError,
 	QuizElementNotFoundError,
-} from "server/json/raw-quiz-config/v2";
-
-export class ContextNotFoundError extends Error {
-	static readonly type = "ContextNotFoundError";
-	get type() {
-		return ContextNotFoundError.type;
-	}
-}
-
-export class UnauthorizedError extends Error {
-	static readonly type = "UnauthorizedError";
-	get type() {
-		return UnauthorizedError.type;
-	}
-}
-
-export class DuplicateActivityModuleError extends Error {
-	static readonly type = "DuplicateActivityModuleError";
-	get type() {
-		return DuplicateActivityModuleError.type;
-	}
-}
-
-export class InvalidArgumentError extends Error {
-	static readonly type = "InvalidArgumentError";
-	get type() {
-		return InvalidArgumentError.type;
-	}
-}
-
-export class TransactionIdNotFoundError extends Error {
-	static readonly type = "TransactionIdNotFoundError";
-	get type() {
-		return TransactionIdNotFoundError.type;
-	}
-}
-
-export class NonExistingActivityModuleError extends Error {
-	static readonly type = "NonExistingActivityModuleError";
-	get type() {
-		return NonExistingActivityModuleError.type;
-	}
-}
-
-export class UnknownError extends Error {
-	static readonly type = "UnknownError";
-	get type() {
-		return UnknownError.type;
-	}
-}
-
-export class EnrollmentNotFoundError extends Error {
-	static readonly type = "EnrollmentNotFoundError";
-	get type() {
-		return EnrollmentNotFoundError.type;
-	}
-}
-
-export class DuplicateEnrollmentError extends Error {
-	static readonly type = "DuplicateEnrollmentError";
-	get type() {
-		return DuplicateEnrollmentError.type;
-	}
-}
-
-export class NonExistingMediaError extends Error {
-	static readonly type = "NonExistingMediaError";
-	get type() {
-		return NonExistingMediaError.type;
-	}
-}
-
-export class DevelopmentError extends Error {
-	static readonly type = "DevelopmentError";
-	get type() {
-		return DevelopmentError.type;
-	}
-}
-
-export class GradebookNotFoundError extends Error {
-	static readonly type = "GradebookNotFoundError";
-	get type() {
-		return GradebookNotFoundError.type;
-	}
-}
-
-export class GradebookCategoryNotFoundError extends Error {
-	static readonly type = "GradebookCategoryNotFoundError";
-	get type() {
-		return GradebookCategoryNotFoundError.type;
-	}
-}
-
-export class GradebookItemNotFoundError extends Error {
-	static readonly type = "GradebookItemNotFoundError";
-	get type() {
-		return GradebookItemNotFoundError.type;
-	}
-}
-
-export class UserGradeNotFoundError extends Error {
-	static readonly type = "UserGradeNotFoundError";
-	get type() {
-		return UserGradeNotFoundError.type;
-	}
-}
-
-export class DuplicateGradebookError extends Error {
-	static readonly type = "DuplicateGradebookError";
-	get type() {
-		return DuplicateGradebookError.type;
-	}
-}
-
-export class InvalidGradeValueError extends Error {
-	static readonly type = "InvalidGradeValueError";
-	get type() {
-		return InvalidGradeValueError.type;
-	}
-}
-
-export class InvalidSortOrderError extends Error {
-	static readonly type = "InvalidSortOrderError";
-	get type() {
-		return InvalidSortOrderError.type;
-	}
-}
-
-export class WeightExceedsLimitError extends Error {
-	static readonly type = "WeightExceedsLimitError";
-	get type() {
-		return WeightExceedsLimitError.type;
-	}
-}
-
-export class WeightZeroRequiredError extends Error {
-	static readonly type = "WeightZeroRequiredError";
-	get type() {
-		return WeightZeroRequiredError.type;
-	}
-}
-
-export class NonExistingAssignmentSubmissionError extends Error {
-	static readonly type = "NonExistingAssignmentSubmissionError";
-	get type() {
-		return NonExistingAssignmentSubmissionError.type;
-	}
-}
-
-export class NonExistingQuizSubmissionError extends Error {
-	static readonly type = "NonExistingQuizSubmissionError";
-	get type() {
-		return NonExistingQuizSubmissionError.type;
-	}
-}
-
-export class NonExistingDiscussionSubmissionError extends Error {
-	static readonly type = "NonExistingDiscussionSubmissionError";
-	get type() {
-		return NonExistingDiscussionSubmissionError.type;
-	}
-}
-
-export class ActivityModuleAccessDeniedError extends Error {
-	static readonly type = "ActivityModuleAccessDeniedError";
-	get type() {
-		return ActivityModuleAccessDeniedError.type;
-	}
-}
-
-export class DuplicateAccessGrantError extends Error {
-	static readonly type = "DuplicateAccessGrantError";
-	get type() {
-		return DuplicateAccessGrantError.type;
-	}
-}
-
-export class AccessGrantNotFoundError extends Error {
-	static readonly type = "AccessGrantNotFoundError";
-	get type() {
-		return AccessGrantNotFoundError.type;
-	}
-}
-
-export class InvalidOwnerTransferError extends Error {
-	static readonly type = "InvalidOwnerTransferError";
-	get type() {
-		return InvalidOwnerTransferError.type;
-	}
-}
-
-export class CourseAccessDeniedError extends Error {
-	static readonly type = "CourseAccessDeniedError";
-	get type() {
-		return CourseAccessDeniedError.type;
-	}
-}
-
-export class EmailSendError extends Error {
-	static readonly type = "EmailSendError";
-	get type() {
-		return EmailSendError.type;
-	}
-}
-
-export class SeedDataLoadError extends Error {
-	static readonly type = "SeedDataLoadError";
-	get type() {
-		return SeedDataLoadError.type;
-	}
-}
-
-export class SandboxResetError extends Error {
-	static readonly type = "SandboxResetError";
-	get type() {
-		return SandboxResetError.type;
-	}
-}
-
-export class MediaInUseError extends Error {
-	static readonly type = "MediaInUseError";
-	get type() {
-		return MediaInUseError.type;
-	}
-}
-
-export class S3BucketNotFoundError extends Error {
-	static readonly type = "S3BucketNotFoundError";
-	get type() {
-		return S3BucketNotFoundError.type;
-	}
-}
-
-export class QuizTimeLimitExceededError extends Error {
-	static readonly type = "QuizTimeLimitExceededError";
-	get type() {
-		return QuizTimeLimitExceededError.type;
-	}
-}
-
-export class DuplicateUserGradeError extends Error {
-	static readonly type = "DuplicateUserGradeError";
-	get type() {
-		return DuplicateUserGradeError.type;
-	}
-}
-
-export class UserNotFoundError extends Error {
-	static readonly type = "UserNotFoundError";
-	get type() {
-		return UserNotFoundError.type;
-	}
-}
-
-export class EnrollmentCourseMismatchError extends Error {
-	static readonly type = "EnrollmentCourseMismatchError";
-	get type() {
-		return EnrollmentCourseMismatchError.type;
-	}
-}
-
-export class NotImplementedError extends Error {
-	static readonly type = "NotImplementedError";
-	get type() {
-		return NotImplementedError.type;
-	}
-}
-
-export class ValidationError extends Error {
-	static readonly type = "ValidationError";
-	get type() {
-		return ValidationError.type;
-	}
-}
-
-function isNoSuchBucketError(
-	error: unknown,
-): error is { name: string; BucketName?: string } {
-	return (
-		error !== null &&
-		typeof error === "object" &&
-		"name" in error &&
-		(error as { name: string }).name === "NoSuchBucket"
-	);
-}
-
-export function transformError(error: unknown) {
-	// AWS S3 NoSuchBucket: bucket must exist before media operations can proceed
-	// Skip logging raw error; caller will show a clean message
-	if (isNoSuchBucketError(error)) {
-		const bucketName = error.BucketName ?? "the configured bucket";
-		return new S3BucketNotFoundError(
-			`The S3 bucket "${bucketName}" does not exist. Please create the bucket first before using media uploads. See your S3 configuration (e.g. S3_BUCKET env var) and ensure the bucket exists in your storage provider.`,
-			{ cause: error },
-		);
-	}
-	// Log errors in development and test (NoSuchBucket returns above, so not logged here)
-	if (
-		process.env.NODE_ENV === "development" ||
-		process.env.NODE_ENV === "test"
-	) {
-		console.error(error);
-	}
-	/**
-	 * list of our system error
-	 */
-	if (error instanceof UnauthorizedError) return error;
-	else if (error instanceof ContextNotFoundError) return error;
-	else if (error instanceof InvalidArgumentError) return error;
-	else if (error instanceof TransactionIdNotFoundError) return error;
-	else if (error instanceof NonExistingActivityModuleError) return error;
-	else if (error instanceof EnrollmentNotFoundError) return error;
-	else if (error instanceof DuplicateEnrollmentError) return error;
-	else if (error instanceof NonExistingMediaError) return error;
-	else if (error instanceof GradebookNotFoundError) return error;
-	else if (error instanceof GradebookCategoryNotFoundError) return error;
-	else if (error instanceof GradebookItemNotFoundError) return error;
-	else if (error instanceof UserGradeNotFoundError) return error;
-	else if (error instanceof DuplicateGradebookError) return error;
-	else if (error instanceof InvalidGradeValueError) return error;
-	else if (error instanceof InvalidSortOrderError) return error;
-	else if (error instanceof WeightExceedsLimitError) return error;
-	else if (error instanceof WeightZeroRequiredError) return error;
-	else if (error instanceof NonExistingAssignmentSubmissionError) return error;
-	else if (error instanceof NonExistingQuizSubmissionError) return error;
-	else if (error instanceof NonExistingDiscussionSubmissionError) return error;
-	else if (error instanceof ActivityModuleAccessDeniedError) return error;
-	else if (error instanceof DuplicateAccessGrantError) return error;
-	else if (error instanceof AccessGrantNotFoundError) return error;
-	else if (error instanceof InvalidOwnerTransferError) return error;
-	else if (error instanceof CourseAccessDeniedError) return error;
-	else if (error instanceof EmailSendError) return error;
-	else if (error instanceof SeedDataLoadError) return error;
-	else if (error instanceof SandboxResetError) return error;
-	else if (error instanceof MediaInUseError) return error;
-	else if (error instanceof S3BucketNotFoundError) return error;
-	else if (error instanceof QuizTimeLimitExceededError) return error;
-	else if (error instanceof DuplicateUserGradeError) return error;
-	else if (error instanceof UserNotFoundError) return error;
-	else if (error instanceof EnrollmentCourseMismatchError) return error;
-	else if (error instanceof NotImplementedError) return error;
-	else if (error instanceof UnknownError) return error;
-	else if (error instanceof QuizConfigValidationError) return error;
-	else if (error instanceof QuizElementNotFoundError) return error;
-	else if (error instanceof ValidationError) return error;
-	// ! we let user handle the unknown error
-	else {
-		return undefined;
-	}
-}
+	transformError,
+} from "@paideia/paideia-backend";

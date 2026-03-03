@@ -16,9 +16,9 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetRegistrationSettings } from "server/internal/registration-settings";
-import { tryGetUserCount, tryLogin } from "server/internal/user-management";
-import { devConstants } from "server/utils/constants";
+import { tryGetRegistrationSettings } from "@paideia/paideia-backend";
+import { tryGetUserCount, tryLogin } from "@paideia/paideia-backend";
+import { devConstants } from "@paideia/paideia-backend";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import {
