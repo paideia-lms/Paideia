@@ -8,7 +8,7 @@ vite.config.ts.*.mjs
 .react-router/
 dist
 
-.env*
+.env
 .DS_Store
 
 references/

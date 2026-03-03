@@ -172,9 +172,19 @@ export const envVars = {
 } as const;
 
 export function validateEnvVars() {
+	const missing: string[] = [];
+
 	for (const [key, value] of Object.entries(envVars)) {
 		if (value.required && !value.value) {
-			throw new Error(`${key} is not set`);
+			missing.push(key);
 		}
+	}
+
+	if (missing.length > 0) {
+		console.error("Missing required environment variables:");
+		for (const key of missing) {
+			console.error(`  - ${key}`);
+		}
+		process.exit(1);
 	}
 }

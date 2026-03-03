@@ -1,4 +1,5 @@
 import { envVars, validateEnvVars } from "./env";
+import { testConnections } from "./health-check";
 
 // ! every env below this already have been validated in the server/env.ts file
 validateEnvVars();
@@ -26,9 +27,12 @@ import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
+import { S3BucketNotFoundError } from "app/utils/error";
 import { asciiLogo } from "./utils/constants";
+import { getMigrationStatus } from "./utils/db/migration-status";
 import { tryResetSandbox } from "./utils/db/sandbox-reset";
 import { tryRunSeed } from "./utils/db/seed";
+import prompts from "prompts";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
@@ -40,6 +44,8 @@ const payload = await getPayload({
 	key: "paideia",
 });
 
+await testConnections(payload);
+
 // Server startup function
 async function startServer() {
 	console.log(asciiLogo);
@@ -47,6 +53,41 @@ async function startServer() {
 		`You are starting the Paideia server (${packageJson.version}). Paideia binary can be used as a CLI application.`,
 	);
 	displayHelp();
+
+	// Check for pending migrations before any DB-dependent operations
+	const migrationStatuses = await getMigrationStatus({
+		payload,
+		migrations: migrations as MigrationType[],
+	});
+	const pendingCount =
+		(migrationStatuses ?? []).filter((s) => s.Ran === "No").length;
+	if (pendingCount > 0) {
+		const isInteractive = Boolean(process.stdin.isTTY);
+		if (isInteractive) {
+			const { runNow } = await prompts(
+				{
+					name: "runNow",
+					type: "confirm",
+					initial: true,
+					message: `You have ${pendingCount} pending migration(s). Run them now before starting the server?`,
+				},
+				{ onCancel: () => process.exit(0) },
+			);
+			if (!runNow) {
+				console.log(
+					"Run `bun run migrate:up` to apply migrations, then start the server.",
+				);
+				process.exit(0);
+			}
+		} else {
+			console.log(
+				`Non-interactive mode: applying ${pendingCount} pending migration(s)...`,
+			);
+		}
+		await payload.db.migrate({
+			migrations: migrations as MigrationType[],
+		});
+	}
 
 	const unstorage = createStorage({
 		driver: lruCacheDriver({
@@ -60,7 +101,22 @@ async function startServer() {
 
 	if (process.env.NODE_ENV === "development") {
 		// ! a system request, so we don't need to provide a request
-		await tryRunSeed({ payload, req: undefined, overrideAccess: true });
+		const seedResult = await tryRunSeed({
+			payload,
+			req: undefined,
+			overrideAccess: true,
+		});
+		if (!seedResult.ok) {
+			const err = seedResult.error;
+			if (err instanceof S3BucketNotFoundError) {
+				console.error("\n❌ S3 bucket not found. Cannot proceed with seed.\n");
+				console.error(err.message);
+				console.error("\nCreate the bucket and try again.\n");
+				process.exit(1);
+			}
+			console.error(`❌ Seed failed: ${err.message}`);
+			process.exit(1);
+		}
 	}
 	// Check if sandbox mode is enabled and reset database
 	else if (envVars.SANDBOX_MODE.enabled) {

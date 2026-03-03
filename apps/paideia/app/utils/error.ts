@@ -1,3 +1,4 @@
+
 import {
 	QuizConfigValidationError,
 	QuizElementNotFoundError,
@@ -227,6 +228,13 @@ export class MediaInUseError extends Error {
 	}
 }
 
+export class S3BucketNotFoundError extends Error {
+	static readonly type = "S3BucketNotFoundError";
+	get type() {
+		return S3BucketNotFoundError.type;
+	}
+}
+
 export class QuizTimeLimitExceededError extends Error {
 	static readonly type = "QuizTimeLimitExceededError";
 	get type() {
@@ -269,8 +277,26 @@ export class ValidationError extends Error {
 	}
 }
 
+function isNoSuchBucketError(error: unknown): error is { name: string; BucketName?: string } {
+	return (
+		error !== null &&
+		typeof error === "object" &&
+		"name" in error &&
+		(error as { name: string }).name === "NoSuchBucket"
+	);
+}
+
 export function transformError(error: unknown) {
-	// we don't know the error so we want to it log it out in development and test environments
+	// AWS S3 NoSuchBucket: bucket must exist before media operations can proceed
+	// Skip logging raw error; caller will show a clean message
+	if (isNoSuchBucketError(error)) {
+		const bucketName = error.BucketName ?? "the configured bucket";
+		return new S3BucketNotFoundError(
+			`The S3 bucket "${bucketName}" does not exist. Please create the bucket first before using media uploads. See your S3 configuration (e.g. S3_BUCKET env var) and ensure the bucket exists in your storage provider.`,
+			{ cause: error },
+		);
+	}
+	// Log errors in development and test (NoSuchBucket returns above, so not logged here)
 	if (
 		process.env.NODE_ENV === "development" ||
 		process.env.NODE_ENV === "test"
@@ -309,6 +335,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof SeedDataLoadError) return error;
 	else if (error instanceof SandboxResetError) return error;
 	else if (error instanceof MediaInUseError) return error;
+	else if (error instanceof S3BucketNotFoundError) return error;
 	else if (error instanceof QuizTimeLimitExceededError) return error;
 	else if (error instanceof DuplicateUserGradeError) return error;
 	else if (error instanceof UserNotFoundError) return error;
