@@ -40,6 +40,12 @@ Migrated from MinIO to [VaultS3](https://github.com/eniz1806/VaultS3) for S3-com
 - Spins up PostgreSQL and VaultS3 via Docker Compose
 - Runs `test:all` from paideia-backend, gates release on test success
 
+**CI Fix — Payload CLI Runtime**:
+- Changed migrate and typegen scripts from `bunx payload` to `bun payload`
+- `bunx` runs the Payload CLI with Node.js, which cannot load `.ts` config files (`ERR_UNKNOWN_FILE_EXTENSION`)
+- `bun payload` uses Bun as the runtime, which natively supports TypeScript for `payload.config.ts`
+- Without this fix, `migrate:fresh` failed in CI, leaving the database empty and causing `relation "users" does not exist` in tests
+
 **Implementation**:
 - Start services: `docker compose up -d --wait`
 - Wait for VaultS3: curl `http://localhost:9000/health` (retry loop)
@@ -66,6 +72,7 @@ Migrated from MinIO to [VaultS3](https://github.com/eniz1806/VaultS3) for S3-com
 - `packages/paideia-backend/scripts/clean-s3.ts`
 - `apps/paideia/scripts/clean-s3.ts`
 - `packages/paideia-backend/scripts/ensure-s3-bucket.ts`
+- `packages/paideia-backend/package.json` — migrate and typegen scripts: `bunx payload` → `bun payload`
 - `packages/paideia-backend/src/env.ts` — comment updates
 - `packages/paideia-backend/src/payload.config.ts` — comment updates
 - `packages/paideia-backend/src/utils/s3-client.ts` — comment updates
