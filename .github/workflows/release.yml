@@ -20,7 +20,7 @@ jobs:
       - name: Read version from package.json
         id: version
         run: |
-          VERSION=$(jq -r '.version' package.json)
+          VERSION=$(jq -r '.version' apps/paideia/package.json)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Read version: ${VERSION}"
 
@@ -67,28 +67,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: paideia-macos-arm64
-          path: dist/paideia
+          path: apps/paideia/dist/paideia
           retention-days: 7
 
       - name: Upload Linux ARM64 binary
         uses: actions/upload-artifact@v4
         with:
           name: paideia-linux-arm64
-          path: dist/paideia-linux-arm64
+          path: apps/paideia/dist/paideia-linux-arm64
           retention-days: 7
       
       - name: Upload Linux X64 binary
         uses: actions/upload-artifact@v4
         with:
           name: paideia-linux-x64
-          path: dist/paideia-linux-x64
+          path: apps/paideia/dist/paideia-linux-x64
           retention-days: 7
       
       - name: Upload Windows X64 binary
         uses: actions/upload-artifact@v4
         with:
           name: paideia-windows-x64
-          path: dist/paideia.exe
+          path: apps/paideia/dist/paideia.exe
           retention-days: 7
 
   push-docker:
@@ -117,39 +117,39 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: paideia-linux-arm64
-          path: dist/
+          path: apps/paideia/dist/
 
       - name: Download Linux X64 binary
         uses: actions/download-artifact@v4
         with:
           name: paideia-linux-x64
-          path: dist/
+          path: apps/paideia/dist/
 
       - name: Prepare binaries for Docker
         run: |
           # Handle nested artifact structure (artifacts may be downloaded as directories)
           # IMPORTANT: Each job downloads its own isolated copy of artifacts,
           # so file operations here won't affect the create-release job
-          if [ -d dist/paideia-linux-arm64 ] && [ -f dist/paideia-linux-arm64/paideia-linux-arm64 ]; then
-            mv dist/paideia-linux-arm64/paideia-linux-arm64 dist/paideia-linux-arm64.tmp
-            rm -rf dist/paideia-linux-arm64
-            mv dist/paideia-linux-arm64.tmp dist/paideia-linux-arm64
+          if [ -d apps/paideia/dist/paideia-linux-arm64 ] && [ -f apps/paideia/dist/paideia-linux-arm64/paideia-linux-arm64 ]; then
+            mv apps/paideia/dist/paideia-linux-arm64/paideia-linux-arm64 apps/paideia/dist/paideia-linux-arm64.tmp
+            rm -rf apps/paideia/dist/paideia-linux-arm64
+            mv apps/paideia/dist/paideia-linux-arm64.tmp apps/paideia/dist/paideia-linux-arm64
           fi
           
-          if [ -d dist/paideia-linux-x64 ] && [ -f dist/paideia-linux-x64/paideia-linux-x64 ]; then
-            mv dist/paideia-linux-x64/paideia-linux-x64 dist/paideia-linux-x64.tmp
-            rm -rf dist/paideia-linux-x64
-            mv dist/paideia-linux-x64.tmp dist/paideia-linux-x64
+          if [ -d apps/paideia/dist/paideia-linux-x64 ] && [ -f apps/paideia/dist/paideia-linux-x64/paideia-linux-x64 ]; then
+            mv apps/paideia/dist/paideia-linux-x64/paideia-linux-x64 apps/paideia/dist/paideia-linux-x64.tmp
+            rm -rf apps/paideia/dist/paideia-linux-x64
+            mv apps/paideia/dist/paideia-linux-x64.tmp apps/paideia/dist/paideia-linux-x64
           fi
           
           # Make binaries executable (push-docker.ts script will handle renaming x64 to amd64)
-          chmod +x dist/paideia-linux-arm64 dist/paideia-linux-x64 2>/dev/null || true
+          chmod +x apps/paideia/dist/paideia-linux-arm64 apps/paideia/dist/paideia-linux-x64 2>/dev/null || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Push Docker images
-        run: bun scripts/push-docker.ts
+        run: bun --cwd apps/paideia scripts/push-docker.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_USERNAME: ${{ github.repository_owner }}
@@ -172,91 +172,91 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: paideia-macos-arm64
-          path: release-assets/
+          path: apps/paideia/release-assets/
 
       - name: Download Linux ARM64 binary
         uses: actions/download-artifact@v4
         with:
           name: paideia-linux-arm64
-          path: release-assets/
+          path: apps/paideia/release-assets/
 
       - name: Download Linux X64 binary
         uses: actions/download-artifact@v4
         with:
           name: paideia-linux-x64
-          path: release-assets/
+          path: apps/paideia/release-assets/
 
       - name: Download Windows X64 binary
         uses: actions/download-artifact@v4
         with:
           name: paideia-windows-x64
-          path: release-assets/
+          path: apps/paideia/release-assets/
 
       - name: Rename binaries for release
         run: |
-          mkdir -p release-assets
+          mkdir -p apps/paideia/release-assets
           
           # Find and rename macOS binary (only if target doesn't exist)
-          if [ ! -f release-assets/paideia-macos-arm64 ]; then
-            MACOS_BINARY=$(find release-assets -name "paideia" -type f | head -n 1)
+          if [ ! -f apps/paideia/release-assets/paideia-macos-arm64 ]; then
+            MACOS_BINARY=$(find apps/paideia/release-assets -name "paideia" -type f | head -n 1)
             if [ -n "$MACOS_BINARY" ]; then
-              mv "$MACOS_BINARY" release-assets/paideia-macos-arm64
+              mv "$MACOS_BINARY" apps/paideia/release-assets/paideia-macos-arm64
             fi
           fi
           
           # Find and rename Linux ARM64 binary (only if target doesn't exist)
-          if [ ! -f release-assets/paideia-linux-arm64 ]; then
-            LINUX_ARM64_BINARY=$(find release-assets -name "paideia-linux-arm64" -type f | head -n 1)
+          if [ ! -f apps/paideia/release-assets/paideia-linux-arm64 ]; then
+            LINUX_ARM64_BINARY=$(find apps/paideia/release-assets -name "paideia-linux-arm64" -type f | head -n 1)
             if [ -n "$LINUX_ARM64_BINARY" ]; then
-              mv "$LINUX_ARM64_BINARY" release-assets/paideia-linux-arm64
+              mv "$LINUX_ARM64_BINARY" apps/paideia/release-assets/paideia-linux-arm64
             fi
           fi
           
           # Find and rename Linux X64 binary to amd64 (only if target doesn't exist)
-          if [ ! -f release-assets/paideia-linux-amd64 ]; then
-            LINUX_X64_BINARY=$(find release-assets -name "paideia-linux-x64" -type f | head -n 1)
+          if [ ! -f apps/paideia/release-assets/paideia-linux-amd64 ]; then
+            LINUX_X64_BINARY=$(find apps/paideia/release-assets -name "paideia-linux-x64" -type f | head -n 1)
             if [ -n "$LINUX_X64_BINARY" ]; then
-              mv "$LINUX_X64_BINARY" release-assets/paideia-linux-amd64
-            elif [ -f release-assets/paideia-linux-x64 ]; then
-              mv release-assets/paideia-linux-x64 release-assets/paideia-linux-amd64
+              mv "$LINUX_X64_BINARY" apps/paideia/release-assets/paideia-linux-amd64
+            elif [ -f apps/paideia/release-assets/paideia-linux-x64 ]; then
+              mv apps/paideia/release-assets/paideia-linux-x64 apps/paideia/release-assets/paideia-linux-amd64
             fi
           fi
           
           # Find and rename Windows binary (only if target doesn't exist)
-          if [ ! -f release-assets/paideia.exe ]; then
-            WINDOWS_BINARY=$(find release-assets -name "paideia.exe" -type f | head -n 1)
+          if [ ! -f apps/paideia/release-assets/paideia.exe ]; then
+            WINDOWS_BINARY=$(find apps/paideia/release-assets -name "paideia.exe" -type f | head -n 1)
             if [ -n "$WINDOWS_BINARY" ]; then
-              mv "$WINDOWS_BINARY" release-assets/paideia.exe
+              mv "$WINDOWS_BINARY" apps/paideia/release-assets/paideia.exe
             fi
           fi
           
           # Handle nested artifact structure (if artifact was downloaded as directory)
-          if [ ! -f release-assets/paideia-linux-arm64 ] && [ -d release-assets/paideia-linux-arm64 ]; then
-            if [ -f release-assets/paideia-linux-arm64/paideia-linux-arm64 ]; then
-              mv release-assets/paideia-linux-arm64/paideia-linux-arm64 release-assets/paideia-linux-arm64.tmp
-              rm -rf release-assets/paideia-linux-arm64
-              mv release-assets/paideia-linux-arm64.tmp release-assets/paideia-linux-arm64
+          if [ ! -f apps/paideia/release-assets/paideia-linux-arm64 ] && [ -d apps/paideia/release-assets/paideia-linux-arm64 ]; then
+            if [ -f apps/paideia/release-assets/paideia-linux-arm64/paideia-linux-arm64 ]; then
+              mv apps/paideia/release-assets/paideia-linux-arm64/paideia-linux-arm64 apps/paideia/release-assets/paideia-linux-arm64.tmp
+              rm -rf apps/paideia/release-assets/paideia-linux-arm64
+              mv apps/paideia/release-assets/paideia-linux-arm64.tmp apps/paideia/release-assets/paideia-linux-arm64
             fi
           fi
           
           # Ensure all binaries exist and are executable
-          if [ -f release-assets/paideia-macos-arm64 ]; then
-            chmod +x release-assets/paideia-macos-arm64
+          if [ -f apps/paideia/release-assets/paideia-macos-arm64 ]; then
+            chmod +x apps/paideia/release-assets/paideia-macos-arm64
           fi
-          if [ -f release-assets/paideia-linux-arm64 ]; then
-            chmod +x release-assets/paideia-linux-arm64
+          if [ -f apps/paideia/release-assets/paideia-linux-arm64 ]; then
+            chmod +x apps/paideia/release-assets/paideia-linux-arm64
           fi
-          if [ -f release-assets/paideia-linux-amd64 ]; then
-            chmod +x release-assets/paideia-linux-amd64
+          if [ -f apps/paideia/release-assets/paideia-linux-amd64 ]; then
+            chmod +x apps/paideia/release-assets/paideia-linux-amd64
           fi
-          if [ -f release-assets/paideia.exe ]; then
-            chmod +x release-assets/paideia.exe
+          if [ -f apps/paideia/release-assets/paideia.exe ]; then
+            chmod +x apps/paideia/release-assets/paideia.exe
           fi
 
       - name: Read version from package.json
         id: version
         run: |
-          VERSION=$(jq -r '.version' package.json)
+          VERSION=$(jq -r '.version' apps/paideia/package.json)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Read version: ${VERSION}"
 
@@ -280,10 +280,10 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.version.outputs.version }}
           files: |
-            release-assets/paideia-macos-arm64
-            release-assets/paideia-linux-arm64
-            release-assets/paideia-linux-amd64
-            release-assets/paideia.exe
+            apps/paideia/release-assets/paideia-macos-arm64
+            apps/paideia/release-assets/paideia-linux-arm64
+            apps/paideia/release-assets/paideia-linux-amd64
+            apps/paideia/release-assets/paideia.exe
           draft: false
           prerelease: false
         env:

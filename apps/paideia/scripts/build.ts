@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import os from "node:os";
 import { resolve } from "node:path";
@@ -107,9 +108,15 @@ const fixtureFiles = await readdir("./fixture", {
 console.log(buildFiles);
 
 // Check for native dependencies before cleaning up build directory
+// In monorepo, packages are hoisted to workspace root; use root node_modules
+const rootNodeModules = resolve(process.cwd(), "../../node_modules");
+const localNodeModules = resolve(process.cwd(), "node_modules");
+const nodeModulesDir =
+	existsSync(resolve(rootNodeModules, "react")) ? rootNodeModules : localNodeModules;
+
 console.log(`🔍 Checking for native dependencies in build/server/index.js...`);
 const checkResult =
-	await $`./scripts/check-native-deps.sh build/server/index.js node_modules`.nothrow();
+	await $`./scripts/check-native-deps.sh build/server/index.js ${nodeModulesDir}`.nothrow();
 
 if (checkResult.exitCode !== 0) {
 	console.error(

@@ -54,7 +54,7 @@ Access:
 
 **Binary installation:** Download from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) and configure environment variables as shown in the docker-compose files.
 
-See `server/env.ts` for environment variable documentation.
+See `apps/paideia/server/env.ts` for environment variable documentation.
 
 ## Development
 
@@ -90,10 +90,10 @@ bun start
 
 ### Releasing
 
-1. Update version in `package.json`
+1. Update version in `apps/paideia/package.json`
 2. Commit and push:
    ```sh
-   git add package.json
+   git add apps/paideia/package.json
    git commit -m "chore: bump version to X.X.X"
    git push origin main
    ```
@@ -125,7 +125,7 @@ bun run build:linux
 
 Build the Docker image:
 ```sh
-docker build -t paideia:latest .
+docker build -t paideia:latest apps/paideia
 ```
 
 Run with environment variables:
