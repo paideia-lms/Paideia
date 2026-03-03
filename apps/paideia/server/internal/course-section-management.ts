@@ -19,7 +19,6 @@ import {
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
-import { groupBy } from "node_modules/es-toolkit/dist/array/groupBy.mjs";
 
 // ============================================================================
 // Basic CRUD Operations
@@ -1851,11 +1850,16 @@ export function tryGetCourseStructure(args: GetCourseStructureArgs) {
 					},
 				]),
 			);
-			const sectionModulesMap = new Map(
-				Object.entries(
-					groupBy(activityModuleLinks.docs, (link) => link.section.id),
-				).map(([sectionId, links]) => [Number(sectionId), links]),
-			);
+			const sectionModulesMap = new Map<number, typeof activityModuleLinks.docs>();
+			for (const link of activityModuleLinks.docs) {
+				const sectionId = link.section.id;
+				const links = sectionModulesMap.get(sectionId);
+				if (links) {
+					links.push(link);
+				} else {
+					sectionModulesMap.set(sectionId, [link]);
+				}
+			}
 			const rootSections: MapValue<typeof sectionMap>[] = [];
 
 			// // Group activity modules by section

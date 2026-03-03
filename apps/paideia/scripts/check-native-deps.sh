@@ -2,11 +2,27 @@
 
 # Script to check for native/binary dependencies in imported packages
 # Usage: ./scripts/check-native-deps.sh [build-file] [node_modules-dir]
+#
+# In a monorepo, node_modules may be at the workspace root. Pass the root
+# node_modules path (e.g. ../../node_modules from apps/paideia) as the second
+# argument, or the script will try ../../node_modules if ./node_modules
+# doesn't contain packages.
 
 set -uo pipefail
 
 BUILD_FILE="${1:-build/server/index.js}"
-NODE_MODULES="${2:-node_modules}"
+NODE_MODULES="${2:-}"
+
+# Resolve node_modules: use passed path, or find it (monorepo: packages at root)
+if [ -n "$NODE_MODULES" ] && [ -d "$NODE_MODULES" ]; then
+  : # Use passed path
+elif [ -d "node_modules" ] && [ -d "node_modules/react" ]; then
+  NODE_MODULES="node_modules"
+elif [ -d "../../node_modules" ] && [ -d "../../node_modules/react" ]; then
+  NODE_MODULES="../../node_modules"
+else
+  NODE_MODULES="${NODE_MODULES:-node_modules}"
+fi
 
 if [ ! -f "$BUILD_FILE" ]; then
   echo "Error: Build file not found: $BUILD_FILE"
