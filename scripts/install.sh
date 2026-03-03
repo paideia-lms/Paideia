@@ -72,12 +72,15 @@ case "$OS" in
       error "Intel Mac is not supported. Only Apple Silicon (arm64) is supported."
     fi
     ASSET_NAME="paideia-macos-arm64"
+    DEST_NAME="paideia"
     ;;
   linux)
     ASSET_NAME="paideia-linux-$ARCH"
+    DEST_NAME="paideia"
     ;;
   mingw* | msys* | cygwin*)
     ASSET_NAME="paideia.exe"
+    DEST_NAME="paideia.exe"
     ;;
   *)
     error "Unsupported OS: $OS"
@@ -85,7 +88,7 @@ case "$OS" in
 esac
 
 info "Fetching latest release..."
-RELEASE_JSON=$(curl -sf "$GH_REPO/releases/latest")
+RELEASE_JSON=$(curl -sf "$GH_REPO/releases/latest") || error "Failed to fetch release info. Check your network connection or GitHub rate limits."
 
 get_asset_id() {
   if command -v jq > /dev/null 2>&1; then
@@ -112,7 +115,7 @@ if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
 fi
 
 TMP_DIR=$(mktemp -d)
-trap "rm -rf $TMP_DIR" EXIT
+trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$TMP_DIR"
 
 info "Downloading $BINARY_NAME ($ASSET_NAME)..."
@@ -138,7 +141,7 @@ else
   fi
 fi
 
-mv "$ASSET_NAME" "$INSTALL_DIR/$BINARY_NAME"
+mv "$ASSET_NAME" "$INSTALL_DIR/$DEST_NAME"
 
 tildify() {
     if [[ $1 = $HOME/* ]]; then
@@ -148,7 +151,7 @@ tildify() {
     fi
 }
 
-success "Installed ${Bold_Green}$(tildify "$INSTALL_DIR/$BINARY_NAME")${Color_Off}"
+success "Installed ${Bold_Green}$(tildify "$INSTALL_DIR/$DEST_NAME")${Color_Off}"
 
 add_to_path() {
   local path_export="export PATH=\"\$PATH:$INSTALL_DIR\""

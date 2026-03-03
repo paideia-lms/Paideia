@@ -13,7 +13,7 @@ Added `scripts/install.sh` for easy installation of the latest Paideia release f
 ### 1. Cross-Platform Binary Installation
 
 **Features**:
-- Supports Linux (amd64, arm64), macOS arm64 (Apple Silicon), and Windows
+- Supports Linux (amd64, arm64), macOS arm64 (Apple Silicon), and Windows (via Git Bash/MSYS2/WSL)
 - Automatically detects OS and CPU architecture
 - No authentication required for public repository
 - Downloads from GitHub Releases API
