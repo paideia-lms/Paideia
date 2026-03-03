@@ -306,8 +306,8 @@ const sanitizedConfig = buildConfig({
 					secretAccessKey: envVars.S3_SECRET_KEY.value,
 				},
 				endpoint: envVars.S3_ENDPOINT_URL.value,
-				region: envVars.S3_REGION.value ?? envVars.S3_REGION.default, // MinIO default region
-				forcePathStyle: true, // Required for MinIO
+				region: envVars.S3_REGION.value ?? envVars.S3_REGION.default, // VaultS3 default region
+				forcePathStyle: true, // Required for S3-compatible storage (VaultS3, MinIO)
 			},
 		}),
 	],

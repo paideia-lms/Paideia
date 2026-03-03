@@ -4,15 +4,6 @@ import { ensureBucket } from "../scripts/ensure-s3-bucket";
 import { envVars } from "./env";
 import { s3Client } from "./utils/s3-client";
 
-function isBucketNotFoundError(error: unknown): boolean {
-	const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-	return (
-		err?.name === "NotFound" ||
-		err?.name === "NoSuchBucket" ||
-		err?.$metadata?.httpStatusCode === 404
-	);
-}
-
 export async function testDbConnection(
 	payload: Awaited<ReturnType<typeof import("payload").getPayload>>,
 ) {
@@ -60,20 +51,18 @@ export async function testConnections(
 	console.log("\n🔍 Testing dependencies connectivity...\n");
 
 	const dbOk = await testDbConnection(payload);
-	let s3Result = await testS3Connection();
 
-	if (!s3Result.ok && isBucketNotFoundError(s3Result.error)) {
-		// Bucket does not exist; create it and retry
-		try {
-			await ensureBucket();
-			s3Result = await testS3Connection();
-		} catch (error) {
-			console.error("❌ Failed to create S3 bucket:");
-			if (error instanceof Error) {
-				console.error(`   ${error.message}`);
-			}
+	// Ensure bucket exists before testing S3 connection
+	try {
+		await ensureBucket();
+	} catch (error) {
+		console.error("❌ Failed to ensure S3 bucket:");
+		if (error instanceof Error) {
+			console.error(`   ${error.message}`);
 		}
 	}
+
+	const s3Result = await testS3Connection();
 
 	if (!dbOk || !s3Result.ok) {
 		console.error("\n❌ One or more dependency connections failed. Exiting.\n");

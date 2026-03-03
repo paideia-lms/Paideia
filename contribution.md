@@ -47,7 +47,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 - **Bun** (latest version recommended)
 - **Docker** and **Docker Compose** (for infrastructure services)
 - **PostgreSQL** (via Docker Compose)
-- **MinIO** (via Docker Compose)
+- **VaultS3** (via Docker Compose) — S3-compatible object storage
 
 ### Starting Development Environment
 
@@ -55,7 +55,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
    ```sh
    docker compose up -d
    ```
-   This starts PostgreSQL, MinIO, and Drizzle Gateway.
+   This starts PostgreSQL, VaultS3, and Drizzle Gateway.
 
 2. **Run the development server**:
    ```sh
@@ -66,7 +66,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 3. **Access the application**:
    - Frontend: http://localhost:3000
    - Backend: http://localhost:3001
-   - MinIO Console: http://localhost:9001
+   - VaultS3 Dashboard: http://localhost:9000/dashboard/
 
 ### Environment Variables
 
@@ -74,9 +74,9 @@ Create a `.env` file in the project root with the following variables:
 
 ```env
 DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
-S3_URL=http://localhost:9000/paideia-bucket
-S3_ACCESS_KEY=paideia_minio
-S3_SECRET_KEY=paideia_minio_secret
+S3_URL=http://localhost:9000
+S3_ACCESS_KEY=paideia_s3
+S3_SECRET_KEY=paideia_s3_secret
 S3_ENDPOINT_URL=http://localhost:9000
 S3_BUCKET=paideia-bucket
 PAYLOAD_SECRET=your-secret-key-here

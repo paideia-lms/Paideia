@@ -1,7 +1,6 @@
 /**
- * this script is used to clean the s3 bucket in the local testing environment.
- * use it when you want to clean the s3 bucket in the local environment
- * it will delete all objects in the bucket
+ * Cleans the S3 bucket in the local testing environment.
+ * Deletes all objects in the bucket. Works with VaultS3 and other S3-compatible storage.
  */
 import {
 	DeleteObjectsCommand,
@@ -13,8 +12,8 @@ const s3Client = new S3Client({
 	endpoint: process.env.S3_ENDPOINT_URL || "http://localhost:9000",
 	region: "us-east-1",
 	credentials: {
-		accessKeyId: process.env.S3_ACCESS_KEY || "paideia_minio",
-		secretAccessKey: process.env.S3_SECRET_KEY || "paideia_minio_secret",
+		accessKeyId: process.env.S3_ACCESS_KEY || "paideia_s3",
+		secretAccessKey: process.env.S3_SECRET_KEY || "paideia_s3_secret",
 	},
 	forcePathStyle: true,
 });

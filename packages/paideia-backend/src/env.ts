@@ -37,13 +37,13 @@ export const envVars = {
 		value: process.env.S3_REGION,
 		default: "us-east-1",
 	},
-	// ! the bucket name is the same as the bucket name in the MinIO configuration
+	// ! the bucket name is the same as the bucket name in the S3-compatible storage (VaultS3) configuration
 	S3_BUCKET: {
 		required: false,
 		sensitive: true,
 		value: process.env.S3_BUCKET!,
 	},
-	// ! the endpoint url is the same as the endpoint url in the MinIO configuration
+	// ! the endpoint url is the same as the endpoint url in the S3-compatible storage (VaultS3) configuration
 	// ! without the bucket name
 	S3_ENDPOINT_URL: {
 		required: true,

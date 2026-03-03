@@ -9,11 +9,11 @@ services:
     environment:
       # Database
       DATABASE_URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
-      # S3/MinIO
-      S3_URL: http://minio:9000
-      S3_ACCESS_KEY: paideia_minio
-      S3_SECRET_KEY: paideia_minio_secret
-      S3_ENDPOINT_URL: http://minio:9000
+      # S3/VaultS3
+      S3_URL: http://vaults3:9000
+      S3_ACCESS_KEY: paideia_s3
+      S3_SECRET_KEY: paideia_s3_secret
+      S3_ENDPOINT_URL: http://vaults3:9000
       S3_BUCKET: paideia-bucket
       S3_REGION: us-east-1
       # Payload
@@ -43,4 +43,4 @@ services:
         ipv4_address: 172.28.0.2
     depends_on:
       - postgres
-      - minio
+      - vaults3

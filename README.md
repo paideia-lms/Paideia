@@ -50,7 +50,7 @@ docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
 Access:
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
-- MinIO Console: http://localhost:9001
+- VaultS3 Dashboard: http://localhost:9000/dashboard/
 
 **Binary installation:** Download from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) and configure environment variables as shown in the docker-compose files.
 
@@ -73,10 +73,10 @@ Or use the dev script:
 bun dev
 ```
 
-This starts PostgreSQL (localhost:5432), MinIO (localhost:9000/9001), Drizzle Gateway (localhost:4983), and the app (localhost:3000).
+This starts PostgreSQL (localhost:5432), VaultS3 (localhost:9000), Drizzle Gateway (localhost:4983), and the app (localhost:3000).
 
 The project uses two docker compose files:
-- `docker-compose.yml` - Infrastructure services (PostgreSQL, MinIO, Drizzle Gateway)
+- `docker-compose.yml` - Infrastructure services (PostgreSQL, VaultS3, Drizzle Gateway)
 - `docker-compose.paideia.yml` - Paideia application
 
 This keeps the app container separate during development so you can run it locally with `bun dev` for hot-reloading.
@@ -152,6 +152,16 @@ Development tools: Biome, Lefthook
 ## Contributing
 
 Contributions welcome! This is a community-driven project built with modern development practices.
+
+## Acknowledgements
+
+Paideia LMS builds on the work of many open-source projects. We are grateful to:
+
+- [Bun](https://bun.sh) — JavaScript runtime and bundler
+- [PostgreSQL](https://www.postgresql.org/) — Database
+- [Payload CMS](https://payloadcms.com/) — Headless CMS
+- [React Router](https://reactrouter.com/) — React framework
+- [VaultS3](https://github.com/eniz1806/VaultS3) — Lightweight S3-compatible object storage used for media and file uploads
 
 ## License
 

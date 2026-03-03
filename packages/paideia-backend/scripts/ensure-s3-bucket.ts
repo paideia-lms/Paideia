@@ -1,6 +1,7 @@
 /**
  * Ensures the S3 bucket exists. Creates it if it does not.
  * Used for CI and local test setup before running tests.
+ * Works with VaultS3 and other S3-compatible storage.
  */
 import { CreateBucketCommand, HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 
@@ -8,8 +9,8 @@ const s3Client = new S3Client({
 	endpoint: process.env.S3_ENDPOINT_URL || "http://localhost:9000",
 	region: process.env.S3_REGION || "us-east-1",
 	credentials: {
-		accessKeyId: process.env.S3_ACCESS_KEY || "paideia_minio",
-		secretAccessKey: process.env.S3_SECRET_KEY || "paideia_minio_secret",
+		accessKeyId: process.env.S3_ACCESS_KEY || "paideia_s3",
+		secretAccessKey: process.env.S3_SECRET_KEY || "paideia_s3_secret",
 	},
 	forcePathStyle: true,
 });

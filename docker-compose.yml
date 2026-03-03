@@ -20,19 +20,18 @@ services:
       paideia_net:
         ipv4_address: 172.28.0.3
 
-  minio:
-    image: minio/minio:latest
-    container_name: paideia_minio
+  vaults3:
+    image: eniz1806/vaults3:latest
+    container_name: paideia_vaults3
     restart: unless-stopped
     ports:
       - "9000:9000"
-      - "9001:9001"
     environment:
-      MINIO_ROOT_USER: paideia_minio
-      MINIO_ROOT_PASSWORD: paideia_minio_secret
+      VAULTS3_ACCESS_KEY: paideia_s3
+      VAULTS3_SECRET_KEY: paideia_s3_secret
     volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
+      - vaults3_data:/data
+      - vaults3_metadata:/metadata
     networks:
       paideia_net:
         ipv4_address: 172.28.0.4
@@ -56,7 +55,8 @@ services:
   #     - postgres
 
 volumes:
-  minio_data:
+  vaults3_data:
+  vaults3_metadata:
   postgres_data:
   # drizzle-gateway:
 

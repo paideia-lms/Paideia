@@ -9,5 +9,5 @@ export const s3Client = new S3Client({
 	},
 	endpoint: envVars.S3_ENDPOINT_URL.value,
 	region: envVars.S3_REGION.value ?? envVars.S3_REGION.default,
-	forcePathStyle: true, // Required for MinIO
+	forcePathStyle: true, // Required for S3-compatible storage (VaultS3, MinIO)
 });
