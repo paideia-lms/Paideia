@@ -120,10 +120,17 @@ cd "$TMP_DIR"
 
 info "Downloading $BINARY_NAME ($ASSET_NAME)..."
 
-curl --fail --location --progress-bar \
-  -H "Accept: application/octet-stream" \
-  "$GH_REPO/releases/assets/$ASSET_ID" \
-  -o "$ASSET_NAME"
+if [[ -t 2 ]]; then
+  curl --fail --location --progress-bar \
+    -H "Accept: application/octet-stream" \
+    "$GH_REPO/releases/assets/$ASSET_ID" \
+    -o "$ASSET_NAME"
+else
+  curl --fail --location --show-error \
+    -H "Accept: application/octet-stream" \
+    "$GH_REPO/releases/assets/$ASSET_ID" \
+    -o "$ASSET_NAME"
+fi
 
 chmod +x "$ASSET_NAME"
 
