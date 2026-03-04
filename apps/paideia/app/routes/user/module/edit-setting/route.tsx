@@ -17,45 +17,6 @@ import { useState } from "react";
 import { globalContextKey } from "server/contexts/global-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import type { ActivityModuleResult } from "@paideia/paideia-backend";
-import {
-	tryUpdateAssignmentModule,
-	tryUpdateDiscussionModule,
-	tryUpdateFileModule,
-	tryUpdatePageModule,
-	tryUpdateQuizModule,
-	tryUpdateWhiteboardModule,
-} from "@paideia/paideia-backend";
-import {
-	tryAddNestedQuiz,
-	tryAddPage,
-	tryAddQuestion,
-	tryAddQuizResource,
-	tryMoveQuestionToPage,
-	tryRemoveNestedQuiz,
-	tryRemovePage,
-	tryRemoveQuestion,
-	tryRemoveQuizResource,
-	tryReorderNestedQuizzes,
-	tryReorderPages,
-	tryToggleQuizType,
-	tryUpdateContainerSettings,
-	tryUpdateGlobalTimer,
-	tryUpdateGradingConfig,
-	tryUpdateNestedQuizInfo,
-	tryUpdateNestedQuizTimer,
-	tryUpdatePageInfo,
-	tryUpdateQuestion,
-	tryUpdateQuestionScoring,
-	tryUpdateQuizResource,
-	tryUpdateMultipleChoiceQuestion,
-	tryUpdateChoiceQuestion,
-	tryUpdateShortAnswerQuestion,
-	tryUpdateLongAnswerQuestion,
-	tryUpdateFillInTheBlankQuestion,
-	tryUpdateRankingQuestion,
-	tryUpdateSingleSelectionMatrixQuestion,
-	tryUpdateMultipleSelectionMatrixQuestion,
-} from "@paideia/paideia-backend";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
@@ -587,15 +548,14 @@ const createUpdateQuestionScoringActionRpc = createActionRpc({
 
 const updatePageAction = createUpdatePageActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const updateResult = await tryUpdatePageModule({
-			payload,
+		const updateResult = await paideia.tryUpdatePageModule({
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
 			content: formData.content,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -617,15 +577,14 @@ const useUpdatePage =
 
 const updateWhiteboardAction = createUpdateWhiteboardActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const updateResult = await tryUpdateWhiteboardModule({
-			payload,
+		const updateResult = await paideia.tryUpdateWhiteboardModule({
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
 			content: formData.whiteboardContent,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -648,18 +607,17 @@ const useUpdateWhiteboard =
 
 const updateFileAction = createUpdateFileActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
 		// For file type, combine existing media IDs with newly uploaded media IDs
 		const existingMediaIds = formData.fileMedia ?? [];
 
-		const updateResult = await tryUpdateFileModule({
-			payload,
+		const updateResult = await paideia.tryUpdateFileModule({
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
 			media: existingMediaIds,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -682,7 +640,7 @@ const useUpdateFile =
 
 const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
 		const allowedFileTypes =
 			formData.assignmentAllowedFileTypes &&
@@ -690,8 +648,7 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 				: undefined;
 
-		const updateResult = await tryUpdateAssignmentModule({
-			payload,
+		const updateResult = await paideia.tryUpdateAssignmentModule({
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
@@ -701,7 +658,7 @@ const updateAssignmentAction = createUpdateAssignmentActionRpc.createAction(
 			allowedFileTypes,
 			maxFileSize: formData.assignmentMaxFileSize,
 			maxFiles: formData.assignmentMaxFiles,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -723,15 +680,14 @@ const useUpdateAssignment =
 
 const updateQuizAction = createUpdateQuizActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const updateResult = await tryUpdateQuizModule({
-			payload,
+		const updateResult = await paideia.tryUpdateQuizModule({
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.quizInstructions,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -753,10 +709,9 @@ const useUpdateQuiz =
 
 const updateDiscussionAction = createUpdateDiscussionActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const updateResult = await tryUpdateDiscussionModule({
-			payload,
+		const updateResult = await paideia.tryUpdateDiscussionModule({
 			id: params.moduleId,
 			title: formData.title,
 			description: formData.description,
@@ -765,7 +720,7 @@ const updateDiscussionAction = createUpdateDiscussionActionRpc.createAction(
 			requireThread: formData.discussionRequireThread,
 			requireReplies: formData.discussionRequireReplies,
 			minReplies: formData.discussionMinReplies,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -787,13 +742,12 @@ const useUpdateDiscussion =
 
 const toggleQuizTypeAction = createToggleQuizTypeActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryToggleQuizType({
-			payload,
+		const result = await paideia.tryToggleQuizType({
 			activityModuleId: params.moduleId,
 			newType: formData.newType,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -815,13 +769,12 @@ const useToggleQuizType =
 
 const updateGlobalTimerAction = createUpdateGlobalTimerActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryUpdateGlobalTimer({
-			payload,
+		const result = await paideia.tryUpdateGlobalTimer({
 			activityModuleId: params.moduleId,
 			seconds: formData.seconds,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -844,14 +797,13 @@ const useUpdateGlobalTimer =
 const updateNestedQuizTimerAction =
 	createUpdateNestedQuizTimerActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateNestedQuizTimer({
-				payload,
+			const result = await paideia.tryUpdateNestedQuizTimer({
 				activityModuleId: params.moduleId,
 				nestedQuizId: formData.nestedQuizId,
 				seconds: formData.seconds,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -876,13 +828,12 @@ const useUpdateNestedQuizTimer =
 const updateGradingConfigAction =
 	createUpdateGradingConfigActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateGradingConfig({
-				payload,
+			const result = await paideia.tryUpdateGradingConfig({
 				activityModuleId: params.moduleId,
 				gradingConfig: formData.gradingConfig,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -906,10 +857,9 @@ const useUpdateGradingConfig =
 
 const addQuizResourceAction = createAddQuizResourceActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryAddQuizResource({
-			payload,
+		const result = await paideia.tryAddQuizResource({
 			activityModuleId: params.moduleId,
 			resource: {
 				id: `resource-${Date.now()}`,
@@ -918,7 +868,7 @@ const addQuizResourceAction = createAddQuizResourceActionRpc.createAction(
 				pages: [],
 			},
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -940,14 +890,13 @@ const useAddQuizResource =
 
 const removeQuizResourceAction = createRemoveQuizResourceActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryRemoveQuizResource({
-			payload,
+		const result = await paideia.tryRemoveQuizResource({
 			activityModuleId: params.moduleId,
 			resourceId: formData.resourceId,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -971,15 +920,14 @@ const useRemoveQuizResource =
 
 const updateQuizResourceAction = createUpdateQuizResourceActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryUpdateQuizResource({
-			payload,
+		const result = await paideia.tryUpdateQuizResource({
 			activityModuleId: params.moduleId,
 			resourceId: formData.resourceId,
 			updates: formData.updates,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1003,16 +951,15 @@ const useUpdateQuizResource =
 
 const addQuestionAction = createAddQuestionActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryAddQuestion({
-			payload,
+		const result = await paideia.tryAddQuestion({
 			activityModuleId: params.moduleId,
 			pageId: formData.pageId,
 			questionType: formData.questionType,
 			position: formData.position,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1034,14 +981,13 @@ const useAddQuestion =
 
 const removeQuestionAction = createRemoveQuestionActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryRemoveQuestion({
-			payload,
+		const result = await paideia.tryRemoveQuestion({
 			activityModuleId: params.moduleId,
 			questionId: formData.questionId,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1063,15 +1009,14 @@ const useRemoveQuestion =
 
 const updateQuestionAction = createUpdateQuestionActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryUpdateQuestion({
-			payload,
+		const result = await paideia.tryUpdateQuestion({
 			activityModuleId: params.moduleId,
 			questionId: formData.questionId,
 			updates: formData.updates,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1093,13 +1038,12 @@ const useUpdateQuestion =
 
 const addPageAction = createAddPageActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryAddPage({
-			payload,
+		const result = await paideia.tryAddPage({
 			activityModuleId: params.moduleId,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1120,14 +1064,13 @@ const useAddPage = createAddPageActionRpc.createHook<typeof addPageAction>();
 
 const removePageAction = createRemovePageActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryRemovePage({
-			payload,
+		const result = await paideia.tryRemovePage({
 			activityModuleId: params.moduleId,
 			pageId: formData.pageId,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1149,12 +1092,11 @@ const useRemovePage =
 
 const addNestedQuizAction = createAddNestedQuizActionRpc.createAction(
 	async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryAddNestedQuiz({
-			payload,
+		const result = await paideia.tryAddNestedQuiz({
 			activityModuleId: params.moduleId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1176,13 +1118,12 @@ const useAddNestedQuiz =
 
 const removeNestedQuizAction = createRemoveNestedQuizActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryRemoveNestedQuiz({
-			payload,
+		const result = await paideia.tryRemoveNestedQuiz({
 			activityModuleId: params.moduleId,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1205,14 +1146,13 @@ const useRemoveNestedQuiz =
 const updateNestedQuizInfoAction =
 	createUpdateNestedQuizInfoActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateNestedQuizInfo({
-				payload,
+			const result = await paideia.tryUpdateNestedQuizInfo({
 				activityModuleId: params.moduleId,
 				nestedQuizId: formData.nestedQuizId,
 				updates: formData.updates,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1237,13 +1177,12 @@ const useUpdateNestedQuizInfo =
 const reorderNestedQuizzesAction =
 	createReorderNestedQuizzesActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryReorderNestedQuizzes({
-				payload,
+			const result = await paideia.tryReorderNestedQuizzes({
 				activityModuleId: params.moduleId,
 				nestedQuizIds: formData.nestedQuizIds,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1268,13 +1207,12 @@ const useReorderNestedQuizzes =
 const updateContainerSettingsAction =
 	createUpdateContainerSettingsActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateContainerSettings({
-				payload,
+			const result = await paideia.tryUpdateContainerSettings({
 				activityModuleId: params.moduleId,
 				settings: formData.settings,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1298,15 +1236,14 @@ const useUpdateContainerSettings =
 
 const updatePageInfoAction = createUpdatePageInfoActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryUpdatePageInfo({
-			payload,
+		const result = await paideia.tryUpdatePageInfo({
 			activityModuleId: params.moduleId,
 			pageId: formData.pageId,
 			updates: formData.updates,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1328,14 +1265,13 @@ const useUpdatePageInfo =
 
 const reorderPagesAction = createReorderPagesActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryReorderPages({
-			payload,
+		const result = await paideia.tryReorderPages({
 			activityModuleId: params.moduleId,
 			pageIds: formData.pageIds,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1357,16 +1293,15 @@ const useReorderPages =
 
 const moveQuestionToPageAction = createMoveQuestionToPageActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const result = await tryMoveQuestionToPage({
-			payload,
+		const result = await paideia.tryMoveQuestionToPage({
 			activityModuleId: params.moduleId,
 			questionId: formData.questionId,
 			targetPageId: formData.targetPageId,
 			position: formData.position,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1391,15 +1326,14 @@ const useMoveQuestionToPage =
 const updateQuestionScoringAction =
 	createUpdateQuestionScoringActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateQuestionScoring({
-				payload,
+			const result = await paideia.tryUpdateQuestionScoring({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				scoring: formData.scoring,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1424,15 +1358,14 @@ const useUpdateQuestionScoring =
 const updateMultipleChoiceQuestionAction =
 	createUpdateMultipleChoiceQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateMultipleChoiceQuestion({
-				payload,
+			const result = await paideia.tryUpdateMultipleChoiceQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1457,15 +1390,14 @@ const useUpdateMultipleChoiceQuestion =
 const updateChoiceQuestionAction =
 	createUpdateChoiceQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateChoiceQuestion({
-				payload,
+			const result = await paideia.tryUpdateChoiceQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1490,15 +1422,14 @@ const useUpdateChoiceQuestion =
 const updateShortAnswerQuestionAction =
 	createUpdateShortAnswerQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateShortAnswerQuestion({
-				payload,
+			const result = await paideia.tryUpdateShortAnswerQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1523,15 +1454,14 @@ const useUpdateShortAnswerQuestion =
 const updateLongAnswerQuestionAction =
 	createUpdateLongAnswerQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateLongAnswerQuestion({
-				payload,
+			const result = await paideia.tryUpdateLongAnswerQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1556,15 +1486,14 @@ const useUpdateLongAnswerQuestion =
 const updateFillInTheBlankQuestionAction =
 	createUpdateFillInTheBlankQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateFillInTheBlankQuestion({
-				payload,
+			const result = await paideia.tryUpdateFillInTheBlankQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1589,15 +1518,14 @@ const useUpdateFillInTheBlankQuestion =
 const updateRankingQuestionAction =
 	createUpdateRankingQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateRankingQuestion({
-				payload,
+			const result = await paideia.tryUpdateRankingQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1622,15 +1550,14 @@ const useUpdateRankingQuestion =
 const updateSingleSelectionMatrixQuestionAction =
 	createUpdateSingleSelectionMatrixQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateSingleSelectionMatrixQuestion({
-				payload,
+			const result = await paideia.tryUpdateSingleSelectionMatrixQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -1655,15 +1582,14 @@ const useUpdateSingleSelectionMatrixQuestion =
 const updateMultipleSelectionMatrixQuestionAction =
 	createUpdateMultipleSelectionMatrixQuestionActionRpc.createAction(
 		async ({ context, params, formData }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 
-			const result = await tryUpdateMultipleSelectionMatrixQuestion({
-				payload,
+			const result = await paideia.tryUpdateMultipleSelectionMatrixQuestion({
 				activityModuleId: params.moduleId,
 				questionId: formData.questionId,
 				options: formData.options,
 				nestedQuizId: formData.nestedQuizId,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {

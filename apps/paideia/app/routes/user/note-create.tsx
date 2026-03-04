@@ -18,7 +18,6 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { href, redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateNote } from "@paideia/paideia-backend";
 import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import {
 	badRequest,
@@ -70,7 +69,7 @@ const createCreateNoteActionRpc = createActionRpc({
 
 const createNoteAction = createCreateNoteActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -88,16 +87,13 @@ const createNoteAction = createCreateNoteActionRpc.createAction(
 			});
 		}
 
-		// Handle transaction ID
-		// Create note with updated content
-		const result = await tryCreateNote({
-			payload,
+		const result = await paideia.tryCreateNote({
 			data: {
 				content: formData.content,
 				isPublic: formData.isPublic,
 				createdBy: currentUser.id,
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

@@ -44,14 +44,12 @@ import { parseAsString } from "nuqs";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetRegistrationSettings } from "@paideia/paideia-backend";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/route";
 import classes from "../clock-neon-theme.module.css";
-import { tryFindNotesByUser } from "@paideia/paideia-backend";
 import { getTextContentFromHtmlServerFirstParagraph } from "app/utils/html-utils";
 import { CurriculumMap } from "./components/cirriculum-map";
 import { CalendarWidget } from "./components/calendar-widget";
@@ -104,7 +102,7 @@ const createRouteLoaderWithParams = createRouteLoader({
 
 export const loader = createRouteLoaderWithParams(
 	async ({ context, searchParams }) => {
-		const { payload, hints, payloadRequest } = context.get(globalContextKey);
+		const { paideia, hints, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const timeZone = hints.timeZone;
 
@@ -166,13 +164,14 @@ export const loader = createRouteLoaderWithParams(
 
 			// Registration button visibility
 			let showRegistrationButton = true;
-			const reg = await tryGetRegistrationSettings({
-				payload,
-				overrideAccess: true,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to get registration settings");
-			});
+			const reg = await paideia
+				.tryGetRegistrationSettings({
+					overrideAccess: true,
+					req: requestContext,
+				})
+				.getOrElse(() => {
+					throw new ForbiddenResponse("Failed to get registration settings");
+				});
 			showRegistrationButton = reg.showRegistrationButton;
 
 			return {
@@ -252,12 +251,12 @@ export const loader = createRouteLoaderWithParams(
 
 		console.log(recentCourses.length);
 
-		const recentNotes = await tryFindNotesByUser({
-			payload,
-			userId: currentUser.id,
-			limit: 3,
-			req: payloadRequest,
-		})
+		const recentNotes = await paideia
+			.tryFindNotesByUser({
+				userId: currentUser.id,
+				limit: 3,
+				req: requestContext,
+			})
 			.getOrElse((_error) => {
 				throw new InternalServerErrorResponse("Failed to get recent notes");
 			})

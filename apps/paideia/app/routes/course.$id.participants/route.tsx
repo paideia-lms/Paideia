@@ -10,12 +10,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateEnrollment,
-	tryDeleteEnrollment,
-	tryFindUserEnrollmentInCourse,
-	tryUpdateEnrollment,
-} from "@paideia/paideia-backend";
 import { EnrollmentsSection } from "./components/enrollments-section";
 import {
 	badRequest,
@@ -104,7 +98,7 @@ const checkAuthorization = async (
 	context: Route.ActionArgs["context"],
 	courseId: number,
 ) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -115,11 +109,10 @@ const checkAuthorization = async (
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's enrollment for this course
-	const enrollmentResult = await tryFindUserEnrollmentInCourse({
-		payload,
+	const enrollmentResult = await paideia.tryFindUserEnrollmentInCourse({
 		userId: currentUser.id,
 		courseId,
-		req: payloadRequest,
+		req: requestContext,
 	});
 	if (!enrollmentResult.ok) {
 		return badRequest({ error: enrollmentResult.error.message });
@@ -144,20 +137,19 @@ const checkAuthorization = async (
 
 const enrollUserAction = enrollRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const courseId = params.courseId;
 
 		const authError = await checkAuthorization(context, courseId);
 		if (authError) return authError;
 
-		const createResult = await tryCreateEnrollment({
-			payload,
+		const createResult = await paideia.tryCreateEnrollment({
 			userId: formData.userId,
 			course: courseId,
 			role: formData.role,
 			status: formData.status,
 			groups: formData.groups,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -172,19 +164,18 @@ const useEnrollUser = enrollRpc.createHook<typeof enrollUserAction>();
 
 const editEnrollmentAction = editEnrollmentRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const courseIdNum = Number(params.courseId);
 
 		const authError = await checkAuthorization(context, courseIdNum);
 		if (authError) return authError;
 
-		const updateResult = await tryUpdateEnrollment({
-			payload,
+		const updateResult = await paideia.tryUpdateEnrollment({
 			enrollmentId: formData.enrollmentId,
 			role: formData.role,
 			status: formData.status,
 			groups: formData.groups,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -200,16 +191,15 @@ const useEditEnrollment =
 
 const deleteEnrollmentAction = deleteEnrollmentRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const courseIdNum = Number(params.courseId);
 
 		const authError = await checkAuthorization(context, courseIdNum);
 		if (authError) return authError;
 
-		const deleteResult = await tryDeleteEnrollment({
-			payload,
+		const deleteResult = await paideia.tryDeleteEnrollment({
 			enrollmentId: formData.enrollmentId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!deleteResult.ok) {

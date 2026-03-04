@@ -25,7 +25,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import type { SingleUserGradesJsonRepresentation } from "@paideia/paideia-backend";
-import { tryGetAdjustedSingleUserGrades } from "@paideia/paideia-backend";
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
@@ -52,7 +51,7 @@ const createRouteLoader = createLoader({
 
 export const loader = createRouteLoader(
 	async ({ context, searchParams, params }) => {
-		const { payload, hints, payloadRequest } = context.get(globalContextKey);
+		const { paideia, hints, requestContext } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
 		const userSession = context.get(userContextKey);
 		const timeZone = hints.timeZone;
@@ -83,12 +82,13 @@ export const loader = createRouteLoader(
 
 		const singleUserGradesResult =
 			userId && enrollment
-				? await tryGetAdjustedSingleUserGrades({
-						payload,
-						req: payloadRequest,
-						courseId: courseContext.course.id,
-						enrollmentId: enrollment.id,
-					}).getOrDefault(defaultSingleUserGradesResult)
+				? await paideia
+						.tryGetAdjustedSingleUserGrades({
+							req: requestContext,
+							courseId: courseContext.course.id,
+							enrollmentId: enrollment.id,
+						})
+						.getOrDefault(defaultSingleUserGradesResult)
 				: defaultSingleUserGradesResult;
 
 		return {
@@ -512,8 +512,10 @@ function SingleUserGradeTableView({
 	};
 
 	// Create a map of item_id -> grade data for quick lookup
-	const gradeItemsMap = new Map(
-		enrollment.items.map((item) => [item.item_id, item]),
+	type EnrollmentItem =
+		SingleUserGradesJsonRepresentation["enrollment"]["items"][number];
+	const gradeItemsMap = new Map<number, EnrollmentItem>(
+		enrollment.items.map((item: EnrollmentItem) => [item.item_id, item]),
 	);
 
 	// Match items to nested structure if gradebook setup is available

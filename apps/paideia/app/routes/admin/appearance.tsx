@@ -18,10 +18,6 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryGetAppearanceSettings,
-	tryUpdateAppearanceSettings,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	ForbiddenResponse,
@@ -39,7 +35,7 @@ type AppearanceGlobal = {
 };
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -51,11 +47,10 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const settings = await tryGetAppearanceSettings({
-		payload,
+	const settings = await paideia.tryGetAppearanceSettings({
 		// ! this is a system request, we don't care about access control
 		overrideAccess: true,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!settings.ok) {
@@ -84,7 +79,7 @@ const updateAppearanceSettingsRpc = createActionRpc({
 
 const updateAppearanceSettingsAction = updateAppearanceSettingsRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -96,14 +91,13 @@ const updateAppearanceSettingsAction = updateAppearanceSettingsRpc.createAction(
 			return forbidden({ error: "Only admins can access this area" });
 		}
 
-		const updateResult = await tryUpdateAppearanceSettings({
-			payload,
+		const updateResult = await paideia.tryUpdateAppearanceSettings({
 			data: {
 				additionalCssStylesheets: formData.additionalCssStylesheets?.map(
 					(sheet) => sheet.url.toString(),
 				),
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {

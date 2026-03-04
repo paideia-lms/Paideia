@@ -25,16 +25,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateCourseActivityModuleLink,
-	tryDeleteCourseActivityModuleLink,
-} from "@paideia/paideia-backend";
-import { tryCreateSection } from "@paideia/paideia-backend";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import { z } from "zod";
 import { getTypeLabel } from "~/utils/course-view-utils";
@@ -47,7 +37,6 @@ import {
 	unauthorized,
 } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.modules";
-import { tryFindUserEnrollmentInCourse } from "@paideia/paideia-backend";
 import { getRouteUrl } from "app/utils/router/search-params-utils";
 import { parseAsBoolean } from "nuqs";
 
@@ -131,7 +120,7 @@ const checkAuthorization = async (
 	context: Route.ActionArgs["context"],
 	courseId: number,
 ) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -142,11 +131,10 @@ const checkAuthorization = async (
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's enrollment for this course
-	const enrollmentResult = await tryFindUserEnrollmentInCourse({
-		payload,
+	const enrollmentResult = await paideia.tryFindUserEnrollmentInCourse({
 		userId: currentUser.id,
 		courseId,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!enrollmentResult.ok) {
@@ -179,21 +167,20 @@ const checkAuthorization = async (
 
 const createAction = createModuleLinkRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const { courseId } = params;
 		const courseIdNum = Number(courseId);
 
 		const authError = await checkAuthorization(context, courseIdNum);
 		if (authError) return authError;
 
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		// Use provided section ID or create a default section
 		let targetSectionId = formData.sectionId;
 
 		if (!targetSectionId) {
-			const sectionResult = await tryCreateSection({
-				payload,
+			const sectionResult = await paideia.tryCreateSection({
 				data: {
 					course: courseIdNum,
 					title: "Default Section",
@@ -204,15 +191,14 @@ const createAction = createModuleLinkRpc.createAction(
 			});
 
 			if (!sectionResult.ok) {
-				await rollbackTransactionIfCreated(payload, transactionInfo);
+				await paideia.rollbackTransactionIfCreated(transactionInfo);
 				return badRequest({ error: "Failed to create section" });
 			}
 
 			targetSectionId = sectionResult.value.id;
 		}
 
-		const createResult = await tryCreateCourseActivityModuleLink({
-			payload,
+		const createResult = await paideia.tryCreateCourseActivityModuleLink({
 			req: transactionInfo.reqWithTransaction,
 			course: courseIdNum,
 			activityModule: formData.activityModuleId,
@@ -221,11 +207,11 @@ const createAction = createModuleLinkRpc.createAction(
 		});
 
 		if (!createResult.ok) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
+			await paideia.rollbackTransactionIfCreated(transactionInfo);
 			return badRequest({ error: createResult.error.message });
 		}
 
-		await commitTransactionIfCreated(payload, transactionInfo);
+		await paideia.commitTransactionIfCreated(transactionInfo);
 		return ok({
 			success: true,
 			message: "Activity module linked successfully",
@@ -238,16 +224,15 @@ const useCreateModuleLink =
 
 const deleteAction = deleteModuleLinkRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const { courseId } = params;
 		const courseIdNum = Number(courseId);
 
 		const authError = await checkAuthorization(context, courseIdNum);
 		if (authError) return authError;
 
-		const deleteResult = await tryDeleteCourseActivityModuleLink({
-			payload,
-			req: payloadRequest,
+		const deleteResult = await paideia.tryDeleteCourseActivityModuleLink({
+			req: requestContext,
 			linkId: formData.linkId,
 		});
 

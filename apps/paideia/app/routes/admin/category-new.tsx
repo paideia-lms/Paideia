@@ -15,10 +15,6 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateCategory,
-	tryFindAllCategories,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -44,7 +40,7 @@ const createCategoryRpc = createActionRpc({
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.authenticatedUser) {
@@ -55,9 +51,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Only admins can create categories");
 	}
 
-	const categoriesResult = await tryFindAllCategories({
-		payload,
-		req: payloadRequest,
+	const categoriesResult = await paideia.tryFindAllCategories({
+		req: requestContext,
 		sort: "name",
 	});
 
@@ -75,15 +70,14 @@ export const loader = createRouteLoader()(async ({ context }) => {
 
 const createCategoryAction = createCategoryRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ success: false, error: "Unauthorized" });
 		}
 
-		const createResult = await tryCreateCategory({
-			payload,
-			req: payloadRequest,
+		const createResult = await paideia.tryCreateCategory({
+			req: requestContext,
 			name: formData.name,
 			parent: formData.parent ?? undefined,
 		});

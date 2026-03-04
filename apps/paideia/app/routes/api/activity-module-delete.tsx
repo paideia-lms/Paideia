@@ -3,7 +3,6 @@ import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryDeleteActivityModule } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -25,7 +24,7 @@ const deleteActivityModuleRpc = createActionRpc({
 
 const deleteActivityModuleAction = deleteActivityModuleRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -35,11 +34,9 @@ const deleteActivityModuleAction = deleteActivityModuleRpc.createAction(
 		const currentUser =
 			userSession.effectiveUser || userSession.authenticatedUser;
 
-		// ! this function will not throw because it will return a result object
-		const result = await tryDeleteActivityModule({
-			payload,
+		const result = await paideia.tryDeleteActivityModule({
 			id: formData.moduleId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

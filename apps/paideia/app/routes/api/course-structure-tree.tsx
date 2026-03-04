@@ -2,11 +2,9 @@
 // Now it needs to be updated to work with the course-sections collection
 
 import { notifications } from "@mantine/notifications";
-import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGeneralMove } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -34,7 +32,7 @@ const updateCourseStructureRpc = createActionRpc({
 
 const updateCourseStructureAction = updateCourseStructureRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -47,13 +45,11 @@ const updateCourseStructureAction = updateCourseStructureRpc.createAction(
 			`Moving ${sourceType} ${sourceId} to ${location} ${targetType} ${targetId}`,
 		);
 
-		// Call tryGeneralMove with the parsed parameters
-		const result = await tryGeneralMove({
-			payload,
+		const result = await paideia.tryGeneralMove({
 			source: { id: sourceId, type: sourceType },
 			target: { id: targetId, type: targetType },
 			location,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		// ! we return error response in action because this route has a default page component

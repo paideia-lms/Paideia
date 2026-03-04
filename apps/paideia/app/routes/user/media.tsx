@@ -60,16 +60,6 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateMedia,
-	tryDeleteMedia,
-	tryFindMediaByUser,
-	tryGetMediaById,
-	tryGetMediaByIds,
-	tryGetUserMediaStats,
-	tryRenameMedia,
-} from "@paideia/paideia-backend";
-import { handleTransactionId } from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
@@ -104,7 +94,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, params, searchParams }) => {
-	const { payload, systemGlobals, payloadRequest } =
+	const { paideia, systemGlobals, requestContext } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -136,13 +126,12 @@ export const loader = createRouteLoader({
 	const uploadLimit = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Fetch media for the user
-	const mediaResult = await tryFindMediaByUser({
-		payload,
+	const mediaResult = await paideia.tryFindMediaByUser({
 		userId,
 		limit: 20,
 		page: searchParams.page,
 		depth: 0,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!mediaResult.ok) {
@@ -162,11 +151,12 @@ export const loader = createRouteLoader({
 	});
 
 	// Get media stats
-	const stats = await tryGetUserMediaStats({
-		payload,
-		userId,
-		req: payloadRequest,
-	}).getOrNull();
+	const stats = await paideia
+		.tryGetUserMediaStats({
+			userId,
+			req: requestContext,
+		})
+		.getOrNull();
 
 	return {
 		user: userProfileContext.profileUser,
@@ -237,7 +227,7 @@ const createDeleteActionRpc = createActionRpc({
 
 const uploadAction = createUploadActionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, systemGlobals, payloadRequest } =
+		const { paideia, systemGlobals, requestContext } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -280,15 +270,14 @@ const uploadAction = createUploadActionRpc.createAction(
 		const fileBuffer = Buffer.from(arrayBuffer);
 
 		// Create media using tryCreateMedia
-		const createResult = await tryCreateMedia({
-			payload,
+		const createResult = await paideia.tryCreateMedia({
 			file: fileBuffer,
 			filename: file.name,
 			mimeType: file.type || "application/octet-stream",
 			alt: formData.alt,
 			caption: formData.caption,
 			userId,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -308,7 +297,7 @@ const useUpload = createUploadActionRpc.createHook<typeof uploadAction>();
 
 const updateAction = createUpdateActionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -334,11 +323,10 @@ const updateAction = createUpdateActionRpc.createAction(
 			return badRequest({ error: "Invalid media ID" });
 		}
 
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 		return await transactionInfo.tx(async (txInfo) => {
 			// Fetch media record to check permissions
-			const mediaRecordResult = await tryGetMediaById({
-				payload,
+			const mediaRecordResult = await paideia.tryGetMediaById({
 				id: mediaId,
 				req: txInfo.reqWithTransaction,
 			});
@@ -366,8 +354,7 @@ const updateAction = createUpdateActionRpc.createAction(
 
 			// If newFilename is provided, rename the file
 			if (formData.newFilename) {
-				const renameResult = await tryRenameMedia({
-					payload,
+				const renameResult = await paideia.tryRenameMedia({
 					s3Client,
 					id: mediaId,
 					newFilename: formData.newFilename,
@@ -390,7 +377,7 @@ const updateAction = createUpdateActionRpc.createAction(
 					updateData.caption = formData.caption;
 				}
 
-				await payload.update({
+				await paideia.update({
 					collection: "media",
 					id: mediaId,
 					data: updateData,
@@ -409,7 +396,7 @@ const useUpdate = createUpdateActionRpc.createHook<typeof updateAction>();
 
 const deleteAction = createDeleteActionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -435,10 +422,9 @@ const deleteAction = createDeleteActionRpc.createAction(
 		}
 
 		// Fetch media records to check permissions
-		const mediaRecordsResult = await tryGetMediaByIds({
-			payload,
+		const mediaRecordsResult = await paideia.tryGetMediaByIds({
 			ids: formData.mediaIds,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!mediaRecordsResult.ok) {
@@ -475,11 +461,10 @@ const deleteAction = createDeleteActionRpc.createAction(
 			});
 		}
 
-		const result = await tryDeleteMedia({
-			payload,
+		const result = await paideia.tryDeleteMedia({
 			s3Client,
 			id: formData.mediaIds,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

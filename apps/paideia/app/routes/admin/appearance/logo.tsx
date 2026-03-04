@@ -24,10 +24,6 @@ import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	tryClearLogo,
-	tryUpdateAppearanceSettings,
-} from "@paideia/paideia-backend";
-import {
 	badRequest,
 	ForbiddenResponse,
 	forbidden,
@@ -151,7 +147,7 @@ const clearAction = clearRpc.createAction(async ({ context, searchParams }) => {
 		return badRequest({ error: "Field is required" });
 	}
 
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -165,9 +161,8 @@ const clearAction = clearRpc.createAction(async ({ context, searchParams }) => {
 		return forbidden({ error: "Only admins can access this area" });
 	}
 
-	const clearResult = await tryClearLogo({
-		payload,
-		req: payloadRequest,
+	const clearResult = await paideia.tryClearLogo({
+		req: requestContext,
 		field,
 	});
 
@@ -185,7 +180,7 @@ const useClearLogoRpc = clearRpc.createHook<typeof clearAction>();
 
 const uploadAction = uploadRpc.createAction(
 	async ({ context, formData, searchParams: _searchParams }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -199,10 +194,9 @@ const uploadAction = uploadRpc.createAction(
 			return forbidden({ error: "Only admins can access this area" });
 		}
 
-		const updateResult = await tryUpdateAppearanceSettings({
-			payload,
+		const updateResult = await paideia.tryUpdateAppearanceSettings({
 			data: formData,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 

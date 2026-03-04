@@ -1,7 +1,6 @@
 import { notifications } from "@mantine/notifications";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateCourse } from "@paideia/paideia-backend";
 import z from "zod";
 import {
 	badRequest,
@@ -34,7 +33,7 @@ const batchUpdateCoursesRpc = createActionRpc({
 
 const batchUpdateCoursesAction = batchUpdateCoursesRpc.createAction(
 	async ({ request, context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -58,14 +57,13 @@ const batchUpdateCoursesAction = batchUpdateCoursesRpc.createAction(
 
 		// Perform per-course updates; keep simple and robust
 		for (const courseId of courseIds) {
-			const updateResult = await tryUpdateCourse({
-				payload,
+			const updateResult = await paideia.tryUpdateCourse({
 				courseId,
 				data: {
 					...(status ? { status } : {}),
 					...(category !== undefined ? { category: category ?? null } : {}),
 				},
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!updateResult.ok) {

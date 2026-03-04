@@ -24,12 +24,10 @@ import {
 	typeCreateActionRpc,
 } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import type { Users } from "@paideia/paideia-backend";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateUser } from "@paideia/paideia-backend";
-import type { User } from "@paideia/paideia-backend";
-import { enum_users_role } from "@paideia/paideia-backend/payload-generated-schema";
+import { USER_ROLES } from "@paideia/paideia-backend";
+import type { User } from "server/types/frontend-types";
 import { z } from "zod";
 import {
 	badRequest,
@@ -89,7 +87,7 @@ const createUserRpc = createActionRpc({
 		firstName: z.string().min(1),
 		lastName: z.string().min(1),
 		bio: z.string().optional(),
-		role: z.enum(enum_users_role.enumValues),
+		role: z.enum(USER_ROLES),
 		avatar: z.file().nullish(),
 	}),
 	method: "POST",
@@ -98,7 +96,7 @@ const createUserRpc = createActionRpc({
 
 const createAction = createUserRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -126,8 +124,7 @@ const createAction = createUserRpc.createAction(
 		}
 
 		// Create user
-		const createResult = await tryCreateUser({
-			payload,
+		const createResult = await paideia.tryCreateUser({
 			data: {
 				email: formData.email,
 				password: formData.password,
@@ -138,7 +135,7 @@ const createAction = createUserRpc.createAction(
 				avatar: formData.avatar ?? undefined,
 			},
 			overrideAccess: false,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -393,7 +390,10 @@ export default function NewUserPage() {
 									{ value: "analytics-viewer", label: "Analytics Viewer" },
 									{ value: "instructor", label: "Instructor" },
 									{ value: "student", label: "Student" },
-								] satisfies (typeof Users)["fields"][3]["options"]
+								] satisfies {
+									value: (typeof USER_ROLES)[number];
+									label: string;
+								}[]
 							}
 						/>
 

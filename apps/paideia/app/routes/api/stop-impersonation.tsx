@@ -4,7 +4,7 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { removeImpersonationCookie } from "~/utils/cookie";
+import { removeImpersonationCookie } from "@paideia/paideia-backend";
 import {
 	badRequest,
 	StatusCode,
@@ -24,7 +24,7 @@ const stopImpersonationRpc = createActionRpc({
 
 const stopImpersonationAction = stopImpersonationRpc.createAction(
 	async ({ context, request }) => {
-		const { payload, requestInfo, pageInfo } = context.get(globalContextKey);
+		const { paideia, requestInfo, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -74,14 +74,13 @@ const stopImpersonationAction = stopImpersonationRpc.createAction(
 						: href("/")
 			: href("/");
 
-		// Remove impersonation cookie and redirect
 		return redirect(redirectTo, {
 			headers: {
-				"Set-Cookie": removeImpersonationCookie(
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
+				"Set-Cookie": removeImpersonationCookie({
+					cookiePrefix: paideia.getCookiePrefix(),
+					domainUrl: requestInfo.domainUrl,
+					headers: request.headers,
+				}),
 			},
 		});
 	},

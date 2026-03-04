@@ -4,17 +4,12 @@ import {
 	createOpenApiGenerator,
 	createScalarDocsHtml,
 	displayHelp,
-	executeAuthStrategies,
 	envVars,
-	getMigrationStatus,
-	migrations,
 	orpcRouter,
 	s3Client,
-	tryResetSandbox,
-	tryRunSeed,
-	S3BucketNotFoundError,
-	type Migration as MigrationType,
-} from "@paideia/paideia-backend/server";
+	// tryRunSeed,
+	// S3BucketNotFoundError,
+} from "@paideia/paideia-backend";
 
 import { Elysia } from "elysia";
 import { RouterContextProvider } from "react-router";
@@ -40,7 +35,7 @@ import { detectPlatform } from "./utils/hosting-platform-detection";
 import vfs from "./vfs";
 
 const paideia = new Paideia();
-const payload = await paideia.init();
+await paideia.init();
 
 // Server startup function
 async function startServer() {
@@ -51,10 +46,7 @@ async function startServer() {
 	displayHelp();
 
 	// Check for pending migrations before any DB-dependent operations
-	const migrationStatuses = await getMigrationStatus({
-		payload,
-		migrations: migrations as MigrationType[],
-	});
+	const migrationStatuses = await paideia.getMigrationStatus();
 	const pendingCount = (migrationStatuses ?? []).filter(
 		(s) => s.Ran === "No",
 	).length;
@@ -81,9 +73,7 @@ async function startServer() {
 				`Non-interactive mode: applying ${pendingCount} pending migration(s)...`,
 			);
 		}
-		await payload.db.migrate({
-			migrations: migrations as MigrationType[],
-		});
+		await paideia.migrate();
 	}
 
 	const unstorage = createStorage({
@@ -97,47 +87,42 @@ async function startServer() {
 	console.log("Mode: ", process.env.NODE_ENV);
 
 	// TODO: we are not running seed in the program anymore , seed should be done outside the program
-	if (process.env.NODE_ENV === "development") {
-		// ! a system request, so we don't need to provide a request
-		const seedResult = await tryRunSeed({
-			payload,
-			req: undefined,
-			overrideAccess: true,
-			vfs: vfs as Record<string, string>,
-		});
-		if (!seedResult.ok) {
-			const err = seedResult.error;
-			if (err instanceof S3BucketNotFoundError) {
-				console.error("\n❌ S3 bucket not found. Cannot proceed with seed.\n");
-				console.error(err.message);
-				console.error("\nCreate the bucket and try again.\n");
-				process.exit(1);
-			}
-			console.error(`❌ Seed failed: ${err.message}`);
-			process.exit(1);
-		}
-	}
+	// if (process.env.NODE_ENV === "development") {
+	// 	// ! a system request, so we don't need to provide a request
+	// 	const seedResult = await tryRunSeed({
+	// 		payload: paideia.getPayload(),
+	// 		req: undefined,
+	// 		overrideAccess: true,
+	// 		vfs: vfs as Record<string, string>,
+	// 	});
+	// 	if (!seedResult.ok) {
+	// 		const err = seedResult.error;
+	// 		if (err instanceof S3BucketNotFoundError) {
+	// 			console.error("\n❌ S3 bucket not found. Cannot proceed with seed.\n");
+	// 			console.error(err.message);
+	// 			console.error("\nCreate the bucket and try again.\n");
+	// 			process.exit(1);
+	// 		}
+	// 		console.error(`❌ Seed failed: ${err.message}`);
+	// 		process.exit(1);
+	// 	}
+	// }
 	// Check if sandbox mode is enabled and reset database
-	else if (envVars.SANDBOX_MODE.enabled) {
-		console.log("🔄 Sandbox mode enabled, resetting database on startup...");
-		const resetResult = await tryResetSandbox({
-			payload,
-			req: undefined,
-			overrideAccess: true,
-			vfs: vfs as Record<string, string>,
-		});
-		if (!resetResult.ok) {
-			// crash the server
-			console.error(
-				`❌ Failed to reset sandbox database: ${resetResult.error.message}. There can be bugs with this version. Please turn off sandbox mode and try the normal mode.`,
-			);
-			process.exit(1);
-		}
-	} else {
-		await payload.db.migrate({
-			migrations: migrations as MigrationType[],
-		});
-	}
+	// else if (envVars.SANDBOX_MODE.enabled) {
+	// 	console.log("🔄 Sandbox mode enabled, resetting database on startup...");
+	// 	const resetResult = await paideia.tryResetSandbox({
+	// 		vfs: vfs as Record<string, string>,
+	// 	});
+	// 	if (!resetResult.ok) {
+	// 		// crash the server
+	// 		console.error(
+	// 			`❌ Failed to reset sandbox database: ${resetResult.error.message}. There can be bugs with this version. Please turn off sandbox mode and try the normal mode.`,
+	// 		);
+	// 		process.exit(1);
+	// 	}
+	// } else {
+	await paideia.migrate();
+	// }
 
 	const port = Number(envVars.PORT.value) || envVars.PORT.default;
 	const frontendPort =
@@ -177,15 +162,14 @@ async function startServer() {
 				headers: { "Content-Type": "text/html" },
 			});
 		}
-		const { user } = await executeAuthStrategies({
+		const { user } = await paideia.executeAuthStrategies({
 			headers: request.headers,
 			canSetHeaders: false,
-			payload,
 		});
 		const { matched, response } = await orpcHandler.handle(request, {
 			prefix: "/openapi",
 			context: {
-				payload,
+				payload: paideia.getPayload(),
 				s3Client,
 				user: user ?? null,
 				req: user ? { user } : undefined,
@@ -215,9 +199,14 @@ async function startServer() {
 						const requestInfo = getRequestInfo(request);
 						const hints = getHints(request);
 
+						const requestContext = paideia.createRequestContext({
+							request,
+							user: null,
+							context: { routerContext: c },
+						});
 						c.set(globalContextKey, {
 							environment: process.env.NODE_ENV,
-							payload: payload,
+							paideia,
 							requestInfo,
 							s3Client,
 							unstorage,
@@ -250,8 +239,8 @@ async function startServer() {
 									additionalJsScripts: [],
 								},
 							},
-							// ! for now the payload request does not exist because it only exists after the user middleware is passed. we use a temp value here
-							payloadRequest: {},
+							// ! for now the request context has no user; user middleware will update it
+							requestContext,
 							pageInfo: {
 								is: {} as any,
 								params: parseParams(params),

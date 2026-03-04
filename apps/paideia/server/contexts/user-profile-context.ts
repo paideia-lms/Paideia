@@ -12,10 +12,6 @@ import { createContext, href } from "react-router";
 import type { GlobalContext } from "server/contexts/global-context";
 import type { UserSession } from "server/contexts/user-context";
 import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
-import { tryGetUserActivityModules } from "@paideia/paideia-backend";
-import { tryFindEnrollmentsByUser } from "@paideia/paideia-backend";
-import { tryGenerateNoteHeatmap } from "@paideia/paideia-backend";
-import { tryFindUserById } from "@paideia/paideia-backend";
 import type {
 	ActivityModule as PayloadActivityModule,
 	Enrollment as PayloadEnrollment,
@@ -216,7 +212,7 @@ export const getUserProfileContext = async (
 	args: GetUserProfileContextArgs,
 ) => {
 	const { profileUserId, userSession, globalContext, overrideAccess } = args;
-	const { payload, payloadRequest: req, envVars } = globalContext;
+	const { paideia, requestContext: req, envVars } = globalContext;
 
 	// Extract values from contexts
 	const currentUser =
@@ -224,9 +220,7 @@ export const getUserProfileContext = async (
 	const authenticatedUser = userSession.authenticatedUser;
 	const isImpersonating = userSession.isImpersonating ?? false;
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
-	// Fetch the profile user data
-	const userResult = await tryFindUserById({
-		payload,
+	const userResult = await paideia.tryFindUserById({
 		userId: profileUserId,
 		req,
 		overrideAccess,
@@ -253,8 +247,7 @@ export const getUserProfileContext = async (
 		avatarUrl,
 	};
 
-	const result = await tryGetUserActivityModules({
-		payload,
+	const result = await paideia.tryGetUserActivityModules({
 		userId: profileUserId,
 		req,
 		overrideAccess,
@@ -264,12 +257,13 @@ export const getUserProfileContext = async (
 
 	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
 
-	const enrollments = await tryFindEnrollmentsByUser({
-		payload,
-		userId: profileUserId,
-		req,
-		overrideAccess,
-	}).getOrThrow();
+	const enrollments = await paideia
+		.tryFindEnrollmentsByUser({
+			userId: profileUserId,
+			req,
+			overrideAccess,
+		})
+		.getOrThrow();
 
 	const enrollmentsData = enrollments.map(
 		(enrollment) =>
@@ -316,13 +310,13 @@ export const getUserProfileContext = async (
 		})),
 	] satisfies ActivityModule[];
 
-	// Fetch notes and heatmap data
-	const heatmapResult = await tryGenerateNoteHeatmap({
-		payload,
-		userId: profileUserId,
-		req,
-		overrideAccess,
-	}).getOrThrow();
+	const heatmapResult = await paideia
+		.tryGenerateNoteHeatmap({
+			userId: profileUserId,
+			req,
+			overrideAccess,
+		})
+		.getOrThrow();
 
 	const { notes, heatmapData, availableYears } = heatmapResult;
 

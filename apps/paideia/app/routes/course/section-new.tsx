@@ -20,10 +20,6 @@ import { z } from "zod";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateSection,
-	tryFindSectionsByCourse,
-} from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import {
 	badRequest,
@@ -54,7 +50,7 @@ const createSectionRpc = createActionRpc({
 
 const createSectionAction = createSectionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { courseId } = params;
 
@@ -72,15 +68,14 @@ const createSectionAction = createSectionRpc.createAction(
 		}
 
 		// Create the section
-		const result = await tryCreateSection({
-			payload,
+		const result = await paideia.tryCreateSection({
 			data: {
 				course: Number(courseId),
 				title: formData.title.trim(),
 				description: formData.description.trim(),
 				parentSection: parentSectionId,
 			},
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -138,11 +133,10 @@ export const loader = createRouteLoader({
 	}
 
 	// Fetch all sections for parent dropdown
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const sectionsResult = await tryFindSectionsByCourse({
-		payload,
+	const { paideia, requestContext } = context.get(globalContextKey);
+	const sectionsResult = await paideia.tryFindSectionsByCourse({
 		courseId: courseId,
-		req: payloadRequest,
+		req: requestContext,
 		overrideAccess: false,
 	});
 

@@ -8,22 +8,6 @@ import {
 } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { serverOnly$ } from "vite-env-only/macros";
-import {
-	tryCreateGradebookCategory,
-	tryDeleteGradebookCategory,
-	tryFindGradebookCategoryById,
-	tryGetNextSortOrder,
-	tryUpdateGradebookCategory,
-} from "@paideia/paideia-backend";
-import {
-	tryCreateGradebookItem,
-	tryDeleteGradebookItem,
-	tryFindGradebookItemById,
-	tryGetNextItemSortOrder,
-	tryUpdateGradebookItem,
-} from "@paideia/paideia-backend";
-import { tryGetGradebookByCourseWithDetails } from "@paideia/paideia-backend";
-import { tryGetUserGradesJsonRepresentation } from "@paideia/paideia-backend";
 import { z } from "zod";
 import { GraderReportView } from "app/routes/course.$id.grades/report-view";
 import { GradebookSetupView } from "app/routes/course.$id.grades/setup-view";
@@ -145,7 +129,7 @@ export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams, params }) => {
 	const courseContext = context.get(courseContextKey);
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 
 	// Get course view data using the course context
 	if (!courseContext) {
@@ -156,11 +140,12 @@ export const loader = createRouteLoader({
 
 	// Fetch user grades for the course
 
-	const userGrades = await tryGetUserGradesJsonRepresentation({
-		payload,
-		req: payloadRequest,
-		courseId: courseContext.course.id,
-	}).getOrNull();
+	const userGrades = await paideia
+		.tryGetUserGradesJsonRepresentation({
+			req: requestContext,
+			courseId: courseContext.course.id,
+		})
+		.getOrNull();
 
 	return {
 		course: courseContext.course,
@@ -190,35 +175,32 @@ export const loader = createRouteLoader({
 
 const createItemAction = createItemRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!courseContext)
 			throw new ForbiddenResponse("Course not found or access denied");
 
 		// Get gradebook
-		const gradebookResult = await tryGetGradebookByCourseWithDetails({
-			payload,
+		const gradebookResult = await paideia.tryGetGradebookByCourseWithDetails({
 			courseId: courseContext.course.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 		if (!gradebookResult.ok)
 			return badRequest({ error: "Gradebook not found for this course" });
 		const gradebook = gradebookResult.value;
 
 		// Get next sort order
-		const sortOrderResult = await tryGetNextItemSortOrder({
-			payload,
+		const sortOrderResult = await paideia.tryGetNextItemSortOrder({
 			gradebookId: gradebook.id,
 			categoryId: formData.categoryId ?? null,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
 		}
 
-		const createResult = await tryCreateGradebookItem({
-			payload,
+		const createResult = await paideia.tryCreateGradebookItem({
 			courseId: courseContext.course.id,
 			categoryId: formData.categoryId ?? null,
 			name: formData.name,
@@ -228,7 +210,7 @@ const createItemAction = createItemRpc.createAction(
 			weight: formData.weight,
 			extraCredit: formData.extraCredit ?? false,
 			sortOrder: sortOrderResult.value,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -246,41 +228,38 @@ const useCreateItem = createItemRpc.createHook<typeof createItemAction>();
 
 const createCategoryAction = createCategoryRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!courseContext)
 			throw new ForbiddenResponse("Course not found or access denied");
 
 		// Get gradebook
-		const gradebookResult = await tryGetGradebookByCourseWithDetails({
-			payload,
+		const gradebookResult = await paideia.tryGetGradebookByCourseWithDetails({
 			courseId: courseContext.course.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 		if (!gradebookResult.ok)
 			return badRequest({ error: "Gradebook not found for this course" });
 		const gradebook = gradebookResult.value;
 
 		// Get next sort order
-		const sortOrderResult = await tryGetNextSortOrder({
-			payload,
+		const sortOrderResult = await paideia.tryGetNextSortOrder({
 			gradebookId: gradebook.id,
 			parentId: formData.parentId ?? null,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
 		}
 
-		const createResult = await tryCreateGradebookCategory({
-			payload,
+		const createResult = await paideia.tryCreateGradebookCategory({
 			gradebookId: gradebook.id,
 			parentId: formData.parentId ?? null,
 			name: formData.name,
 			description: formData.description,
 			sortOrder: sortOrderResult.value,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -298,10 +277,9 @@ const useCreateCategory =
 
 const updateItemAction = updateItemRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const updateResult = await tryUpdateGradebookItem({
-			payload,
+		const updateResult = await paideia.tryUpdateGradebookItem({
 			itemId: formData.itemId,
 			name: formData.name,
 			description: formData.description,
@@ -310,7 +288,7 @@ const updateItemAction = updateItemRpc.createAction(
 			minGrade: formData.minGrade,
 			weight: formData.weight,
 			extraCredit: formData.extraCredit,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -328,16 +306,15 @@ const useUpdateItem = updateItemRpc.createHook<typeof updateItemAction>();
 
 const updateCategoryAction = updateCategoryRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const updateResult = await tryUpdateGradebookCategory({
-			payload,
+		const updateResult = await paideia.tryUpdateGradebookCategory({
 			categoryId: formData.categoryId,
 			name: formData.name,
 			description: formData.description,
 			weight: formData.weight,
 			extraCredit: formData.extraCredit,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {
@@ -356,12 +333,11 @@ const useUpdateCategory =
 
 const getItemAction = getItemRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const itemResult = await tryFindGradebookItemById({
-			payload,
+		const itemResult = await paideia.tryFindGradebookItemById({
 			itemId: formData.itemId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!itemResult.ok) {
@@ -393,12 +369,11 @@ const useGetItem = getItemRpc.createHook<typeof getItemAction>();
 
 const getCategoryAction = getCategoryRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const categoryResult = await tryFindGradebookCategoryById({
-			payload,
+		const categoryResult = await paideia.tryFindGradebookCategoryById({
 			categoryId: formData.categoryId,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -428,12 +403,11 @@ const useGetCategory = getCategoryRpc.createHook<typeof getCategoryAction>();
 
 const deleteItemAction = deleteItemRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const deleteResult = await tryDeleteGradebookItem({
-			payload,
+		const deleteResult = await paideia.tryDeleteGradebookItem({
 			itemId: formData.itemId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!deleteResult.ok) {
@@ -451,12 +425,11 @@ const useDeleteItem = deleteItemRpc.createHook<typeof deleteItemAction>();
 
 const deleteCategoryAction = deleteCategoryRpc.createAction(
 	serverOnly$(async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const deleteResult = await tryDeleteGradebookCategory({
-			payload,
+		const deleteResult = await paideia.tryDeleteGradebookCategory({
 			categoryId: formData.categoryId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!deleteResult.ok) {

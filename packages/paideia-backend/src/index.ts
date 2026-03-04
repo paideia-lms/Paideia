@@ -1,3 +1,11 @@
+export {
+	Paideia,
+	type Payload,
+	type Migration,
+	type SanitizedConfig,
+	type RequestContext,
+	type CreateRequestContextArgs,
+} from "./paideia";
 export * from "./errors";
 export { envVars } from "./env";
 export { s3Client } from "./utils/s3-client";
@@ -8,38 +16,25 @@ export {
 	getRequestInfo,
 	type RequestInfo,
 } from "./utils/get-request-info";
+export {
+	setAuthCookie,
+	removeAuthCookie,
+	setImpersonationCookie,
+	removeImpersonationCookie,
+	type CookieOptions,
+} from "./utils/cookie";
 
-export * from "./internal/activity-module-access";
-export * from "./internal/activity-module-management";
-export * from "./internal/analytics-settings";
-export * from "./internal/appearance-settings";
-export * from "./internal/assignment-submission-management";
-export * from "./internal/category-role-management";
-export * from "./internal/course-activity-module-link-management";
-export * from "./internal/course-category-management";
-export * from "./internal/course-management";
-export * from "./internal/course-section-management";
-export * from "./internal/discussion-management";
-export * from "./internal/email";
-export * from "./internal/enrollment-management";
-export * from "./internal/gradebook-category-management";
-export * from "./internal/gradebook-item-management";
-export * from "./internal/gradebook-management";
-export * from "./internal/maintenance-settings";
-export * from "./internal/media-management";
-export * from "./internal/note-management";
-export * from "./internal/quiz-module-management";
-export * from "./internal/quiz-submission-management";
-export * from "./internal/registration-settings";
-export * from "./internal/scheduled-tasks-management";
-export * from "./internal/cron-jobs-management";
-export * from "./internal/search-management";
-export * from "./internal/site-policies";
-export * from "./internal/system-globals";
-export * from "./internal/user-grade-management";
-export * from "./internal/user-management";
-export * from "./internal/version-management";
-
+export { tryCreateUser } from "./internal/user-management";
+export type { CategoryTreeNode, FlatNode } from "./internal/course-category-management";
+export { flattenCategories } from "./internal/course-category-management";
+export const USER_ROLES = [
+	"admin",
+	"content-manager",
+	"analytics-viewer",
+	"instructor",
+	"student",
+] as const;
+export type UserRole = (typeof USER_ROLES)[number];
 export { permissions } from "./utils/permissions";
 export {
 	handleTransactionId,
@@ -52,13 +47,23 @@ export {
 	generateSimpleCourseStructureTree,
 } from "./utils/course-structure-tree";
 export {
+	flattenGradebookCategories,
+	type FlattenedCategory,
+} from "./utils/flatten-gradebook-categories";
+export {
 	createLocalReq,
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./internal/utils/internal-function-utils";
 
+export type {
+	SingleUserGradesJsonRepresentation,
+	UserGradeEnrollment,
+	UserGradeItem,
+} from "./internal/user-grade-management";
 export type { User, Course } from "./payload-types";
 export type { ActivityModule } from "./payload-types";
+export type { ActivityModuleResult } from "./internal/activity-module-management";
 export type { Media } from "./payload-types";
 export type { Enrollment } from "./payload-types";
 export { Users } from "./collections/users";
@@ -138,3 +143,23 @@ export {
 } from "./json/raw-quiz-config/v2";
 export * from "./json/course-module-settings/version-resolver";
 export * from "./json/raw-quiz-config/version-resolver";
+
+// Server / payload exports (consolidated from server.ts and payload-exports.ts)
+export {
+	createOpenApiGenerator,
+	createOpenApiHandler,
+	createScalarDocsHtml,
+} from "./orpc/openapi-handler";
+export { orpcRouter } from "./orpc/router";
+export { generateCookie, parseCookies, executeAuthStrategies } from "payload";
+export type { PayloadRequest, BasePayload } from "payload";
+export { getMigrationStatus } from "./utils/db/migration-status";
+export { dumpDatabase } from "./utils/db/dump";
+export { migrations } from "./migrations";
+export { tryRunSeed } from "./utils/db/seed";
+export { tryResetSandbox } from "./utils/db/sandbox-reset";
+export { displayHelp } from "./cli/commands";
+export {
+	detectSystemResources,
+	getServerTimezone,
+} from "./utils/bun-system-resources";

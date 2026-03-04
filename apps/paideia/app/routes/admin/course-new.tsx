@@ -16,8 +16,6 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateCourse } from "@paideia/paideia-backend";
-import { tryFindAllCategories } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -29,7 +27,7 @@ import {
 } from "app/utils/router/responses";
 import type { Route } from "./+types/course-new";
 // biome-ignore lint/style/noRestrictedImports: it is ok because only using for course status
-import type { Course } from "@paideia/paideia-backend";
+import type { Course } from "server/types/frontend-types";
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
 	route: "/admin/course/new",
@@ -55,7 +53,7 @@ const createCourseRpc = createActionRpc({
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.authenticatedUser) {
@@ -72,13 +70,14 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	}
 
 	// Fetch categories for the dropdown
-	const categoriesResult = await tryFindAllCategories({
-		payload,
-		req: payloadRequest,
-		sort: "name",
-	}).getOrElse(() => {
-		throw new InternalServerErrorResponse("Failed to get categories");
-	});
+	const categoriesResult = await paideia
+		.tryFindAllCategories({
+			req: requestContext,
+			sort: "name",
+		})
+		.getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get categories");
+		});
 
 	return {
 		success: true,
@@ -91,7 +90,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 
 const createCourseAction = createCourseRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({
@@ -103,8 +102,7 @@ const createCourseAction = createCourseRpc.createAction(
 			userSession.effectiveUser || userSession.authenticatedUser;
 
 		// Create course
-		const createResult = await tryCreateCourse({
-			payload,
+		const createResult = await paideia.tryCreateCourse({
 			data: {
 				title: formData.title,
 				slug: formData.slug,
@@ -113,7 +111,7 @@ const createCourseAction = createCourseRpc.createAction(
 				createdBy: currentUser.id,
 				category: formData.category ?? undefined,
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {

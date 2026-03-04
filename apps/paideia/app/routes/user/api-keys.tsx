@@ -17,11 +17,6 @@ import { Link, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	tryGenerateApiKey,
-	tryGetApiKeyStatus,
-	tryRevokeApiKey,
-} from "@paideia/paideia-backend";
-import {
 	badRequest,
 	ForbiddenResponse,
 	NotFoundResponse,
@@ -44,7 +39,7 @@ const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
 
 export const loader = createRouteLoader(async ({ context, params }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
 
@@ -67,10 +62,9 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 		targetUserId = currentUser.id;
 	}
 
-	const statusResult = await tryGetApiKeyStatus({
-		payload,
+	const statusResult = await paideia.tryGetApiKeyStatus({
 		userId: targetUserId,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!statusResult.ok) {
@@ -99,7 +93,7 @@ const createRevokeActionRpc = createActionRpc({
 
 const generateAction = createGenerateActionRpc.createAction(
 	async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -117,10 +111,9 @@ const generateAction = createGenerateActionRpc.createAction(
 			});
 		}
 
-		const result = await tryGenerateApiKey({
-			payload,
+		const result = await paideia.tryGenerateApiKey({
 			userId: targetUserId,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: true,
 		});
 
@@ -139,7 +132,7 @@ const generateAction = createGenerateActionRpc.createAction(
 
 const revokeAction = createRevokeActionRpc.createAction(
 	async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -157,10 +150,9 @@ const revokeAction = createRevokeActionRpc.createAction(
 			});
 		}
 
-		const result = await tryRevokeApiKey({
-			payload,
+		const result = await paideia.tryRevokeApiKey({
 			userId: targetUserId,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: true,
 		});
 

@@ -1,14 +1,9 @@
 import { createContext } from "react-router";
 import { Result } from "typescript-result";
-import { tryFindSectionById } from "@paideia/paideia-backend";
-export { courseSectionContextKey } from "./utils/context-keys";
-import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
 import { InvalidArgumentError } from "../../app/utils/error";
+import type { PaideiaContextArgs } from "./global-context";
+export { courseSectionContextKey } from "./utils/context-keys";
 
-/**
- * CourseSectionContext is the resolved data for a course section,
- * available when user is viewing or editing a section.
- */
 export type CourseSectionContext = NonNullable<
 	Awaited<ReturnType<typeof tryGetCourseSectionContext>>["value"]
 >;
@@ -16,24 +11,18 @@ export const courseSectionContext = createContext<CourseSectionContext | null>(
 	null,
 );
 
-export interface TryGetCourseSectionContextArgs
-	extends BaseInternalFunctionArgs {
+export interface TryGetCourseSectionContextArgs extends PaideiaContextArgs {
 	sectionId: number;
 }
 
-/**
- * Get course section context for a section.
- */
 export async function tryGetCourseSectionContext(
 	args: TryGetCourseSectionContextArgs,
 ) {
-	const { payload, req, sectionId, overrideAccess } = args;
+	const { paideia, req, sectionId, overrideAccess } = args;
 	if (Number.isNaN(sectionId)) {
 		return Result.error(new InvalidArgumentError("Section ID is required"));
 	}
-	// Always pass overrideAccess: false and provide current user
-	const sectionResult = await tryFindSectionById({
-		payload,
+	const sectionResult = await paideia.tryFindSectionById({
 		sectionId: sectionId,
 		req,
 		overrideAccess,

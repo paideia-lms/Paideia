@@ -29,17 +29,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	type CategoryTreeNode,
-	tryGetCategoryTree,
-} from "@paideia/paideia-backend";
-import {
-	tryAddRecurringSchedule,
-	tryAddSpecificDate,
-	tryRemoveRecurringSchedule,
-	tryRemoveSpecificDate,
-	tryUpdateCourse,
-} from "@paideia/paideia-backend";
+import type { CategoryTreeNode } from "@paideia/paideia-backend";
 
 import type { RichTextEditorRef } from "app/components/rich-text/rich-text-editor";
 import { RichTextEditor } from "app/components/rich-text/rich-text-editor";
@@ -111,7 +101,7 @@ const updateCourseRpc = createActionRpc({
 
 const updateCourseAction = updateCourseRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -137,13 +127,12 @@ const updateCourseAction = updateCourseRpc.createAction(
 		}
 
 		// Update course using the internal function
-		const updateResult = await tryUpdateCourse({
-			payload,
+		const updateResult = await paideia.tryUpdateCourse({
 			courseId: Number(courseId),
 			data: {
 				...formData,
 			},
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -173,7 +162,7 @@ const addRecurringScheduleRpc = createActionRpc({
 
 const addRecurringScheduleAction = addRecurringScheduleRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -198,11 +187,10 @@ const addRecurringScheduleAction = addRecurringScheduleRpc.createAction(
 			});
 		}
 
-		const result = await tryAddRecurringSchedule({
-			payload,
+		const result = await paideia.tryAddRecurringSchedule({
 			courseId: Number(courseId),
 			data: formData.data,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -231,7 +219,7 @@ const addSpecificDateRpc = createActionRpc({
 
 const addSpecificDateAction = addSpecificDateRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -256,11 +244,10 @@ const addSpecificDateAction = addSpecificDateRpc.createAction(
 			});
 		}
 
-		const result = await tryAddSpecificDate({
-			payload,
+		const result = await paideia.tryAddSpecificDate({
 			courseId: Number(courseId),
 			data: formData.data,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -289,7 +276,7 @@ const removeRecurringScheduleRpc = createActionRpc({
 
 const removeRecurringScheduleAction = removeRecurringScheduleRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -314,11 +301,10 @@ const removeRecurringScheduleAction = removeRecurringScheduleRpc.createAction(
 			});
 		}
 
-		const result = await tryRemoveRecurringSchedule({
-			payload,
+		const result = await paideia.tryRemoveRecurringSchedule({
 			courseId: Number(courseId),
 			index: formData.index,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -347,7 +333,7 @@ const removeSpecificDateRpc = createActionRpc({
 
 const removeSpecificDateAction = removeSpecificDateRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -372,11 +358,10 @@ const removeSpecificDateAction = removeSpecificDateRpc.createAction(
 			});
 		}
 
-		const result = await tryRemoveSpecificDate({
-			payload,
+		const result = await paideia.tryRemoveSpecificDate({
 			courseId: Number(courseId),
 			index: formData.index,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -416,7 +401,7 @@ export {
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 
@@ -438,10 +423,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	}
 
 	// Fetch categories via internal functions and flatten
-	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
-	const categoriesResult = await tryGetCategoryTree({
-		payload,
-		req: payloadRequest,
+	const categoriesResult = await paideia.tryGetCategoryTree({
+		req: requestContext,
 	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");

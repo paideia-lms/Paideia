@@ -19,7 +19,6 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindNoteById, tryUpdateNote } from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import {
@@ -34,7 +33,7 @@ const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
 
 export const loader = createRouteLoader(async ({ context, params }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -44,13 +43,14 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	const note = await tryFindNoteById({
-		payload,
-		noteId: Number(params.noteId),
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new NotFoundResponse("Note not found");
-	});
+	const note = await paideia
+		.tryFindNoteById({
+			noteId: Number(params.noteId),
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new NotFoundResponse("Note not found");
+		});
 
 	// Extract createdBy ID (handle both depth 0 and 1)
 	const createdById = note.createdBy.id;
@@ -88,7 +88,7 @@ const createUpdateNoteActionRpc = createActionRpc({
 
 const updateNoteAction = createUpdateNoteActionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -104,15 +104,13 @@ const updateNoteAction = createUpdateNoteActionRpc.createAction(
 
 		const noteId = params.noteId;
 
-		// Update note with updated content
-		const result = await tryUpdateNote({
-			payload,
+		const result = await paideia.tryUpdateNote({
 			noteId,
 			data: {
 				content: formData.content,
 				isPublic: formData.isPublic,
 			},
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 

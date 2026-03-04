@@ -6,12 +6,7 @@
 	"type": "module",
 	"main": "./src/index.ts",
 	"exports": {
-		".": "./src/index.ts",
-		"./server": "./src/server.ts",
-		"./payload-types": "./src/payload-types.ts",
-		"./payload": "./src/payload-exports.ts",
-		"./json/raw-quiz-config/v2": "./src/json/raw-quiz-config/v2.ts",
-		"./payload-generated-schema": "./src/payload-generated-schema.ts"
+		".": "./src/index.ts"
 	},
 	"scripts": {
 		"migrate:create": "bun scripts/clean-s3.ts && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:create",

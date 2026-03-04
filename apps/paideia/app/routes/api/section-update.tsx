@@ -1,9 +1,7 @@
 import { notifications } from "@mantine/notifications";
-import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateSection } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -29,21 +27,19 @@ const updateSectionRpc = createActionRpc({
 const updateSectionAction = updateSectionRpc.createAction(
 	async ({ context, formData }) => {
 		const userSession = context.get(userContextKey);
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
 		if (!userSession?.isAuthenticated) {
 			throw new ForbiddenResponse("Unauthorized");
 		}
 
-		// Update the section
-		const result = await tryUpdateSection({
-			payload,
+		const result = await paideia.tryUpdateSection({
 			sectionId: formData.sectionId,
 			data: {
 				title: formData.title,
 				description: formData.description || undefined,
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

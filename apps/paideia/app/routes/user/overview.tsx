@@ -34,7 +34,6 @@ import { href, Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryUpdateUser } from "@paideia/paideia-backend";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import {
@@ -169,7 +168,7 @@ const createUpdateActionRpc = createActionRpc({
 
 const updateAction = createUpdateActionRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -217,11 +216,10 @@ const updateAction = createUpdateActionRpc.createAction(
 			updateData.email = formData.email;
 		}
 
-		const updateResult = await tryUpdateUser({
-			payload,
+		const updateResult = await paideia.tryUpdateUser({
 			userId: userId,
 			data: updateData,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 

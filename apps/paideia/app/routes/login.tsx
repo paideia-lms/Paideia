@@ -16,11 +16,8 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetRegistrationSettings } from "@paideia/paideia-backend";
-import { tryGetUserCount, tryLogin } from "@paideia/paideia-backend";
-import { devConstants } from "@paideia/paideia-backend";
+import { devConstants, setAuthCookie } from "@paideia/paideia-backend";
 import { z } from "zod";
-import { setCookie } from "~/utils/cookie";
 import {
 	badRequest,
 	InternalServerErrorResponse,
@@ -31,8 +28,7 @@ import { getRouteUrl } from "app/utils/router/search-params-utils";
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payloadRequest } = context.get(globalContextKey);
-	// Mock loader - just return some basic data
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (userSession?.isAuthenticated) {
@@ -43,27 +39,25 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		);
 	}
 
-	const { payload } = context.get(globalContextKey);
-
 	const [userCount, settingsResult] = await Promise.all([
-		tryGetUserCount({
-			payload,
-			// ! this is a system request, we dont care about access control
-			overrideAccess: true,
-			req: payloadRequest,
-		}).getOrElse(() => {
-			throw new InternalServerErrorResponse("Failed to get user count");
-		}),
-		tryGetRegistrationSettings({
-			payload,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-			req: payloadRequest,
-		}).getOrElse(() => {
-			throw new InternalServerErrorResponse(
-				"Failed to get registration settings",
-			);
-		}),
+		paideia
+			.tryGetUserCount({
+				overrideAccess: true,
+				req: requestContext,
+			})
+			.getOrElse(() => {
+				throw new InternalServerErrorResponse("Failed to get user count");
+			}),
+		paideia
+			.tryGetRegistrationSettings({
+				overrideAccess: true,
+				req: requestContext,
+			})
+			.getOrElse(() => {
+				throw new InternalServerErrorResponse(
+					"Failed to get registration settings",
+				);
+			}),
 	]);
 
 	if (userCount === 0) {
@@ -97,17 +91,17 @@ const loginRpc = createActionRpc({
 
 const loginAction = loginRpc.createAction(
 	async ({ context, formData, request }) => {
-		const { payload, requestInfo } = context.get(globalContextKey);
+		const { paideia, requestInfo, requestContext } =
+			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (userSession?.isAuthenticated) {
 			return redirect(getRouteUrl("/", { searchParams: {} }));
 		}
 
-		const loginResult = await tryLogin({
-			payload,
+		const loginResult = await paideia.tryLogin({
 			email: formData.email,
 			password: formData.password,
-			req: request,
+			req: requestContext,
 		});
 
 		if (!loginResult.ok) {
@@ -121,13 +115,11 @@ const loginAction = loginRpc.createAction(
 
 		return redirect(getRouteUrl("/", { searchParams: {} }), {
 			headers: {
-				"Set-Cookie": setCookie(
-					token,
-					exp,
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
+				"Set-Cookie": setAuthCookie(token, exp, {
+					cookiePrefix: paideia.getCookiePrefix(),
+					domainUrl: requestInfo.domainUrl,
+					headers: request.headers,
+				}),
 			},
 		});
 	},

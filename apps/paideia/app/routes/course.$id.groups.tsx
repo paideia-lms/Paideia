@@ -32,7 +32,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateGroup, tryDeleteGroup } from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import {
 	badRequest,
@@ -158,7 +157,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 
 const createGroupAction = createGroupRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { courseId } = params;
 
@@ -166,8 +165,7 @@ const createGroupAction = createGroupRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const createResult = await tryCreateGroup({
-			payload,
+		const createResult = await paideia.tryCreateGroup({
 			name: formData.name,
 			course: Number(courseId),
 			parent: formData.parent ? Number(formData.parent) : undefined,
@@ -175,7 +173,7 @@ const createGroupAction = createGroupRpc.createAction(
 			color: formData.color || undefined,
 			maxMembers: formData.maxMembers,
 			isActive: true,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -190,17 +188,16 @@ const useCreateGroup = createGroupRpc.createHook<typeof createGroupAction>();
 
 const deleteGroupAction = deleteGroupRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const deleteResult = await tryDeleteGroup({
-			payload,
+		const deleteResult = await paideia.tryDeleteGroup({
 			groupId: formData.groupId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!deleteResult.ok) {

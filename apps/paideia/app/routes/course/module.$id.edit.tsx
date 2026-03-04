@@ -28,14 +28,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryUpdateAssignmentModuleSettings,
-	tryUpdateDiscussionModuleSettings,
-	tryUpdateFileModuleSettings,
-	tryUpdatePageModuleSettings,
-	tryUpdateQuizModuleSettings,
-	tryUpdateWhiteboardModuleSettings,
-} from "@paideia/paideia-backend";
 import type {
 	LatestCourseAssignmentSettings,
 	LatestCourseDiscussionSettings,
@@ -187,7 +179,7 @@ const updateDiscussionSettingsRpc = createActionRpc({
 
 const updatePageSettingsAction = updatePageSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { moduleLinkId } = params;
 
@@ -195,11 +187,10 @@ const updatePageSettingsAction = updatePageSettingsRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryUpdatePageModuleSettings({
-			payload,
+		const result = await paideia.tryUpdatePageModuleSettings({
 			linkId: Number(moduleLinkId),
 			name: formData.name || undefined,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -219,7 +210,7 @@ const useUpdatePageSettings =
 
 const updateWhiteboardSettingsAction = updateWhiteboardSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { moduleLinkId } = params;
 
@@ -227,11 +218,10 @@ const updateWhiteboardSettingsAction = updateWhiteboardSettingsRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryUpdateWhiteboardModuleSettings({
-			payload,
+		const result = await paideia.tryUpdateWhiteboardModuleSettings({
 			linkId: Number(moduleLinkId),
 			name: formData.name || undefined,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -253,7 +243,7 @@ const useUpdateWhiteboardSettings =
 
 const updateFileSettingsAction = updateFileSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { moduleLinkId } = params;
 
@@ -261,11 +251,10 @@ const updateFileSettingsAction = updateFileSettingsRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryUpdateFileModuleSettings({
-			payload,
+		const result = await paideia.tryUpdateFileModuleSettings({
 			linkId: Number(moduleLinkId),
 			name: formData.name || undefined,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -285,7 +274,7 @@ const useUpdateFileSettings =
 
 const updateAssignmentSettingsAction = updateAssignmentSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { moduleLinkId } = params;
 
@@ -293,15 +282,14 @@ const updateAssignmentSettingsAction = updateAssignmentSettingsRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryUpdateAssignmentModuleSettings({
-			payload,
+		const result = await paideia.tryUpdateAssignmentModuleSettings({
 			linkId: Number(moduleLinkId),
 			name: formData.name || undefined,
 			allowSubmissionsFrom: formData.allowSubmissionsFrom || undefined,
 			dueDate: formData.dueDate || undefined,
 			cutoffDate: formData.cutoffDate || undefined,
 			maxAttempts: formData.maxAttempts || undefined,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -323,7 +311,7 @@ const useUpdateAssignmentSettings =
 
 const updateQuizSettingsAction = updateQuizSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { moduleLinkId } = params;
 
@@ -331,14 +319,13 @@ const updateQuizSettingsAction = updateQuizSettingsRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryUpdateQuizModuleSettings({
-			payload,
+		const result = await paideia.tryUpdateQuizModuleSettings({
 			linkId: Number(moduleLinkId),
 			name: formData.name || undefined,
 			openingTime: formData.openingTime || undefined,
 			closingTime: formData.closingTime || undefined,
 			maxAttempts: formData.maxAttempts || undefined,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -358,7 +345,7 @@ const useUpdateQuizSettings =
 
 const updateDiscussionSettingsAction = updateDiscussionSettingsRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const { moduleLinkId } = params;
 
@@ -366,13 +353,12 @@ const updateDiscussionSettingsAction = updateDiscussionSettingsRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryUpdateDiscussionModuleSettings({
-			payload,
+		const result = await paideia.tryUpdateDiscussionModuleSettings({
 			linkId: Number(moduleLinkId),
 			name: formData.name || undefined,
 			dueDate: formData.dueDate || undefined,
 			cutoffDate: formData.cutoffDate || undefined,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

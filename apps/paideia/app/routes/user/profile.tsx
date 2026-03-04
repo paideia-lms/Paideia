@@ -15,8 +15,7 @@ import { IconUserCheck } from "@tabler/icons-react";
 import { href, Link, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryFindUserById } from "@paideia/paideia-backend";
-import { setImpersonationCookie } from "~/utils/cookie";
+import { setImpersonationCookie } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -81,7 +80,7 @@ const createImpersonateActionRpc = createActionRpc({
 
 const impersonateAction = createImpersonateActionRpc.createAction(
 	async ({ context, formData, request, params }) => {
-		const { payload, requestInfo, payloadRequest } =
+		const { paideia, requestInfo, requestContext } =
 			context.get(globalContextKey);
 		const userProfileContext = context.get(userProfileContextKey);
 
@@ -101,10 +100,9 @@ const impersonateAction = createImpersonateActionRpc.createAction(
 		}
 
 		// Verify the target user exists and is not an admin
-		const targetUserResult = await tryFindUserById({
-			payload,
+		const targetUserResult = await paideia.tryFindUserById({
 			userId: params.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!targetUserResult.ok) {
@@ -122,12 +120,11 @@ const impersonateAction = createImpersonateActionRpc.createAction(
 		// Set impersonation cookie and redirect
 		return redirect(redirectTo, {
 			headers: {
-				"Set-Cookie": setImpersonationCookie(
-					params.id,
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
+				"Set-Cookie": setImpersonationCookie(params.id, {
+					cookiePrefix: paideia.getCookiePrefix(),
+					domainUrl: requestInfo.domainUrl,
+					headers: request.headers,
+				}),
 			},
 		});
 	},
