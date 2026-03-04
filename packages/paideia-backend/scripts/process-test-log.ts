@@ -36,8 +36,8 @@ const patternsToRemove = [
 const patternsToKeep = [
 	// Test header
 	/^bun test/,
-	// Test file names (e.g., "app/utils/fill-in-the-blank-utils.test.ts:")
-	/^[a-zA-Z0-9_/\\-]+\.test\.ts:/,
+	// Test file names (e.g., "src/internal/foo.test.ts:" or "./src/internal/foo.test.ts:")
+	/^(\.\/)?[a-zA-Z0-9_/\\-]+\.test\.ts:/,
 	// Test results (pass/fail)
 	/^\(pass\)/,
 	/^\(fail\)/,
@@ -132,12 +132,26 @@ async function cleanLogFile(filePath: string) {
 				process.exit(1);
 			}
 		} else {
+			// Safeguard: if summary reports failures but we found no files, extraction likely failed
+			const failedCount = extractFailedTestCount(cleanedFileContent);
+			if (failedCount > 0) {
+				console.error(
+					`\n❌ Log reports ${failedCount} failed test(s) but extraction found no failed files. ` +
+						`This may indicate a bug in process-test-log or an unexpected output format.`,
+				);
+				process.exit(1);
+			}
 			console.log("\n✅ No failed test files found.");
 		}
 	} catch (error) {
 		console.error(`Error cleaning log file: ${error}`);
 		process.exit(1);
 	}
+}
+
+function extractFailedTestCount(content: string): number {
+	const match = content.match(/^\s*(\d+)\s+tests?\s+failed:/m);
+	return match?.[1] ? parseInt(match[1], 10) : 0;
 }
 
 function extractFailedTestFiles(content: string): string[] {
@@ -147,15 +161,21 @@ function extractFailedTestFiles(content: string): string[] {
 	let hasFailures = false;
 
 	for (const line of lines) {
-		// Check if line is a test file name
-		const testFileMatch = line.match(/^([a-zA-Z0-9_/\\-]+\.test\.ts):/);
+		// Check if line is a test file name (allow optional ./ prefix from find)
+		const testFileMatch = line.match(/^(\.\/)?([a-zA-Z0-9_/\\-]+\.test\.ts):/);
 		if (testFileMatch) {
 			// Save previous file if it had failures
 			if (currentTestFile !== null && hasFailures) {
 				failedFiles.add(currentTestFile);
 			}
-			// Start tracking new file
-			currentTestFile = testFileMatch[1] ?? null;
+			// Start tracking new file (group 2 is path without ./)
+			currentTestFile = testFileMatch[2] ?? null;
+			hasFailures = false;
+			continue;
+		}
+
+		// "N tests failed:" starts aggregated summary; (fail) lines after it can't be attributed to a file
+		if (/^\s*\d+\s+tests?\s+failed:/.test(line)) {
 			hasFailures = false;
 			continue;
 		}
