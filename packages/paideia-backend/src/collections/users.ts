@@ -5,6 +5,7 @@ import { envVars } from "server/env";
 export const Users = {
 	auth: {
 		verify: true,
+		useAPIKey: true,
 	},
 	access: {
 		read: ({ req }): AccessResult => {

@@ -28,19 +28,7 @@
 		"dev:server": "NODE_ENV=development bun --watch ./server/index.ts",
 		"dev:frontend": "bun react-router --watch typegen",
 		"lint": "biome check --write --log-level=error --diagnostic-level=error .",
-		"migrate:create": "bun run --cwd ../../packages/paideia-backend migrate:create",
-		"migrate:status": "bun run --cwd ../../packages/paideia-backend migrate:status",
-		"migrate:up": "bun run --cwd ../../packages/paideia-backend migrate:up",
-		"migrate:down": "bun run --cwd ../../packages/paideia-backend migrate:down",
-		"migrate:refresh": "bun run --cwd ../../packages/paideia-backend migrate:refresh",
-		"migrate:reset": "bun run --cwd ../../packages/paideia-backend migrate:reset",
-		"migrate:fresh": "bun run --cwd ../../packages/paideia-backend migrate:fresh",
-		"docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
-		"docker:update": "docker compose -f ../../docker-compose.yml -f ../../docker-compose.paideia.yml pull",
-		"docker:run": "docker compose -f ../../docker-compose.yml -f ../../docker-compose.paideia.yml up -d",
-		"docker:prune": "docker image prune -f",
-		"typegen": "bun run --cwd ../../packages/paideia-backend typegen && react-router typegen",
-		"typecheck": "tsgo --noEmit --extendedDiagnostics"
+		"typecheck": "bun react-router typegen && tsgo --noEmit --extendedDiagnostics"
 	},
 	"dependencies": {
 		"@dnd-kit/core": "^6.3.1",

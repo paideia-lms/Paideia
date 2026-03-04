@@ -33,8 +33,8 @@ export const findUserById = os
 		const result = await tryFindUserById({
 			payload: context.payload,
 			userId: input.userId,
-			req: undefined,
-			overrideAccess: true,
+			req: context.req,
+			overrideAccess: false,
 		});
 		if (!result.ok) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -53,8 +53,8 @@ export const findUserByEmail = os
 		const result = await tryFindUserByEmail({
 			payload: context.payload,
 			email: input.email,
-			req: undefined,
-			overrideAccess: true,
+			req: context.req,
+			overrideAccess: false,
 		});
 		if (!result.ok) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -76,8 +76,8 @@ export const findAllUsers = os
 			page: input?.page,
 			sort: input?.sort,
 			query: input?.query,
-			req: undefined,
-			overrideAccess: true,
+			req: context.req,
+			overrideAccess: false,
 		});
 		if (!result.ok) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {

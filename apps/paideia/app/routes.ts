@@ -31,6 +31,7 @@ export const routes = [
 		layout("layouts/user-layout.tsx", [
 			route("user/overview/:id?", "routes/user/overview.tsx"),
 			route("user/preference/:id?", "routes/user/preference.tsx"),
+			route("user/api-keys/:id?", "routes/user/api-keys.tsx"),
 			route("user/grades/:id?", "routes/user/grades.tsx"),
 			route("user/notes/:id?", "routes/user/notes.tsx"),
 			route("user/note/create", "routes/user/note-create.tsx"),

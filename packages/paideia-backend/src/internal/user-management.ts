@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
@@ -77,6 +78,109 @@ export interface RegisterUserArgs extends BaseInternalFunctionArgs {
 
 export interface HandleImpersonationArgs extends BaseInternalFunctionArgs {
 	impersonateUserId: string;
+}
+
+export interface GenerateApiKeyArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface RevokeApiKeyArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface GetApiKeyStatusArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+/**
+ * Generates a new API key for a user. The key is returned once and cannot be retrieved again.
+ * Uses Payload's built-in encryption; the key is stored encrypted in the database.
+ */
+export function tryGenerateApiKey(args: GenerateApiKeyArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			const plainKey = `pld_${crypto.randomBytes(32).toString("hex")}`;
+
+			await payload.update({
+				collection: "users",
+				id: userId,
+				data: {
+					enableAPIKey: true,
+					apiKey: plainKey,
+				},
+				req,
+				overrideAccess,
+			});
+
+			return { apiKey: plainKey };
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to generate API key", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Revokes the API key for a user. The key will no longer authenticate.
+ */
+export function tryRevokeApiKey(args: RevokeApiKeyArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			await payload.update({
+				collection: "users",
+				id: userId,
+				data: {
+					enableAPIKey: false,
+					apiKey: null,
+				},
+				req,
+				overrideAccess,
+			});
+
+			return { revoked: true };
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to revoke API key", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Returns whether the user has an API key enabled. Does not expose the key value.
+ */
+export function tryGetApiKeyStatus(args: GetApiKeyStatusArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			const user = await payload
+				.findByID({
+					collection: "users",
+					id: userId,
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findByID">());
+
+			return {
+				hasApiKey: Boolean(user.enableAPIKey),
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get API key status", {
+				cause: error,
+			}),
+	);
 }
 
 /**

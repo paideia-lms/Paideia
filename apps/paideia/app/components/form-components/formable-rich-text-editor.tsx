@@ -1,10 +1,7 @@
 import type { UseFormReturnType } from "@mantine/form";
 import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { RichTextEditor } from "../rich-text/rich-text-editor";
-import type {
-	FormPathValue,
-	Path,
-} from "@mantine/form/lib/paths.types";
+import type { FormPathValue, Path } from "@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 
 interface FormableRichTextEditorProps<T> {

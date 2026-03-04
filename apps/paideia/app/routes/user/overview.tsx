@@ -20,6 +20,7 @@ import { notifications } from "@mantine/notifications";
 import {
 	IconBooks,
 	IconEye,
+	IconKey,
 	IconNotes,
 	IconPhoto,
 	IconTrophy,
@@ -29,7 +30,7 @@ import {
 } from "@tabler/icons-react";
 import { parseAsStringEnum } from "nuqs/server";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { href, Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
@@ -408,11 +409,23 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 				<Group justify="flex-end">
 					<Button
 						component={Link}
-						to={isOwnData ? "/user/profile" : `/user/profile/${user.id}`}
+						to={href("/user/profile/:id?", {
+							id: isOwnData ? undefined : user.id.toString(),
+						})}
 						variant="light"
 						leftSection={<IconEye size={16} />}
 					>
 						View Public Profile
+					</Button>
+					<Button
+						component={Link}
+						to={href("/user/api-keys/:id?", {
+							id: isOwnData ? undefined : user.id.toString(),
+						})}
+						variant="light"
+						leftSection={<IconKey size={16} />}
+					>
+						API Keys
 					</Button>
 					{canImpersonate && <ImpersonateButton userId={user.id} />}
 				</Group>

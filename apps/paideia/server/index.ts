@@ -4,6 +4,7 @@ import {
 	createOpenApiGenerator,
 	createScalarDocsHtml,
 	displayHelp,
+	executeAuthStrategies,
 	envVars,
 	getMigrationStatus,
 	migrations,
@@ -176,9 +177,19 @@ async function startServer() {
 				headers: { "Content-Type": "text/html" },
 			});
 		}
+		const { user } = await executeAuthStrategies({
+			headers: request.headers,
+			canSetHeaders: false,
+			payload,
+		});
 		const { matched, response } = await orpcHandler.handle(request, {
 			prefix: "/openapi",
-			context: { payload, s3Client },
+			context: {
+				payload,
+				s3Client,
+				user: user ?? null,
+				req: user ? { user } : undefined,
+			},
 		});
 		return matched ? response : new Response("Not Found", { status: 404 });
 	};
@@ -263,7 +274,6 @@ async function startServer() {
 				`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
 			);
 		});
-
 
 	return { frontend };
 }

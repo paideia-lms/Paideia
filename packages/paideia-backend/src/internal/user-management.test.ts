@@ -18,6 +18,9 @@ import {
 	type UpdateUserArgs,
 	tryRegisterFirstUser,
 	tryGetUserCount,
+	tryGenerateApiKey,
+	tryRevokeApiKey,
+	tryGetApiKeyStatus,
 } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { User } from "../payload-types";
@@ -591,6 +594,175 @@ describe("User Management Functions", () => {
 			const result = await tryDeleteUser(deleteArgs);
 
 			expect(result.ok).toBe(false);
+		});
+	});
+
+	describe("API Key Management", () => {
+		test("tryGenerateApiKey should create API key and return it once", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "apikey-user@example.com",
+					password: "testpassword123",
+					firstName: "ApiKey",
+					lastName: "User",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateUser(userArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) return;
+
+			const userId = createResult.value.id;
+
+			const generateResult = await tryGenerateApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+
+			expect(generateResult.ok).toBe(true);
+			if (!generateResult.ok) return;
+
+			expect(generateResult.value.apiKey).toBeDefined();
+			expect(generateResult.value.apiKey).toMatch(/^pld_[a-f0-9]{64}$/);
+
+			// Verify API key authenticates
+			const authResult = await executeAuthStrategies({
+				headers: new Headers({
+					Authorization: `users API-Key ${generateResult.value.apiKey}`,
+				}),
+				canSetHeaders: true,
+				payload,
+			});
+			expect(authResult.user).toBeDefined();
+			expect(authResult.user?.id).toBe(userId);
+		});
+
+		test("tryRevokeApiKey should revoke API key", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "apikey-revoke@example.com",
+					password: "testpassword123",
+					firstName: "ApiKey",
+					lastName: "Revoke",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateUser(userArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) return;
+
+			const userId = createResult.value.id;
+
+			const generateResult = await tryGenerateApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(generateResult.ok).toBe(true);
+			if (!generateResult.ok) return;
+
+			const apiKey = generateResult.value.apiKey;
+
+			const revokeResult = await tryRevokeApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(revokeResult.ok).toBe(true);
+			if (!revokeResult.ok) return;
+			expect(revokeResult.value.revoked).toBe(true);
+
+			// Verify API key no longer authenticates
+			const authResult = await executeAuthStrategies({
+				headers: new Headers({
+					Authorization: `users API-Key ${apiKey}`,
+				}),
+				canSetHeaders: true,
+				payload,
+			});
+			expect(authResult.user).toBeNull();
+		});
+
+		test("tryGetApiKeyStatus should return hasApiKey correctly", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "apikey-status@example.com",
+					password: "testpassword123",
+					firstName: "ApiKey",
+					lastName: "Status",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateUser(userArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) return;
+
+			const userId = createResult.value.id;
+
+			// Initially no API key
+			const statusBefore = await tryGetApiKeyStatus({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(statusBefore.ok).toBe(true);
+			if (statusBefore.ok) {
+				expect(statusBefore.value.hasApiKey).toBe(false);
+			}
+
+			// Generate API key
+			await tryGenerateApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+
+			// Now has API key
+			const statusAfter = await tryGetApiKeyStatus({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(statusAfter.ok).toBe(true);
+			if (statusAfter.ok) {
+				expect(statusAfter.value.hasApiKey).toBe(true);
+			}
+
+			// Revoke API key
+			await tryRevokeApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+
+			// No longer has API key
+			const statusRevoked = await tryGetApiKeyStatus({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(statusRevoked.ok).toBe(true);
+			if (statusRevoked.ok) {
+				expect(statusRevoked.value.hasApiKey).toBe(false);
+			}
 		});
 	});
 

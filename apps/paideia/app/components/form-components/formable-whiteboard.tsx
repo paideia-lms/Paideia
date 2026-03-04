@@ -21,10 +21,7 @@ import {
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
 import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
-import type {
-	FormPathValue,
-	Path,
-} from "@mantine/form/lib/paths.types";
+import type { FormPathValue, Path } from "@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 import { useWhiteboardData } from "../activity-module-forms/use-whiteboard-data";
 

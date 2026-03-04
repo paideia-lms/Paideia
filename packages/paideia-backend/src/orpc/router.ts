@@ -152,8 +152,11 @@ import {
 	getNextAttemptNumber,
 	checkInProgressSubmission,
 } from "./routers/quiz-submission-management";
+import { os } from "@orpc/server";
+import type { OrpcContext } from "./context";
+import { requireAuth } from "./middleware/auth";
 
-export const orpcRouter = {
+const baseRouter = {
 	health: {
 		check: healthCheck,
 		ping,
@@ -321,3 +324,8 @@ export const orpcRouter = {
 		checkInProgress: checkInProgressSubmission,
 	},
 };
+
+export const orpcRouter = os
+	.$context<OrpcContext>()
+	.use(requireAuth)
+	.router(baseRouter);
