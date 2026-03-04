@@ -1,5 +1,7 @@
 import type { Migration, Payload } from "payload";
 import { getPayload } from "payload";
+import { createOpenApiHandler } from "./orpc/openapi-handler";
+import { orpcRouter } from "./orpc/router";
 import sanitizedConfig from "./payload.config";
 import { testConnections } from "./health-check";
 import { migrations } from "./migrations";
@@ -55,5 +57,9 @@ export class Paideia {
 	async configureCommands(): Promise<import("commander").Command> {
 		const { configureCommands } = await import("./cli/commands");
 		return configureCommands(this.getPayload());
+	}
+
+	getOpenApiHandler() {
+		return createOpenApiHandler(orpcRouter, this.getPayload());
 	}
 }

@@ -31,6 +31,9 @@
 		"fix-types": "bun scripts/fix-types.ts"
 	},
 	"dependencies": {
+		"@orpc/openapi": "^1.2.0",
+		"@orpc/server": "^1.2.0",
+		"@orpc/zod": "^1.2.0",
 		"@payloadcms/db-postgres": "^3.76.1",
 		"@payloadcms/email-nodemailer": "^3.76.1",
 		"@payloadcms/email-resend": "^3.76.1",

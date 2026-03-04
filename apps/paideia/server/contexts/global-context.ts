@@ -10,7 +10,6 @@ import type { RouteId, MyRouteInfo } from "../../app/utils/router/routes-utils";
 import type { TypeSafeRouteParams } from "../../app/utils/router/route-params-schema";
 import type { TypeSafeRouteSearchParams } from "../../app/utils/router/search-params-utils";
 import type { envVars } from "@paideia/paideia-backend";
-import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
 import type { ParamsType } from "../../app/utils/router/route-params-schema";
@@ -87,8 +86,6 @@ export type SystemGlobals = {
 export type GlobalContext = {
 	environment: "development" | "production" | "test";
 	payload: BasePayload;
-	elysia: Backend;
-	api: Api;
 	requestInfo: RequestInfo;
 	s3Client: S3Client;
 	unstorage: Storage;

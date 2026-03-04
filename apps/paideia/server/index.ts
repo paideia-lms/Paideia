@@ -1,10 +1,13 @@
 import {
 	Paideia,
 	asciiLogo,
+	createOpenApiGenerator,
+	createScalarDocsHtml,
 	displayHelp,
 	envVars,
 	getMigrationStatus,
 	migrations,
+	orpcRouter,
 	s3Client,
 	tryResetSandbox,
 	tryRunSeed,
@@ -12,8 +15,6 @@ import {
 	type Migration as MigrationType,
 } from "@paideia/paideia-backend/server";
 
-import { treaty } from "@elysiajs/eden";
-import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
 import { RouterContextProvider } from "react-router";
 import { createStorage } from "unstorage";
@@ -94,6 +95,7 @@ async function startServer() {
 
 	console.log("Mode: ", process.env.NODE_ENV);
 
+	// TODO: we are not running seed in the program anymore , seed should be done outside the program
 	if (process.env.NODE_ENV === "development") {
 		// ! a system request, so we don't need to provide a request
 		const seedResult = await tryRunSeed({
@@ -148,14 +150,49 @@ async function startServer() {
 	const bunRevision = typeof Bun !== "undefined" ? Bun.revision : "unknown";
 	const packageVersion = packageJson.version;
 
-	const backend = new Elysia()
-		.state("payload", payload)
-		.use(openapi())
-		.listen(port, () => {
-			console.log(`🚀 Paideia backend is running at http://localhost:${port}`);
-		});
+	const orpcHandler = paideia.getOpenApiHandler();
+	const openApiGenerator = createOpenApiGenerator();
 
+	const getBaseUrl = (request: Request) => {
+		const url = new URL(request.url);
+		return `${url.origin}/openapi`;
+	};
+
+	const handleOpenApiRequest = async (request: Request): Promise<Response> => {
+		const pathname = new URL(request.url).pathname;
+		const baseUrl = getBaseUrl(request);
+
+		if (pathname === "/openapi/spec.json") {
+			const spec = await openApiGenerator.generate(orpcRouter, {
+				info: { title: "Paideia LMS API", version: "1.0.0" },
+				servers: [{ url: baseUrl }],
+			});
+			return new Response(JSON.stringify(spec), {
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		if (pathname === "/openapi" || pathname === "/openapi/") {
+			return new Response(createScalarDocsHtml(`${baseUrl}/spec.json`), {
+				headers: { "Content-Type": "text/html" },
+			});
+		}
+		const { matched, response } = await orpcHandler.handle(request, {
+			prefix: "/openapi",
+			context: { payload, s3Client },
+		});
+		return matched ? response : new Response("Not Found", { status: 404 });
+	};
+
+	// OpenAPI must run BEFORE reactRouter's catch-all so /openapi/* is not served as SPA.
+	// Use onRequest and return Response to short-circuit the pipeline (skip route matching).
 	const frontend = new Elysia()
+		.onRequest(async ({ request }) => {
+			const pathname = new URL(request.url).pathname;
+			if (!pathname.startsWith("/openapi")) return;
+
+			const response = await handleOpenApiRequest(request);
+			return response;
+		})
 		.use(
 			async (e) =>
 				await reactRouter(e, {
@@ -170,8 +207,6 @@ async function startServer() {
 						c.set(globalContextKey, {
 							environment: process.env.NODE_ENV,
 							payload: payload,
-							elysia: backend,
-							api,
 							requestInfo,
 							s3Client,
 							unstorage,
@@ -229,9 +264,8 @@ async function startServer() {
 			);
 		});
 
-	const api = treaty(backend);
 
-	return { backend, frontend, api };
+	return { frontend };
 }
 
 // Configure Commander.js program with all CLI commands
@@ -253,8 +287,6 @@ program.action(async () => {
 
 // Export types - will be properly typed when server runs
 // Using type inference from actual instances
-export type Backend = Awaited<ReturnType<typeof startServer>>["backend"];
 export type Frontend = Awaited<ReturnType<typeof startServer>>["frontend"];
-export type Api = Awaited<ReturnType<typeof startServer>>["api"];
 
 await program.parseAsync();

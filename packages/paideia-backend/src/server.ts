@@ -1,4 +1,10 @@
 export { Paideia, type Payload, type Migration, type SanitizedConfig } from "./paideia";
+export {
+	createOpenApiGenerator,
+	createOpenApiHandler,
+	createScalarDocsHtml,
+} from "./orpc/openapi-handler";
+export { orpcRouter } from "./orpc/router";
 export { generateCookie, parseCookies, executeAuthStrategies } from "payload";
 export type { PayloadRequest, BasePayload } from "payload";
 export { getMigrationStatus } from "./utils/db/migration-status";

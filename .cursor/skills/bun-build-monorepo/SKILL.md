@@ -1,6 +1,6 @@
 ---
 name: bun-build-monorepo
-description: Fix Bun.build path alias resolution in monorepos. Use when build fails with "Could not resolve" for app/*, server/*, or workspace package path aliases while typecheck passes.
+description: Fix Bun.build issues in monorepos. Use when build fails with "Could not resolve" for path aliases, or "No such built-in module: node:sqlite" when running the compiled binary.
 ---
 
 # Bun.build Path Aliases in Monorepo
@@ -57,14 +57,38 @@ The path `"*": ["./*"]` overrides npm resolution. Use explicit patterns:
 }
 ```
 
+### 4. node:sqlite Stub (Runtime Error After Build)
+
+When the build succeeds but the compiled binary fails with:
+
+```
+error: No such built-in module: node:sqlite
+```
+
+Bun does not implement `node:sqlite`. A transitive dependency (drizzle, payload, etc.) may reference it. Add a stub plugin to resolve `node:sqlite` to an empty module:
+
+```typescript
+const nodeSqliteStub = resolve(process.cwd(), "scripts/stubs/node-sqlite-stub.ts");
+const nodeSqliteStubPlugin: import("bun").BunPlugin = {
+  name: "node-sqlite-stub",
+  setup(build) {
+    build.onResolve({ filter: /^node:sqlite$/ }, () => ({ path: nodeSqliteStub }));
+  },
+};
+```
+
+Stub file: `scripts/stubs/node-sqlite-stub.ts` exports `default {}`, `DatabaseSync`, `constants`. See incident report for full stub.
+
 ## Checklist
 
 1. Identify which imports fail at build (check error message)
 2. For app server: convert to relative imports
 3. For workspace package: add resolver plugin or pre-build the package
-4. Verify: `bun run build`
+4. For node:sqlite runtime error: add stub plugin
+5. Verify: `bun run build` and `./dist/paideia server`
 
 ## Reference
 
-- Incident report: `release-notes/incidents/2026-03-03-bun-build-path-aliases.md`
+- Incident (path aliases): `release-notes/incidents/2026-03-03-bun-build-path-aliases.md`
+- Incident (node:sqlite): `release-notes/incidents/2026-03-03-bun-node-sqlite-build-error.md`
 - Build script: `apps/paideia/scripts/build.ts`
