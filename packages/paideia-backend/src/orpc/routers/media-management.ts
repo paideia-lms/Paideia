@@ -14,7 +14,7 @@ import {
 	tryGetOrphanedMedia,
 	tryGetAllOrphanedFilenames,
 	tryFindMediaUsages,
-} from "../../internal/media-management";
+} from "../../modules/user/services/media-management";
 import type { OrpcContext } from "../context";
 import { handleResult } from "../utils/handler";
 

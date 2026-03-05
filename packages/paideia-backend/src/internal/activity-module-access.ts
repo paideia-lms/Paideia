@@ -8,12 +8,12 @@ import {
 	transformError,
 	UnknownError,
 } from "../errors";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { ActivityModules } from "server/collections";
 import type { Enrollment } from "server/payload-types";
 

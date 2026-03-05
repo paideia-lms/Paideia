@@ -1,6 +1,6 @@
 import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
-import { tryGetLatestVersion } from "../../internal/version-management";
+import { tryGetLatestVersion } from "../services/version-management";
 
 const inputSchema = z.object({
 	currentVersion: z.string(),

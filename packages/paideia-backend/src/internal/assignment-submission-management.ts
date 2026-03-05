@@ -10,12 +10,12 @@ import {
 import { DEFAULT_ALLOWED_FILE_TYPES } from "../utils/file-types";
 import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	stripDepth,
-} from "./utils/internal-function-utils";
-import { tryCreateMedia } from "./media-management";
+} from "shared/internal-function-utils";
+import { tryCreateMedia } from "../modules/user/services/media-management";
 
 type AssignmentSettings = Extract<
 	LatestCourseModuleSettings["settings"],

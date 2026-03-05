@@ -7,7 +7,7 @@ import {
 	findQuestionInConfig,
 } from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
-import { JobQueue } from "../utils/job-queue";
+import { JobQueue } from "../modules/infrastructure/services/job-queue";
 import type { QuizSubmission, UserGrade } from "server/payload-types";
 import { Result } from "typescript-result";
 import {
@@ -22,13 +22,13 @@ import {
 	tryFindUserGradeByEnrollmentAndItem,
 	tryUpdateUserGrade,
 } from "./user-grade-management";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
-	assertTimeLimit,
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
+import { assertTimeLimit } from "server/utils/db/assertQuizTimeLimit";
 import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
 import { debugLog } from "../utils/debug";
 

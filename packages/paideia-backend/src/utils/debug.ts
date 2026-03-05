@@ -6,7 +6,7 @@
  * Even if DEBUG_LOGS is set in production, it will be ignored.
  */
 
-import { envVars } from "../env";
+import { envVars } from "../modules/infrastructure/services/env";
 
 /**
  * Debug log function that only logs in development when DEBUG_LOGS is enabled

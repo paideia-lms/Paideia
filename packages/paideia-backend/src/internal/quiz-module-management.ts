@@ -3,12 +3,12 @@ import {
 	transformError,
 	UnknownError,
 } from "../errors";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 import { Result } from "typescript-result";
 import {
 	interceptPayloadError,
 	stripDepth,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { tryGetActivityModuleById } from "./activity-module-management";
 import {
 	addNestedQuiz,

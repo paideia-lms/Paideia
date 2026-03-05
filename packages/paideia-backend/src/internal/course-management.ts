@@ -15,15 +15,15 @@ import {
 } from "../errors";
 import type { Course, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type Depth,
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
-import { tryCreateMedia } from "./media-management";
+import { tryCreateMedia } from "../modules/user/services/media-management";
 import type {
 	RecurringScheduleItem,
 	SpecificDateItem,

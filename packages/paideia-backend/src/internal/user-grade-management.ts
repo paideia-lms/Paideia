@@ -26,13 +26,13 @@ import {
 	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+} from "shared/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	type Depth,
 	interceptPayloadError,
 	stripDepth,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 import { GradebookItems } from "../collections/gradebook-items";
 

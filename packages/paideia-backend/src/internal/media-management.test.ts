@@ -6,10 +6,10 @@ import {
 } from "@aws-sdk/client-s3";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
-import { createLocalReq } from "./utils/internal-function-utils";
-import { envVars } from "../env";
+import { createLocalReq } from "shared/internal-function-utils";
+import { envVars } from "../modules/infrastructure/services/env";
 import config from "../payload.config";
-import { s3Client } from "../utils/s3-client";
+import { s3Client } from "../modules/infrastructure/services/s3-client";
 import {
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
@@ -35,7 +35,7 @@ import {
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
 	tryRenameMedia,
-} from "./media-management";
+} from "../modules/user/services/media-management";
 import { tryCreateNote } from "./note-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
 

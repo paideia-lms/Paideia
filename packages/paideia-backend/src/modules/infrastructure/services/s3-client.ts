@@ -1,5 +1,5 @@
 import { S3Client } from "@aws-sdk/client-s3";
-import { envVars } from "server/env";
+import { envVars } from "server/modules/infrastructure/services/env";
 
 // Initialize S3 client
 export const s3Client = new S3Client({

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import { JobQueue } from "../utils/job-queue";
+import { JobQueue } from "../modules/infrastructure/services/job-queue";
 import {
 	type CreateActivityModuleArgs,
 	tryCreateQuizModule,
@@ -32,7 +32,7 @@ import {
 	tryUnflagQuizQuestion,
 } from "./quiz-submission-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
-import { createLocalReq } from "./utils/internal-function-utils";
+import { createLocalReq } from "shared/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
 import { autoSubmitQuiz } from "../tasks/auto-submit-quiz";
 

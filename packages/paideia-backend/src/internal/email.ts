@@ -1,6 +1,6 @@
 import { Result } from "typescript-result";
 import { EmailSendError } from "../errors";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 import { z } from "zod";
 
 const emailSchema = z.email();

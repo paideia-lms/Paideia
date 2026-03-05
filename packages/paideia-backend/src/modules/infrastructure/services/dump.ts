@@ -86,7 +86,7 @@ export async function dumpDatabase({
 		const filename = outputPath || `paideia-dump-${timestamp}.sql`;
 		const finalOutputPath = join(dataDir, filename);
 
-		console.log(
+		payload.logger.info(
 			`Starting database dump using Drizzle ORM to ${finalOutputPath}`,
 		);
 
@@ -340,7 +340,7 @@ export async function dumpDatabase({
 		const sqlContent = sqlParts.join("\n");
 		await writeFile(finalOutputPath, sqlContent, "utf-8");
 
-		console.log(`Database dump completed successfully: ${finalOutputPath}`);
+		payload.logger.info(`Database dump completed successfully: ${finalOutputPath}`);
 
 		return {
 			success: true,
@@ -348,7 +348,7 @@ export async function dumpDatabase({
 		};
 	} catch (err) {
 		const errorMessage = parseError(err, "Failed to dump database");
-		console.error(errorMessage, err);
+		payload.logger.error(errorMessage);
 
 		return {
 			success: false,

@@ -7,8 +7,8 @@ export {
 	type CreateRequestContextArgs,
 } from "./paideia";
 export * from "./errors";
-export { envVars } from "./env";
-export { s3Client } from "./utils/s3-client";
+export { envVars } from "./modules/infrastructure/services/env";
+export { s3Client } from "./modules/infrastructure/services/s3-client";
 export { asciiLogo, devConstants } from "./utils/constants";
 export { isD2Available } from "./utils/cli-dependencies-check";
 export { debugLog } from "./utils/debug";
@@ -153,13 +153,13 @@ export {
 export { orpcRouter } from "./orpc/router";
 export { generateCookie, parseCookies, executeAuthStrategies } from "payload";
 export type { PayloadRequest, BasePayload } from "payload";
-export { getMigrationStatus } from "./utils/db/migration-status";
-export { dumpDatabase } from "./utils/db/dump";
+export { getMigrationStatus } from "./modules/infrastructure/services/migration-status";
+export { dumpDatabase } from "./modules/infrastructure/services/dump";
 export { migrations } from "./migrations";
 export { tryRunSeed } from "./utils/db/seed";
-export { tryResetSandbox } from "./utils/db/sandbox-reset";
+export { tryResetSandbox } from "./modules/infrastructure/services/sandbox-reset";
 export { displayHelp } from "./cli/commands";
 export {
 	detectSystemResources,
 	getServerTimezone,
-} from "./utils/bun-system-resources";
+} from "./modules/infrastructure/services/bun-system-resources";

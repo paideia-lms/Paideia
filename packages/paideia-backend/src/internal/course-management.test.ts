@@ -18,10 +18,10 @@ import {
 	type UpdateCourseArgs,
 } from "./course-management";
 import { tryCreateEnrollment } from "./enrollment-management";
-import { tryCreateMedia } from "./media-management";
+import { tryCreateMedia } from "../modules/user/services/media-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
 import type { TryResultValue } from "server/utils/types";
-import { createLocalReq } from "./utils/internal-function-utils";
+import { createLocalReq } from "shared/internal-function-utils";
 import type {
 	RecurringScheduleItem,
 	SpecificDateItem,

@@ -22,8 +22,10 @@ import {
 	tryRevokeApiKey,
 	tryGetApiKeyStatus,
 } from "../services/user-management";
-import { createLocalReq } from "../../../internal/utils/internal-function-utils";
-import type { User } from "../../../payload-types";
+import { createLocalReq } from "shared/internal-function-utils";
+import { predefinedUserSeedData } from "../seeding/predefined-user-seed-data";
+import { trySeedUsers } from "../seeding/users-builder";
+import type { User } from "payload-types";
 
 describe("User Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -54,50 +56,18 @@ describe("User Management Functions", () => {
 			config: sanitizedConfig,
 		});
 
-		// Create admin user for testing
-		const adminArgs: CreateUserArgs = {
+		const seedResult = await trySeedUsers({
 			payload,
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-				firstName: "Admin",
-				lastName: "User",
-				role: "admin",
-			},
+			data: predefinedUserSeedData,
 			overrideAccess: true,
 			req: undefined,
-		};
+		}).getOrThrow();
 
-		const adminResult = await tryCreateUser(adminArgs);
-		if (!adminResult.ok) {
-			throw new Error("Failed to create admin user");
+		const adminEntry = seedResult.users.find((u) => u.user.role === "admin");
+		if (!adminEntry?.token) {
+			throw new Error("Failed to get admin token from seed");
 		}
-
-		// Verify admin
-		await payload.update({
-			collection: "users",
-			id: adminResult.value.id,
-			data: {
-				_verified: true,
-			},
-			overrideAccess: true,
-			req: undefined,
-		});
-
-		// Login to get admin token
-		const adminLogin = await payload.login({
-			collection: "users",
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-			},
-		});
-
-		if (!adminLogin.token) {
-			throw new Error("Failed to get admin token");
-		}
-
-		adminToken = adminLogin.token;
+		adminToken = adminEntry.token;
 	});
 
 	afterAll(async () => {
@@ -1382,89 +1352,22 @@ describe("First User Check Functions - With Access Control", () => {
 			config: sanitizedConfig,
 		});
 
-		// Create admin user
-		const adminArgs: CreateUserArgs = {
+		const seedResult = await trySeedUsers({
 			payload,
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-				firstName: "Admin",
-				lastName: "User",
-				role: "admin",
-			},
+			data: predefinedUserSeedData,
 			overrideAccess: true,
 			req: undefined,
-		};
+		}).getOrThrow();
 
-		const adminResult = await tryCreateUser(adminArgs);
-		if (!adminResult.ok) {
-			throw new Error("Failed to create admin user");
+		const adminEntry = seedResult.users.find((u) => u.user.role === "admin");
+		const userEntry = seedResult.users.find(
+			(u) => u.user.email === "user@example.com",
+		);
+		if (!adminEntry?.token || !userEntry?.token) {
+			throw new Error("Failed to get authentication tokens from seed");
 		}
-
-		// Verify admin
-		await payload.update({
-			collection: "users",
-			id: adminResult.value.id,
-			data: {
-				_verified: true,
-			},
-			overrideAccess: true,
-			req: undefined,
-		});
-
-		// Create regular user
-		const userArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "user@example.com",
-				password: "userpassword123",
-				firstName: "Regular",
-				lastName: "User",
-				role: "student",
-			},
-			overrideAccess: true,
-			req: undefined,
-		};
-
-		const userResult = await tryCreateUser(userArgs);
-		if (!userResult.ok) {
-			throw new Error("Failed to create regular user");
-		}
-
-		// Verify regular user
-		await payload.update({
-			collection: "users",
-			id: userResult.value.id,
-			data: {
-				_verified: true,
-			},
-			overrideAccess: true,
-			req: undefined,
-		});
-
-		// Login to get tokens
-		const adminLogin = await payload.login({
-			collection: "users",
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-			},
-		});
-
-		const userLogin = await payload.login({
-			collection: "users",
-			data: {
-				email: "user@example.com",
-				password: "userpassword123",
-			},
-		});
-
-		if (!adminLogin.token || !userLogin.token) {
-			throw new Error("Failed to get authentication tokens");
-		}
-
-		adminToken = adminLogin.token;
-		userToken = userLogin.token;
+		adminToken = adminEntry.token;
+		userToken = userEntry.token;
 	});
 
 	afterAll(async () => {

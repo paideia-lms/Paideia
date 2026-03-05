@@ -1,13 +1,23 @@
 import { Payload } from "payload";
 import * as internal from "./services/user-management"
 import { Users as collection } from "./collections/users"
+import { trySeedUsers } from "./seeding/users-builder";
+import { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
+import type { UserSeedData as UserSeedDataType } from "./seeding/user-seed-schema";
+
+export namespace UserModule {
+    export type UserSeedData = UserSeedDataType;
+}
 
 /**
  * User Module - responsible for user management
+ * 
+ * this is the single point of export for the user module.
  */
 export class UserModule { 
     private readonly payload: Payload;
     public readonly collection = collection;
+    public readonly seedData = predefinedUserSeedData;
 
     constructor(payload: Payload) {
         this.payload = payload;
@@ -110,7 +120,8 @@ export class UserModule {
             ...args,
         });
     }
-
-
-    
 }
+
+export { trySeedUsers } from "./seeding/users-builder";
+export { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
+

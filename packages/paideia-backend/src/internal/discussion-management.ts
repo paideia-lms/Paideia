@@ -9,13 +9,13 @@ import {
 	UnknownError,
 } from "../errors";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	type Depth,
 	interceptPayloadError,
 	stripDepth,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import type { DiscussionSubmission } from "server/payload-types";
 
 export interface CreateDiscussionSubmissionArgs

@@ -5,13 +5,13 @@ import { migrations } from "../migrations";
 import packageJson from "../../package.json";
 import { deleteEverythingInBucket } from "../../scripts/clean-s3";
 import { asciiLogo } from "../utils/constants";
-import { dumpDatabase } from "../utils/db/dump";
-import { migrateFresh } from "../utils/db/migrate-fresh";
+import { dumpDatabase } from "../modules/infrastructure/services/dump";
+import { migrateFresh } from "../modules/infrastructure/services/migrate-fresh";
 import {
 	getMigrationStatus,
 	printMigrationStatus,
-} from "../utils/db/migration-status";
-import { tryResetSandbox } from "../utils/db/sandbox-reset";
+} from "../modules/infrastructure/services/migration-status";
+import { tryResetSandbox } from "../modules/infrastructure/services/sandbox-reset";
 import {
 	commitTransactionIfCreated,
 	handleTransactionId,
@@ -178,22 +178,22 @@ export function configureCommands(payload: Payload): Command {
 			console.log(asciiLogo);
 			console.log("Resetting sandbox database...");
 
-			const transactionInfo = await handleTransactionId(payload);
+			const { tx}  = await handleTransactionId(payload);
 
-			const resetResult = await tryResetSandbox({
-				payload,
-				req: transactionInfo.reqWithTransaction,
-			});
+			const result  = await tx(async (txInfo) => {
+				const resetResult = await tryResetSandbox({
+					payload,
+					req: txInfo.reqWithTransaction,
+				});
 
-			if (!resetResult.ok) {
-				await rollbackTransactionIfCreated(payload, transactionInfo);
-				console.error(
-					`❌ Failed to reset sandbox database: ${resetResult.error.message}`,
-				);
+				return resetResult;
+			} , (result) => !result.ok);
+
+			if ( !result.ok) {
+				console.error(`❌ Failed to reset sandbox database: ${result.error.message}`);
 				process.exit(1);
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
 			console.log("✅ Sandbox database reset completed successfully");
 			process.exit(0);
 		});

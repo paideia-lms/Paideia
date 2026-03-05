@@ -8,9 +8,9 @@ import {
 } from "./orpc/openapi-handler";
 import { orpcRouter } from "./orpc/router";
 import sanitizedConfig from "./payload.config";
-import { testConnections } from "./health-check";
+import { testConnections } from "./modules/infrastructure/services/health-check";
 import { migrations } from "./migrations";
-import { validateEnvVars } from "./env";
+import { validateEnvVars } from "./modules/infrastructure/services/env";
 import { createLocalReq } from "./internal/utils/internal-function-utils";
 import {
 	commitTransactionIfCreated as commitTransactionIfCreatedFn,
@@ -35,7 +35,7 @@ import * as gradebookCategoryManagement from "./internal/gradebook-category-mana
 import * as gradebookItemManagement from "./internal/gradebook-item-management";
 import * as gradebookManagement from "./internal/gradebook-management";
 import * as maintenanceSettings from "./internal/maintenance-settings";
-import * as mediaManagement from "./internal/media-management";
+import * as mediaManagement from "./modules/user/services/media-management";
 import * as noteManagement from "./internal/note-management";
 import * as quizModuleManagement from "./internal/quiz-module-management";
 import * as quizSubmissionManagement from "./internal/quiz-submission-management";
@@ -47,12 +47,12 @@ import * as sitePolicies from "./internal/site-policies";
 import * as systemGlobals from "./internal/system-globals";
 import * as userGradeManagement from "./internal/user-grade-management";
 import * as userManagement from "./modules/user/services/user-management";
-import * as versionManagement from "./internal/version-management";
-import { s3Client } from "./utils/s3-client";
+import * as versionManagement from "./modules/infrastructure/services/version-management";
+import { s3Client } from "./modules/infrastructure/services/s3-client";
 import { tryResolveCourseModuleSettingsToLatest } from "./json/course-module-settings/version-resolver";
-import { getMigrationStatus } from "./utils/db/migration-status";
-import { dumpDatabase } from "./utils/db/dump";
-import { tryResetSandbox as tryResetSandboxFn } from "./utils/db/sandbox-reset";
+import { getMigrationStatus } from "./modules/infrastructure/services/migration-status";
+import { dumpDatabase } from "./modules/infrastructure/services/dump";
+import { tryResetSandbox as tryResetSandboxFn } from "./modules/infrastructure/services/sandbox-reset";
 
 export type { Payload, Migration };
 

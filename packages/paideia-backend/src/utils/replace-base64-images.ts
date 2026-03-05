@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { href } from "react-router";
 import type { Payload, PayloadRequest } from "payload";
-import { tryCreateMedia } from "server/internal/media-management";
+import { tryCreateMedia } from "server/modules/user/services/media-management";
 // import type { UploadedMediaInfo } from "./upload-handler";
 import mime from "mime";
 

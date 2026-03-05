@@ -3,7 +3,7 @@ import { transformError, UnknownError } from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { RegistrationSettings } from "server/collections/globals";
 
 export interface GetRegistrationSettingsArgs extends BaseInternalFunctionArgs {}

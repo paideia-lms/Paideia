@@ -278,25 +278,7 @@ export class ValidationError extends Error {
 	}
 }
 
-function isNoSuchBucketError(
-	error: unknown,
-): error is { name: string; BucketName?: string } {
-	return (
-		error !== null &&
-		typeof error === "object" &&
-		"name" in error &&
-		(error as { name: string }).name === "NoSuchBucket"
-	);
-}
-
 export function transformError(error: unknown) {
-	if (isNoSuchBucketError(error)) {
-		const bucketName = error.BucketName ?? "the configured bucket";
-		return new S3BucketNotFoundError(
-			`The S3 bucket "${bucketName}" does not exist. Please create the bucket first before using media uploads. See your S3 configuration (e.g. S3_BUCKET env var) and ensure the bucket exists in your storage provider.`,
-			{ cause: error },
-		);
-	}
 	if (
 		process.env.NODE_ENV === "development" ||
 		process.env.NODE_ENV === "test"

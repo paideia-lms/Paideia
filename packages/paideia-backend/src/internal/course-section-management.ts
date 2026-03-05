@@ -13,11 +13,11 @@ import type {
 	CourseSection,
 	ActivityModule as PayloadActivityModule,
 } from "../payload-types";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 
 // ============================================================================

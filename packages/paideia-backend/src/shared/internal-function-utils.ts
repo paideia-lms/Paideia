@@ -6,7 +6,7 @@ import type {
 	TypedUser,
 } from "payload";
 import type { Simplify, Subtract, Sum } from "type-fest";
-import { QuizTimeLimitExceededError } from "../../errors";
+
 
 interface BaseUser extends Omit<TypedUser, "avatar"> {}
 
@@ -373,61 +373,21 @@ export type Depth<T, D extends number = 2> = Simplify<
 						: DepthFallback<T, D>
 	>
 >;
-
 /**
  * this util will no longer be required when https://github.com/payloadcms/payload/pull/9782 is done
  */
+
 export function stripDepth<
 	D extends number,
-	f extends
-		| "find"
-		| "findByID"
-		| "create"
-		| "update"
-		| "delete"
-		| "updateGlobal"
-		| "findGlobal" = "findByID",
+	f extends "find" |
+	"findByID" |
+	"create" |
+	"update" |
+	"delete" |
+	"updateGlobal" |
+	"findGlobal" = "findByID"
 >() {
-	return <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> =>
-		data as any;
+	return <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> => data as any;
 }
 
-/**
- * Validates quiz time limit
- * Throws QuizTimeLimitExceededError if time limit is exceeded (unless bypassed)
- *
- * @param startedAt - ISO string of when the quiz was started
- * @param globalTimer - Time limit in seconds from quiz config
- * @param bypassTimeLimit - If true, skips the time limit check (useful for auto-submit)
- * @throws QuizTimeLimitExceededError if time limit is exceeded
- */
-export function assertTimeLimit({
-	startedAt,
-	globalTimer,
-	bypassTimeLimit = false,
-}: {
-	startedAt: string | null | undefined;
-	globalTimer: number | null | undefined;
-	bypassTimeLimit?: boolean;
-}): void {
-	// Skip check if bypassed or no time limit configured
-	if (bypassTimeLimit || !globalTimer || !startedAt) {
-		return;
-	}
 
-	// Convert globalTimer from seconds to minutes
-	const timeLimitMinutes = globalTimer / 60;
-
-	// Calculate elapsed time
-	const startedAtDate = new Date(startedAt);
-	const now = new Date();
-	const timeElapsedMinutes =
-		(now.getTime() - startedAtDate.getTime()) / (1000 * 60);
-
-	// Check if time limit is exceeded
-	if (timeElapsedMinutes > timeLimitMinutes) {
-		throw new QuizTimeLimitExceededError(
-			`Quiz time limit of ${timeLimitMinutes} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
-		);
-	}
-}

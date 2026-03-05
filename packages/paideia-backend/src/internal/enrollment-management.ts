@@ -7,13 +7,13 @@ import {
 	UnknownError,
 } from "../errors";
 import type { Course, Enrollment } from "../payload-types";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type Depth,
 	stripDepth,
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 
 export interface CreateEnrollmentArgs extends BaseInternalFunctionArgs {
 	userId: number; // User ID

@@ -4,7 +4,7 @@ import { tryGetAnalyticsSettings } from "./analytics-settings";
 import { tryGetAppearanceSettings } from "./appearance-settings";
 import { tryGetMaintenanceSettings } from "./maintenance-settings";
 import { tryGetSitePolicies } from "./site-policies";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 
 export interface GetSystemGlobalsArgs extends BaseInternalFunctionArgs {}
 

@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import sanitizedConfig from "../../payload.config";
-import { dumpDatabase } from "./dump";
+import sanitizedConfig from "payload.config";
+import { dumpDatabase } from "../services/dump";
 
 describe("Database Dump", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

@@ -1,6 +1,6 @@
 import { healthCheck, ping } from "./routers/health";
 import { getSystemGlobals } from "./routers/system-globals";
-import { getLatestVersion } from "./routers/version-management";
+import { getLatestVersion } from "../modules/infrastructure/api/version-management";
 import {
 	createCourse,
 	updateCourse,

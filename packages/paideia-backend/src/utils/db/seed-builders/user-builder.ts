@@ -6,7 +6,7 @@ import {
 } from "../../../modules/user/services/user-management";
 import { createFileFromVfs } from "../seed-utils/vfs-utils";
 import { seedLogger } from "../seed-utils/logger";
-import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 
 import type { Vfs } from "../seed-utils/vfs-utils";
 

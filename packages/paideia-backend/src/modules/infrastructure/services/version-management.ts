@@ -1,7 +1,6 @@
 import { Result } from "typescript-result";
 import semver from "semver";
-import { transformError, UnknownError } from "../errors";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { transformError, UnknownError } from "../../../errors";
 
 // Docker Hub API configuration
 const DOCKER_HUB_USER = "hananoshikayomaru";

@@ -12,12 +12,12 @@ import {
 } from "../errors";
 import type { GradebookCategory } from "../payload-types";
 import { tryValidateOverallWeightTotal } from "./gradebook-item-management";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 
 export interface CreateGradebookCategoryArgs extends BaseInternalFunctionArgs {
 	gradebookId: number;

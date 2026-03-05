@@ -1,6 +1,6 @@
 import type { TaskConfig } from "payload";
-import { envVars } from "../env";
-import { tryResetSandbox } from "../utils/db/sandbox-reset";
+import { envVars } from "../services/env";
+import { tryResetSandbox } from "../services/sandbox-reset";
 
 /**
  * Payload task that resets the sandbox database daily at midnight

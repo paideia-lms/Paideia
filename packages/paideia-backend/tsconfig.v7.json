@@ -7,7 +7,11 @@
 			"server/*": ["./src/*"],
 			"modules/*": ["./src/modules/*"],
 			"core/*": ["./src/core/*"],
-			"*": ["./*"]
+			"*": ["./*"],
+			"payload.config": ["./src/payload.config.ts"],
+			"payload-generated-schema": ["./src/payload-generated-schema.ts"],
+			"payload-types": ["./src/payload-types.ts"],
+			"shared/*": ["./src/shared/*"]
 		},
 	},
 	"include": ["src", "../../apps/paideia/server/types.ts"],

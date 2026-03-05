@@ -3,19 +3,25 @@ import { SeedDataLoadError } from "../../errors";
 import { Result } from "typescript-result";
 import { testData } from "./predefined-seed-data";
 import { seedDataSchema } from "./seed-schema";
+import { Payload } from "payload";
+
 
 /**
  * Loads and validates seed data from seed.json file in project root
  * Falls back to testData if file doesn't exist or is invalid
  */
-export function tryLoadSeedData() {
+export function tryLoadSeedData({ 
+	logger
+} : {
+	logger: Payload["logger"]
+}) {
 	return Result.try(
 		() => {
 			const seedJsonPath = "./seed.json";
 
 			// Check if seed.json exists
 			if (!existsSync(seedJsonPath)) {
-				console.warn(
+				logger.warn(
 					"⚠️  seed.json not found in project root, using predefined test data",
 				);
 				return testData;
@@ -27,7 +33,7 @@ export function tryLoadSeedData() {
 				const fileContent = readFileSync(seedJsonPath, "utf-8");
 				rawJson = JSON.parse(fileContent);
 			} catch (error) {
-				console.warn(
+				logger.warn(
 					`⚠️  Failed to read or parse seed.json: ${error instanceof Error ? error.message : String(error)}, using predefined test data`,
 				);
 				return testData;
@@ -36,13 +42,13 @@ export function tryLoadSeedData() {
 			// Validate against schema
 			const validationResult = seedDataSchema.safeParse(rawJson);
 			if (!validationResult.success) {
-				console.warn(
+				logger.warn(
 					`⚠️  seed.json validation failed: ${validationResult.error.message}, using predefined test data`,
 				);
 				return testData;
 			}
 
-			console.log("✅ Successfully loaded and validated seed.json");
+			logger.info("✅ Successfully loaded and validated seed.json");
 			return validationResult.data;
 		},
 		(error) =>

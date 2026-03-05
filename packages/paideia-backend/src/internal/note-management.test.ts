@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import { tryCreateMedia } from "./media-management";
+import { tryCreateMedia } from "../modules/user/services/media-management";
 import {
 	tryCreateNote,
 	tryDeleteNote,
@@ -14,7 +14,7 @@ import {
 } from "./note-management";
 import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 import { href } from "react-router";
-import { createLocalReq } from "./utils/internal-function-utils";
+import { createLocalReq } from "shared/internal-function-utils";
 
 describe("Note Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

@@ -3,7 +3,7 @@ import { transformError, UnknownError } from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { SitePolicies } from "server/collections/globals";
 
 export interface GetSitePoliciesArgs extends BaseInternalFunctionArgs {}

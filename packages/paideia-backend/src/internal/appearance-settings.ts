@@ -8,10 +8,10 @@ import {
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { AppearanceSettings } from "server/collections/globals";
-import { tryCreateMedia } from "./media-management";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import { tryCreateMedia } from "../modules/user/services/media-management";
+import { handleTransactionId } from "shared/handle-transaction-id";
 export interface GetAppearanceSettingsArgs extends BaseInternalFunctionArgs {}
 
 export interface UpdateAppearanceSettingsArgs extends BaseInternalFunctionArgs {

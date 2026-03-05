@@ -5,7 +5,7 @@ import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "server/internal/utils/internal-function-utils";
+} from "shared/internal-function-utils";
 import { replaceBase64MediaWithMediaUrlsV2 } from "server/utils/replace-base64-images";
 import type { Simplify } from "type-fest";
 

@@ -1,5 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { envVars } from "server/env";
+import { envVars } from "server/modules/infrastructure/services/env";
 
 // Enhanced Users collection with LMS fields
 export const Users = {

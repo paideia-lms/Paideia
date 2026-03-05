@@ -4,6 +4,7 @@
  * Works with VaultS3 and other S3-compatible storage.
  */
 import { CreateBucketCommand, HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
+import { Payload } from "payload";
 
 const s3Client = new S3Client({
 	endpoint: process.env.S3_ENDPOINT_URL || "http://localhost:9000",
@@ -17,14 +18,18 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.S3_BUCKET || "paideia-bucket";
 
-export async function ensureBucket(): Promise<void> {
+export async function ensureBucket({
+	logger,
+}: {
+	logger: Payload["logger"],
+}): Promise<void> {
 	try {
 		await s3Client.send(
 			new HeadBucketCommand({
 				Bucket: BUCKET_NAME,
 			}),
 		);
-		console.log(`Bucket ${BUCKET_NAME} already exists`);
+		logger.info(`Bucket ${BUCKET_NAME} already exists`);
 		return;
 	} catch {
 		// Bucket does not exist, create it
@@ -36,7 +41,7 @@ export async function ensureBucket(): Promise<void> {
 				Bucket: BUCKET_NAME,
 			}),
 		);
-		console.log(`Created bucket ${BUCKET_NAME}`);
+		logger.info(`Created bucket ${BUCKET_NAME}`);
 	} catch (error) {
 		const err = error as { name?: string; Code?: string };
 		if (
@@ -53,5 +58,14 @@ export async function ensureBucket(): Promise<void> {
 }
 
 if (import.meta.main) {
-	await ensureBucket();
+	// @ts-ignore
+	await ensureBucket({ logger: { 
+		'info': (message: string) => console.log(message),
+		'warn': (message: string) => console.log(message),
+		'error': (message: string) => console.log(message),
+		'debug': (message: string) => console.log(message),
+		'trace': (message: string) => console.log(message),
+		'fatal': (message: string) => console.log(message),
+		level: 'info',
+	} });
 }

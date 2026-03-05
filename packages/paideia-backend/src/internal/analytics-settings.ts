@@ -4,9 +4,9 @@ import {
 	transformError,
 	UnknownError,
 } from "../errors";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 import { AnalyticsSettings } from "server/collections/globals";
-import { stripDepth } from "./utils/internal-function-utils";
+import { stripDepth } from "shared/internal-function-utils";
 export interface GetAnalyticsSettingsArgs extends BaseInternalFunctionArgs {}
 
 export interface UpdateAnalyticsSettingsArgs extends BaseInternalFunctionArgs {

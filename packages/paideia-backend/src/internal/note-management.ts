@@ -10,8 +10,8 @@ import {
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./utils/internal-function-utils";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+} from "shared/internal-function-utils";
+import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	processRichTextMediaV2,
 	tryExtractMediaIdsFromRichText,

@@ -48,12 +48,12 @@ import {
 	RegistrationSettings,
 	SitePolicies,
 } from "./collections/globals";
-import { envVars } from "./env";
+import { envVars } from "./modules/infrastructure/services/env";
 import { autoSubmitQuiz } from "./tasks/auto-submit-quiz";
-import { sandboxReset } from "./tasks/sandbox-reset";
+import { sandboxReset } from "./modules/infrastructure/tasks/sandbox-reset";
 import { customTranslations } from "./utils/db/custom-translations";
 import { RouterContextProvider } from "react-router";
-import { JobQueue } from "./utils/job-queue";
+import { InfrastructureModule } from "./modules/infrastructure";
 
 
 // extends the RequestContext type from payload 
@@ -331,31 +331,31 @@ const sanitizedConfig = buildConfig({
 				//  - '* 0/5 * * * *' every 5 minutes
 				//  - '* * * * * *' every second
 				cron: `0 0 * * *`, // Every day at midnight
-				queue: JobQueue.NIGHTLY,
+				queue: InfrastructureModule.JobQueue.NIGHTLY,
 			},
 			{
 				cron: `* * * * * *`, // every second
-				queue: JobQueue.SECONDLY,
+				queue: InfrastructureModule.JobQueue.SECONDLY,
 			},
 			{
 				cron: `* * * * *`, // every minute
-				queue: JobQueue.MINUTE,
+				queue: InfrastructureModule.JobQueue.MINUTE,
 			},
 			{
 				cron: `0 * * * *`, // every hour
-				queue: JobQueue.HOURLY,
+				queue: InfrastructureModule.JobQueue.HOURLY,
 			},
 			{
 				cron: "0 */3 * * *", // every 3 hours
-				queue: JobQueue.THREE_HOURLY,
+				queue: InfrastructureModule.JobQueue.THREE_HOURLY,
 			},
 			{
 				cron: "0 */6 * * *", // every 6 hours
-				queue: JobQueue.SIX_HOURLY,
+				queue: InfrastructureModule.JobQueue.SIX_HOURLY,
 			},
 			{
 				cron: "0 */12 * * *", // every 12 hours
-				queue: JobQueue.TWELVE_HOURLY,
+				queue: InfrastructureModule.JobQueue.TWELVE_HOURLY,
 			},
 		],
 		// ! this will change the database structure so you cannot be conditional here

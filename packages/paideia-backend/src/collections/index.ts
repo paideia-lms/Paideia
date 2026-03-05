@@ -20,7 +20,7 @@ export { GradebookCategories } from "./gradebook-categories";
 export { GradebookItems } from "./gradebook-items";
 export { Gradebooks } from "./gradebooks";
 export { Groups } from "./groups";
-export { Media } from "./media";
+export { Media } from "../modules/user/collections/media";
 export { Notes } from "./notes";
 export { Pages } from "./pages";
 export { QuizSubmissions } from "./quiz-submissions";

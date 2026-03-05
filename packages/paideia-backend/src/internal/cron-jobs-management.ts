@@ -2,7 +2,7 @@ import { desc, eq } from "@payloadcms/db-postgres/drizzle";
 import { payload_jobs, payload_jobs_log } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "../errors";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 
 export interface CronJobInfo {
 	name: string;
