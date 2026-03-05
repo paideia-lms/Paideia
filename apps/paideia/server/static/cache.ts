@@ -64,6 +64,35 @@ export async function isCached(
 }
 
 /**
+ * VFS variant: only checks if-none-match and cache-control.
+ * Skips if-modified-since since VFS paths are virtual (no real file to stat).
+ */
+export async function isCachedVfs(
+	headers: Record<string, string | string[] | undefined>,
+	etag: string,
+): Promise<boolean> {
+	const normalized = Object.fromEntries(
+		Object.entries(headers).map(([k, v]) => [k.toLowerCase(), typeof v === "string" ? v : v?.[0]]),
+	) as Record<string, string | undefined>;
+
+	if (
+		normalized["cache-control"] &&
+		normalized["cache-control"].indexOf("no-cache") !== -1
+	)
+		return false;
+
+	if ("if-none-match" in normalized) {
+		const ifNoneMatch = normalized["if-none-match"];
+		if (ifNoneMatch === "*") return true;
+		if (ifNoneMatch === null || ifNoneMatch === undefined) return false;
+		if (typeof etag !== "string") return false;
+		return ifNoneMatch === etag;
+	}
+
+	return false;
+}
+
+/**
  * @knipignore
  */
 export async function generateETag(file: BunFile) {
