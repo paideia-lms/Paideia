@@ -7,7 +7,7 @@ import {
 	tryUpdateAppearanceSettings,
 } from "./appearance-settings";
 import { tryFindMediaUsages } from "./media-management";
-import { tryCreateUser } from "./user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 import { stripDepth, type Depth } from "./utils/internal-function-utils";
 import type { User } from "server/payload-types";
 

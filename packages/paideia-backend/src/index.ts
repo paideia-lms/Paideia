@@ -24,7 +24,7 @@ export {
 	type CookieOptions,
 } from "./utils/cookie";
 
-export { tryCreateUser } from "./internal/user-management";
+export { tryCreateUser } from "./modules/user/services/user-management";
 export type { CategoryTreeNode, FlatNode } from "./internal/course-category-management";
 export { flattenCategories } from "./internal/course-category-management";
 export const USER_ROLES = [
@@ -66,7 +66,7 @@ export type { ActivityModule } from "./payload-types";
 export type { ActivityModuleResult } from "./internal/activity-module-management";
 export type { Media } from "./payload-types";
 export type { Enrollment } from "./payload-types";
-export { Users } from "./collections/users";
+export { Users } from "./modules/user/collections/users";
 
 // Export from v2 excluding *Args types that conflict with quiz-module-management
 export type {

@@ -12,7 +12,7 @@ import {
 	trySearchNotes,
 	tryUpdateNote,
 } from "./note-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 import { href } from "react-router";
 import { createLocalReq } from "./utils/internal-function-utils";
 

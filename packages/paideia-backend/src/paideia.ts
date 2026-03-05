@@ -42,7 +42,7 @@ import * as searchManagement from "./internal/search-management";
 import * as sitePolicies from "./internal/site-policies";
 import * as systemGlobals from "./internal/system-globals";
 import * as userGradeManagement from "./internal/user-grade-management";
-import * as userManagement from "./internal/user-management";
+import * as userManagement from "./modules/user/services/user-management";
 import * as versionManagement from "./internal/version-management";
 import { tryResolveCourseModuleSettingsToLatest } from "./json/course-module-settings/version-resolver";
 import { getMigrationStatus } from "./utils/db/migration-status";

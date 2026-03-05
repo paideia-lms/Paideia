@@ -2,12 +2,12 @@ import crypto from "node:crypto";
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "../errors";
-import type { User } from "../payload-types";
-import { handleTransactionId } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
-import { stripDepth } from "./utils/internal-function-utils";
-import { tryCreateMedia } from "./media-management";
+import { transformError, UnknownError } from "../../../errors";
+import type { User } from "../../../payload-types";
+import { handleTransactionId } from "../../../internal/utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "../../../internal/utils/internal-function-utils";
+import { stripDepth } from "../../../internal/utils/internal-function-utils";
+import { tryCreateMedia } from "../../../internal/media-management";
 
 export interface CreateUserArgs extends BaseInternalFunctionArgs {
 	data: {

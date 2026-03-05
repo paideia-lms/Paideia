@@ -15,7 +15,7 @@ import {
 	findUserById,
 	findUserByEmail,
 	findAllUsers,
-} from "./routers/user-management";
+} from "../modules/user/api/user-management";
 import {
 	createEnrollment,
 	updateEnrollment,

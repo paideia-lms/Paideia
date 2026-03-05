@@ -20,8 +20,8 @@ import {
 } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import { tryCreateUserGrade } from "./user-grade-management";
-import type { CreateUserArgs } from "./user-management";
-import { tryCreateUser } from "./user-management";
+import type { CreateUserArgs } from "../modules/user/services/user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Gradebook Item Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

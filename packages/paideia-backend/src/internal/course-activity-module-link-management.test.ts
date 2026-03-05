@@ -31,7 +31,7 @@ import {
 } from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Course Activity Module Link Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

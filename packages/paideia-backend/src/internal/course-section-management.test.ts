@@ -37,7 +37,7 @@ import {
 	tryUpdateSection,
 	tryValidateNoCircularReference,
 } from "./course-section-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Course Section Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

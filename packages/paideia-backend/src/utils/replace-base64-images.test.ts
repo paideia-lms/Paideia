@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import { tryCreateUser } from "../internal/user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 import type { TryResultValue } from "../utils/types";
 import { createLocalReq } from "../internal/utils/internal-function-utils";
 import { replaceBase64MediaWithMediaUrlsV2 } from "./replace-base64-images";

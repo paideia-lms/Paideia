@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
-import sanitizedConfig from "../payload.config";
+import sanitizedConfig from "../../../payload.config";
 import {
 	type CreateUserArgs,
 	type DeleteUserArgs,
@@ -21,9 +21,9 @@ import {
 	tryGenerateApiKey,
 	tryRevokeApiKey,
 	tryGetApiKeyStatus,
-} from "./user-management";
-import { createLocalReq } from "./utils/internal-function-utils";
-import type { User } from "../payload-types";
+} from "../services/user-management";
+import { createLocalReq } from "../../../internal/utils/internal-function-utils";
+import type { User } from "../../../payload-types";
 
 describe("User Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

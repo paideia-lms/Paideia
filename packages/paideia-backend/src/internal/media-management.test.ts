@@ -37,7 +37,7 @@ import {
 	tryRenameMedia,
 } from "./media-management";
 import { tryCreateNote } from "./note-management";
-import { tryCreateUser } from "./user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

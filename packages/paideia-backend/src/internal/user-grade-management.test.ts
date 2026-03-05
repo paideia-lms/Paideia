@@ -43,7 +43,7 @@ import {
 	tryToggleAdjustment,
 	tryUpdateUserGrade,
 } from "./user-grade-management";
-import { tryCreateUser } from "./user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 
 /**
  * in the before all, we create 3 users: admin, instructor, and student

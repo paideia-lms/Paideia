@@ -25,7 +25,7 @@ import {
 	tryCreateEnrollment,
 } from "./enrollment-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 
 const _year = new Date().getFullYear();
 

@@ -5,6 +5,8 @@
 		"types": ["bun"],
 		"paths": {
 			"server/*": ["./src/*"],
+			"modules/*": ["./src/modules/*"],
+			"core/*": ["./src/core/*"],
 			"*": ["./*"]
 		},
 	},

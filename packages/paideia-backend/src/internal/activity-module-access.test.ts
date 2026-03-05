@@ -13,7 +13,7 @@ import {
 	tryAddActivityModuleToSection,
 	tryCreateSection,
 } from "./course-section-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Activity Module Access Control", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

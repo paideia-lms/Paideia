@@ -3,7 +3,7 @@ import {
 	tryCreateUser,
 	tryRegisterFirstUser,
 	tryUpdateUser,
-} from "../../../internal/user-management";
+} from "../../../modules/user/services/user-management";
 import { createFileFromVfs } from "../seed-utils/vfs-utils";
 import { seedLogger } from "../seed-utils/logger";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";

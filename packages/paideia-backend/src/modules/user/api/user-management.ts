@@ -4,15 +4,15 @@ import {
 	tryFindUserById,
 	tryFindAllUsers,
 	tryFindUserByEmail,
-} from "../../internal/user-management";
-import type { OrpcContext } from "../context";
+} from "../services/user-management";
+import type { OrpcContext } from "../../../orpc/context";
 
 const userIdSchema = z.object({
 	userId: z.coerce.number().int().min(1),
 });
 
 const emailSchema = z.object({
-	email: z.string().email(),
+	email: z.email(),
 });
 
 const findAllSchema = z.object({
@@ -39,6 +39,7 @@ export const findUserById = os
 		if (!result.ok) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
 				message: result.error.message,
+				cause: result.error,
 			});
 		}
 		return result.value;
@@ -59,6 +60,7 @@ export const findUserByEmail = os
 		if (!result.ok) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
 				message: result.error.message,
+				cause: result.error,
 			});
 		}
 		return result.value;
@@ -82,6 +84,7 @@ export const findAllUsers = os
 		if (!result.ok) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
 				message: result.error.message,
+				cause: result.error,
 			});
 		}
 		return result.value;

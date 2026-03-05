@@ -20,7 +20,7 @@ import {
 	tryStartQuizAttempt,
 	tryMarkQuizAttemptAsComplete,
 } from "./quiz-submission-management";
-import { tryCreateUser } from "./user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
 

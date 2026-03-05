@@ -1,6 +1,6 @@
 import { SeedDataLoadError, transformError } from "../../errors";
 import { Result } from "typescript-result";
-import { tryGetUserCount } from "../../internal/user-management";
+import { tryGetUserCount } from "../../modules/user/services/user-management";
 import { testData } from "./predefined-seed-data";
 import type { SeedData } from "./seed-schema";
 import { seedLogger } from "./seed-utils/logger";

@@ -15,7 +15,7 @@ import {
 	tryUpdateCategory,
 } from "./course-category-management";
 import { tryCreateCourse } from "./course-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Course Category Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

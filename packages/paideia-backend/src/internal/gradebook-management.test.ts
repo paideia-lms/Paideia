@@ -13,8 +13,8 @@ import {
 	tryGetGradebookByCourseWithDetails,
 	tryUpdateGradebook,
 } from "./gradebook-management";
-import type { CreateUserArgs } from "./user-management";
-import { tryCreateUser } from "./user-management";
+import type { CreateUserArgs } from "../modules/user/services/user-management";
+import { tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Gradebook Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
