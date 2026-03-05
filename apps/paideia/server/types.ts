@@ -1,8 +1,12 @@
 import type { staticPlugin } from "@elysiajs/static";
 import type { Context } from "elysia/context";
+import type { ServerBuild } from "react-router";
 import type { InlineConfig } from "vite";
 
-export type GetLoadContext<T> = (context: Context) => T | Promise<T>;
+export type GetLoadContext<T> = (
+	context: Context,
+	serverBuild: ServerBuild,
+) => T | Promise<T>;
 
 type MaybePromise<T> = T | Promise<T>;
 

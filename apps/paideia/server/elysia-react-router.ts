@@ -1,12 +1,11 @@
 import { staticPlugin as _staticPlugin } from "@elysiajs/static";
 import { type AnyElysia, type Context, Elysia } from "elysia";
 import {
-	type AppLoadContext,
 	createRequestHandler,
 	type RouterContextProvider,
-	type ServerBuild,
 } from "react-router";
 import type { ViteDevServer } from "vite";
+import { getServerBuild, setVite } from "./server-build-access";
 import { staticPlugin } from "./static/static-plugin";
 import type { PluginOptions } from "./types";
 import vfs from "./vfs";
@@ -58,16 +57,19 @@ export async function reactRouter(
 	// })
 
 	if (process.env.ENV !== "production") {
-		vite = await import("vite").then((vite) => {
-			return vite.createServer({
+		vite = await import("vite").then((v) =>
+			v.createServer({
 				...options?.vite,
 				server: {
 					...options?.vite?.server,
 					middlewareMode: true,
 				},
-			});
-		});
+			}),
+		);
+		setVite(vite);
 		console.log(`vite is running as middleware`);
+	} else {
+		setVite(undefined);
 	}
 
 	if (process.env.ENV !== "production" && vite) {
@@ -104,18 +106,13 @@ export async function reactRouter(
 			throw new Error("Context is required");
 		}
 
-		const serverBuild = vite
-			? await vite.ssrLoadModule("virtual:react-router/server-build")
-			: // @ts-expect-error
-				// ! this will appear when we run build
-				((await import("../build/server/index.js")) as ServerBuild);
+		const serverBuild = await getServerBuild();
 		const handler = createRequestHandler(
-			// @ts-expect-error
 			serverBuild,
 			process.env.ENV !== "production" ? "development" : "production",
 		);
 
-		const loadContext = await options?.getLoadContext?.(context);
+		const loadContext = await options?.getLoadContext?.(context, serverBuild);
 
 		if (!loadContext) {
 			throw new Error("Load context is required");

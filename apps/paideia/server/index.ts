@@ -191,7 +191,7 @@ async function startServer() {
 		.use(
 			async (e) =>
 				await reactRouter(e, {
-					getLoadContext: ({ request, params }) => {
+					getLoadContext: ({ request, params }, serverBuild) => {
 						const c = new RouterContextProvider();
 
 						// ! patch the request
@@ -205,6 +205,7 @@ async function startServer() {
 							context: { routerContext: c },
 						});
 						c.set(globalContextKey, {
+							serverBuild,
 							environment: process.env.NODE_ENV,
 							paideia,
 							requestInfo,

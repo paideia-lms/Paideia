@@ -8,6 +8,7 @@ export interface PaideiaContextArgs {
 	overrideAccess?: boolean;
 }
 import { createContext } from "react-router";
+import type { ServerBuild } from "react-router";
 import type { Media } from "../types/frontend-types";
 import type { Storage } from "unstorage";
 import type { RouteId, MyRouteInfo } from "../../app/utils/router/routes-utils";
@@ -88,6 +89,8 @@ export type SystemGlobals = {
 };
 
 export type GlobalContext = {
+	/** Server-only: not serialized to client */
+	serverBuild?: ServerBuild;
 	environment: "development" | "production" | "test";
 	paideia: Paideia;
 	requestInfo: RequestInfo;
