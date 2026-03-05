@@ -40,7 +40,7 @@ export {
 	handleTransactionId,
 	commitTransactionIfCreated,
 	rollbackTransactionIfCreated,
-} from "./internal/utils/handle-transaction-id";
+} from "shared/handle-transaction-id";
 export { convertDatabaseAnswersToQuizAnswers } from "./internal/utils/quiz-answer-converter";
 export {
 	generateCourseStructureTree,
@@ -54,7 +54,7 @@ export {
 	createLocalReq,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "./internal/utils/internal-function-utils";
+} from "shared/internal-function-utils";
 
 export type {
 	SingleUserGradesJsonRepresentation,

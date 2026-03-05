@@ -38,7 +38,6 @@ import {
 	Quizzes,
 	SystemGradeTable,
 	UserGrades,
-	Users,
 	Whiteboards,
 } from "./collections";
 import {
@@ -48,12 +47,13 @@ import {
 	RegistrationSettings,
 	SitePolicies,
 } from "./collections/globals";
-import { envVars } from "./modules/infrastructure/services/env";
+// import { envVars } from "./modules/infrastructure/services/env";
 import { autoSubmitQuiz } from "./tasks/auto-submit-quiz";
-import { sandboxReset } from "./modules/infrastructure/tasks/sandbox-reset";
+// import { sandboxReset } from "./modules/infrastructure/tasks/sandbox-reset";
 import { customTranslations } from "./utils/db/custom-translations";
 import { RouterContextProvider } from "react-router";
-import { InfrastructureModule } from "./modules/infrastructure";
+import { InfrastructureModule } from "modules/infrastructure";
+import { UserModule } from "modules/user";
 
 
 // extends the RequestContext type from payload 
@@ -72,14 +72,14 @@ declare global {
 
 const pg = postgresAdapter({
 	pool: {
-		connectionString: envVars.DATABASE_URL.value,
+		connectionString: InfrastructureModule.envVars.DATABASE_URL.value,
 	},
 	prodMigrations: migrations,
 	// disable logger in different environments
 	logger:
 		process.env.NODE_ENV !== "test" &&
-		process.env.NODE_ENV !== "production" &&
-		process.env.NODE_ENV !== "development"
+			process.env.NODE_ENV !== "production" &&
+			process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
 	// ! we never want to push directly, always respect the the migrations files
@@ -118,7 +118,7 @@ const pg = postgresAdapter({
 						// Change foreign key to CASCADE on delete for both activity_modules and courses
 						if (
 							foreignKey.reference().foreignTable[
-								Symbol.for("drizzle:Name")
+							Symbol.for("drizzle:Name")
 							] === relation.foreignTable
 						) {
 							// console.log(foreignKey)
@@ -179,19 +179,20 @@ const __dirname = import.meta.dirname;
 
 const sanitizedConfig = buildConfig({
 	db: pg,
-	secret: envVars.PAYLOAD_SECRET.value,
+	secret: InfrastructureModule.envVars.PAYLOAD_SECRET.value,
 	// ? shall we use localhost or the domain of the server
-	serverURL: `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
-	cors: envVars.CORS_ORIGINS.origins,
+	serverURL: `http://localhost:${InfrastructureModule.envVars.PORT.value ?? InfrastructureModule.envVars.PORT.default}`,
+	cors: InfrastructureModule.envVars.CORS_ORIGINS.origins,
 	csrf: [
 		// ! this is required for the local development to work
 		...(process.env.NODE_ENV === "development"
 			? ["http://localhost:3000", "localhost"]
 			: ["http://localhost:3000", "localhost"]),
-		...envVars.CSRF_ORIGINS.origins,
+		...InfrastructureModule.envVars.CSRF_ORIGINS.origins,
 	].filter(Boolean) as string[],
 	collections: [
-		Users,
+		...UserModule.collections,
+		...InfrastructureModule.collections,
 		Courses,
 		CourseSections,
 		CourseCategories,
@@ -237,37 +238,37 @@ const sanitizedConfig = buildConfig({
 	email: (() => {
 		// Shared default values for both email adapters
 		const defaultFromAddress =
-			envVars.EMAIL_FROM_ADDRESS.value ??
-			envVars.EMAIL_FROM_ADDRESS.default ??
+			InfrastructureModule.envVars.EMAIL_FROM_ADDRESS.value ??
+			InfrastructureModule.envVars.EMAIL_FROM_ADDRESS.default ??
 			"info@paideialms.com";
 		const defaultFromName =
-			envVars.EMAIL_FROM_NAME.value ??
-			envVars.EMAIL_FROM_NAME.default ??
+			InfrastructureModule.envVars.EMAIL_FROM_NAME.value ??
+			InfrastructureModule.envVars.EMAIL_FROM_NAME.default ??
 			"Paideia LMS";
 
-		if (envVars.RESEND_API_KEY.value) {
+		if (InfrastructureModule.envVars.RESEND_API_KEY.value) {
 			return resendAdapter({
-				apiKey: envVars.RESEND_API_KEY.value,
+				apiKey: InfrastructureModule.envVars.RESEND_API_KEY.value,
 				defaultFromAddress,
 				defaultFromName,
 			});
 		}
 
 		if (
-			envVars.SMTP_HOST.value &&
-			envVars.SMTP_USER.value &&
-			envVars.SMTP_PASS.value
+			InfrastructureModule.envVars.SMTP_HOST.value &&
+			InfrastructureModule.envVars.SMTP_USER.value &&
+			InfrastructureModule.envVars.SMTP_PASS.value
 		) {
 			return nodemailerAdapter({
 				defaultFromAddress,
 				defaultFromName,
 				// Nodemailer transportOptions
 				transportOptions: {
-					host: envVars.SMTP_HOST.value,
+					host: InfrastructureModule.envVars.SMTP_HOST.value,
 					port: 587,
 					auth: {
-						user: envVars.SMTP_USER.value,
-						pass: envVars.SMTP_PASS.value,
+						user: InfrastructureModule.envVars.SMTP_USER.value,
+						pass: InfrastructureModule.envVars.SMTP_PASS.value,
 					},
 				},
 			});
@@ -277,7 +278,7 @@ const sanitizedConfig = buildConfig({
 	})(),
 	plugins: [
 		searchPlugin({
-			collections: [Users.slug, Courses.slug],
+			collections: [...UserModule.search, ...InfrastructureModule.search, Courses.slug],
 			searchOverrides: {
 				slug: "search" as const,
 				fields: ({ defaultFields }) => [
@@ -299,14 +300,14 @@ const sanitizedConfig = buildConfig({
 			collections: {
 				media: true,
 			},
-			bucket: envVars.S3_BUCKET.value,
+			bucket: InfrastructureModule.envVars.S3_BUCKET.value,
 			config: {
 				credentials: {
-					accessKeyId: envVars.S3_ACCESS_KEY.value,
-					secretAccessKey: envVars.S3_SECRET_KEY.value,
+					accessKeyId: InfrastructureModule.envVars.S3_ACCESS_KEY.value,
+					secretAccessKey: InfrastructureModule.envVars.S3_SECRET_KEY.value,
 				},
-				endpoint: envVars.S3_ENDPOINT_URL.value,
-				region: envVars.S3_REGION.value ?? envVars.S3_REGION.default, // VaultS3 default region
+				endpoint: InfrastructureModule.envVars.S3_ENDPOINT_URL.value,
+				region: InfrastructureModule.envVars.S3_REGION.value ?? InfrastructureModule.envVars.S3_REGION.default, // VaultS3 default region
 				forcePathStyle: true, // Required for S3-compatible storage (VaultS3, MinIO)
 			},
 		}),
@@ -315,51 +316,11 @@ const sanitizedConfig = buildConfig({
 		deleteJobOnComplete: false,
 		// the cron queue
 		autoRun: [
-			{
-				//     ┌───────────── (optional) second (0 - 59)
-				//     │ ┌───────────── minute (0 - 59)
-				// 	   │ │ ┌───────────── hour (0 - 23)
-				// 	   │ │ │ ┌───────────── day of the month (1 - 31)
-				// 	   │ │ │ │ ┌───────────── month (1 - 12)
-				// 	   │ │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
-				// 	   │ │ │ │ │ │
-				// 	   │ │ │ │ │ │
-				//  - '* 0 * * * *' every hour at minute 0
-				//  - '* 0 0 * * *' daily at midnight
-				//  - '* 0 0 * * 0' weekly at midnight on Sundays
-				//  - '* 0 0 1 * *' monthly at midnight on the 1st day of the month
-				//  - '* 0/5 * * * *' every 5 minutes
-				//  - '* * * * * *' every second
-				cron: `0 0 * * *`, // Every day at midnight
-				queue: InfrastructureModule.JobQueue.NIGHTLY,
-			},
-			{
-				cron: `* * * * * *`, // every second
-				queue: InfrastructureModule.JobQueue.SECONDLY,
-			},
-			{
-				cron: `* * * * *`, // every minute
-				queue: InfrastructureModule.JobQueue.MINUTE,
-			},
-			{
-				cron: `0 * * * *`, // every hour
-				queue: InfrastructureModule.JobQueue.HOURLY,
-			},
-			{
-				cron: "0 */3 * * *", // every 3 hours
-				queue: InfrastructureModule.JobQueue.THREE_HOURLY,
-			},
-			{
-				cron: "0 */6 * * *", // every 6 hours
-				queue: InfrastructureModule.JobQueue.SIX_HOURLY,
-			},
-			{
-				cron: "0 */12 * * *", // every 12 hours
-				queue: InfrastructureModule.JobQueue.TWELVE_HOURLY,
-			},
+			...InfrastructureModule.queues,
+			...UserModule.queues,
 		],
 		// ! this will change the database structure so you cannot be conditional here
-		tasks: [sandboxReset, autoSubmitQuiz] as TaskConfig[],
+		tasks: [...InfrastructureModule.tasks, ...UserModule.tasks, autoSubmitQuiz] as TaskConfig[],
 	},
 	defaultDepth: 1,
 	typescript: {

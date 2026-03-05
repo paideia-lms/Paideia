@@ -35,13 +35,14 @@ Integrated [oRPC](https://orpc.dev) into `packages/paideia-backend` to serve Ope
 
 ### 3. Middleware Order Fix (Vite vs OpenAPI)
 
-**Problem**: In development, Vite middleware runs before Elysia routes. Requests to `/openapi/spec.json` were served `index.html` (SPA fallback), causing "No route matches" from React Router.
+**Problem**: In development, Vite middleware runs before API routes. Requests to `/openapi/spec.json` were served `index.html` (SPA fallback), causing "No route matches" from React Router.
 
-**Solution**: Add Connect middleware that handles `/openapi` paths **before** the reactRouter plugin (and thus before Vite). Requests to `/openapi/*` are intercepted and never reach Vite or React Router.
+**Solution**: Add Connect middleware that handles `/openapi` paths **before** Vite. Requests to `/openapi/*` are intercepted and never reach Vite or React Router.
 
-**Implementation**:
-- `openapiMiddleware` added via `elysia-connect-middleware` before `.use(reactRouter(...))`
-- Converts Node req/res to Fetch Request, calls `handleOpenApiRequest()`, writes response
+**Implementation** (updated March 2026 – Elysia removed):
+- OpenAPI middleware runs first in `dev-server.ts` Connect app
+- Uses `@remix-run/node-fetch-server` for Node req/res → Fetch conversion
+- `handleOpenApiRequest` moved to `Paideia.handleOpenApiRequest()` in paideia-backend
 
 ## Technical Details
 

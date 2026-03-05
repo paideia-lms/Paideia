@@ -8,7 +8,7 @@ Core Characteristics:
 
 Single Executable Deployment: Packages into one binary for maximum portability
 Dual-Server Architecture: Frontend server (port 3001) and backend server (port 3000) running in the same process
-Type-Safe API: End-to-end type safety using Elysia and Treaty
+Type-Safe API: End-to-end type safety using oRPC and OpenAPI
 Headless CMS: Payload CMS for content management
 Modern UI: Mantine component library
 Fast Runtime: Bun as both runtime and bundler

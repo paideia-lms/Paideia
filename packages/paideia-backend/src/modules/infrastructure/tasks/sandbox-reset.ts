@@ -13,6 +13,7 @@ import { tryResetSandbox } from "../services/sandbox-reset";
 export const sandboxReset: TaskConfig<"sandboxReset"> = {
 	slug: "sandboxReset" as const,
 	schedule: [
+		// This schedule configuration automatically queues a job every midnight, but only when SANDBOX_MODE is enabled. The job is placed in the NIGHTLY queue for later execution.
 		{
 			cron: "0 0 * * *", // Every midnight
 			queue: "nightly",
@@ -33,18 +34,12 @@ export const sandboxReset: TaskConfig<"sandboxReset"> = {
 		},
 	],
 	handler: async ({ req }) => {
-		const resetResult = await tryResetSandbox({
+		await tryResetSandbox({
 			payload: req.payload,
 			req: req,
-			overrideAccess: false,
-		});
-
-		if (!resetResult.ok) {
-			return {
-				state: "failed",
-				errorMessage: resetResult.error.message,
-			};
-		}
+			// ! we can override access because this is a system request
+			overrideAccess: true,
+		}).getOrThrow()
 
 		return {
 			state: "succeeded",

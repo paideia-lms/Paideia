@@ -8,7 +8,7 @@
 
 ## Summary
 
-In development, requests to `/openapi/spec.json` and `/openapi/*` returned `index.html` (SPA fallback) instead of the OpenAPI spec or oRPC handler responses. React Router reported "No routes matched location" because the request never reached Elysia's OpenAPI handler.
+In development, requests to `/openapi/spec.json` and `/openapi/*` returned `index.html` (SPA fallback) instead of the OpenAPI spec or oRPC handler responses. React Router reported "No routes matched location" because the request never reached the OpenAPI handler.
 
 ## Impact
 
@@ -18,45 +18,50 @@ In development, requests to `/openapi/spec.json` and `/openapi/*` returned `inde
 - oRPC procedures return 404 or HTML
 
 **Root Cause**:
-- Elysia uses `reactRouter` plugin, which in dev mode delegates to Vite middleware
+- The dev server uses Connect + Vite middleware
 - Vite serves the SPA and returns `index.html` for unmatched routes (SPA fallback)
-- Vite middleware runs before Elysia route handlers for the same request
-- `/openapi/*` is not a React Router route, so Vite treats it as unmatched and serves `index.html`
+- If the OpenAPI handler runs **after** Vite middleware, `/openapi/*` is treated as unmatched and gets `index.html`
 
 ## Resolution
 
-Use Elysia's `onRequest` lifecycle hook and **return** a Response for `/openapi` paths. Returning a value from `onRequest` short-circuits the pipeline (skips route matching), so the request never reaches the reactRouter catch-all or Vite.
+Register the OpenAPI handler **before** Vite middleware in the Connect app. In `dev-server.ts`, the middleware order is:
 
-**Note**: Connect middleware (`elysia-connect-middleware`) does NOT reliably short-circuit: it may set headers/status but Elysia still proceeds to route matching. Use native `onRequest` instead.
+1. OpenAPI middleware (pathname.startsWith("/openapi")) – must run first
+2. Vite middlewares
+3. Static files
+4. React Router catch-all
 
-### Implementation
+### Implementation (Current)
 
 ```typescript
-// apps/paideia/server/index.ts
-const frontend = new Elysia()
-  .onRequest(async ({ request }) => {
-    const pathname = new URL(request.url).pathname;
-    if (!pathname.startsWith("/openapi")) return;
-
-    const response = await handleOpenApiRequest(request);
-    return response;  // Short-circuits: skips route matching
-  })
-  .use(reactRouter(...));
+// apps/paideia/server/dev-server.ts
+app.use(async (req, res, next) => {
+  const pathname = new URL(req.url ?? "/", `http://${req.headers.host}`).pathname;
+  if (!pathname.startsWith("/openapi")) {
+    next();
+    return;
+  }
+  const request = await createRequest(req, res);
+  const response = await handleOpenApiRequest(request);
+  await sendResponse(res, response);
+});
+app.use(vite.middlewares);
+// ...
 ```
 
-`handleOpenApiRequest` should serve `/openapi/spec.json`, `/openapi` (Scalar docs HTML), and delegate other `/openapi/*` to the oRPC handler.
+In production (Bun.serve), the fetch handler checks pathname first and short-circuits for `/openapi` before serving static or React Router.
 
 ## Prevention
 
-1. **Middleware order**: When adding API routes that must not be served as SPA, register middleware **before** the React Router / Vite plugin.
+1. **Middleware order**: When adding API routes that must not be served as SPA, register middleware **before** Vite.
 2. **Path prefix**: Use a distinct prefix (e.g. `/openapi`) so a single middleware can intercept all API routes.
-3. **Elysia + Vite**: Elysia's plugin order matters; Connect middleware runs in request order before downstream plugins.
+3. **Connect order**: Middleware runs in registration order; first match wins.
 
 ## References
 
 - Changelog: `changelogs/0097-2026-03-03-orpc-openapi-integration.md`
-- Skill: `.cursor/skills/elysia-vite-openapi-middleware/SKILL.md`
-- Server: `apps/paideia/server/index.ts`
+- Skill: `.cursor/skills/vite-openapi-middleware/SKILL.md`
+- Server: `apps/paideia/server/dev-server.ts`, `apps/paideia/server/index.ts`
 
 ## Status
 

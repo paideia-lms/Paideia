@@ -12,39 +12,88 @@ description: Add oRPC procedures to expose internal functions from paideia-backe
 
 ## Pattern
 
-1. Create or extend a router in `packages/paideia-backend/src/orpc/routers/`.
+1. Create or extend an API module in `packages/paideia-backend/src/modules/*/api/` or `packages/paideia-backend/src/orpc/routers/`.
 2. Export procedures using `os.$context<OrpcContext>()`, `os.route()`, `input()`, `output()`, `handler()`.
-3. Call internal function with `overrideAccess: true`.
-4. Merge router into `packages/paideia-backend/src/orpc/router.ts`.
+3. Call the try* function **directly** with explicit args (no generic `run` wrapper).
+4. Use `req: context.req` and `overrideAccess: false` for user-authenticated endpoints; `overrideAccess: true` for admin-only.
+5. Merge procedures into `packages/paideia-backend/src/orpc/router.ts`.
+
+## Handler Pattern (Required)
+
+**Do not use a generic `run` wrapper.** Passing `(args: object) => Promise<...>` causes type errors: `"Types of parameters 'args' and 'args' are incompatible. Type '{}' is missing the following properties from type 'GetMediaByIdArgs': id, payload, req"`. Call the try* function directly with explicit args:
+
+```typescript
+.handler(async ({ input, context }) => {
+  const result = await tryFindUserById({
+    payload: context.payload,
+    userId: input.userId,
+    req: context.req,
+    overrideAccess: false,
+  });
+  if (!result.ok) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: result.error.message,
+      cause: result.error,
+    });
+  }
+  return result.value;
+});
+```
+
+## Procedures Needing S3Client or userId
+
+If the try* function requires `s3Client` or `userId`, check context and pass them:
+
+```typescript
+.handler(async ({ input, context }) => {
+  if (!context.s3Client) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "S3 client not configured" });
+  }
+  if (!context.user) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "User not authenticated" });
+  }
+  const result = await tryRenameMedia({
+    payload: context.payload,
+    s3Client: context.s3Client,
+    id: input.id,
+    newFilename: input.newFilename,
+    userId: context.user.id,
+    req: context.req,
+    overrideAccess: false,
+  });
+  // ...
+});
+```
 
 ## Example
 
 ```typescript
-// routers/course-management.ts
+// modules/user/api/user-management.ts
 import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
-import { tryFindCourseById } from "../../internal/course-management";
-import type { OrpcContext } from "../context";
+import { tryFindUserById } from "../services/user-management";
+import type { OrpcContext } from "../../../orpc/context";
 
-const courseIdSchema = z.object({
-  courseId: z.coerce.number().int().min(1),
+const userIdSchema = z.object({
+  userId: z.coerce.number().int().min(1),
 });
 
-export const findCourseById = os
+export const findUserById = os
   .$context<OrpcContext>()
-  .route({ method: "GET", path: "/courses/{courseId}" })
-  .input(courseIdSchema)
+  .route({ method: "GET", path: "/users/{userId}" })
+  .input(userIdSchema)
   .output(z.any())
   .handler(async ({ input, context }) => {
-    const result = await tryFindCourseById({
+    const result = await tryFindUserById({
       payload: context.payload,
-      courseId: input.courseId,
-      req: undefined,
-      overrideAccess: true,
+      userId: input.userId,
+      req: context.req,
+      overrideAccess: false,
     });
     if (!result.ok) {
       throw new ORPCError("INTERNAL_SERVER_ERROR", {
         message: result.error.message,
+        cause: result.error,
       });
     }
     return result.value;
@@ -90,6 +139,7 @@ Use `z.record(z.string(), z.any())` for arbitrary key-value objects. `z.any()` a
 ## Reference
 
 - Internal modules: `packages/paideia-backend/src/internal/`
-- Existing routers: `packages/paideia-backend/src/orpc/routers/`
+- API modules: `packages/paideia-backend/src/modules/*/api/` (e.g. `user-management.ts`, `media-management.ts`)
+- Routers: `packages/paideia-backend/src/orpc/routers/`
 - Incident (incomplete coverage): `release-notes/incidents/2026-03-03-openapi-incomplete-internal-functions.md`
 - Incident (schema._zod / z.record): `release-notes/incidents/2026-03-03-orpc-schema-zod-record.md`

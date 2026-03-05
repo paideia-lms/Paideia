@@ -6,21 +6,8 @@ import {
 } from "@aws-sdk/client-s3";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
-import { createLocalReq } from "shared/internal-function-utils";
-import { envVars } from "../modules/infrastructure/services/env";
-import config from "../payload.config";
-import { s3Client } from "../modules/infrastructure/services/s3-client";
-// import {
-// 	tryCreateAssignmentModule,
-// 	tryCreateDiscussionModule,
-// 	tryCreatePageModule,
-// } from "./activity-module-management";
-// import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
-// import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
-// import { tryCreateCourse } from "./course-management";
-// import { tryCreateSection } from "./course-section-management";
-// import { tryCreateDiscussionSubmission } from "./discussion-management";
-// import { tryCreateEnrollment } from "./enrollment-management";
+import { InfrastructureModule } from "modules/infrastructure";
+import config from "payload.config";
 import {
 	tryCreateMedia,
 	tryDeleteMedia,
@@ -35,9 +22,11 @@ import {
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
 	tryRenameMedia,
-} from "../modules/user/services/media-management";
-// import { tryCreateNote } from "./note-management";
-import { tryCreateUser } from "../modules/user/services/user-management";
+} from "../services/media-management";
+import { tryCreateUser } from "../services/user-management";
+
+const s3Client = InfrastructureModule.s3Client;
+const envVars = InfrastructureModule.envVars;
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

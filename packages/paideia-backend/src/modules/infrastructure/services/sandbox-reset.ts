@@ -1,18 +1,18 @@
 import { SandboxResetError, transformError } from "../../../errors";
 import { Result } from "typescript-result";
 import { envVars } from "./env";
-import { tryLoadSeedData } from "../../../utils/db/load-seed-data";
-import { tryRunSeed } from "../../../utils/db/seed";
-import type { Vfs } from "../../../utils/db/seed-utils/vfs-utils";
+// import { tryLoadSeedData } from "../../../utils/db/load-seed-data";
+// import { tryRunSeed } from "../../../utils/db/seed";
+// import type { Vfs } from "../../../utils/db/seed-utils/vfs-utils";
 import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import { migrateFresh } from "./migrate-fresh";
 import { migrations } from "server/migrations";
 import { Migration } from "payload";
 
-interface TryResetSandboxArgs extends BaseInternalFunctionArgs {
-	vfs?: Vfs;
-}
+// interface TryResetSandboxArgs extends BaseInternalFunctionArgs {
+// 	vfs?: Vfs;
+// }
 
 
 /**
@@ -22,7 +22,7 @@ interface TryResetSandboxArgs extends BaseInternalFunctionArgs {
  *
  * if fail, it will rollback the transaction.
  */
-export function tryResetSandbox(args: TryResetSandboxArgs) {
+export function tryResetSandbox(args: BaseInternalFunctionArgs) {
 	const { payload, req } = args;
 	return Result.try(
 		async () => {
@@ -45,20 +45,20 @@ export function tryResetSandbox(args: TryResetSandboxArgs) {
 
 				await Bun.sleep(1000);
 
-				// Load seed data (falls back to testData if seed.json invalid/missing)
-				const seedData = tryLoadSeedData({ logger: payload.logger }).getOrThrow();
+				// // Load seed data (falls back to testData if seed.json invalid/missing)
+				// const seedData = tryLoadSeedData({ logger: payload.logger }).getOrThrow();
 
-				// Run seed with loaded data
-				const seedResult = await tryRunSeed({
-					payload: args.payload,
-					req: txInfo.reqWithTransaction,
-					seedData: seedData,
-					vfs: args.vfs ?? {},
-				}).getOrThrow();
+				// // Run seed with loaded data
+				// const seedResult = await tryRunSeed({
+				// 	payload: args.payload,
+				// 	req: txInfo.reqWithTransaction,
+				// 	seedData: seedData,
+				// 	vfs: args.vfs ?? {},
+				// }).getOrThrow();
 
-				console.log("✅ Sandbox database reset completed successfully");
+				// console.log("✅ Sandbox database reset completed successfully");
 
-				return seedResult;
+				return "success" as const;
 			});
 		},
 		(error) => {

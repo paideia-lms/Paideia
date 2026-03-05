@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import { JobQueue } from "../modules/infrastructure/services/job-queue";
+import { JobQueue } from "../job-queue";
 import {
 	type CreateActivityModuleArgs,
 	tryCreateQuizModule,

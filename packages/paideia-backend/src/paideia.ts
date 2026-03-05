@@ -11,12 +11,12 @@ import sanitizedConfig from "./payload.config";
 import { testConnections } from "./modules/infrastructure/services/health-check";
 import { migrations } from "./migrations";
 import { validateEnvVars } from "./modules/infrastructure/services/env";
-import { createLocalReq } from "./internal/utils/internal-function-utils";
+import { createLocalReq } from "shared/internal-function-utils";
 import {
 	commitTransactionIfCreated as commitTransactionIfCreatedFn,
 	handleTransactionId,
 	rollbackTransactionIfCreated as rollbackTransactionIfCreatedFn,
-} from "./internal/utils/handle-transaction-id";
+} from "shared/handle-transaction-id";
 import { permissions } from "./utils/permissions";
 import * as activityModuleAccess from "./internal/activity-module-access";
 import * as activityModuleManagement from "./internal/activity-module-management";
@@ -126,14 +126,14 @@ export class Paideia {
 		});
 	}
 
-	tryResetSandbox(opts?: { vfs?: Record<string, string> }) {
-		return tryResetSandboxFn({
-			payload: this.getPayload(),
-			req: undefined,
-			overrideAccess: true,
-			vfs: opts?.vfs ?? {},
-		});
-	}
+	// tryResetSandbox(opts?: { vfs?: Record<string, string> }) {
+	// 	return tryResetSandboxFn({
+	// 		payload: this.getPayload(),
+	// 		req: undefined,
+	// 		overrideAccess: true,
+	// 		vfs: opts?.vfs ?? {},
+	// 	});
+	// }
 
 	async configureCommands(): Promise<import("commander").Command> {
 		const { configureCommands } = await import("./cli/commands");

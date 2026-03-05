@@ -7,7 +7,7 @@ import {
 	findQuestionInConfig,
 } from "./utils/quiz-answer-converter";
 import { calculateQuizGrade, type QuizAnswer } from "./quiz-grading";
-import { JobQueue } from "../modules/infrastructure/services/job-queue";
+import { JobQueue } from "../job-queue";
 import type { QuizSubmission, UserGrade } from "server/payload-types";
 import { Result } from "typescript-result";
 import {

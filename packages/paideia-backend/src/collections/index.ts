@@ -26,5 +26,4 @@ export { Pages } from "./pages";
 export { QuizSubmissions } from "./quiz-submissions";
 export { Quizzes } from "./quizzes";
 export { UserGrades } from "./user-grades";
-export { Users } from "../modules/user/collections/users";
 export { Whiteboards } from "./whiteboards";

@@ -1,7 +1,7 @@
 import { Payload } from "payload";
 import * as internal from "./services/user-management"
-import { Users as collection } from "./collections/users"
-import { trySeedUsers } from "./seeding/users-builder";
+import { Users } from "./collections/users"
+import { trySeedUsers, TrySeedUsersArgs } from "./seeding/users-builder";
 import { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
 import type { UserSeedData as UserSeedDataType } from "./seeding/user-seed-schema";
 
@@ -14,10 +14,15 @@ export namespace UserModule {
  * 
  * this is the single point of export for the user module.
  */
-export class UserModule { 
+export class UserModule {
     private readonly payload: Payload;
-    public readonly collection = collection;
-    public readonly seedData = predefinedUserSeedData;
+    public static readonly collections = [
+        Users,
+    ];
+    public static readonly search = [Users.slug]
+    public static readonly seedData = predefinedUserSeedData;
+    public static readonly queues = []
+    public static readonly tasks = []
 
     constructor(payload: Payload) {
         this.payload = payload;
@@ -57,14 +62,14 @@ export class UserModule {
             ...args,
         });
     }
-    
+
     async findAllUsers(args: Omit<internal.FindAllUsersArgs, "payload">) {
         return internal.tryFindAllUsers({
             payload: this.payload,
             ...args,
         });
     }
-    
+
     async loginUser(args: Omit<internal.LoginArgs, "payload">) {
         return internal.tryLogin({
             payload: this.payload,
@@ -85,14 +90,14 @@ export class UserModule {
             ...args,
         });
     }
-    
+
     async handleImpersonation(args: Omit<internal.HandleImpersonationArgs, "payload">) {
         return internal.tryHandleImpersonation({
             payload: this.payload,
             ...args,
         });
     }
-    
+
     async getUserCount(args: Omit<internal.GetUserCountArgs, "payload">) {
         return internal.tryGetUserCount({
             payload: this.payload,
@@ -120,8 +125,14 @@ export class UserModule {
             ...args,
         });
     }
+
+    async seedUsers(args: Omit<TrySeedUsersArgs, "payload">) {
+        return trySeedUsers({
+            payload: this.payload,
+            ...args,
+        });
+    }
 }
 
-export { trySeedUsers } from "./seeding/users-builder";
-export { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
+
 

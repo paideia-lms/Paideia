@@ -92,7 +92,7 @@ import {
 	getOrphanedMedia,
 	getAllOrphanedFilenames,
 	findMediaUsages,
-} from "./routers/media-management";
+} from "../modules/user/api/media-management";
 import {
 	createGradebook,
 	updateGradebook,

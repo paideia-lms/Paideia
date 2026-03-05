@@ -1,11 +1,11 @@
-import { HeadBucketCommand  , CreateBucketCommand} from "@aws-sdk/client-s3";
+import { HeadBucketCommand, CreateBucketCommand } from "@aws-sdk/client-s3";
 import { sql } from "@payloadcms/db-postgres/drizzle";
 import { envVars } from "./env";
 import { s3Client } from "./s3-client";
 import type { Payload } from "payload";
 
- async function testDbConnection(
-	payload: Payload, 
+async function testDbConnection(
+	payload: Payload,
 ) {
 	try {
 		await payload.db.drizzle.execute(sql`SELECT 1`);
@@ -20,7 +20,7 @@ import type { Payload } from "payload";
 	}
 }
 
- async function ensureBucket({
+async function ensureBucket({
 	logger,
 }: {
 	logger: Payload["logger"],
@@ -59,9 +59,9 @@ import type { Payload } from "payload";
 	}
 }
 
- async function testS3Connection({ 
+async function testS3Connection({
 	logger,
-} : {
+}: {
 	logger: Payload["logger"],
 }): Promise<
 	{ ok: true } | { ok: false; error: unknown }
@@ -91,7 +91,7 @@ import type { Payload } from "payload";
 export async function testConnections(
 	payload: Payload,
 ) {
-	payload.logger.info("\n🔍 Testing dependencies connectivity...\n");
+	payload.logger.info("🔍 Testing dependencies connectivity...");
 
 	const dbOk = await testDbConnection(payload);
 
@@ -108,9 +108,9 @@ export async function testConnections(
 	const s3Result = await testS3Connection({ logger: payload.logger });
 
 	if (!dbOk || !s3Result.ok) {
-		payload.logger.error("\n❌ One or more dependency connections failed. Exiting.\n");
+		payload.logger.error("❌ One or more dependency connections failed. Exiting.");
 		process.exit(1);
 	}
 
-	payload.logger.info("\n✅ All dependencies connected successfully\n");
+	payload.logger.info("✅ All dependencies connected successfully");
 }
