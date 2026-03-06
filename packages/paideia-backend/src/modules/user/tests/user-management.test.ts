@@ -1272,6 +1272,7 @@ describe("First User Check Functions - With overrideAccess", () => {
 		}
 
 		payload = await getPayload({
+			key: `test-${Math.random().toString(36).substring(2, 15)}`,
 			config: sanitizedConfig,
 		});
 	});
@@ -1351,6 +1352,7 @@ describe("First User Check Functions - With Access Control", () => {
 		}
 
 		payload = await getPayload({
+			key: `test-${Math.random().toString(36).substring(2, 15)}`,
 			config: sanitizedConfig,
 		});
 
@@ -1423,23 +1425,22 @@ describe("First User Check Functions - With Access Control", () => {
 	});
 });
 
-describe("Authentication Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Authentication Functions", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
-
 	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
+
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
-
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
 	});

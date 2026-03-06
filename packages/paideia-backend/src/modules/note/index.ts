@@ -1,22 +1,39 @@
 import { Notes } from "./collections/notes";
 
 import { Payload } from "payload";
-import { CreateNoteArgs, tryCreateNote, tryUpdateNote, UpdateNoteArgs, FindNoteByIdArgs, tryFindNoteById, trySearchNotes, SearchNotesArgs, tryDeleteNote, DeleteNoteArgs, tryFindNotesByUser, FindNotesByUserArgs } from "./services/note-management";
-
+import {
+	CreateNoteArgs,
+	tryCreateNote,
+	tryUpdateNote,
+	UpdateNoteArgs,
+	FindNoteByIdArgs,
+	tryFindNoteById,
+	trySearchNotes,
+	SearchNotesArgs,
+	tryDeleteNote,
+	DeleteNoteArgs,
+	tryFindNotesByUser,
+	FindNotesByUserArgs,
+} from "./services/note-management";
+import { UserModule } from "modules/user";
+import {
+	trySeedNotes,
+	TrySeedNotesArgs,
+} from "./seeding/notes-builder";
+import { predefinedNoteSeedData } from "./seeding/predefined-note-seed-data";
+import type { NoteSeedData as NoteSeedDataType } from "./seeding/note-seed-schema";
 
 export namespace NoteModule {
-
+	export type NoteSeedData = NoteSeedDataType;
 }
 
 export class NoteModule {
-    private readonly payload: Payload;
-    public static readonly collections = [
-        Notes,
-    ];
-    public static readonly cli = {
-    }
-    public static readonly search = []
-    public static readonly seedData = undefined;
+	private readonly payload: Payload;
+	public static readonly deps = [UserModule] as const;
+	public static readonly collections = [Notes];
+	public static readonly cli = {};
+	public static readonly search = [];
+	public static readonly seedData = predefinedNoteSeedData;
     public static readonly queues = []
     public static readonly tasks = []
 
@@ -63,6 +80,13 @@ export class NoteModule {
         return tryFindNotesByUser({
             payload: this.payload,
             ...args,
-        })
+        });
+    }
+
+    async seedNotes(args: Omit<TrySeedNotesArgs, "payload">) {
+        return trySeedNotes({
+            payload: this.payload,
+            ...args,
+        });
     }
 }

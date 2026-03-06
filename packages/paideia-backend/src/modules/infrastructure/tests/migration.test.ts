@@ -11,7 +11,9 @@ describe("Migration", async () => {
 	});
 
 	it("migrate fresh", async () => {
-		await $`bun run migrate:fresh --force-accept-warning`;
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
+		});
 	});
 
 	// it("run seed", async () => {
@@ -24,6 +26,6 @@ describe("Migration", async () => {
 	// });
 
 	it("migrate down", async () => {
-		await $`bun run migrate:down`;
+		await payload.db.migrateDown();
 	});
 });

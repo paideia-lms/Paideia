@@ -12,7 +12,9 @@ describe("Database Dump", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await payload.db.migrateFresh({
+				forceAcceptWarning: true,
+			});
 			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
@@ -32,7 +34,9 @@ describe("Database Dump", () => {
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await payload.db.migrateFresh({
+				forceAcceptWarning: true,
+			});
 			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);

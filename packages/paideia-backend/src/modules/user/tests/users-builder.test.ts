@@ -78,7 +78,7 @@ describe("Users Builder", async () => {
 		expect(seedResult.byEmail.get(devConstants.ADMIN_EMAIL)).toBeDefined();
 		expect(seedResult.byEmail.get("user@example.com")).toBeDefined();
 		expect(seedResult.byEmail.get("apikey-user-seed@example.com")).toBeDefined();
-		expect(seedResult.byEmail.get(devConstants.ADMIN_EMAIL)?.role).toBe(
+		expect(seedResult.byEmail.get(devConstants.ADMIN_EMAIL)?.user.role).toBe(
 			"admin",
 		);
 	});

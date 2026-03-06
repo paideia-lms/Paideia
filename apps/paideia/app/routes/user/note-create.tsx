@@ -142,7 +142,7 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+	const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		createNote({
 			values: {

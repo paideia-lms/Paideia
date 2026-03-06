@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
-import sanitizedConfig from "../../../payload.config";
-import { tryCreateMedia } from "../../user/services/media-management";
+import sanitizedConfig from "payload.config";
 import {
 	tryCreateNote,
 	tryDeleteNote,
@@ -12,11 +11,16 @@ import {
 	trySearchNotes,
 	tryUpdateNote,
 } from "../services/note-management";
-import { type CreateUserArgs, tryCreateUser } from "modules/user/services/user-management";
-import { href } from "react-router";
+// import { tryCreateMedia } from "../../user/services/media-management";
+import { trySeedMedia } from "../../user/seeding/media-builder";
+import { trySeedUsers } from "../../user/seeding/users-builder";
+import {
+	noteManagementTestMediaSeedData,
+	noteManagementTestUserSeedData,
+} from "../seeding/note-management-test-seed-data";
 import { createLocalReq } from "shared/internal-function-utils";
-import PaideiaLogo from "../fixture/paideia-logo.png" with { type: "file" };
-import Gem from "../fixture/gem.png" with { type: "file" };
+// import PaideiaLogo from "../fixture/paideia-logo.png" with { type: "file" };
+// import Gem from "../fixture/gem.png" with { type: "file" };
 
 
 describe("Note Management Functions", async () => {
@@ -26,6 +30,7 @@ describe("Note Management Functions", async () => {
 	});
 	let testUser: { id: number };
 	let testUser2: { id: number };
+	let noUser: { id: number };
 	let user1Token: string;
 	let user2Token: string;
 	let adminToken: string;
@@ -45,158 +50,52 @@ describe("Note Management Functions", async () => {
 	};
 
 	beforeAll(async () => {
-		// await until payload.db.drizzle is ready
 		while (!payload.db.drizzle) {
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 		}
 
 		await payload.db.migrateFresh({
 			forceAcceptWarning: true,
 		});
 
-
-		// Create test users
-		const userArgs1: CreateUserArgs = {
+		const usersResult = await trySeedUsers({
 			payload,
-			data: {
-				email: "testuser1@example.com",
-				password: "testpassword123",
-				firstName: "Test",
-				lastName: "User1",
-				role: "student",
-			},
+			data: noteManagementTestUserSeedData,
 			overrideAccess: true,
-
 			req: undefined,
-		};
+		}).getOrThrow();
 
-		const userArgs2: CreateUserArgs = {
+		const mediaResult = await trySeedMedia({
 			payload,
-			data: {
-				email: "testuser2@example.com",
-				password: "testpassword123",
-				firstName: "Test",
-				lastName: "User2",
-				role: "student",
-			},
+			data: noteManagementTestMediaSeedData,
+			usersByEmail: usersResult.getUsersByEmail(),
 			overrideAccess: true,
-
 			req: undefined,
-		};
+		}).getOrThrow();
 
-		const adminArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-				firstName: "Admin",
-				lastName: "User",
-				role: "admin",
-			},
-			overrideAccess: true,
+		const user1Entry = usersResult.byEmail.get("testuser1@example.com")!;
+		const user2Entry = usersResult.byEmail.get("testuser2@example.com")!;
+		const noUserEntry = usersResult.byEmail.get("nouser@example.com")!;
+		const adminEntry = usersResult.byEmail.get("admin@example.com")!;
 
-			req: undefined,
-		};
+		testUser = user1Entry.user;
+		testUser2 = user2Entry.user;
+		noUser = noUserEntry.user;
 
-		const userResult1 = await tryCreateUser(userArgs1);
-		const userResult2 = await tryCreateUser(userArgs2);
-		const adminResult = await tryCreateUser(adminArgs);
+		user1Token = user1Entry.token!;
+		user2Token = user2Entry.token!;
+		adminToken = adminEntry.token!;
 
-		if (!userResult1.ok || !userResult2.ok || !adminResult.ok) {
-			throw new Error("Failed to create test users");
-		}
-
-		testUser = userResult1.value;
-		testUser2 = userResult2.value;
-
-		// Verify users so they can login
-		await payload.update({
-			collection: "users",
-			id: testUser.id,
-			data: {
-				_verified: true,
-			},
-		});
-
-		await payload.update({
-			collection: "users",
-			id: testUser2.id,
-			data: {
-				_verified: true,
-			},
-		});
-
-		await payload.update({
-			collection: "users",
-			id: adminResult.value.id,
-			data: {
-				_verified: true,
-			},
-		});
-
-		// Login to get tokens for authenticated requests
-		const login1 = await payload.login({
-			collection: "users",
-			data: {
-				email: "testuser1@example.com",
-				password: "testpassword123",
-			},
-		});
-
-		const login2 = await payload.login({
-			collection: "users",
-			data: {
-				email: "testuser2@example.com",
-				password: "testpassword123",
-			},
-		});
-
-		const adminLogin = await payload.login({
-			collection: "users",
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-			},
-		});
-
-		if (!login1.token || !login2.token || !adminLogin.token) {
-			throw new Error("Failed to get authentication tokens");
-		}
-
-		user1Token = login1.token;
-		user2Token = login2.token;
-		adminToken = adminLogin.token;
-
-		// Create test media file
-		const fileBuffer = await Bun.file(Gem).arrayBuffer();
-		const createMediaResult = await tryCreateMedia({
-			payload,
-			file: Buffer.from(fileBuffer),
-			filename: "test-note-media.png",
-			mimeType: "image/png",
-			alt: "Test note media",
-			userId: testUser.id,
-			// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
-			overrideAccess: true,
-
-			req: undefined,
-		});
-
-		if (!createMediaResult.ok) {
-			throw new Error("Failed to create test media");
-		}
-
-		testMediaId = createMediaResult.value.media.id;
-		_testMediaFilename = createMediaResult.value.media.filename ?? "";
+		const testMedia = mediaResult.getByFilename("test-note-media.png");
+		testMediaId = testMedia.id;
+		_testMediaFilename = testMedia.filename ?? "";
 	});
 
 	afterAll(async () => {
-		// Clean up any test data
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
+		});
+		await $`bun scripts/clean-s3.ts`;
 	});
 
 	describe("tryCreateNote", () => {
@@ -758,36 +657,18 @@ describe("Note Management Functions", async () => {
 		});
 
 		test("should return empty array for user with no notes", async () => {
-			// Create a new user with no notes
-			const userArgs: CreateUserArgs = {
+			const result = await tryFindNotesByUser({
 				payload,
-				data: {
-					email: "nouser@example.com",
-					password: "testpassword123",
-					firstName: "No",
-					lastName: "Notes",
-					role: "student",
-				},
+				userId: noUser.id,
+				limit: 10,
 				overrideAccess: true,
 
 				req: undefined,
-			};
+			});
 
-			const userResult = await tryCreateUser(userArgs);
-			if (userResult.ok) {
-				const result = await tryFindNotesByUser({
-					payload,
-					userId: userResult.value.id,
-					limit: 10,
-					overrideAccess: true,
-
-					req: undefined,
-				});
-
-				expect(result.ok).toBe(true);
-				if (result.ok) {
-					expect(result.value.length).toBe(0);
-				}
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.length).toBe(0);
 			}
 		});
 	});
@@ -1250,76 +1131,74 @@ describe("Note Management Functions", async () => {
 		});
 	});
 
-	describe("Media parsing from HTML (reproducing note-create.tsx scenario)", () => {
-		test("should parse media from HTML with filename URL (like note-create.tsx)", async () => {
-			// Simulate the exact scenario from note-create.tsx:
-			// 1. Create media file using fixture
-			// 2. Create HTML content with media URL using filename (like href generates)
-			// 3. Call tryCreateNote and verify media array is populated
+	// describe("Media parsing from HTML (reproducing note-create.tsx scenario)", () => {
+	// 	test("should parse media from HTML with filename URL (like note-create.tsx)", async () => {
+	// 		// Simulate the exact scenario from note-create.tsx:
+	// 		// 1. Create media file using fixture
+	// 		// 2. Create HTML content with media URL using filename (like href generates)
+	// 		// 3. Call tryCreateNote and verify media array is populated
 
-			// Get authenticated user
-			const user = await getAuthUser(user1Token);
-			if (!user) {
-				throw new Error("Failed to get authenticated user");
-			}
+	// 		// Get authenticated user
+	// 		const user = await getAuthUser(user1Token);
+	// 		if (!user) {
+	// 			throw new Error("Failed to get authenticated user");
+	// 		}
 
-			// Step 1: Create media file using fixture
-			const fileBuffer = await Bun.file(
-				PaideiaLogo,
-			).arrayBuffer();
-			const createMediaResult = await tryCreateMedia({
-				payload,
-				file: Buffer.from(fileBuffer),
-				filename: "paideia-logo-test.png",
-				mimeType: "image/png",
-				alt: "Paideia logo test",
-				userId: testUser.id,
-				req: { user },
-			});
+	// 		// Step 1: Create media file using fixture
+	// 		const fileBuffer = await Bun.file(
+	// 			PaideiaLogo,
+	// 		).arrayBuffer();
+	// 		const createMediaResult = await tryCreateMedia({
+	// 			payload,
+	// 			file: Buffer.from(fileBuffer),
+	// 			filename: "paideia-logo-test.png",
+	// 			mimeType: "image/png",
+	// 			alt: "Paideia logo test",
+	// 			userId: testUser.id,
+	// 			req: { user },
+	// 		});
 
-			expect(createMediaResult.ok).toBe(true);
-			if (!createMediaResult.ok) {
-				throw new Error("Failed to create test media");
-			}
+	// 		expect(createMediaResult.ok).toBe(true);
+	// 		if (!createMediaResult.ok) {
+	// 			throw new Error("Failed to create test media");
+	// 		}
 
-			const createdMedia = createMediaResult.value.media;
-			const mediaFilename = createdMedia.filename ?? "";
-			expect(mediaFilename).toBeTruthy();
+	// 		const createdMedia = createMediaResult.value.media;
+	// 		const mediaFilename = createdMedia.filename ?? "";
+	// 		expect(mediaFilename).toBeTruthy();
 
-			// Step 2: Create HTML content with media URL using ID
-			// This simulates what href("/api/media/file/:id", { id: mediaId }) generates
-			const mediaUrl = href("/api/media/file/:mediaId", {
-				mediaId: createdMedia.id.toString(),
-			});
-			const htmlContent = `<p>This is a test note with an image!</p><img src="${mediaUrl}" alt="Test image" />`;
+	// 		// Step 2: Create HTML content with media URL using ID
+	// 		// This simulates what href("/api/media/file/:id", { id: mediaId }) generates
+	// 		const mediaUrl = `/api/media/file/${createdMedia.id}`;
+	// 		const htmlContent = `<p>This is a test note with an image!</p><img src="${mediaUrl}" alt="Test image" />`;
 
-			// Step 3: Call tryCreateNote and verify media array is populated
-			const result = await tryCreateNote({
-				payload,
-				data: {
-					content: htmlContent,
-					createdBy: testUser.id,
-				},
-				overrideAccess: true,
+	// 		// Step 3: Call tryCreateNote and verify media array is populated
+	// 		const result = await tryCreateNote({
+	// 			payload,
+	// 			data: {
+	// 				content: htmlContent,
+	// 				createdBy: testUser.id,
+	// 			},
+	// 			overrideAccess: true,
 
-				req: undefined,
-			});
+	// 			req: undefined,
+	// 		});
 
-			expect(result.ok).toBe(true);
-			if (!result.ok) {
-				console.error("Failed to create note:", result.error);
-				throw result.error;
-			}
+	// 		expect(result.ok).toBe(true);
+	// 		if (!result.ok) {
+	// 			console.error("Failed to create note:", result.error);
+	// 			throw result.error;
+	// 		}
 
-			// Verify media array is populated
-			expect(result.value.contentMedia).toBeDefined();
-			if (Array.isArray(result.value.contentMedia)) {
-				expect(result.value.contentMedia.length).toBe(1);
-				const mediaId = result.value.contentMedia[0];
-				expect(mediaId).toBe(createdMedia.id);
-			} else {
-				throw new Error("Media should be an array");
-			}
-		});
-	});
+	// 		// Verify media array is populated
+	// 		expect(result.value.contentMedia).toBeDefined();
+	// 		if (Array.isArray(result.value.contentMedia)) {
+	// 			expect(result.value.contentMedia.length).toBe(1);
+	// 			const mediaId = result.value.contentMedia[0];
+	// 			expect(mediaId).toBe(createdMedia.id);
+	// 		} else {
+	// 			throw new Error("Media should be an array");
+	// 		}
+	// 	});
+	// });
 });

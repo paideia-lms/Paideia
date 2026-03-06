@@ -252,7 +252,6 @@ export function tryGetPendingJobsByQueue(args: TryGetPendingJobsByQueueArgs) {
 	return Result.try(
 		async () => {
 			const { payload, req, queue, limit = 100 } = args;
-			console.log("payload.db.drizzle", payload.db.drizzle);
 			const drizzle = payload.db.drizzle;
 
 			const pendingJobs = await drizzle

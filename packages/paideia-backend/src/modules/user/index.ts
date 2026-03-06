@@ -1,12 +1,19 @@
 import { Payload } from "payload";
 import * as internal from "./services/user-management"
 import { Users } from "./collections/users"
+import {
+    trySeedMedia,
+    TrySeedMediaArgs,
+} from "./seeding/media-builder";
 import { trySeedUsers, TrySeedUsersArgs } from "./seeding/users-builder";
+import { predefinedMediaSeedData } from "./seeding/predefined-media-seed-data";
 import { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
+import type { MediaSeedData as MediaSeedDataType } from "./seeding/media-seed-schema";
 import type { UserSeedData as UserSeedDataType } from "./seeding/user-seed-schema";
 import { Media } from "server/collections";
 
 export namespace UserModule {
+    export type MediaSeedData = MediaSeedDataType;
     export type UserSeedData = UserSeedDataType;
 }
 
@@ -24,7 +31,10 @@ export class UserModule {
     public static readonly cli = {
     }
     public static readonly search = [Users.slug]
-    public static readonly seedData = predefinedUserSeedData;
+    public static readonly seedData = {
+        users: predefinedUserSeedData,
+        media: predefinedMediaSeedData,
+    }
     public static readonly queues = []
     public static readonly tasks = []
 
@@ -132,6 +142,13 @@ export class UserModule {
 
     async seedUsers(args: Omit<TrySeedUsersArgs, "payload">) {
         return trySeedUsers({
+            payload: this.payload,
+            ...args,
+        });
+    }
+
+    async seedMedia(args: Omit<TrySeedMediaArgs, "payload">) {
+        return trySeedMedia({
             payload: this.payload,
             ...args,
         });

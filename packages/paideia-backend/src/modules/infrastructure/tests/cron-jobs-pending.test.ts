@@ -26,7 +26,10 @@ describe("Cron Jobs Pending by Queue", async () => {
 
 	afterAll(async () => {
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await payload.db.migrateFresh({
+				forceAcceptWarning: true,
+			});
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
