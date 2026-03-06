@@ -4,6 +4,7 @@ import { Users } from "./collections/users"
 import { trySeedUsers, TrySeedUsersArgs } from "./seeding/users-builder";
 import { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
 import type { UserSeedData as UserSeedDataType } from "./seeding/user-seed-schema";
+import { Media } from "server/collections";
 
 export namespace UserModule {
     export type UserSeedData = UserSeedDataType;
@@ -18,6 +19,7 @@ export class UserModule {
     private readonly payload: Payload;
     public static readonly collections = [
         Users,
+        Media
     ];
     public static readonly search = [Users.slug]
     public static readonly seedData = predefinedUserSeedData;

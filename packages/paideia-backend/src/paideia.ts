@@ -36,7 +36,7 @@ import * as gradebookItemManagement from "./internal/gradebook-item-management";
 import * as gradebookManagement from "./internal/gradebook-management";
 import * as maintenanceSettings from "./internal/maintenance-settings";
 import * as mediaManagement from "./modules/user/services/media-management";
-import * as noteManagement from "./internal/note-management";
+import * as noteManagement from "./modules/note/services/note-management";
 import * as quizModuleManagement from "./internal/quiz-module-management";
 import * as quizSubmissionManagement from "./internal/quiz-submission-management";
 import * as registrationSettings from "./internal/registration-settings";

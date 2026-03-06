@@ -54,6 +54,7 @@ import { customTranslations } from "./utils/db/custom-translations";
 import { RouterContextProvider } from "react-router";
 import { InfrastructureModule } from "modules/infrastructure";
 import { UserModule } from "modules/user";
+import { NoteModule } from "modules/note";
 
 
 // extends the RequestContext type from payload 
@@ -193,6 +194,7 @@ const sanitizedConfig = buildConfig({
 	collections: [
 		...UserModule.collections,
 		...InfrastructureModule.collections,
+		...NoteModule.collections,
 		Courses,
 		CourseSections,
 		CourseCategories,
@@ -206,8 +208,6 @@ const sanitizedConfig = buildConfig({
 		Quizzes,
 		Discussions,
 		CourseActivityModuleLinks,
-		Media,
-		Notes,
 		Gradebooks,
 		GradebookCategories,
 		GradebookItems,
@@ -278,7 +278,7 @@ const sanitizedConfig = buildConfig({
 	})(),
 	plugins: [
 		searchPlugin({
-			collections: [...UserModule.search, ...InfrastructureModule.search, Courses.slug],
+			collections: [...UserModule.search, ...InfrastructureModule.search, ...NoteModule.search, Courses.slug],
 			searchOverrides: {
 				slug: "search" as const,
 				fields: ({ defaultFields }) => [

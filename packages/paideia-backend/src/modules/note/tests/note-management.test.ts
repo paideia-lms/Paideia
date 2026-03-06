@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
-import sanitizedConfig from "../payload.config";
-import { tryCreateMedia } from "../modules/user/services/media-management";
+import sanitizedConfig from "../../../payload.config";
+import { tryCreateMedia } from "../../user/services/media-management";
 import {
 	tryCreateNote,
 	tryDeleteNote,
@@ -11,10 +11,13 @@ import {
 	tryGenerateNoteHeatmap,
 	trySearchNotes,
 	tryUpdateNote,
-} from "./note-management";
-import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
+} from "../services/note-management";
+import { type CreateUserArgs, tryCreateUser } from "../../user/services/user-management";
 import { href } from "react-router";
 import { createLocalReq } from "shared/internal-function-utils";
+import PaideiaLogo from "../fixture/paideia-logo.png" with { type: "file" };
+import Gem from "../fixture/gem.png" with { type: "file" };
+
 
 describe("Note Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -163,7 +166,7 @@ describe("Note Management Functions", () => {
 		adminToken = adminLogin.token;
 
 		// Create test media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createMediaResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -1260,7 +1263,7 @@ describe("Note Management Functions", () => {
 
 			// Step 1: Create media file using fixture
 			const fileBuffer = await Bun.file(
-				"fixture/paideia-logo.png",
+				PaideiaLogo,
 			).arrayBuffer();
 			const createMediaResult = await tryCreateMedia({
 				payload,

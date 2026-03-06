@@ -13,7 +13,6 @@ describe("Parse Media From HTML", () => {
 			expect(result.value.ids.length).toBe(2);
 			expect(result.value.ids).toContain(123);
 			expect(result.value.ids).toContain(456);
-			expect(result.value.filenames.length).toBe(0);
 		}
 	});
 
@@ -40,7 +39,6 @@ describe("Parse Media From HTML", () => {
 				cause: result.error,
 			});
 		expect(result.value.ids.length).toBe(0);
-		expect(result.value.filenames.length).toBe(0);
 	});
 
 	test("should return empty arrays for empty HTML", () => {
@@ -49,7 +47,6 @@ describe("Parse Media From HTML", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.ids.length).toBe(0);
-			expect(result.value.filenames.length).toBe(0);
 		}
 	});
 
@@ -62,7 +59,6 @@ describe("Parse Media From HTML", () => {
 				cause: result.error,
 			});
 		expect(result.value.ids.length).toBe(0);
-		expect(result.value.filenames.length).toBe(0);
 	});
 
 	test("should ignore images without src attributes", () => {

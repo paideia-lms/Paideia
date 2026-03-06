@@ -14,6 +14,6 @@
 			"shared/*": ["./src/shared/*"]
 		},
 	},
-	"include": ["src", "../../apps/paideia/server/types.ts"],
+	"include": ["src", "../../apps/paideia/server/types.ts" , "types.d.ts"],
 	"exclude": ["node_modules", "src/payload-generated-schema.ts"]
 }

@@ -21,7 +21,7 @@ export { GradebookItems } from "./gradebook-items";
 export { Gradebooks } from "./gradebooks";
 export { Groups } from "./groups";
 export { Media } from "../modules/user/collections/media";
-export { Notes } from "./notes";
+export { Notes } from "../modules/note/collections/notes";
 export { Pages } from "./pages";
 export { QuizSubmissions } from "./quiz-submissions";
 export { Quizzes } from "./quizzes";

@@ -6,7 +6,7 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "../errors";
+} from "../../../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
@@ -14,7 +14,6 @@ import {
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	processRichTextMediaV2,
-	tryExtractMediaIdsFromRichText,
 } from "server/collections/utils/rich-text-content";
 
 export interface CreateNoteArgs extends BaseInternalFunctionArgs {
@@ -149,20 +148,20 @@ export function tryUpdateNote(args: UpdateNoteArgs) {
 							isPublic: data.isPublic,
 							...(data.content
 								? await processRichTextMediaV2({
-										payload,
-										userId: currentUser.id,
-										req: txInfo.reqWithTransaction,
-										overrideAccess,
-										data: {
-											content: data.content.trim(),
+									payload,
+									userId: currentUser.id,
+									req: txInfo.reqWithTransaction,
+									overrideAccess,
+									data: {
+										content: data.content.trim(),
+									},
+									fields: [
+										{
+											key: "content",
+											alt: "Note content image",
 										},
-										fields: [
-											{
-												key: "content",
-												alt: "Note content image",
-											},
-										],
-									})
+									],
+								})
 								: {}),
 						},
 						req: txInfo.reqWithTransaction,

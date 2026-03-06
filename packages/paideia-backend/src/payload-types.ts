@@ -68,6 +68,8 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
+    media: Media;
+    notes: Note;
     courses: Course;
     'course-sections': CourseSection;
     'course-categories': CourseCategory;
@@ -81,8 +83,6 @@ export interface Config {
     quizzes: Quiz;
     discussions: Discussion;
     'course-activity-module-links': CourseActivityModuleLink;
-    media: Media;
-    notes: Note;
     gradebooks: Gradebook;
     'gradebook-categories': GradebookCategory;
     'gradebook-items': GradebookItem;
@@ -144,6 +144,8 @@ export interface Config {
   };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    notes: NotesSelect<false> | NotesSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     'course-sections': CourseSectionsSelect<false> | CourseSectionsSelect<true>;
     'course-categories': CourseCategoriesSelect<false> | CourseCategoriesSelect<true>;
@@ -157,8 +159,6 @@ export interface Config {
     quizzes: QuizzesSelect<false> | QuizzesSelect<true>;
     discussions: DiscussionsSelect<false> | DiscussionsSelect<true>;
     'course-activity-module-links': CourseActivityModuleLinksSelect<false> | CourseActivityModuleLinksSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
-    notes: NotesSelect<false> | NotesSelect<true>;
     gradebooks: GradebooksSelect<false> | GradebooksSelect<true>;
     'gradebook-categories': GradebookCategoriesSelect<false> | GradebookCategoriesSelect<true>;
     'gradebook-items': GradebookItemsSelect<false> | GradebookItemsSelect<true>;
@@ -290,6 +290,19 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes".
+ */
+export interface Note {
+  id: number;
+  createdBy: number | User;
+  content: string;
+  contentMedia?: (number | Media)[] | null;
+  isPublic?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -870,19 +883,6 @@ export interface CategoryRoleAssignment {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "notes".
- */
-export interface Note {
-  id: number;
-  createdBy: number | User;
-  content: string;
-  contentMedia?: (number | Media)[] | null;
-  isPublic?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "gradebooks".
  */
 export interface Gradebook {
@@ -1161,6 +1161,14 @@ export interface PayloadLockedDocument {
         value: number | User;
       } | null)
     | ({
+        relationTo: 'media';
+        value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'notes';
+        value: number | Note;
+      } | null)
+    | ({
         relationTo: 'courses';
         value: number | Course;
       } | null)
@@ -1211,14 +1219,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'course-activity-module-links';
         value: number | CourseActivityModuleLink;
-      } | null)
-    | ({
-        relationTo: 'media';
-        value: number | Media;
-      } | null)
-    | ({
-        relationTo: 'notes';
-        value: number | Note;
       } | null)
     | ({
         relationTo: 'gradebooks';
@@ -1339,6 +1339,38 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media_select".
+ */
+export interface MediaSelect<T extends boolean = true> {
+  alt?: T;
+  caption?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes_select".
+ */
+export interface NotesSelect<T extends boolean = true> {
+  createdBy?: T;
+  content?: T;
+  contentMedia?: T;
+  isPublic?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1593,38 +1625,6 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
   assignmentSubmissions?: T;
   quizSubmissions?: T;
   discussionSubmissions?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media_select".
- */
-export interface MediaSelect<T extends boolean = true> {
-  alt?: T;
-  caption?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "notes_select".
- */
-export interface NotesSelect<T extends boolean = true> {
-  createdBy?: T;
-  content?: T;
-  contentMedia?: T;
-  isPublic?: T;
   updatedAt?: T;
   createdAt?: T;
 }

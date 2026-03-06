@@ -57,14 +57,11 @@ export function tryExtractMediaIdsFromRichText(
 			const mediaParseResult =
 				await tryParseMediaFromHtml(content).getOrThrow();
 
-			const { ids: parsedIds, filenames } = mediaParseResult;
+			const { ids: parsedIds } = mediaParseResult;
 
 			// Add to sets (automatically handles duplicates)
 			for (const id of parsedIds) {
 				allParsedIds.add(id);
-			}
-			for (const filename of filenames) {
-				allFilenames.add(filename);
 			}
 		}
 
@@ -73,32 +70,32 @@ export function tryExtractMediaIdsFromRichText(
 		const resolvedIds =
 			allFilenames.size > 0
 				? await payload
-						.find({
-							collection: "media",
-							where: {
-								filename: {
-									in: Array.from(allFilenames),
-								},
+					.find({
+						collection: "media",
+						where: {
+							filename: {
+								in: Array.from(allFilenames),
 							},
-							limit: allFilenames.size,
-							depth: 0,
-							pagination: false,
-							// ! this is a server request
-							overrideAccess: true,
-							req: req?.transactionID
-								? { ...req, transactionID: req.transactionID }
-								: req,
-						})
-						.then(stripDepth<0, "find">())
-						.catch((error) => {
-							interceptPayloadError({
-								error,
-								functionNamePrefix: "tryExtractMediaIdsFromRichText",
-								args,
-							});
-							throw error;
-						})
-						.then((r) => r.docs?.map((doc) => doc.id) ?? [])
+						},
+						limit: allFilenames.size,
+						depth: 0,
+						pagination: false,
+						// ! this is a server request
+						overrideAccess: true,
+						req: req?.transactionID
+							? { ...req, transactionID: req.transactionID }
+							: req,
+					})
+					.then(stripDepth<0, "find">())
+					.catch((error) => {
+						interceptPayloadError({
+							error,
+							functionNamePrefix: "tryExtractMediaIdsFromRichText",
+							args,
+						});
+						throw error;
+					})
+					.then((r) => r.docs?.map((doc) => doc.id) ?? [])
 				: [];
 
 		// Combine parsed IDs and resolved IDs, remove duplicates

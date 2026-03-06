@@ -48,7 +48,6 @@ export function tryParseMediaFromHtml(html: string) {
 
 			return {
 				ids: Array.from(mediaIds),
-				filenames: [], // No longer used, kept for backward compatibility
 			};
 		},
 		(error) =>

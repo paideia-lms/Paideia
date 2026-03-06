@@ -39,7 +39,7 @@ import {
 	deleteNote,
 	findNotesByUser,
 	generateNoteHeatmap,
-} from "./routers/note-management";
+} from "../modules/note/api/note-management";
 import {
 	createCategory,
 	updateCategory,

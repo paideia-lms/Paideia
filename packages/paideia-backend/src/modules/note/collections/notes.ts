@@ -1,5 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { richTextContent } from "./utils/rich-text-content";
+import { richTextContent } from "server/collections/utils/rich-text-content";
 
 /**
  * notes are like journals and tweets
