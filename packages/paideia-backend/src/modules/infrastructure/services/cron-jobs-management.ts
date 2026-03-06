@@ -1,7 +1,7 @@
-import { desc, eq } from "@payloadcms/db-postgres/drizzle";
+import { and, desc, eq, isNull } from "@payloadcms/db-postgres/drizzle";
 import { payload_jobs, payload_jobs_log } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "../errors";
+import { transformError, UnknownError } from "../../../errors";
 import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
 
 export interface CronJobInfo {
@@ -222,6 +222,78 @@ export function tryGetCronJobHistory(args: TryGetCronJobHistoryArgs) {
 		(error) =>
 			transformError(error) ??
 			new UnknownError("Failed to get cron job history", {
+				cause: error,
+			}),
+	);
+}
+
+export interface PendingJobEntry {
+	id: number;
+	taskSlug: string | null;
+	queue: string | null;
+	waitUntil: string | null;
+	createdAt: string;
+	processing: boolean | null;
+	hasError: boolean | null;
+	error: unknown | null;
+	input: unknown;
+	meta: unknown;
+}
+
+type TryGetPendingJobsByQueueArgs = BaseInternalFunctionArgs & {
+	queue: string;
+	limit?: number;
+};
+
+/**
+ * Gets all pending jobs in a specific queue (jobs that haven't completed yet)
+ */
+export function tryGetPendingJobsByQueue(args: TryGetPendingJobsByQueueArgs) {
+	return Result.try(
+		async () => {
+			const { payload, req, queue, limit = 100 } = args;
+			console.log("payload.db.drizzle", payload.db.drizzle);
+			const drizzle = payload.db.drizzle;
+
+			const pendingJobs = await drizzle
+				.select({
+					id: payload_jobs.id,
+					taskSlug: payload_jobs.taskSlug,
+					queue: payload_jobs.queue,
+					waitUntil: payload_jobs.waitUntil,
+					createdAt: payload_jobs.createdAt,
+					processing: payload_jobs.processing,
+					hasError: payload_jobs.hasError,
+					error: payload_jobs.error,
+					input: payload_jobs.input,
+					meta: payload_jobs.meta,
+				})
+				.from(payload_jobs)
+				.where(
+					and(
+						eq(payload_jobs.queue, queue),
+						isNull(payload_jobs.completedAt),
+					),
+				)
+				.orderBy(desc(payload_jobs.createdAt))
+				.limit(limit);
+
+			return pendingJobs.map((job) => ({
+				id: job.id,
+				taskSlug: job.taskSlug ?? null,
+				queue: job.queue ?? null,
+				waitUntil: job.waitUntil ?? null,
+				createdAt: job.createdAt ?? "",
+				processing: job.processing ?? null,
+				hasError: job.hasError ?? null,
+				error: job.error ?? null,
+				input: job.input ?? null,
+				meta: job.meta ?? null,
+			}));
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get pending jobs by queue", {
 				cause: error,
 			}),
 	);

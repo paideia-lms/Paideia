@@ -4,6 +4,7 @@ import { getPayload } from "payload";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import sanitizedConfig from "payload.config";
 import { dumpDatabase } from "../services/dump";
+import { TestError } from "server/tests/errors";
 
 describe("Database Dump", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -18,8 +19,14 @@ describe("Database Dump", () => {
 		}
 
 		payload = await getPayload({
+			key: `test-${Math.random().toString(36).substring(2, 15)}`,
 			config: sanitizedConfig,
 		});
+
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
 	});
 
 	afterAll(async () => {

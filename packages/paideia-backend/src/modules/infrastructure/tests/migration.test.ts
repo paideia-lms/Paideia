@@ -4,13 +4,10 @@ import sanitizedConfig from "server/payload.config";
 import { getPayload } from "payload";
 // import { testData } from "../../../utils/db/predefined-seed-data";
 // import { tryRunSeed } from "../../../utils/db/seed";
-describe("Migration", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
-
-	beforeAll(async () => {
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
+describe("Migration", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
 	});
 
 	it("migrate fresh", async () => {
@@ -18,12 +15,12 @@ describe("Migration", () => {
 	});
 
 	// it("run seed", async () => {
-		// const seedResult = await tryRunSeed({
-		// 	payload,
-		// 	req: undefined,
-		// 	seedData: testData,
-		// });
-		// expect(seedResult.ok).toBe(true);
+	// const seedResult = await tryRunSeed({
+	// 	payload,
+	// 	req: undefined,
+	// 	seedData: testData,
+	// });
+	// expect(seedResult.ok).toBe(true);
 	// });
 
 	it("migrate down", async () => {

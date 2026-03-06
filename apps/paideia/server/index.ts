@@ -1,7 +1,6 @@
 import {
 	Paideia,
 	asciiLogo,
-	displayHelp,
 	envVars,
 	s3Client,
 	// tryRunSeed,
@@ -37,6 +36,8 @@ import type { PackageJson } from "type-fest";
 
 const paideia = new Paideia();
 await paideia.init();
+// flush the logger
+await new Promise((resolve) => setTimeout(resolve, 0));
 
 const logger = paideia.getPayload().logger;
 // Server startup function
@@ -45,7 +46,6 @@ async function startServer() {
 	logger.info(
 		`You are starting the Paideia server (${packageJson.version}). Paideia binary can be used as a CLI application.`,
 	);
-	displayHelp();
 
 	// Check for pending migrations before any DB-dependent operations
 	const migrationStatuses = await paideia.getMigrationStatus();
@@ -214,9 +214,13 @@ async function startServer() {
 				if (pathname.startsWith("/openapi")) {
 					return paideia.handleOpenApiRequest(request);
 				}
-				const vfsResponse = await serveFromVfs(request, vfs as Record<string, string>, {
-					maxAge: 31536000,
-				});
+				const vfsResponse = await serveFromVfs(
+					request,
+					vfs as Record<string, string>,
+					{
+						maxAge: 31536000,
+					},
+				);
 				if (vfsResponse) return vfsResponse;
 				const serverBuild = await getServerBuild();
 				const handler = createRequestHandler(serverBuild, "production");
@@ -224,10 +228,9 @@ async function startServer() {
 				return handler(request, loadContext);
 			},
 		});
-		paideia.getPayload().logger.info(
-			`🚀 Paideia frontend is running at ${server.url}`,
-		);
-
+		paideia
+			.getPayload()
+			.logger.info(`🚀 Paideia frontend is running at ${server.url}`);
 	} else {
 		const dev = await createDevServer({
 			port: frontendPort,
@@ -237,7 +240,7 @@ async function startServer() {
 		});
 	}
 
-	await new Promise(() => { }); // keep process alive
+	await new Promise(() => {}); // keep process alive
 }
 
 // Configure CLI with trpc-cli (oRPC-based)
@@ -260,4 +263,4 @@ program.action(startServer);
 
 // await cli.run({ argv: process.argv }, program);
 await program.parseAsync();
-process.exit(0)  // Exits with code 0  
+process.exit(0); // Exits with code 0

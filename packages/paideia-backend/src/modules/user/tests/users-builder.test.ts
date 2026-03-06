@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../../../payload.config";
 import { predefinedUserSeedData } from "../seeding/predefined-user-seed-data";
@@ -9,19 +8,21 @@ import {
 } from "../seeding/users-builder";
 import { devConstants } from "../../../utils/constants";
 
-describe("Users Builder", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Users Builder", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let seedResult: SeedUsersResult;
 
 	beforeAll(async () => {
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
 
 		seedResult = await trySeedUsers({
@@ -33,11 +34,9 @@ describe("Users Builder", () => {
 	});
 
 	afterAll(async () => {
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
+		});
 	});
 
 	test("seeds users from predefined data successfully", () => {

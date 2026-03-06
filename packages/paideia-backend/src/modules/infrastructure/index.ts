@@ -5,6 +5,9 @@ import { dumpDatabase } from "./services/dump";
 import { sandboxReset } from "./tasks/sandbox-reset";
 import { PlatformDetectionResult as _PlatformDetectionResult, DeploymentPlatform as _DeploymentPlatform, PlatformInfo as _PlatformInfo, detectPlatform, getPlatformOptimizations, logPlatformInfo, DeploymentPlatform, PlatformDetectionResult } from "./services/hosting-platform-detection"
 import { s3Client } from "./services/s3-client";
+import { commands as sandboxCommands } from "./cli/sandbox";
+import { commands as migrateCommands } from "./cli/migrate";
+import { trySendEmail, TrySendEmailArgs } from "./services/email";
 // export * as HostingPlatformDetection from "./services/hosting-platform-detection";
 
 // enum JobQueue {
@@ -45,6 +48,10 @@ export class InfrastructureModule {
     public static readonly s3Client = s3Client;
     public static readonly envVars = envVars;
     public static readonly tasks = [sandboxReset]
+    public static readonly cli = {
+        ...sandboxCommands,
+        ...migrateCommands,
+    }
     public static readonly collections = []
     public static readonly search = []
     public static readonly queues = [{
@@ -119,6 +126,13 @@ export class InfrastructureModule {
 
     async logPlatformInfo(result: PlatformDetectionResult) {
         return logPlatformInfo(result);
+    }
+
+    async sendEmail(args: Omit<TrySendEmailArgs, "payload">) {
+        return trySendEmail({
+            payload: this.payload,
+            ...args,
+        });
     }
 }
 

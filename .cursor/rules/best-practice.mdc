@@ -128,6 +128,8 @@ use interface but not type for Args type.
 
 when app routes need to call internal try* functions, use `paideia.tryX`. if the method does not exist on Paideia, add it. see `.cursor/skills/paideia-expose-internal-functions/SKILL.md`.
 
+when adding oRPC API procedures to expose internal try* functions, do not use generic `run` or `handleResult` wrappers. Inline the try* call with explicit args (`payload`, `req`, `overrideAccess`, `...input`). Add OpenAPI generation tests for new procedures. see `.cursor/skills/orpc-expose-internal-functions/SKILL.md` and `.cursor/skills/orpc-openapi-generation-test/SKILL.md`.
+
 ## Changelog
 
 changelog should be written in the `changelogs` folder. each changelog should be named like `0001-2025-01-01-feature-or-change-name.md`. the number should be the order of the changelog. the date should be the date of the changelog. the feature name should be the name of the feature. a standard changelog should look like this `changelogs/0016-2025-10-29-assignment-grading-page.md`.

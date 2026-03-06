@@ -20,7 +20,15 @@ description: Add oRPC procedures to expose internal functions from paideia-backe
 
 ## Handler Pattern (Required)
 
-**Do not use a generic `run` wrapper.** Passing `(args: object) => Promise<...>` causes type errors: `"Types of parameters 'args' and 'args' are incompatible. Type '{}' is missing the following properties from type 'GetMediaByIdArgs': id, payload, req"`. Call the try* function directly with explicit args:
+**Do not use a generic `run` or `handleResult` wrapper.** Passing `(args: object) => Promise<...>` causes type errors:
+
+```
+Argument of type '(args: CreateNoteArgs) => AsyncResult<...>' is not assignable to parameter of type '(args: object) => Promise<...>'.
+  Types of parameters 'args' and 'args' are incompatible.
+    Type '{}' is missing the following properties from type 'CreateNoteArgs': data, payload, req
+```
+
+Call the try* function directly with explicit args. Reference implementations: `modules/user/api/user-management.ts`, `modules/user/api/media-management.ts`, `modules/note/api/note-management.ts`, `modules/infrastructure/api/cron-jobs-management.ts`.
 
 ```typescript
 .handler(async ({ input, context }) => {

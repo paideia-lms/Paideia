@@ -38,17 +38,24 @@ export async function createDevServer(options: DevServerOptions): Promise<{
 	const app = connect();
 
 	// 1. OpenAPI - must run before Vite so /openapi/* is not served as SPA
-	app.use(async (req: IncomingMessage, res: ServerResponse, next: connect.NextFunction) => {
-		const pathname = new URL(req.url ?? "/", `http://${req.headers.host}`).pathname;
-		if (!pathname.startsWith("/openapi")) {
-			next();
-			return;
-		}
+	app.use(
+		async (
+			req: IncomingMessage,
+			res: ServerResponse,
+			next: connect.NextFunction,
+		) => {
+			const pathname = new URL(req.url ?? "/", `http://${req.headers.host}`)
+				.pathname;
+			if (!pathname.startsWith("/openapi")) {
+				next();
+				return;
+			}
 
-		const request = await createRequest(req, res);
-		const response = await handleOpenApiRequest(request);
-		await sendResponse(res, response);
-	});
+			const request = await createRequest(req, res);
+			const response = await handleOpenApiRequest(request);
+			await sendResponse(res, response);
+		},
+	);
 
 	// 2. Vite middleware (HMR, asset serving)
 	app.use(vite.middlewares);

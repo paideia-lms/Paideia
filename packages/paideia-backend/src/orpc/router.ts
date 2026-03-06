@@ -72,7 +72,11 @@ import {
 	findInstructorsForActivityModule,
 	findAutoGrantedModulesForInstructor,
 } from "./routers/activity-module-access";
-import { getCronJobs, getCronJobHistory } from "./routers/cron-jobs-management";
+import {
+	getCronJobs,
+	getCronJobHistory,
+	getPendingJobsByQueue,
+} from "../modules/infrastructure/api/cron-jobs-management";
 import {
 	getScheduledTasks,
 	getPendingScheduledTasks,
@@ -241,6 +245,7 @@ const baseRouter = {
 	cronJobs: {
 		getAll: getCronJobs,
 		getHistory: getCronJobHistory,
+		getPendingByQueue: getPendingJobsByQueue,
 	},
 	scheduledTasks: {
 		getAll: getScheduledTasks,

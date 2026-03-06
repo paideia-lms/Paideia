@@ -91,11 +91,14 @@ describe("Media API OpenAPI generation", () => {
 ## Notes
 
 - Router structure must match how procedures are nested in `orpc/router.ts` (e.g. `media.getById` → `paths["/media/{id}"]`).
-- Path strings in the spec use the route path (e.g. `/media/{id}`, `/media/by-filenames`).
+- Path strings in the spec use the route path (e.g. `/media/{id}`, `/media/by-filenames`, `/cron-jobs/pending/{queue}`).
 - HTTP methods are lowercase on path items: `pathItem.get`, `pathItem.post`, `pathItem.delete`, `pathItem.patch`.
 - Use `pathItem.get as Record<string, unknown>` for type-safe access when asserting on `parameters`.
+- When adding new API procedures, add corresponding OpenAPI tests and register in `orpc/router.ts`.
 
 ## Reference
 
-- Test file: `packages/paideia-backend/src/modules/user/tests/openapi-generation.test.ts`
+- User module: `packages/paideia-backend/src/modules/user/tests/openapi-generation.test.ts`
+- Note module: `packages/paideia-backend/src/modules/note/tests/openapi-generation.test.ts`
+- Infrastructure module: `packages/paideia-backend/src/modules/infrastructure/tests/openapi-generation.test.ts`
 - OpenAPI handler: `packages/paideia-backend/src/orpc/openapi-handler.ts`

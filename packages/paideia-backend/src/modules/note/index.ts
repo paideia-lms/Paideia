@@ -3,6 +3,7 @@ import { Notes } from "./collections/notes";
 import { Payload } from "payload";
 import { CreateNoteArgs, tryCreateNote, tryUpdateNote, UpdateNoteArgs, FindNoteByIdArgs, tryFindNoteById, trySearchNotes, SearchNotesArgs, tryDeleteNote, DeleteNoteArgs, tryFindNotesByUser, FindNotesByUserArgs } from "./services/note-management";
 
+
 export namespace NoteModule {
 
 }
@@ -12,6 +13,8 @@ export class NoteModule {
     public static readonly collections = [
         Notes,
     ];
+    public static readonly cli = {
+    }
     public static readonly search = []
     public static readonly seedData = undefined;
     public static readonly queues = []

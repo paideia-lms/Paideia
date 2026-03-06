@@ -12,15 +12,18 @@ import {
 	trySearchNotes,
 	tryUpdateNote,
 } from "../services/note-management";
-import { type CreateUserArgs, tryCreateUser } from "../../user/services/user-management";
+import { type CreateUserArgs, tryCreateUser } from "modules/user/services/user-management";
 import { href } from "react-router";
 import { createLocalReq } from "shared/internal-function-utils";
 import PaideiaLogo from "../fixture/paideia-logo.png" with { type: "file" };
 import Gem from "../fixture/gem.png" with { type: "file" };
 
 
-describe("Note Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Note Management Functions", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let testUser: { id: number };
 	let testUser2: { id: number };
 	let user1Token: string;
@@ -42,16 +45,15 @@ describe("Note Management Functions", () => {
 	};
 
 	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
+
 
 		// Create test users
 		const userArgs1: CreateUserArgs = {

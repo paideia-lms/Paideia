@@ -72,7 +72,10 @@ export async function isCachedVfs(
 	etag: string,
 ): Promise<boolean> {
 	const normalized = Object.fromEntries(
-		Object.entries(headers).map(([k, v]) => [k.toLowerCase(), typeof v === "string" ? v : v?.[0]]),
+		Object.entries(headers).map(([k, v]) => [
+			k.toLowerCase(),
+			typeof v === "string" ? v : v?.[0],
+		]),
 	) as Record<string, string | undefined>;
 
 	if (

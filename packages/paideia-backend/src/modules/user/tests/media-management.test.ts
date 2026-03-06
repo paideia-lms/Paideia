@@ -7,7 +7,7 @@ import {
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import { InfrastructureModule } from "modules/infrastructure";
-import config from "payload.config";
+import sanitizedConfig from "server/payload.config";
 import {
 	tryCreateMedia,
 	tryDeleteMedia,
@@ -29,21 +29,21 @@ import Gem from "../fixture/gem.png" with { type: "file" };
 const s3Client = InfrastructureModule.s3Client;
 const envVars = InfrastructureModule.envVars;
 
-describe("Media Management", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Media Management", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let testUserId: number;
 
 	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 
-		payload = await getPayload({
-			config: config,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
 
 		// Create test user
@@ -70,12 +70,10 @@ describe("Media Management", () => {
 
 	afterAll(async () => {
 		// Clean up any test data
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
+		});
+		await $`bun scripts/clean-s3.ts`;
 	});
 
 	test("should fail to create media with invalid data", async () => {

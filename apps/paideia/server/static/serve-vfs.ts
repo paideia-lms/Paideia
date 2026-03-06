@@ -76,7 +76,12 @@ export async function serveFromVfs(
 	vfs: VfsMap,
 	options: ServeVfsOptions = {},
 ): Promise<Response | null> {
-	const { prefix = "", maxAge = 31536000, directive = "public", noCache = false } = options;
+	const {
+		prefix = "",
+		maxAge = 31536000,
+		directive = "public",
+		noCache = false,
+	} = options;
 
 	const url = new URL(request.url);
 	let pathname = url.pathname;
@@ -93,7 +98,13 @@ export async function serveFromVfs(
 		if (pathname === "/" || pathname === "") {
 			const indexEntry = index.get("index.html") ?? index.get("/index.html");
 			if (indexEntry) {
-				return createVfsResponse(request, indexEntry, noCache, directive, maxAge);
+				return createVfsResponse(
+					request,
+					indexEntry,
+					noCache,
+					directive,
+					maxAge,
+				);
 			}
 		}
 		return null;
@@ -114,7 +125,9 @@ async function createVfsResponse(
 	};
 
 	if (!noCache) {
-		const reqHeaders = Object.fromEntries(request.headers.entries()) as IncomingHttpHeaders;
+		const reqHeaders = Object.fromEntries(
+			request.headers.entries(),
+		) as IncomingHttpHeaders;
 		if (await isCachedVfs(reqHeaders, entry.etag)) {
 			return new Response(null, {
 				status: 304,

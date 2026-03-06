@@ -1,15 +1,21 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getPayload } from "payload";
-import sanitizedConfig from "../payload.config";
-import { trySendEmail } from "./email";
+import sanitizedConfig from "payload.config";
+import { trySendEmail } from "../services/email";
 
 describe("Email Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 
 	beforeAll(async () => {
 		payload = await getPayload({
+			key: `test-${Math.random().toString(36).substring(2, 15)}`,
 			config: sanitizedConfig,
 		});
+
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
 
 		await payload.db.migrateFresh({
 			forceAcceptWarning: true,

@@ -158,7 +158,6 @@ export { dumpDatabase } from "./modules/infrastructure/services/dump";
 export { migrations } from "./migrations";
 export { tryRunSeed } from "./utils/db/seed";
 export { tryResetSandbox } from "./modules/infrastructure/services/sandbox-reset";
-export { displayHelp } from "./cli/commands";
 export {
 	detectSystemResources,
 	getServerTimezone,

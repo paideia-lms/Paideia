@@ -7,18 +7,15 @@ import { UserModule } from "../index";
 /**
  * test the module can instantiate correctly
  */
-describe("User Module", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
-
-	beforeAll(async () => {
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
+describe("User Module", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
 	});
 
-    test("should instantiate correctly", () => {
-        expect(payload).toBeDefined();
-        const userModule = new UserModule(payload);
-        expect(userModule).toBeDefined();
-    });
+	test("should instantiate correctly", () => {
+		expect(payload).toBeDefined();
+		const userModule = new UserModule(payload);
+		expect(userModule).toBeDefined();
+	});
 });

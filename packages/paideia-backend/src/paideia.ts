@@ -41,7 +41,7 @@ import * as quizModuleManagement from "./internal/quiz-module-management";
 import * as quizSubmissionManagement from "./internal/quiz-submission-management";
 import * as registrationSettings from "./internal/registration-settings";
 import * as scheduledTasksManagement from "./internal/scheduled-tasks-management";
-import * as cronJobsManagement from "./internal/cron-jobs-management";
+import * as cronJobsManagement from "./modules/infrastructure/services/cron-jobs-management";
 import * as searchManagement from "./internal/search-management";
 import * as sitePolicies from "./internal/site-policies";
 import * as systemGlobals from "./internal/system-globals";

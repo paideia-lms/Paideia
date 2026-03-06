@@ -21,6 +21,8 @@ export class UserModule {
         Users,
         Media
     ];
+    public static readonly cli = {
+    }
     public static readonly search = [Users.slug]
     public static readonly seedData = predefinedUserSeedData;
     public static readonly queues = []

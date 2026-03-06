@@ -27,8 +27,11 @@ import { predefinedUserSeedData } from "../seeding/predefined-user-seed-data";
 import { trySeedUsers } from "../seeding/users-builder";
 import type { User } from "payload-types";
 
-describe("User Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("User Management Functions", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let adminToken: string;
 	const mockRequest = new Request("http://localhost:3000/test");
 
@@ -45,15 +48,14 @@ describe("User Management Functions", () => {
 	};
 
 	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
+
+		// await until payload.db.drizzle is ready
+		while (!payload.db.drizzle) {
+			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
 
 		const seedResult = await trySeedUsers({
