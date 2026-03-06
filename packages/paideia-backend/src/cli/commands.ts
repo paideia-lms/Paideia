@@ -1,20 +1,25 @@
-import { Command } from "commander";
+import { os } from "@orpc/server";
 import { Table } from "console-table-printer";
 import type { Migration as MigrationType, Payload } from "payload";
+import { z } from "zod";
 import { migrations } from "../migrations";
-import packageJson from "../../package.json";
-import { deleteEverythingInBucket } from "../../scripts/clean-s3";
+// import packageJson from "../../package.json";
 import { asciiLogo } from "../utils/constants";
-import { dumpDatabase } from "../modules/infrastructure/services/dump";
-import { migrateFresh } from "../modules/infrastructure/services/migrate-fresh";
+import { dumpDatabase } from "modules/infrastructure/services/dump";
+import { migrateFresh } from "modules/infrastructure/services/migrate-fresh";
 import {
 	getMigrationStatus,
 	printMigrationStatus,
 } from "../modules/infrastructure/services/migration-status";
 import { tryResetSandbox } from "../modules/infrastructure/services/sandbox-reset";
-import {
-	handleTransactionId,
-} from "shared/handle-transaction-id";
+import { handleTransactionId } from "shared/handle-transaction-id";
+import { deleteEverythingInBucket } from "server/modules/infrastructure/services/s3-client";
+import type { PackageJson } from "type-fest";
+
+export interface CliContext {
+	payload: Payload;
+	packageJson: PackageJson;
+}
 
 /**
  * Displays help information with all available CLI commands
@@ -59,142 +64,133 @@ export function displayHelp() {
 	table.printTable();
 }
 
-/**
- * Configures and returns the Commander.js program with all CLI commands
- */
-export function configureCommands(payload: Payload): Command {
-	const program = new Command();
+const cliOs = os.$context<CliContext>();
 
-	program
-		.name("paideia")
-		.description(packageJson.description)
-		.version(packageJson.version);
-
-	// Help command
-	program
-		.command("help")
-		.description("Show help information")
-		.action(() => {
+const cliRouter = {
+	help: cliOs
+		.meta({ description: "Show help information" })
+		.input(z.object({}).optional())
+		.handler(async ({ context }) => {
 			console.log(asciiLogo);
-			console.log(`Paideia LMS - ${packageJson.version}`);
+			context.payload.logger.info(`Paideia LMS - ${context.packageJson.version}`);
 			displayHelp();
-			process.exit(0);
-		});
-
-	// Migration commands
-	const migrateCommand = program
-		.command("migrate")
-		.description("Database migration commands");
-
-	migrateCommand
-		.command("status")
-		.description("Show migration status")
-		.action(async () => {
-			console.log(asciiLogo);
-			console.log("Checking migration status...");
-
-			await getMigrationStatus({
-				payload,
-				migrations: migrations as MigrationType[],
-			}).then((statuses) => {
+		}),
+	migrate: {
+		status: cliOs
+			.meta({ description: "Show migration status" })
+			.input(z.object({}).optional())
+			.handler(async ({ context }) => {
+				console.log(asciiLogo);
+				context.payload.logger.info("Checking migration status...");
+				const statuses = await getMigrationStatus({
+					payload: context.payload,
+					migrations: migrations as MigrationType[],
+				});
 				if (statuses) {
 					printMigrationStatus(statuses);
 				}
-			});
-			process.exit(0);
-		});
-
-	migrateCommand
-		.command("up")
-		.description("Run pending migrations")
-		.action(async () => {
-			console.log(asciiLogo);
-			console.log("Running migrations...");
-
-			await payload.db.migrate({
-				migrations: migrations as MigrationType[],
-			});
-			console.log("✅ Migrations completed");
-			process.exit(0);
-		});
-
-	migrateCommand
-		.command("fresh")
-		.description(
-			"Drop all database entities and re-run migrations from scratch",
-		)
-		.option("--force-accept-warning", "Force accept warning prompts")
-		.action(async (options) => {
-			console.log(asciiLogo);
-			console.log("Fresh migration...");
-
-			await migrateFresh({
-				payload,
-				migrations: migrations as MigrationType[],
-				forceAcceptWarning: options.forceAcceptWarning || false,
-			});
-			await deleteEverythingInBucket();
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-			console.log("✅ Fresh migration completed");
-			process.exit(0);
-		});
-
-	migrateCommand
-		.command("dump")
-		.description("Dump database to SQL file")
-		.option(
-			"-o, --output <path>",
-			"Output file path (relative to paideia_data directory)",
-		)
-		.action(async (options) => {
-			console.log(asciiLogo);
-			console.log("Dumping database...");
-
-			const result = await dumpDatabase({
-				payload,
-				outputPath: options.output,
-			});
-
-			if (!result.success) {
-				console.error("❌ Failed to dump database:", result.error);
-				process.exit(1);
-			}
-
-			console.log(`✅ Database dump completed: ${result.outputPath}`);
-			process.exit(0);
-		});
-
-	// Sandbox commands
-	const sandboxCommand = program
-		.command("sandbox")
-		.description("Sandbox mode commands");
-
-	sandboxCommand
-		.command("reset")
-		.description("Reset sandbox database (only when SANDBOX_MODE is enabled)")
-		.action(async () => {
-			console.log(asciiLogo);
-			console.log("Resetting sandbox database...");
-
-			const { tx } = await handleTransactionId(payload);
-
-			const result = await tx(async (txInfo) => {
-				const resetResult = await tryResetSandbox({
-					payload,
-					req: txInfo.reqWithTransaction,
+			}),
+		up: cliOs
+			.meta({ description: "Run pending migrations" })
+			.input(z.object({}).optional())
+			.handler(async ({ context }) => {
+				console.log(asciiLogo);
+				context.payload.logger.info("Running migrations...");
+				await context.payload.db.migrate({
+					migrations: migrations as MigrationType[],
 				});
+			}),
+		fresh: cliOs
+			.meta({
+				description:
+					"Drop all database entities and re-run migrations from scratch",
+			})
+			.input(
+				z
+					.object({
+						forceAcceptWarning: z
+							.boolean()
+							.optional()
+							.describe("Force accept warning prompts"),
+					})
+					.optional(),
+			)
+			.handler(async ({ context, input }) => {
+				console.log(asciiLogo);
+				context.payload.logger.info("Fresh migration...");
+				await migrateFresh({
+					payload: context.payload,
+					migrations: migrations as MigrationType[],
+					forceAcceptWarning: input?.forceAcceptWarning ?? false,
+				});
+				await deleteEverythingInBucket({ logger: context.payload.logger });
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+				context.payload.logger.info("✅ Fresh migration completed");
+			}),
+		dump: cliOs
+			.meta({
+				description: "Dump database to SQL file",
+				aliases: { options: { output: "o" } },
+			})
+			.input(
+				z
+					.object({
+						output: z
+							.string()
+							.optional()
+							.describe(
+								"Output file path (relative to paideia_data directory)",
+							),
+					})
+					.optional(),
+			)
+			.handler(async ({ context, input }) => {
+				console.log(asciiLogo);
+				context.payload.logger.info("Dumping database...");
+				const result = await dumpDatabase({
+					payload: context.payload,
+					outputPath: input?.output,
+				});
+				if (!result.success) {
+					throw new Error(`Failed to dump database: ${result.error}`);
+				}
+				context.payload.logger.info(`✅ Database dump completed: ${result.outputPath}`);
+			}),
+	},
+	sandbox: {
+		reset: cliOs
+			.meta({
+				description:
+					"Reset sandbox database (only when SANDBOX_MODE is enabled)",
+			})
+			.input(z.object({}).optional())
+			.handler(async ({ context }) => {
+				console.log(asciiLogo);
+				context.payload.logger.info("Resetting sandbox database...");
+				const { tx } = await handleTransactionId(context.payload);
+				const result = await tx(
+					async (txInfo) => {
+						return tryResetSandbox({
+							payload: context.payload,
+							req: txInfo.reqWithTransaction,
+						});
+					},
+					(r) => !r.ok,
+				);
+				if (!result.ok) {
+					throw new Error(
+						`Failed to reset sandbox database: ${result.error.message}`,
+					);
+				}
+				context.payload.logger.info("✅ Sandbox database reset completed successfully");
+			}),
+	},
+};
 
-				return resetResult;
-			}, (result) => !result.ok);
-
-			if (!result.ok) {
-				console.error(`❌ Failed to reset sandbox database: ${result.error.message}`);
-				process.exit(1);
-			}
-
-			console.log("✅ Sandbox database reset completed successfully");
-			process.exit(0);
-		});
-
-	return program;
+/**
+ * Creates the oRPC CLI router for Paideia commands.
+ * Context (payload) is passed when createCli is invoked.
+ */
+export function createCliRouter() {
+	return cliOs.router(cliRouter);
 }
