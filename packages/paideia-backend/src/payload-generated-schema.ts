@@ -40,9 +40,9 @@ export const enum_courses_status = pgEnum("enum_courses_status", [
   "published",
   "archived",
 ]);
-export const enum_category_role_assignments_role = pgEnum(
-  "enum_category_role_assignments_role",
-  ["category-admin", "category-coordinator", "category-reviewer"],
+export const enum_discussions_thread_sorting = pgEnum(
+  "enum_discussions_thread_sorting",
+  ["recent", "upvoted", "active", "alphabetical"],
 );
 export const enum_enrollments_role = pgEnum("enum_enrollments_role", [
   "student",
@@ -55,55 +55,6 @@ export const enum_enrollments_status = pgEnum("enum_enrollments_status", [
   "inactive",
   "completed",
   "dropped",
-]);
-export const enum_activity_modules_type = pgEnum("enum_activity_modules_type", [
-  "page",
-  "whiteboard",
-  "file",
-  "assignment",
-  "quiz",
-  "discussion",
-]);
-export const enum_discussions_thread_sorting = pgEnum(
-  "enum_discussions_thread_sorting",
-  ["recent", "upvoted", "active", "alphabetical"],
-);
-export const enum_assignment_submissions_status = pgEnum(
-  "enum_assignment_submissions_status",
-  ["draft", "submitted", "graded", "returned"],
-);
-export const enum_quiz_submissions_answers_question_type = pgEnum(
-  "enum_quiz_submissions_answers_question_type",
-  ["multiple_choice", "true_false", "short_answer", "essay", "fill_blank"],
-);
-export const enum_quiz_submissions_status = pgEnum(
-  "enum_quiz_submissions_status",
-  ["in_progress", "completed", "graded", "returned"],
-);
-export const enum_discussion_submissions_post_type = pgEnum(
-  "enum_discussion_submissions_post_type",
-  ["thread", "reply", "comment"],
-);
-export const enum_discussion_submissions_status = pgEnum(
-  "enum_discussion_submissions_status",
-  ["draft", "published", "hidden", "deleted"],
-);
-export const enum_user_grades_adjustments_type = pgEnum(
-  "enum_user_grades_adjustments_type",
-  ["bonus", "penalty", "late_deduction", "participation", "curve", "other"],
-);
-export const enum_user_grades_submission_type = pgEnum(
-  "enum_user_grades_submission_type",
-  ["assignment", "quiz", "discussion", "manual"],
-);
-export const enum_user_grades_base_grade_source = pgEnum(
-  "enum_user_grades_base_grade_source",
-  ["submission", "manual"],
-);
-export const enum_user_grades_status = pgEnum("enum_user_grades_status", [
-  "draft",
-  "graded",
-  "returned",
 ]);
 export const enum_payload_jobs_log_task_slug = pgEnum(
   "enum_payload_jobs_log_task_slug",
@@ -328,6 +279,68 @@ export const notes_rels = pgTable(
   ],
 );
 
+export const pages = pgTable(
+  "pages",
+  {
+    id: serial("id").primaryKey(),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    content: varchar("content"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("pages_created_by_idx").on(columns.createdBy),
+    index("pages_updated_at_idx").on(columns.updatedAt),
+    index("pages_created_at_idx").on(columns.createdAt),
+    index("createdBy_1_idx").on(columns.createdBy),
+  ],
+);
+
+export const pages_rels = pgTable(
+  "pages_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("pages_rels_order_idx").on(columns.order),
+    index("pages_rels_parent_idx").on(columns.parent),
+    index("pages_rels_path_idx").on(columns.path),
+    index("pages_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [pages.id],
+      name: "pages_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "pages_rels_media_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const courses_recurring_schedules_days_of_week = pgTable(
   "courses_recurring_schedules_days_of_week",
   {
@@ -441,9 +454,6 @@ export const courses = pgTable(
       .references(() => users.id, {
         onDelete: "set null",
       }),
-    category: integer("category_id").references(() => course_categories.id, {
-      onDelete: "set null",
-    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -463,7 +473,6 @@ export const courses = pgTable(
     uniqueIndex("courses_slug_idx").on(columns.slug),
     index("courses_thumbnail_idx").on(columns.thumbnail),
     index("courses_created_by_idx").on(columns.createdBy),
-    index("courses_category_idx").on(columns.category),
     index("courses_updated_at_idx").on(columns.updatedAt),
     index("courses_created_at_idx").on(columns.createdAt),
   ],
@@ -548,11 +557,6 @@ export const course_activity_module_links = pgTable(
       .references(() => courses.id, {
         onDelete: "set null",
       }),
-    activityModule: integer("activity_module_id")
-      .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
     section: integer("section_id")
       .notNull()
       .references(() => course_sections.id, {
@@ -578,26 +582,46 @@ export const course_activity_module_links = pgTable(
   },
   (columns) => [
     index("course_activity_module_links_course_idx").on(columns.course),
-    index("course_activity_module_links_activity_module_idx").on(
-      columns.activityModule,
-    ),
     index("course_activity_module_links_section_idx").on(columns.section),
     index("course_activity_module_links_updated_at_idx").on(columns.updatedAt),
     index("course_activity_module_links_created_at_idx").on(columns.createdAt),
   ],
 );
 
-export const course_categories = pgTable(
-  "course_categories",
+export const course_grade_tables_grade_letters = pgTable(
+  "course_grade_tables_grade_letters",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    letter: varchar("letter").notNull(),
+    minimumPercentage: numeric("minimum_percentage", {
+      mode: "number",
+    }).notNull(),
+  },
+  (columns) => [
+    index("course_grade_tables_grade_letters_order_idx").on(columns._order),
+    index("course_grade_tables_grade_letters_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [course_grade_tables.id],
+      name: "course_grade_tables_grade_letters_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const course_grade_tables = pgTable(
+  "course_grade_tables",
   {
     id: serial("id").primaryKey(),
-    name: varchar("name").notNull(),
-    parent: integer("parent_id").references(
-      (): AnyPgColumn => course_categories.id,
-      {
+    course: integer("course_id")
+      .notNull()
+      .references(() => courses.id, {
         onDelete: "set null",
-      },
-    ),
+      }),
+    isActive: boolean("is_active").default(true),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -614,38 +638,169 @@ export const course_categories = pgTable(
       .notNull(),
   },
   (columns) => [
-    index("course_categories_parent_idx").on(columns.parent),
-    index("course_categories_updated_at_idx").on(columns.updatedAt),
-    index("course_categories_created_at_idx").on(columns.createdAt),
+    index("course_grade_tables_course_idx").on(columns.course),
+    index("course_grade_tables_updated_at_idx").on(columns.updatedAt),
+    index("course_grade_tables_created_at_idx").on(columns.createdAt),
+    uniqueIndex("course_idx").on(columns.course),
   ],
 );
 
-export const category_role_assignments = pgTable(
-  "category_role_assignments",
+export const whiteboards = pgTable(
+  "whiteboards",
   {
     id: serial("id").primaryKey(),
-    user: integer("user_id")
+    title: varchar("title").notNull(),
+    description: varchar("description"),
+    content: varchar("content"),
+    createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
         onDelete: "set null",
       }),
-    category: integer("category_id")
-      .notNull()
-      .references(() => course_categories.id, {
-        onDelete: "set null",
-      }),
-    role: enum_category_role_assignments_role("role").notNull(),
-    assignedBy: integer("assigned_by_id")
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("whiteboards_created_by_idx").on(columns.createdBy),
+    index("whiteboards_updated_at_idx").on(columns.updatedAt),
+    index("whiteboards_created_at_idx").on(columns.createdAt),
+    index("createdBy_2_idx").on(columns.createdBy),
+  ],
+);
+
+export const whiteboards_rels = pgTable(
+  "whiteboards_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("whiteboards_rels_order_idx").on(columns.order),
+    index("whiteboards_rels_parent_idx").on(columns.parent),
+    index("whiteboards_rels_path_idx").on(columns.path),
+    index("whiteboards_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [whiteboards.id],
+      name: "whiteboards_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "whiteboards_rels_media_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const files = pgTable(
+  "files",
+  {
+    id: serial("id").primaryKey(),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
+    createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
         onDelete: "set null",
       }),
-    assignedAt: timestamp("assigned_at", {
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("files_created_by_idx").on(columns.createdBy),
+    index("files_updated_at_idx").on(columns.updatedAt),
+    index("files_created_at_idx").on(columns.createdAt),
+    index("createdBy_3_idx").on(columns.createdBy),
+  ],
+);
+
+export const files_rels = pgTable(
+  "files_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("files_rels_order_idx").on(columns.order),
+    index("files_rels_parent_idx").on(columns.parent),
+    index("files_rels_path_idx").on(columns.path),
+    index("files_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [files.id],
+      name: "files_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "files_rels_media_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const discussions = pgTable(
+  "discussions",
+  {
+    id: serial("id").primaryKey(),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
+    instructions: varchar("instructions"),
+    dueDate: timestamp("due_date", {
       mode: "string",
       withTimezone: true,
       precision: 3,
     }),
-    notes: varchar("notes"),
+    requireThread: boolean("require_thread").default(true),
+    requireReplies: boolean("require_replies").default(true),
+    minReplies: numeric("min_replies", { mode: "number" }).default(2),
+    minWordsPerPost: numeric("min_words_per_post", { mode: "number" }).default(
+      50,
+    ),
+    allowAttachments: boolean("allow_attachments").default(true),
+    allowUpvotes: boolean("allow_upvotes").default(true),
+    allowEditing: boolean("allow_editing").default(true),
+    allowDeletion: boolean("allow_deletion").default(false),
+    moderationRequired: boolean("moderation_required").default(false),
+    anonymousPosting: boolean("anonymous_posting").default(false),
+    groupDiscussion: boolean("group_discussion").default(false),
+    maxGroupSize: numeric("max_group_size", { mode: "number" }),
+    threadSorting:
+      enum_discussions_thread_sorting("thread_sorting").default("recent"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -662,14 +817,12 @@ export const category_role_assignments = pgTable(
       .notNull(),
   },
   (columns) => [
-    index("category_role_assignments_user_idx").on(columns.user),
-    index("category_role_assignments_category_idx").on(columns.category),
-    index("category_role_assignments_assigned_by_idx").on(columns.assignedBy),
-    index("category_role_assignments_updated_at_idx").on(columns.updatedAt),
-    index("category_role_assignments_created_at_idx").on(columns.createdAt),
-    uniqueIndex("user_category_idx").on(columns.user, columns.category),
-    index("category_idx").on(columns.category),
-    index("user_idx").on(columns.user),
+    index("discussions_created_by_idx").on(columns.createdBy),
+    index("discussions_updated_at_idx").on(columns.updatedAt),
+    index("discussions_created_at_idx").on(columns.createdAt),
+    index("createdBy_4_idx").on(columns.createdBy),
+    index("dueDate_idx").on(columns.dueDate),
+    index("threadSorting_idx").on(columns.threadSorting),
   ],
 );
 
@@ -750,1063 +903,6 @@ export const enrollments_rels = pgTable(
   ],
 );
 
-export const activity_modules = pgTable(
-  "activity_modules",
-  {
-    id: serial("id").primaryKey(),
-    owner: integer("owner_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    type: enum_activity_modules_type("type").notNull(),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    page: integer("page_id").references(() => pages.id, {
-      onDelete: "set null",
-    }),
-    whiteboard: integer("whiteboard_id").references(() => whiteboards.id, {
-      onDelete: "set null",
-    }),
-    assignment: integer("assignment_id").references(() => assignments.id, {
-      onDelete: "set null",
-    }),
-    quiz: integer("quiz_id").references(() => quizzes.id, {
-      onDelete: "set null",
-    }),
-    discussion: integer("discussion_id").references(() => discussions.id, {
-      onDelete: "set null",
-    }),
-    file: integer("file_id").references(() => files.id, {
-      onDelete: "set null",
-    }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("activity_modules_owner_idx").on(columns.owner),
-    index("activity_modules_created_by_idx").on(columns.createdBy),
-    index("activity_modules_page_idx").on(columns.page),
-    index("activity_modules_whiteboard_idx").on(columns.whiteboard),
-    index("activity_modules_assignment_idx").on(columns.assignment),
-    index("activity_modules_quiz_idx").on(columns.quiz),
-    index("activity_modules_discussion_idx").on(columns.discussion),
-    index("activity_modules_file_idx").on(columns.file),
-    index("activity_modules_updated_at_idx").on(columns.updatedAt),
-    index("activity_modules_created_at_idx").on(columns.createdAt),
-    index("owner_idx").on(columns.owner),
-    index("createdBy_1_idx").on(columns.createdBy),
-    index("type_idx").on(columns.type),
-    index("page_idx").on(columns.page),
-    index("whiteboard_idx").on(columns.whiteboard),
-    index("quiz_idx").on(columns.quiz),
-    index("discussion_idx").on(columns.discussion),
-    index("file_idx").on(columns.file),
-  ],
-);
-
-export const activity_module_grants = pgTable(
-  "activity_module_grants",
-  {
-    id: serial("id").primaryKey(),
-    activityModule: integer("activity_module_id")
-      .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    grantedTo: integer("granted_to_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    grantedBy: integer("granted_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    grantedAt: timestamp("granted_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("activity_module_grants_activity_module_idx").on(
-      columns.activityModule,
-    ),
-    index("activity_module_grants_granted_to_idx").on(columns.grantedTo),
-    index("activity_module_grants_granted_by_idx").on(columns.grantedBy),
-    index("activity_module_grants_updated_at_idx").on(columns.updatedAt),
-    index("activity_module_grants_created_at_idx").on(columns.createdAt),
-    uniqueIndex("activityModule_grantedTo_idx").on(
-      columns.activityModule,
-      columns.grantedTo,
-    ),
-    index("activityModule_idx").on(columns.activityModule),
-    index("grantedTo_idx").on(columns.grantedTo),
-  ],
-);
-
-export const pages = pgTable(
-  "pages",
-  {
-    id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    content: varchar("content"),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("pages_created_by_idx").on(columns.createdBy),
-    index("pages_updated_at_idx").on(columns.updatedAt),
-    index("pages_created_at_idx").on(columns.createdAt),
-    index("createdBy_2_idx").on(columns.createdBy),
-  ],
-);
-
-export const pages_rels = pgTable(
-  "pages_rels",
-  {
-    id: serial("id").primaryKey(),
-    order: integer("order"),
-    parent: integer("parent_id").notNull(),
-    path: varchar("path").notNull(),
-    mediaID: integer("media_id"),
-  },
-  (columns) => [
-    index("pages_rels_order_idx").on(columns.order),
-    index("pages_rels_parent_idx").on(columns.parent),
-    index("pages_rels_path_idx").on(columns.path),
-    index("pages_rels_media_id_idx").on(columns.mediaID),
-    foreignKey({
-      columns: [columns["parent"]],
-      foreignColumns: [pages.id],
-      name: "pages_rels_parent_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["mediaID"]],
-      foreignColumns: [media.id],
-      name: "pages_rels_media_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const whiteboards = pgTable(
-  "whiteboards",
-  {
-    id: serial("id").primaryKey(),
-    content: varchar("content"),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("whiteboards_created_by_idx").on(columns.createdBy),
-    index("whiteboards_updated_at_idx").on(columns.updatedAt),
-    index("whiteboards_created_at_idx").on(columns.createdAt),
-    index("createdBy_3_idx").on(columns.createdBy),
-  ],
-);
-
-export const assignments_allowed_file_types = pgTable(
-  "assignments_allowed_file_types",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    extension: varchar("extension").notNull(),
-    mimeType: varchar("mime_type").notNull(),
-  },
-  (columns) => [
-    index("assignments_allowed_file_types_order_idx").on(columns._order),
-    index("assignments_allowed_file_types_parent_id_idx").on(columns._parentID),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [assignments.id],
-      name: "assignments_allowed_file_types_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const assignments = pgTable(
-  "assignments",
-  {
-    id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    instructions: varchar("instructions"),
-    maxFileSize: numeric("max_file_size", { mode: "number" }).default(10),
-    maxFiles: numeric("max_files", { mode: "number" }).default(1),
-    requireTextSubmission: boolean("require_text_submission").default(true),
-    requireFileSubmission: boolean("require_file_submission").default(true),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("assignments_created_by_idx").on(columns.createdBy),
-    index("assignments_updated_at_idx").on(columns.updatedAt),
-    index("assignments_created_at_idx").on(columns.createdAt),
-    index("createdBy_4_idx").on(columns.createdBy),
-  ],
-);
-
-export const quizzes = pgTable(
-  "quizzes",
-  {
-    id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    instructions: varchar("instructions"),
-    rawQuizConfig: jsonb("raw_quiz_config").notNull(),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("quizzes_created_by_idx").on(columns.createdBy),
-    index("quizzes_updated_at_idx").on(columns.updatedAt),
-    index("quizzes_created_at_idx").on(columns.createdAt),
-    index("createdBy_5_idx").on(columns.createdBy),
-  ],
-);
-
-export const discussions_pinned_threads = pgTable(
-  "discussions_pinned_threads",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    thread: integer("thread_id")
-      .notNull()
-      .references(() => discussion_submissions.id, {
-        onDelete: "set null",
-      }),
-    pinnedAt: timestamp("pinned_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }).notNull(),
-    pinnedBy: integer("pinned_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-  },
-  (columns) => [
-    index("discussions_pinned_threads_order_idx").on(columns._order),
-    index("discussions_pinned_threads_parent_id_idx").on(columns._parentID),
-    index("discussions_pinned_threads_thread_idx").on(columns.thread),
-    index("discussions_pinned_threads_pinned_by_idx").on(columns.pinnedBy),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [discussions.id],
-      name: "discussions_pinned_threads_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const discussions = pgTable(
-  "discussions",
-  {
-    id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    instructions: varchar("instructions"),
-    dueDate: timestamp("due_date", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    requireThread: boolean("require_thread").default(true),
-    requireReplies: boolean("require_replies").default(true),
-    minReplies: numeric("min_replies", { mode: "number" }).default(2),
-    minWordsPerPost: numeric("min_words_per_post", { mode: "number" }).default(
-      50,
-    ),
-    allowAttachments: boolean("allow_attachments").default(true),
-    allowUpvotes: boolean("allow_upvotes").default(true),
-    allowEditing: boolean("allow_editing").default(true),
-    allowDeletion: boolean("allow_deletion").default(false),
-    moderationRequired: boolean("moderation_required").default(false),
-    anonymousPosting: boolean("anonymous_posting").default(false),
-    groupDiscussion: boolean("group_discussion").default(false),
-    maxGroupSize: numeric("max_group_size", { mode: "number" }),
-    threadSorting:
-      enum_discussions_thread_sorting("thread_sorting").default("recent"),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("discussions_created_by_idx").on(columns.createdBy),
-    index("discussions_updated_at_idx").on(columns.updatedAt),
-    index("discussions_created_at_idx").on(columns.createdAt),
-    index("createdBy_6_idx").on(columns.createdBy),
-    index("dueDate_idx").on(columns.dueDate),
-    index("threadSorting_idx").on(columns.threadSorting),
-  ],
-);
-
-export const gradebooks = pgTable(
-  "gradebooks",
-  {
-    id: serial("id").primaryKey(),
-    course: integer("course_id")
-      .notNull()
-      .references(() => courses.id, {
-        onDelete: "set null",
-      }),
-    enabled: boolean("enabled").default(true),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("gradebooks_course_idx").on(columns.course),
-    index("gradebooks_updated_at_idx").on(columns.updatedAt),
-    index("gradebooks_created_at_idx").on(columns.createdAt),
-    uniqueIndex("course_idx").on(columns.course),
-  ],
-);
-
-export const gradebook_categories = pgTable(
-  "gradebook_categories",
-  {
-    id: serial("id").primaryKey(),
-    gradebook: integer("gradebook_id")
-      .notNull()
-      .references(() => gradebooks.id, {
-        onDelete: "set null",
-      }),
-    parent: integer("parent_id").references(
-      (): AnyPgColumn => gradebook_categories.id,
-      {
-        onDelete: "set null",
-      },
-    ),
-    name: varchar("name").notNull(),
-    description: varchar("description"),
-    weight: numeric("weight", { mode: "number" }),
-    extraCredit: boolean("extra_credit").default(false),
-    sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("gradebook_categories_gradebook_idx").on(columns.gradebook),
-    index("gradebook_categories_parent_idx").on(columns.parent),
-    index("gradebook_categories_updated_at_idx").on(columns.updatedAt),
-    index("gradebook_categories_created_at_idx").on(columns.createdAt),
-    index("gradebook_idx").on(columns.gradebook),
-    index("parent_idx").on(columns.parent),
-  ],
-);
-
-export const gradebook_items = pgTable(
-  "gradebook_items",
-  {
-    id: serial("id").primaryKey(),
-    gradebook: integer("gradebook_id")
-      .notNull()
-      .references(() => gradebooks.id, {
-        onDelete: "set null",
-      }),
-    category: integer("category_id").references(() => gradebook_categories.id, {
-      onDelete: "set null",
-    }),
-    name: varchar("name").notNull(),
-    sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
-    description: varchar("description"),
-    activityModule: integer("activity_module_id").references(
-      () => course_activity_module_links.id,
-      {
-        onDelete: "set null",
-      },
-    ),
-    maxGrade: numeric("max_grade", { mode: "number" }).notNull().default(100),
-    minGrade: numeric("min_grade", { mode: "number" }).notNull().default(0),
-    weight: numeric("weight", { mode: "number" }),
-    extraCredit: boolean("extra_credit").default(false),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("gradebook_items_gradebook_idx").on(columns.gradebook),
-    index("gradebook_items_category_idx").on(columns.category),
-    index("gradebook_items_activity_module_idx").on(columns.activityModule),
-    index("gradebook_items_updated_at_idx").on(columns.updatedAt),
-    index("gradebook_items_created_at_idx").on(columns.createdAt),
-    index("gradebook_1_idx").on(columns.gradebook),
-    index("category_1_idx").on(columns.category),
-  ],
-);
-
-export const assignment_submissions_attachments = pgTable(
-  "assignment_submissions_attachments",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    file: integer("file_id")
-      .notNull()
-      .references(() => media.id, {
-        onDelete: "set null",
-      }),
-    description: varchar("description"),
-  },
-  (columns) => [
-    index("assignment_submissions_attachments_order_idx").on(columns._order),
-    index("assignment_submissions_attachments_parent_id_idx").on(
-      columns._parentID,
-    ),
-    index("assignment_submissions_attachments_file_idx").on(columns.file),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [assignment_submissions.id],
-      name: "assignment_submissions_attachments_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const assignment_submissions = pgTable(
-  "assignment_submissions",
-  {
-    id: serial("id").primaryKey(),
-    courseModuleLink: integer("course_module_link_id")
-      .notNull()
-      .references(() => course_activity_module_links.id, {
-        onDelete: "set null",
-      }),
-    student: integer("student_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    enrollment: integer("enrollment_id")
-      .notNull()
-      .references(() => enrollments.id, {
-        onDelete: "set null",
-      }),
-    attemptNumber: numeric("attempt_number", { mode: "number" })
-      .notNull()
-      .default(1),
-    status: enum_assignment_submissions_status("status")
-      .notNull()
-      .default("draft"),
-    submittedAt: timestamp("submitted_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    grade: numeric("grade", { mode: "number" }),
-    feedback: varchar("feedback"),
-    gradedBy: integer("graded_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    gradedAt: timestamp("graded_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    content: varchar("content"),
-    isLate: boolean("is_late").default(false),
-    timeSpent: numeric("time_spent", { mode: "number" }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("assignment_submissions_course_module_link_idx").on(
-      columns.courseModuleLink,
-    ),
-    index("assignment_submissions_student_idx").on(columns.student),
-    index("assignment_submissions_enrollment_idx").on(columns.enrollment),
-    index("assignment_submissions_graded_by_idx").on(columns.gradedBy),
-    index("assignment_submissions_updated_at_idx").on(columns.updatedAt),
-    index("assignment_submissions_created_at_idx").on(columns.createdAt),
-    index("courseModuleLink_idx").on(columns.courseModuleLink),
-    index("student_idx").on(columns.student),
-    index("enrollment_idx").on(columns.enrollment),
-    uniqueIndex("courseModuleLink_student_attemptNumber_idx").on(
-      columns.courseModuleLink,
-      columns.student,
-      columns.attemptNumber,
-    ),
-    index("status_idx").on(columns.status),
-    index("submittedAt_idx").on(columns.submittedAt),
-  ],
-);
-
-export const quiz_submissions_answers_multiple_choice_answers = pgTable(
-  "quiz_submissions_answers_multiple_choice_answers",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: varchar("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    option: varchar("option").notNull(),
-    isSelected: boolean("is_selected").default(false),
-  },
-  (columns) => [
-    index("quiz_submissions_answers_multiple_choice_answers_order_idx").on(
-      columns._order,
-    ),
-    index("quiz_submissions_answers_multiple_choice_answers_parent_id_idx").on(
-      columns._parentID,
-    ),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quiz_submissions_answers.id],
-      name: "quiz_submissions_answers_multiple_choice_answers_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const quiz_submissions_answers = pgTable(
-  "quiz_submissions_answers",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    questionId: varchar("question_id").notNull(),
-    questionText: varchar("question_text"),
-    questionType:
-      enum_quiz_submissions_answers_question_type("question_type").notNull(),
-    selectedAnswer: varchar("selected_answer"),
-    isCorrect: boolean("is_correct"),
-    pointsEarned: numeric("points_earned", { mode: "number" }),
-    maxPoints: numeric("max_points", { mode: "number" }),
-    feedback: varchar("feedback"),
-  },
-  (columns) => [
-    index("quiz_submissions_answers_order_idx").on(columns._order),
-    index("quiz_submissions_answers_parent_id_idx").on(columns._parentID),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quiz_submissions.id],
-      name: "quiz_submissions_answers_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const quiz_submissions_flagged_questions = pgTable(
-  "quiz_submissions_flagged_questions",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    questionId: varchar("question_id").notNull(),
-  },
-  (columns) => [
-    index("quiz_submissions_flagged_questions_order_idx").on(columns._order),
-    index("quiz_submissions_flagged_questions_parent_id_idx").on(
-      columns._parentID,
-    ),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quiz_submissions.id],
-      name: "quiz_submissions_flagged_questions_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const quiz_submissions_completed_nested_quizzes = pgTable(
-  "quiz_submissions_completed_nested_quizzes",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    nestedQuizId: varchar("nested_quiz_id").notNull(),
-    startedAt: timestamp("started_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    completedAt: timestamp("completed_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-  },
-  (columns) => [
-    index("quiz_submissions_completed_nested_quizzes_order_idx").on(
-      columns._order,
-    ),
-    index("quiz_submissions_completed_nested_quizzes_parent_id_idx").on(
-      columns._parentID,
-    ),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [quiz_submissions.id],
-      name: "quiz_submissions_completed_nested_quizzes_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const quiz_submissions = pgTable(
-  "quiz_submissions",
-  {
-    id: serial("id").primaryKey(),
-    courseModuleLink: integer("course_module_link_id")
-      .notNull()
-      .references(() => course_activity_module_links.id, {
-        onDelete: "set null",
-      }),
-    student: integer("student_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    enrollment: integer("enrollment_id")
-      .notNull()
-      .references(() => enrollments.id, {
-        onDelete: "set null",
-      }),
-    attemptNumber: numeric("attempt_number", { mode: "number" })
-      .notNull()
-      .default(1),
-    status: enum_quiz_submissions_status("status")
-      .notNull()
-      .default("in_progress"),
-    isPreview: boolean("is_preview").default(false),
-    startedAt: timestamp("started_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    submittedAt: timestamp("submitted_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    timeSpent: numeric("time_spent", { mode: "number" }),
-    totalScore: numeric("total_score", { mode: "number" }),
-    maxScore: numeric("max_score", { mode: "number" }),
-    percentage: numeric("percentage", { mode: "number" }),
-    isLate: boolean("is_late").default(false),
-    autoGraded: boolean("auto_graded").default(false),
-    grade: numeric("grade", { mode: "number" }),
-    feedback: varchar("feedback"),
-    gradedBy: integer("graded_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    gradedAt: timestamp("graded_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("quiz_submissions_course_module_link_idx").on(
-      columns.courseModuleLink,
-    ),
-    index("quiz_submissions_student_idx").on(columns.student),
-    index("quiz_submissions_enrollment_idx").on(columns.enrollment),
-    index("quiz_submissions_graded_by_idx").on(columns.gradedBy),
-    index("quiz_submissions_updated_at_idx").on(columns.updatedAt),
-    index("quiz_submissions_created_at_idx").on(columns.createdAt),
-    index("courseModuleLink_1_idx").on(columns.courseModuleLink),
-    index("student_1_idx").on(columns.student),
-    index("enrollment_1_idx").on(columns.enrollment),
-    uniqueIndex("courseModuleLink_student_attemptNumber_1_idx").on(
-      columns.courseModuleLink,
-      columns.student,
-      columns.attemptNumber,
-    ),
-    index("status_1_idx").on(columns.status),
-    index("submittedAt_1_idx").on(columns.submittedAt),
-    index("totalScore_idx").on(columns.totalScore),
-  ],
-);
-
-export const discussion_submissions_attachments = pgTable(
-  "discussion_submissions_attachments",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    file: integer("file_id")
-      .notNull()
-      .references(() => media.id, {
-        onDelete: "set null",
-      }),
-    description: varchar("description"),
-  },
-  (columns) => [
-    index("discussion_submissions_attachments_order_idx").on(columns._order),
-    index("discussion_submissions_attachments_parent_id_idx").on(
-      columns._parentID,
-    ),
-    index("discussion_submissions_attachments_file_idx").on(columns.file),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [discussion_submissions.id],
-      name: "discussion_submissions_attachments_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const discussion_submissions_upvotes = pgTable(
-  "discussion_submissions_upvotes",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    user: integer("user_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    upvotedAt: timestamp("upvoted_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }).notNull(),
-  },
-  (columns) => [
-    index("discussion_submissions_upvotes_order_idx").on(columns._order),
-    index("discussion_submissions_upvotes_parent_id_idx").on(columns._parentID),
-    index("discussion_submissions_upvotes_user_idx").on(columns.user),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [discussion_submissions.id],
-      name: "discussion_submissions_upvotes_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const discussion_submissions = pgTable(
-  "discussion_submissions",
-  {
-    id: serial("id").primaryKey(),
-    courseModuleLink: integer("course_module_link_id")
-      .notNull()
-      .references(() => course_activity_module_links.id, {
-        onDelete: "set null",
-      }),
-    student: integer("student_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    enrollment: integer("enrollment_id")
-      .notNull()
-      .references(() => enrollments.id, {
-        onDelete: "set null",
-      }),
-    parentThread: integer("parent_thread_id").references(
-      (): AnyPgColumn => discussion_submissions.id,
-      {
-        onDelete: "set null",
-      },
-    ),
-    postType: enum_discussion_submissions_post_type("post_type")
-      .notNull()
-      .default("thread"),
-    title: varchar("title"),
-    content: varchar("content").notNull(),
-    status: enum_discussion_submissions_status("status")
-      .notNull()
-      .default("published"),
-    publishedAt: timestamp("published_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    editedAt: timestamp("edited_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    isEdited: boolean("is_edited").default(false),
-    lastActivityAt: timestamp("last_activity_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    isPinned: boolean("is_pinned").default(false),
-    isLocked: boolean("is_locked").default(false),
-    grade: numeric("grade", { mode: "number" }),
-    feedback: varchar("feedback"),
-    gradedBy: integer("graded_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    gradedAt: timestamp("graded_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("discussion_submissions_course_module_link_idx").on(
-      columns.courseModuleLink,
-    ),
-    index("discussion_submissions_student_idx").on(columns.student),
-    index("discussion_submissions_enrollment_idx").on(columns.enrollment),
-    index("discussion_submissions_parent_thread_idx").on(columns.parentThread),
-    index("discussion_submissions_graded_by_idx").on(columns.gradedBy),
-    index("discussion_submissions_updated_at_idx").on(columns.updatedAt),
-    index("discussion_submissions_created_at_idx").on(columns.createdAt),
-    index("courseModuleLink_2_idx").on(columns.courseModuleLink),
-    index("student_2_idx").on(columns.student),
-    index("enrollment_2_idx").on(columns.enrollment),
-    index("parentThread_idx").on(columns.parentThread),
-    index("postType_idx").on(columns.postType),
-    index("status_2_idx").on(columns.status),
-    index("publishedAt_idx").on(columns.publishedAt),
-    index("isPinned_idx").on(columns.isPinned),
-    index("lastActivityAt_idx").on(columns.lastActivityAt),
-    index("postType_lastActivityAt_idx").on(
-      columns.postType,
-      columns.lastActivityAt,
-    ),
-  ],
-);
-
-export const course_grade_tables_grade_letters = pgTable(
-  "course_grade_tables_grade_letters",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    letter: varchar("letter").notNull(),
-    minimumPercentage: numeric("minimum_percentage", {
-      mode: "number",
-    }).notNull(),
-  },
-  (columns) => [
-    index("course_grade_tables_grade_letters_order_idx").on(columns._order),
-    index("course_grade_tables_grade_letters_parent_id_idx").on(
-      columns._parentID,
-    ),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [course_grade_tables.id],
-      name: "course_grade_tables_grade_letters_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const course_grade_tables = pgTable(
-  "course_grade_tables",
-  {
-    id: serial("id").primaryKey(),
-    course: integer("course_id")
-      .notNull()
-      .references(() => courses.id, {
-        onDelete: "set null",
-      }),
-    isActive: boolean("is_active").default(true),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("course_grade_tables_course_idx").on(columns.course),
-    index("course_grade_tables_updated_at_idx").on(columns.updatedAt),
-    index("course_grade_tables_created_at_idx").on(columns.createdAt),
-    uniqueIndex("course_1_idx").on(columns.course),
-  ],
-);
-
 export const groups = pgTable(
   "groups",
   {
@@ -1824,7 +920,6 @@ export const groups = pgTable(
     description: varchar("description"),
     color: varchar("color"),
     maxMembers: numeric("max_members", { mode: "number" }),
-    isActive: boolean("is_active").default(true),
     metadata: jsonb("metadata"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1848,221 +943,6 @@ export const groups = pgTable(
     index("groups_updated_at_idx").on(columns.updatedAt),
     index("groups_created_at_idx").on(columns.createdAt),
     uniqueIndex("course_path_idx").on(columns.course, columns.path),
-  ],
-);
-
-export const user_grades_adjustments = pgTable(
-  "user_grades_adjustments",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    type: enum_user_grades_adjustments_type("type").notNull(),
-    points: numeric("points", { mode: "number" }).notNull(),
-    reason: varchar("reason").notNull(),
-    appliedBy: integer("applied_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    appliedAt: timestamp("applied_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }).notNull(),
-    isActive: boolean("is_active").default(true),
-  },
-  (columns) => [
-    index("user_grades_adjustments_order_idx").on(columns._order),
-    index("user_grades_adjustments_parent_id_idx").on(columns._parentID),
-    index("user_grades_adjustments_applied_by_idx").on(columns.appliedBy),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [user_grades.id],
-      name: "user_grades_adjustments_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const user_grades = pgTable(
-  "user_grades",
-  {
-    id: serial("id").primaryKey(),
-    enrollment: integer("enrollment_id")
-      .notNull()
-      .references(() => enrollments.id, {
-        onDelete: "set null",
-      }),
-    gradebookItem: integer("gradebook_item_id")
-      .notNull()
-      .references(() => gradebook_items.id, {
-        onDelete: "set null",
-      }),
-    submissionType:
-      enum_user_grades_submission_type("submission_type").default("manual"),
-    baseGrade: numeric("base_grade", { mode: "number" }),
-    baseGradeSource:
-      enum_user_grades_base_grade_source("base_grade_source").default("manual"),
-    isOverridden: boolean("is_overridden").default(false),
-    overrideGrade: numeric("override_grade", { mode: "number" }),
-    overrideReason: varchar("override_reason"),
-    overriddenBy: integer("overridden_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    overriddenAt: timestamp("overridden_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    feedback: varchar("feedback"),
-    gradedBy: integer("graded_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    gradedAt: timestamp("graded_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    submittedAt: timestamp("submitted_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    status: enum_user_grades_status("status").default("draft"),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("user_grades_enrollment_idx").on(columns.enrollment),
-    index("user_grades_gradebook_item_idx").on(columns.gradebookItem),
-    index("user_grades_overridden_by_idx").on(columns.overriddenBy),
-    index("user_grades_graded_by_idx").on(columns.gradedBy),
-    index("user_grades_updated_at_idx").on(columns.updatedAt),
-    index("user_grades_created_at_idx").on(columns.createdAt),
-    uniqueIndex("enrollment_gradebookItem_idx").on(
-      columns.enrollment,
-      columns.gradebookItem,
-    ),
-    index("gradebookItem_idx").on(columns.gradebookItem),
-    index("enrollment_3_idx").on(columns.enrollment),
-  ],
-);
-
-export const user_grades_rels = pgTable(
-  "user_grades_rels",
-  {
-    id: serial("id").primaryKey(),
-    order: integer("order"),
-    parent: integer("parent_id").notNull(),
-    path: varchar("path").notNull(),
-    "assignment-submissionsID": integer("assignment_submissions_id"),
-    "quiz-submissionsID": integer("quiz_submissions_id"),
-    "discussion-submissionsID": integer("discussion_submissions_id"),
-  },
-  (columns) => [
-    index("user_grades_rels_order_idx").on(columns.order),
-    index("user_grades_rels_parent_idx").on(columns.parent),
-    index("user_grades_rels_path_idx").on(columns.path),
-    index("user_grades_rels_assignment_submissions_id_idx").on(
-      columns["assignment-submissionsID"],
-    ),
-    index("user_grades_rels_quiz_submissions_id_idx").on(
-      columns["quiz-submissionsID"],
-    ),
-    index("user_grades_rels_discussion_submissions_id_idx").on(
-      columns["discussion-submissionsID"],
-    ),
-    foreignKey({
-      columns: [columns["parent"]],
-      foreignColumns: [user_grades.id],
-      name: "user_grades_rels_parent_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["assignment-submissionsID"]],
-      foreignColumns: [assignment_submissions.id],
-      name: "user_grades_rels_assignment_submissions_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["quiz-submissionsID"]],
-      foreignColumns: [quiz_submissions.id],
-      name: "user_grades_rels_quiz_submissions_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["discussion-submissionsID"]],
-      foreignColumns: [discussion_submissions.id],
-      name: "user_grades_rels_discussion_submissions_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
-export const files = pgTable(
-  "files",
-  {
-    id: serial("id").primaryKey(),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("files_created_by_idx").on(columns.createdBy),
-    index("files_updated_at_idx").on(columns.updatedAt),
-    index("files_created_at_idx").on(columns.createdAt),
-    index("createdBy_7_idx").on(columns.createdBy),
-  ],
-);
-
-export const files_rels = pgTable(
-  "files_rels",
-  {
-    id: serial("id").primaryKey(),
-    order: integer("order"),
-    parent: integer("parent_id").notNull(),
-    path: varchar("path").notNull(),
-    mediaID: integer("media_id"),
-  },
-  (columns) => [
-    index("files_rels_order_idx").on(columns.order),
-    index("files_rels_parent_idx").on(columns.parent),
-    index("files_rels_path_idx").on(columns.path),
-    index("files_rels_media_id_idx").on(columns.mediaID),
-    foreignKey({
-      columns: [columns["parent"]],
-      foreignColumns: [files.id],
-      name: "files_rels_parent_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["mediaID"]],
-      foreignColumns: [media.id],
-      name: "files_rels_media_fk",
-    }).onDelete("cascade"),
   ],
 );
 
@@ -2103,6 +983,7 @@ export const search_rels = pgTable(
     path: varchar("path").notNull(),
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
+    discussionsID: integer("discussions_id"),
   },
   (columns) => [
     index("search_rels_order_idx").on(columns.order),
@@ -2110,6 +991,7 @@ export const search_rels = pgTable(
     index("search_rels_path_idx").on(columns.path),
     index("search_rels_users_id_idx").on(columns.usersID),
     index("search_rels_courses_id_idx").on(columns.coursesID),
+    index("search_rels_discussions_id_idx").on(columns.discussionsID),
     foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [search.id],
@@ -2124,6 +1006,11 @@ export const search_rels = pgTable(
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "search_rels_courses_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["discussionsID"]],
+      foreignColumns: [discussions.id],
+      name: "search_rels_discussions_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -2259,31 +1146,18 @@ export const payload_locked_documents_rels = pgTable(
     usersID: integer("users_id"),
     mediaID: integer("media_id"),
     notesID: integer("notes_id"),
+    pagesID: integer("pages_id"),
     coursesID: integer("courses_id"),
     "course-sectionsID": integer("course_sections_id"),
     "course-activity-module-linksID": integer(
       "course_activity_module_links_id",
     ),
-    "course-categoriesID": integer("course_categories_id"),
-    "category-role-assignmentsID": integer("category_role_assignments_id"),
-    enrollmentsID: integer("enrollments_id"),
-    "activity-modulesID": integer("activity_modules_id"),
-    "activity-module-grantsID": integer("activity_module_grants_id"),
-    pagesID: integer("pages_id"),
-    whiteboardsID: integer("whiteboards_id"),
-    assignmentsID: integer("assignments_id"),
-    quizzesID: integer("quizzes_id"),
-    discussionsID: integer("discussions_id"),
-    gradebooksID: integer("gradebooks_id"),
-    "gradebook-categoriesID": integer("gradebook_categories_id"),
-    "gradebook-itemsID": integer("gradebook_items_id"),
-    "assignment-submissionsID": integer("assignment_submissions_id"),
-    "quiz-submissionsID": integer("quiz_submissions_id"),
-    "discussion-submissionsID": integer("discussion_submissions_id"),
     "course-grade-tablesID": integer("course_grade_tables_id"),
-    groupsID: integer("groups_id"),
-    "user-gradesID": integer("user_grades_id"),
+    whiteboardsID: integer("whiteboards_id"),
     filesID: integer("files_id"),
+    discussionsID: integer("discussions_id"),
+    enrollmentsID: integer("enrollments_id"),
+    groupsID: integer("groups_id"),
     searchID: integer("search_id"),
   },
   (columns) => [
@@ -2293,6 +1167,7 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_users_id_idx").on(columns.usersID),
     index("payload_locked_documents_rels_media_id_idx").on(columns.mediaID),
     index("payload_locked_documents_rels_notes_id_idx").on(columns.notesID),
+    index("payload_locked_documents_rels_pages_id_idx").on(columns.pagesID),
     index("payload_locked_documents_rels_courses_id_idx").on(columns.coursesID),
     index("payload_locked_documents_rels_course_sections_id_idx").on(
       columns["course-sectionsID"],
@@ -2300,58 +1175,20 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_course_activity_module_lin_idx").on(
       columns["course-activity-module-linksID"],
     ),
-    index("payload_locked_documents_rels_course_categories_id_idx").on(
-      columns["course-categoriesID"],
+    index("payload_locked_documents_rels_course_grade_tables_id_idx").on(
+      columns["course-grade-tablesID"],
     ),
-    index("payload_locked_documents_rels_category_role_assignments__idx").on(
-      columns["category-role-assignmentsID"],
+    index("payload_locked_documents_rels_whiteboards_id_idx").on(
+      columns.whiteboardsID,
+    ),
+    index("payload_locked_documents_rels_files_id_idx").on(columns.filesID),
+    index("payload_locked_documents_rels_discussions_id_idx").on(
+      columns.discussionsID,
     ),
     index("payload_locked_documents_rels_enrollments_id_idx").on(
       columns.enrollmentsID,
     ),
-    index("payload_locked_documents_rels_activity_modules_id_idx").on(
-      columns["activity-modulesID"],
-    ),
-    index("payload_locked_documents_rels_activity_module_grants_id_idx").on(
-      columns["activity-module-grantsID"],
-    ),
-    index("payload_locked_documents_rels_pages_id_idx").on(columns.pagesID),
-    index("payload_locked_documents_rels_whiteboards_id_idx").on(
-      columns.whiteboardsID,
-    ),
-    index("payload_locked_documents_rels_assignments_id_idx").on(
-      columns.assignmentsID,
-    ),
-    index("payload_locked_documents_rels_quizzes_id_idx").on(columns.quizzesID),
-    index("payload_locked_documents_rels_discussions_id_idx").on(
-      columns.discussionsID,
-    ),
-    index("payload_locked_documents_rels_gradebooks_id_idx").on(
-      columns.gradebooksID,
-    ),
-    index("payload_locked_documents_rels_gradebook_categories_id_idx").on(
-      columns["gradebook-categoriesID"],
-    ),
-    index("payload_locked_documents_rels_gradebook_items_id_idx").on(
-      columns["gradebook-itemsID"],
-    ),
-    index("payload_locked_documents_rels_assignment_submissions_id_idx").on(
-      columns["assignment-submissionsID"],
-    ),
-    index("payload_locked_documents_rels_quiz_submissions_id_idx").on(
-      columns["quiz-submissionsID"],
-    ),
-    index("payload_locked_documents_rels_discussion_submissions_id_idx").on(
-      columns["discussion-submissionsID"],
-    ),
-    index("payload_locked_documents_rels_course_grade_tables_id_idx").on(
-      columns["course-grade-tablesID"],
-    ),
     index("payload_locked_documents_rels_groups_id_idx").on(columns.groupsID),
-    index("payload_locked_documents_rels_user_grades_id_idx").on(
-      columns["user-gradesID"],
-    ),
-    index("payload_locked_documents_rels_files_id_idx").on(columns.filesID),
     index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
     foreignKey({
       columns: [columns["parent"]],
@@ -2374,6 +1211,11 @@ export const payload_locked_documents_rels = pgTable(
       name: "payload_locked_documents_rels_notes_fk",
     }).onDelete("cascade"),
     foreignKey({
+      columns: [columns["pagesID"]],
+      foreignColumns: [pages.id],
+      name: "payload_locked_documents_rels_pages_fk",
+    }).onDelete("cascade"),
+    foreignKey({
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "payload_locked_documents_rels_courses_fk",
@@ -2389,34 +1231,9 @@ export const payload_locked_documents_rels = pgTable(
       name: "payload_locked_documents_rels_course_activity_module_link_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [columns["course-categoriesID"]],
-      foreignColumns: [course_categories.id],
-      name: "payload_locked_documents_rels_course_categories_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["category-role-assignmentsID"]],
-      foreignColumns: [category_role_assignments.id],
-      name: "payload_locked_documents_rels_category_role_assignments_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["enrollmentsID"]],
-      foreignColumns: [enrollments.id],
-      name: "payload_locked_documents_rels_enrollments_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["activity-modulesID"]],
-      foreignColumns: [activity_modules.id],
-      name: "payload_locked_documents_rels_activity_modules_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["activity-module-grantsID"]],
-      foreignColumns: [activity_module_grants.id],
-      name: "payload_locked_documents_rels_activity_module_grants_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["pagesID"]],
-      foreignColumns: [pages.id],
-      name: "payload_locked_documents_rels_pages_fk",
+      columns: [columns["course-grade-tablesID"]],
+      foreignColumns: [course_grade_tables.id],
+      name: "payload_locked_documents_rels_course_grade_tables_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["whiteboardsID"]],
@@ -2424,14 +1241,9 @@ export const payload_locked_documents_rels = pgTable(
       name: "payload_locked_documents_rels_whiteboards_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [columns["assignmentsID"]],
-      foreignColumns: [assignments.id],
-      name: "payload_locked_documents_rels_assignments_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["quizzesID"]],
-      foreignColumns: [quizzes.id],
-      name: "payload_locked_documents_rels_quizzes_fk",
+      columns: [columns["filesID"]],
+      foreignColumns: [files.id],
+      name: "payload_locked_documents_rels_files_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["discussionsID"]],
@@ -2439,54 +1251,14 @@ export const payload_locked_documents_rels = pgTable(
       name: "payload_locked_documents_rels_discussions_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [columns["gradebooksID"]],
-      foreignColumns: [gradebooks.id],
-      name: "payload_locked_documents_rels_gradebooks_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["gradebook-categoriesID"]],
-      foreignColumns: [gradebook_categories.id],
-      name: "payload_locked_documents_rels_gradebook_categories_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["gradebook-itemsID"]],
-      foreignColumns: [gradebook_items.id],
-      name: "payload_locked_documents_rels_gradebook_items_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["assignment-submissionsID"]],
-      foreignColumns: [assignment_submissions.id],
-      name: "payload_locked_documents_rels_assignment_submissions_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["quiz-submissionsID"]],
-      foreignColumns: [quiz_submissions.id],
-      name: "payload_locked_documents_rels_quiz_submissions_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["discussion-submissionsID"]],
-      foreignColumns: [discussion_submissions.id],
-      name: "payload_locked_documents_rels_discussion_submissions_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["course-grade-tablesID"]],
-      foreignColumns: [course_grade_tables.id],
-      name: "payload_locked_documents_rels_course_grade_tables_fk",
+      columns: [columns["enrollmentsID"]],
+      foreignColumns: [enrollments.id],
+      name: "payload_locked_documents_rels_enrollments_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["groupsID"]],
       foreignColumns: [groups.id],
       name: "payload_locked_documents_rels_groups_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["user-gradesID"]],
-      foreignColumns: [user_grades.id],
-      name: "payload_locked_documents_rels_user_grades_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["filesID"]],
-      foreignColumns: [files.id],
-      name: "payload_locked_documents_rels_files_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["searchID"]],
@@ -2853,6 +1625,28 @@ export const relations_notes = relations(notes, ({ one, many }) => ({
     relationName: "_rels",
   }),
 }));
+export const relations_pages_rels = relations(pages_rels, ({ one }) => ({
+  parent: one(pages, {
+    fields: [pages_rels.parent],
+    references: [pages.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [pages_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_pages = relations(pages, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [pages.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+  _rels: many(pages_rels, {
+    relationName: "_rels",
+  }),
+}));
 export const relations_courses_recurring_schedules_days_of_week = relations(
   courses_recurring_schedules_days_of_week,
   ({ one }) => ({
@@ -2925,11 +1719,6 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     references: [users.id],
     relationName: "createdBy",
   }),
-  category: one(course_categories, {
-    fields: [courses.category],
-    references: [course_categories.id],
-    relationName: "category",
-  }),
   _rels: many(courses_rels, {
     relationName: "_rels",
   }),
@@ -2957,11 +1746,6 @@ export const relations_course_activity_module_links = relations(
       references: [courses.id],
       relationName: "course",
     }),
-    activityModule: one(activity_modules, {
-      fields: [course_activity_module_links.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
     section: one(course_sections, {
       fields: [course_activity_module_links.section],
       references: [course_sections.id],
@@ -2969,36 +1753,86 @@ export const relations_course_activity_module_links = relations(
     }),
   }),
 );
-export const relations_course_categories = relations(
-  course_categories,
+export const relations_course_grade_tables_grade_letters = relations(
+  course_grade_tables_grade_letters,
   ({ one }) => ({
-    parent: one(course_categories, {
-      fields: [course_categories.parent],
-      references: [course_categories.id],
-      relationName: "parent",
+    _parentID: one(course_grade_tables, {
+      fields: [course_grade_tables_grade_letters._parentID],
+      references: [course_grade_tables.id],
+      relationName: "gradeLetters",
     }),
   }),
 );
-export const relations_category_role_assignments = relations(
-  category_role_assignments,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [category_role_assignments.user],
-      references: [users.id],
-      relationName: "user",
+export const relations_course_grade_tables = relations(
+  course_grade_tables,
+  ({ one, many }) => ({
+    course: one(courses, {
+      fields: [course_grade_tables.course],
+      references: [courses.id],
+      relationName: "course",
     }),
-    category: one(course_categories, {
-      fields: [category_role_assignments.category],
-      references: [course_categories.id],
-      relationName: "category",
-    }),
-    assignedBy: one(users, {
-      fields: [category_role_assignments.assignedBy],
-      references: [users.id],
-      relationName: "assignedBy",
+    gradeLetters: many(course_grade_tables_grade_letters, {
+      relationName: "gradeLetters",
     }),
   }),
 );
+export const relations_whiteboards_rels = relations(
+  whiteboards_rels,
+  ({ one }) => ({
+    parent: one(whiteboards, {
+      fields: [whiteboards_rels.parent],
+      references: [whiteboards.id],
+      relationName: "_rels",
+    }),
+    mediaID: one(media, {
+      fields: [whiteboards_rels.mediaID],
+      references: [media.id],
+      relationName: "media",
+    }),
+  }),
+);
+export const relations_whiteboards = relations(
+  whiteboards,
+  ({ one, many }) => ({
+    createdBy: one(users, {
+      fields: [whiteboards.createdBy],
+      references: [users.id],
+      relationName: "createdBy",
+    }),
+    _rels: many(whiteboards_rels, {
+      relationName: "_rels",
+    }),
+  }),
+);
+export const relations_files_rels = relations(files_rels, ({ one }) => ({
+  parent: one(files, {
+    fields: [files_rels.parent],
+    references: [files.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [files_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_files = relations(files, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [files.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+  _rels: many(files_rels, {
+    relationName: "_rels",
+  }),
+}));
+export const relations_discussions = relations(discussions, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [discussions.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
 export const relations_enrollments_rels = relations(
   enrollments_rels,
   ({ one }) => ({
@@ -3032,415 +1866,6 @@ export const relations_enrollments = relations(
     }),
   }),
 );
-export const relations_activity_modules = relations(
-  activity_modules,
-  ({ one }) => ({
-    owner: one(users, {
-      fields: [activity_modules.owner],
-      references: [users.id],
-      relationName: "owner",
-    }),
-    createdBy: one(users, {
-      fields: [activity_modules.createdBy],
-      references: [users.id],
-      relationName: "createdBy",
-    }),
-    page: one(pages, {
-      fields: [activity_modules.page],
-      references: [pages.id],
-      relationName: "page",
-    }),
-    whiteboard: one(whiteboards, {
-      fields: [activity_modules.whiteboard],
-      references: [whiteboards.id],
-      relationName: "whiteboard",
-    }),
-    assignment: one(assignments, {
-      fields: [activity_modules.assignment],
-      references: [assignments.id],
-      relationName: "assignment",
-    }),
-    quiz: one(quizzes, {
-      fields: [activity_modules.quiz],
-      references: [quizzes.id],
-      relationName: "quiz",
-    }),
-    discussion: one(discussions, {
-      fields: [activity_modules.discussion],
-      references: [discussions.id],
-      relationName: "discussion",
-    }),
-    file: one(files, {
-      fields: [activity_modules.file],
-      references: [files.id],
-      relationName: "file",
-    }),
-  }),
-);
-export const relations_activity_module_grants = relations(
-  activity_module_grants,
-  ({ one }) => ({
-    activityModule: one(activity_modules, {
-      fields: [activity_module_grants.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
-    grantedTo: one(users, {
-      fields: [activity_module_grants.grantedTo],
-      references: [users.id],
-      relationName: "grantedTo",
-    }),
-    grantedBy: one(users, {
-      fields: [activity_module_grants.grantedBy],
-      references: [users.id],
-      relationName: "grantedBy",
-    }),
-  }),
-);
-export const relations_pages_rels = relations(pages_rels, ({ one }) => ({
-  parent: one(pages, {
-    fields: [pages_rels.parent],
-    references: [pages.id],
-    relationName: "_rels",
-  }),
-  mediaID: one(media, {
-    fields: [pages_rels.mediaID],
-    references: [media.id],
-    relationName: "media",
-  }),
-}));
-export const relations_pages = relations(pages, ({ one, many }) => ({
-  createdBy: one(users, {
-    fields: [pages.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-  _rels: many(pages_rels, {
-    relationName: "_rels",
-  }),
-}));
-export const relations_whiteboards = relations(whiteboards, ({ one }) => ({
-  createdBy: one(users, {
-    fields: [whiteboards.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-}));
-export const relations_assignments_allowed_file_types = relations(
-  assignments_allowed_file_types,
-  ({ one }) => ({
-    _parentID: one(assignments, {
-      fields: [assignments_allowed_file_types._parentID],
-      references: [assignments.id],
-      relationName: "allowedFileTypes",
-    }),
-  }),
-);
-export const relations_assignments = relations(
-  assignments,
-  ({ one, many }) => ({
-    allowedFileTypes: many(assignments_allowed_file_types, {
-      relationName: "allowedFileTypes",
-    }),
-    createdBy: one(users, {
-      fields: [assignments.createdBy],
-      references: [users.id],
-      relationName: "createdBy",
-    }),
-  }),
-);
-export const relations_quizzes = relations(quizzes, ({ one }) => ({
-  createdBy: one(users, {
-    fields: [quizzes.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-}));
-export const relations_discussions_pinned_threads = relations(
-  discussions_pinned_threads,
-  ({ one }) => ({
-    _parentID: one(discussions, {
-      fields: [discussions_pinned_threads._parentID],
-      references: [discussions.id],
-      relationName: "pinnedThreads",
-    }),
-    thread: one(discussion_submissions, {
-      fields: [discussions_pinned_threads.thread],
-      references: [discussion_submissions.id],
-      relationName: "thread",
-    }),
-    pinnedBy: one(users, {
-      fields: [discussions_pinned_threads.pinnedBy],
-      references: [users.id],
-      relationName: "pinnedBy",
-    }),
-  }),
-);
-export const relations_discussions = relations(
-  discussions,
-  ({ one, many }) => ({
-    pinnedThreads: many(discussions_pinned_threads, {
-      relationName: "pinnedThreads",
-    }),
-    createdBy: one(users, {
-      fields: [discussions.createdBy],
-      references: [users.id],
-      relationName: "createdBy",
-    }),
-  }),
-);
-export const relations_gradebooks = relations(gradebooks, ({ one }) => ({
-  course: one(courses, {
-    fields: [gradebooks.course],
-    references: [courses.id],
-    relationName: "course",
-  }),
-}));
-export const relations_gradebook_categories = relations(
-  gradebook_categories,
-  ({ one }) => ({
-    gradebook: one(gradebooks, {
-      fields: [gradebook_categories.gradebook],
-      references: [gradebooks.id],
-      relationName: "gradebook",
-    }),
-    parent: one(gradebook_categories, {
-      fields: [gradebook_categories.parent],
-      references: [gradebook_categories.id],
-      relationName: "parent",
-    }),
-  }),
-);
-export const relations_gradebook_items = relations(
-  gradebook_items,
-  ({ one }) => ({
-    gradebook: one(gradebooks, {
-      fields: [gradebook_items.gradebook],
-      references: [gradebooks.id],
-      relationName: "gradebook",
-    }),
-    category: one(gradebook_categories, {
-      fields: [gradebook_items.category],
-      references: [gradebook_categories.id],
-      relationName: "category",
-    }),
-    activityModule: one(course_activity_module_links, {
-      fields: [gradebook_items.activityModule],
-      references: [course_activity_module_links.id],
-      relationName: "activityModule",
-    }),
-  }),
-);
-export const relations_assignment_submissions_attachments = relations(
-  assignment_submissions_attachments,
-  ({ one }) => ({
-    _parentID: one(assignment_submissions, {
-      fields: [assignment_submissions_attachments._parentID],
-      references: [assignment_submissions.id],
-      relationName: "attachments",
-    }),
-    file: one(media, {
-      fields: [assignment_submissions_attachments.file],
-      references: [media.id],
-      relationName: "file",
-    }),
-  }),
-);
-export const relations_assignment_submissions = relations(
-  assignment_submissions,
-  ({ one, many }) => ({
-    courseModuleLink: one(course_activity_module_links, {
-      fields: [assignment_submissions.courseModuleLink],
-      references: [course_activity_module_links.id],
-      relationName: "courseModuleLink",
-    }),
-    student: one(users, {
-      fields: [assignment_submissions.student],
-      references: [users.id],
-      relationName: "student",
-    }),
-    enrollment: one(enrollments, {
-      fields: [assignment_submissions.enrollment],
-      references: [enrollments.id],
-      relationName: "enrollment",
-    }),
-    gradedBy: one(users, {
-      fields: [assignment_submissions.gradedBy],
-      references: [users.id],
-      relationName: "gradedBy",
-    }),
-    attachments: many(assignment_submissions_attachments, {
-      relationName: "attachments",
-    }),
-  }),
-);
-export const relations_quiz_submissions_answers_multiple_choice_answers =
-  relations(quiz_submissions_answers_multiple_choice_answers, ({ one }) => ({
-    _parentID: one(quiz_submissions_answers, {
-      fields: [quiz_submissions_answers_multiple_choice_answers._parentID],
-      references: [quiz_submissions_answers.id],
-      relationName: "multipleChoiceAnswers",
-    }),
-  }));
-export const relations_quiz_submissions_answers = relations(
-  quiz_submissions_answers,
-  ({ one, many }) => ({
-    _parentID: one(quiz_submissions, {
-      fields: [quiz_submissions_answers._parentID],
-      references: [quiz_submissions.id],
-      relationName: "answers",
-    }),
-    multipleChoiceAnswers: many(
-      quiz_submissions_answers_multiple_choice_answers,
-      {
-        relationName: "multipleChoiceAnswers",
-      },
-    ),
-  }),
-);
-export const relations_quiz_submissions_flagged_questions = relations(
-  quiz_submissions_flagged_questions,
-  ({ one }) => ({
-    _parentID: one(quiz_submissions, {
-      fields: [quiz_submissions_flagged_questions._parentID],
-      references: [quiz_submissions.id],
-      relationName: "flaggedQuestions",
-    }),
-  }),
-);
-export const relations_quiz_submissions_completed_nested_quizzes = relations(
-  quiz_submissions_completed_nested_quizzes,
-  ({ one }) => ({
-    _parentID: one(quiz_submissions, {
-      fields: [quiz_submissions_completed_nested_quizzes._parentID],
-      references: [quiz_submissions.id],
-      relationName: "completedNestedQuizzes",
-    }),
-  }),
-);
-export const relations_quiz_submissions = relations(
-  quiz_submissions,
-  ({ one, many }) => ({
-    courseModuleLink: one(course_activity_module_links, {
-      fields: [quiz_submissions.courseModuleLink],
-      references: [course_activity_module_links.id],
-      relationName: "courseModuleLink",
-    }),
-    student: one(users, {
-      fields: [quiz_submissions.student],
-      references: [users.id],
-      relationName: "student",
-    }),
-    enrollment: one(enrollments, {
-      fields: [quiz_submissions.enrollment],
-      references: [enrollments.id],
-      relationName: "enrollment",
-    }),
-    answers: many(quiz_submissions_answers, {
-      relationName: "answers",
-    }),
-    flaggedQuestions: many(quiz_submissions_flagged_questions, {
-      relationName: "flaggedQuestions",
-    }),
-    gradedBy: one(users, {
-      fields: [quiz_submissions.gradedBy],
-      references: [users.id],
-      relationName: "gradedBy",
-    }),
-    completedNestedQuizzes: many(quiz_submissions_completed_nested_quizzes, {
-      relationName: "completedNestedQuizzes",
-    }),
-  }),
-);
-export const relations_discussion_submissions_attachments = relations(
-  discussion_submissions_attachments,
-  ({ one }) => ({
-    _parentID: one(discussion_submissions, {
-      fields: [discussion_submissions_attachments._parentID],
-      references: [discussion_submissions.id],
-      relationName: "attachments",
-    }),
-    file: one(media, {
-      fields: [discussion_submissions_attachments.file],
-      references: [media.id],
-      relationName: "file",
-    }),
-  }),
-);
-export const relations_discussion_submissions_upvotes = relations(
-  discussion_submissions_upvotes,
-  ({ one }) => ({
-    _parentID: one(discussion_submissions, {
-      fields: [discussion_submissions_upvotes._parentID],
-      references: [discussion_submissions.id],
-      relationName: "upvotes",
-    }),
-    user: one(users, {
-      fields: [discussion_submissions_upvotes.user],
-      references: [users.id],
-      relationName: "user",
-    }),
-  }),
-);
-export const relations_discussion_submissions = relations(
-  discussion_submissions,
-  ({ one, many }) => ({
-    courseModuleLink: one(course_activity_module_links, {
-      fields: [discussion_submissions.courseModuleLink],
-      references: [course_activity_module_links.id],
-      relationName: "courseModuleLink",
-    }),
-    student: one(users, {
-      fields: [discussion_submissions.student],
-      references: [users.id],
-      relationName: "student",
-    }),
-    enrollment: one(enrollments, {
-      fields: [discussion_submissions.enrollment],
-      references: [enrollments.id],
-      relationName: "enrollment",
-    }),
-    parentThread: one(discussion_submissions, {
-      fields: [discussion_submissions.parentThread],
-      references: [discussion_submissions.id],
-      relationName: "parentThread",
-    }),
-    attachments: many(discussion_submissions_attachments, {
-      relationName: "attachments",
-    }),
-    upvotes: many(discussion_submissions_upvotes, {
-      relationName: "upvotes",
-    }),
-    gradedBy: one(users, {
-      fields: [discussion_submissions.gradedBy],
-      references: [users.id],
-      relationName: "gradedBy",
-    }),
-  }),
-);
-export const relations_course_grade_tables_grade_letters = relations(
-  course_grade_tables_grade_letters,
-  ({ one }) => ({
-    _parentID: one(course_grade_tables, {
-      fields: [course_grade_tables_grade_letters._parentID],
-      references: [course_grade_tables.id],
-      relationName: "gradeLetters",
-    }),
-  }),
-);
-export const relations_course_grade_tables = relations(
-  course_grade_tables,
-  ({ one, many }) => ({
-    course: one(courses, {
-      fields: [course_grade_tables.course],
-      references: [courses.id],
-      relationName: "course",
-    }),
-    gradeLetters: many(course_grade_tables_grade_letters, {
-      relationName: "gradeLetters",
-    }),
-  }),
-);
 export const relations_groups = relations(groups, ({ one }) => ({
   course: one(courses, {
     fields: [groups.course],
@@ -3451,99 +1876,6 @@ export const relations_groups = relations(groups, ({ one }) => ({
     fields: [groups.parent],
     references: [groups.id],
     relationName: "parent",
-  }),
-}));
-export const relations_user_grades_adjustments = relations(
-  user_grades_adjustments,
-  ({ one }) => ({
-    _parentID: one(user_grades, {
-      fields: [user_grades_adjustments._parentID],
-      references: [user_grades.id],
-      relationName: "adjustments",
-    }),
-    appliedBy: one(users, {
-      fields: [user_grades_adjustments.appliedBy],
-      references: [users.id],
-      relationName: "appliedBy",
-    }),
-  }),
-);
-export const relations_user_grades_rels = relations(
-  user_grades_rels,
-  ({ one }) => ({
-    parent: one(user_grades, {
-      fields: [user_grades_rels.parent],
-      references: [user_grades.id],
-      relationName: "_rels",
-    }),
-    "assignment-submissionsID": one(assignment_submissions, {
-      fields: [user_grades_rels["assignment-submissionsID"]],
-      references: [assignment_submissions.id],
-      relationName: "assignment-submissions",
-    }),
-    "quiz-submissionsID": one(quiz_submissions, {
-      fields: [user_grades_rels["quiz-submissionsID"]],
-      references: [quiz_submissions.id],
-      relationName: "quiz-submissions",
-    }),
-    "discussion-submissionsID": one(discussion_submissions, {
-      fields: [user_grades_rels["discussion-submissionsID"]],
-      references: [discussion_submissions.id],
-      relationName: "discussion-submissions",
-    }),
-  }),
-);
-export const relations_user_grades = relations(
-  user_grades,
-  ({ one, many }) => ({
-    enrollment: one(enrollments, {
-      fields: [user_grades.enrollment],
-      references: [enrollments.id],
-      relationName: "enrollment",
-    }),
-    gradebookItem: one(gradebook_items, {
-      fields: [user_grades.gradebookItem],
-      references: [gradebook_items.id],
-      relationName: "gradebookItem",
-    }),
-    adjustments: many(user_grades_adjustments, {
-      relationName: "adjustments",
-    }),
-    overriddenBy: one(users, {
-      fields: [user_grades.overriddenBy],
-      references: [users.id],
-      relationName: "overriddenBy",
-    }),
-    gradedBy: one(users, {
-      fields: [user_grades.gradedBy],
-      references: [users.id],
-      relationName: "gradedBy",
-    }),
-    _rels: many(user_grades_rels, {
-      relationName: "_rels",
-    }),
-  }),
-);
-export const relations_files_rels = relations(files_rels, ({ one }) => ({
-  parent: one(files, {
-    fields: [files_rels.parent],
-    references: [files.id],
-    relationName: "_rels",
-  }),
-  mediaID: one(media, {
-    fields: [files_rels.mediaID],
-    references: [media.id],
-    relationName: "media",
-  }),
-}));
-export const relations_files = relations(files, ({ one, many }) => ({
-  createdBy: one(users, {
-    fields: [files.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-  _rels: many(files_rels, {
-    relationName: "_rels",
   }),
 }));
 export const relations_search_rels = relations(search_rels, ({ one }) => ({
@@ -3561,6 +1893,11 @@ export const relations_search_rels = relations(search_rels, ({ one }) => ({
     fields: [search_rels.coursesID],
     references: [courses.id],
     relationName: "courses",
+  }),
+  discussionsID: one(discussions, {
+    fields: [search_rels.discussionsID],
+    references: [discussions.id],
+    relationName: "discussions",
   }),
 }));
 export const relations_search = relations(search, ({ many }) => ({
@@ -3607,6 +1944,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [notes.id],
       relationName: "notes",
     }),
+    pagesID: one(pages, {
+      fields: [payload_locked_documents_rels.pagesID],
+      references: [pages.id],
+      relationName: "pages",
+    }),
     coursesID: one(courses, {
       fields: [payload_locked_documents_rels.coursesID],
       references: [courses.id],
@@ -3622,105 +1964,35 @@ export const relations_payload_locked_documents_rels = relations(
       references: [course_activity_module_links.id],
       relationName: "course-activity-module-links",
     }),
-    "course-categoriesID": one(course_categories, {
-      fields: [payload_locked_documents_rels["course-categoriesID"]],
-      references: [course_categories.id],
-      relationName: "course-categories",
-    }),
-    "category-role-assignmentsID": one(category_role_assignments, {
-      fields: [payload_locked_documents_rels["category-role-assignmentsID"]],
-      references: [category_role_assignments.id],
-      relationName: "category-role-assignments",
-    }),
-    enrollmentsID: one(enrollments, {
-      fields: [payload_locked_documents_rels.enrollmentsID],
-      references: [enrollments.id],
-      relationName: "enrollments",
-    }),
-    "activity-modulesID": one(activity_modules, {
-      fields: [payload_locked_documents_rels["activity-modulesID"]],
-      references: [activity_modules.id],
-      relationName: "activity-modules",
-    }),
-    "activity-module-grantsID": one(activity_module_grants, {
-      fields: [payload_locked_documents_rels["activity-module-grantsID"]],
-      references: [activity_module_grants.id],
-      relationName: "activity-module-grants",
-    }),
-    pagesID: one(pages, {
-      fields: [payload_locked_documents_rels.pagesID],
-      references: [pages.id],
-      relationName: "pages",
+    "course-grade-tablesID": one(course_grade_tables, {
+      fields: [payload_locked_documents_rels["course-grade-tablesID"]],
+      references: [course_grade_tables.id],
+      relationName: "course-grade-tables",
     }),
     whiteboardsID: one(whiteboards, {
       fields: [payload_locked_documents_rels.whiteboardsID],
       references: [whiteboards.id],
       relationName: "whiteboards",
     }),
-    assignmentsID: one(assignments, {
-      fields: [payload_locked_documents_rels.assignmentsID],
-      references: [assignments.id],
-      relationName: "assignments",
-    }),
-    quizzesID: one(quizzes, {
-      fields: [payload_locked_documents_rels.quizzesID],
-      references: [quizzes.id],
-      relationName: "quizzes",
+    filesID: one(files, {
+      fields: [payload_locked_documents_rels.filesID],
+      references: [files.id],
+      relationName: "files",
     }),
     discussionsID: one(discussions, {
       fields: [payload_locked_documents_rels.discussionsID],
       references: [discussions.id],
       relationName: "discussions",
     }),
-    gradebooksID: one(gradebooks, {
-      fields: [payload_locked_documents_rels.gradebooksID],
-      references: [gradebooks.id],
-      relationName: "gradebooks",
-    }),
-    "gradebook-categoriesID": one(gradebook_categories, {
-      fields: [payload_locked_documents_rels["gradebook-categoriesID"]],
-      references: [gradebook_categories.id],
-      relationName: "gradebook-categories",
-    }),
-    "gradebook-itemsID": one(gradebook_items, {
-      fields: [payload_locked_documents_rels["gradebook-itemsID"]],
-      references: [gradebook_items.id],
-      relationName: "gradebook-items",
-    }),
-    "assignment-submissionsID": one(assignment_submissions, {
-      fields: [payload_locked_documents_rels["assignment-submissionsID"]],
-      references: [assignment_submissions.id],
-      relationName: "assignment-submissions",
-    }),
-    "quiz-submissionsID": one(quiz_submissions, {
-      fields: [payload_locked_documents_rels["quiz-submissionsID"]],
-      references: [quiz_submissions.id],
-      relationName: "quiz-submissions",
-    }),
-    "discussion-submissionsID": one(discussion_submissions, {
-      fields: [payload_locked_documents_rels["discussion-submissionsID"]],
-      references: [discussion_submissions.id],
-      relationName: "discussion-submissions",
-    }),
-    "course-grade-tablesID": one(course_grade_tables, {
-      fields: [payload_locked_documents_rels["course-grade-tablesID"]],
-      references: [course_grade_tables.id],
-      relationName: "course-grade-tables",
+    enrollmentsID: one(enrollments, {
+      fields: [payload_locked_documents_rels.enrollmentsID],
+      references: [enrollments.id],
+      relationName: "enrollments",
     }),
     groupsID: one(groups, {
       fields: [payload_locked_documents_rels.groupsID],
       references: [groups.id],
       relationName: "groups",
-    }),
-    "user-gradesID": one(user_grades, {
-      fields: [payload_locked_documents_rels["user-gradesID"]],
-      references: [user_grades.id],
-      relationName: "user-grades",
-    }),
-    filesID: one(files, {
-      fields: [payload_locked_documents_rels.filesID],
-      references: [files.id],
-      relationName: "files",
     }),
     searchID: one(search, {
       fields: [payload_locked_documents_rels.searchID],
@@ -3868,20 +2140,9 @@ type DatabaseSchema = {
   enum_users_theme: typeof enum_users_theme;
   enum_users_direction: typeof enum_users_direction;
   enum_courses_status: typeof enum_courses_status;
-  enum_category_role_assignments_role: typeof enum_category_role_assignments_role;
+  enum_discussions_thread_sorting: typeof enum_discussions_thread_sorting;
   enum_enrollments_role: typeof enum_enrollments_role;
   enum_enrollments_status: typeof enum_enrollments_status;
-  enum_activity_modules_type: typeof enum_activity_modules_type;
-  enum_discussions_thread_sorting: typeof enum_discussions_thread_sorting;
-  enum_assignment_submissions_status: typeof enum_assignment_submissions_status;
-  enum_quiz_submissions_answers_question_type: typeof enum_quiz_submissions_answers_question_type;
-  enum_quiz_submissions_status: typeof enum_quiz_submissions_status;
-  enum_discussion_submissions_post_type: typeof enum_discussion_submissions_post_type;
-  enum_discussion_submissions_status: typeof enum_discussion_submissions_status;
-  enum_user_grades_adjustments_type: typeof enum_user_grades_adjustments_type;
-  enum_user_grades_submission_type: typeof enum_user_grades_submission_type;
-  enum_user_grades_base_grade_source: typeof enum_user_grades_base_grade_source;
-  enum_user_grades_status: typeof enum_user_grades_status;
   enum_payload_jobs_log_task_slug: typeof enum_payload_jobs_log_task_slug;
   enum_payload_jobs_log_state: typeof enum_payload_jobs_log_state;
   enum_payload_jobs_task_slug: typeof enum_payload_jobs_task_slug;
@@ -3892,6 +2153,8 @@ type DatabaseSchema = {
   media: typeof media;
   notes: typeof notes;
   notes_rels: typeof notes_rels;
+  pages: typeof pages;
+  pages_rels: typeof pages_rels;
   courses_recurring_schedules_days_of_week: typeof courses_recurring_schedules_days_of_week;
   courses_recurring_schedules: typeof courses_recurring_schedules;
   courses_specific_dates: typeof courses_specific_dates;
@@ -3900,41 +2163,16 @@ type DatabaseSchema = {
   courses_rels: typeof courses_rels;
   course_sections: typeof course_sections;
   course_activity_module_links: typeof course_activity_module_links;
-  course_categories: typeof course_categories;
-  category_role_assignments: typeof category_role_assignments;
-  enrollments: typeof enrollments;
-  enrollments_rels: typeof enrollments_rels;
-  activity_modules: typeof activity_modules;
-  activity_module_grants: typeof activity_module_grants;
-  pages: typeof pages;
-  pages_rels: typeof pages_rels;
-  whiteboards: typeof whiteboards;
-  assignments_allowed_file_types: typeof assignments_allowed_file_types;
-  assignments: typeof assignments;
-  quizzes: typeof quizzes;
-  discussions_pinned_threads: typeof discussions_pinned_threads;
-  discussions: typeof discussions;
-  gradebooks: typeof gradebooks;
-  gradebook_categories: typeof gradebook_categories;
-  gradebook_items: typeof gradebook_items;
-  assignment_submissions_attachments: typeof assignment_submissions_attachments;
-  assignment_submissions: typeof assignment_submissions;
-  quiz_submissions_answers_multiple_choice_answers: typeof quiz_submissions_answers_multiple_choice_answers;
-  quiz_submissions_answers: typeof quiz_submissions_answers;
-  quiz_submissions_flagged_questions: typeof quiz_submissions_flagged_questions;
-  quiz_submissions_completed_nested_quizzes: typeof quiz_submissions_completed_nested_quizzes;
-  quiz_submissions: typeof quiz_submissions;
-  discussion_submissions_attachments: typeof discussion_submissions_attachments;
-  discussion_submissions_upvotes: typeof discussion_submissions_upvotes;
-  discussion_submissions: typeof discussion_submissions;
   course_grade_tables_grade_letters: typeof course_grade_tables_grade_letters;
   course_grade_tables: typeof course_grade_tables;
-  groups: typeof groups;
-  user_grades_adjustments: typeof user_grades_adjustments;
-  user_grades: typeof user_grades;
-  user_grades_rels: typeof user_grades_rels;
+  whiteboards: typeof whiteboards;
+  whiteboards_rels: typeof whiteboards_rels;
   files: typeof files;
   files_rels: typeof files_rels;
+  discussions: typeof discussions;
+  enrollments: typeof enrollments;
+  enrollments_rels: typeof enrollments_rels;
+  groups: typeof groups;
   search: typeof search;
   search_rels: typeof search_rels;
   payload_kv: typeof payload_kv;
@@ -3960,6 +2198,8 @@ type DatabaseSchema = {
   relations_media: typeof relations_media;
   relations_notes_rels: typeof relations_notes_rels;
   relations_notes: typeof relations_notes;
+  relations_pages_rels: typeof relations_pages_rels;
+  relations_pages: typeof relations_pages;
   relations_courses_recurring_schedules_days_of_week: typeof relations_courses_recurring_schedules_days_of_week;
   relations_courses_recurring_schedules: typeof relations_courses_recurring_schedules;
   relations_courses_specific_dates: typeof relations_courses_specific_dates;
@@ -3968,41 +2208,16 @@ type DatabaseSchema = {
   relations_courses: typeof relations_courses;
   relations_course_sections: typeof relations_course_sections;
   relations_course_activity_module_links: typeof relations_course_activity_module_links;
-  relations_course_categories: typeof relations_course_categories;
-  relations_category_role_assignments: typeof relations_category_role_assignments;
-  relations_enrollments_rels: typeof relations_enrollments_rels;
-  relations_enrollments: typeof relations_enrollments;
-  relations_activity_modules: typeof relations_activity_modules;
-  relations_activity_module_grants: typeof relations_activity_module_grants;
-  relations_pages_rels: typeof relations_pages_rels;
-  relations_pages: typeof relations_pages;
-  relations_whiteboards: typeof relations_whiteboards;
-  relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
-  relations_assignments: typeof relations_assignments;
-  relations_quizzes: typeof relations_quizzes;
-  relations_discussions_pinned_threads: typeof relations_discussions_pinned_threads;
-  relations_discussions: typeof relations_discussions;
-  relations_gradebooks: typeof relations_gradebooks;
-  relations_gradebook_categories: typeof relations_gradebook_categories;
-  relations_gradebook_items: typeof relations_gradebook_items;
-  relations_assignment_submissions_attachments: typeof relations_assignment_submissions_attachments;
-  relations_assignment_submissions: typeof relations_assignment_submissions;
-  relations_quiz_submissions_answers_multiple_choice_answers: typeof relations_quiz_submissions_answers_multiple_choice_answers;
-  relations_quiz_submissions_answers: typeof relations_quiz_submissions_answers;
-  relations_quiz_submissions_flagged_questions: typeof relations_quiz_submissions_flagged_questions;
-  relations_quiz_submissions_completed_nested_quizzes: typeof relations_quiz_submissions_completed_nested_quizzes;
-  relations_quiz_submissions: typeof relations_quiz_submissions;
-  relations_discussion_submissions_attachments: typeof relations_discussion_submissions_attachments;
-  relations_discussion_submissions_upvotes: typeof relations_discussion_submissions_upvotes;
-  relations_discussion_submissions: typeof relations_discussion_submissions;
   relations_course_grade_tables_grade_letters: typeof relations_course_grade_tables_grade_letters;
   relations_course_grade_tables: typeof relations_course_grade_tables;
-  relations_groups: typeof relations_groups;
-  relations_user_grades_adjustments: typeof relations_user_grades_adjustments;
-  relations_user_grades_rels: typeof relations_user_grades_rels;
-  relations_user_grades: typeof relations_user_grades;
+  relations_whiteboards_rels: typeof relations_whiteboards_rels;
+  relations_whiteboards: typeof relations_whiteboards;
   relations_files_rels: typeof relations_files_rels;
   relations_files: typeof relations_files;
+  relations_discussions: typeof relations_discussions;
+  relations_enrollments_rels: typeof relations_enrollments_rels;
+  relations_enrollments: typeof relations_enrollments;
+  relations_groups: typeof relations_groups;
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
   relations_payload_kv: typeof relations_payload_kv;

@@ -53,7 +53,7 @@ export namespace UserModule {
 export class UserModule {
     private readonly payload: Payload;
     public static readonly moduleName = "user" as const;
-    public static readonly dependencies = [] as const;
+    public static readonly dependencies = ["infrastructure"] as const;
     public static readonly collections = [
         Users,
         Media

@@ -2,12 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "payload.config";
+import { tryFindCourseById } from "modules/courses/services/course-management";
 import {
 	tryCreateGroup,
-	tryFindCourseById,
 	tryFindGroupsByCourse,
-} from "modules/courses/services/course-management";
-// import { tryCreateCategory } from "./course-category-management";
+} from "server/modules/enrolment/services/group-management";
 import {
 	type CreateEnrollmentArgs,
 	type SearchEnrollmentsArgs,
@@ -22,74 +21,86 @@ import {
 	tryUpdateEnrollment,
 	type UpdateEnrollmentArgs,
 } from "../services/enrollment-management";
+import { trySeedUsers } from "../../user/seeding/users-builder";
+import { trySeedCourses } from "../../courses/seeding/courses-builder";
+import {
+	trySeedGroups,
+	trySeedEnrollments,
+	enrollmentManagementTestGroupSeedData,
+	enrollmentManagementTestEnrollmentSeedData,
+} from "../seeding";
+import { noteManagementTestUserSeedData } from "../../note/seeding/note-management-test-seed-data";
+import { courseManagementTestCourseSeedData } from "../../courses/seeding/course-management-test-seed-data";
 
-describe("Enrollment Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Enrollment Management Functions", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let testUserId: number;
 	let testCourseId: number;
 
 	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
+		while (!payload.db.drizzle) {
+			await new Promise((resolve) => setTimeout(resolve, 100));
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
 
-		// Create test user
-		const testUser = await payload.create({
-			collection: "users",
-			data: {
-				email: "test@example.com",
-				password: "testpassword123",
-				firstName: "Test",
-				lastName: "User",
-				theme: "light",
-				direction: "ltr",
-			},
+		const usersResult = await trySeedUsers({
+			payload,
+			data: noteManagementTestUserSeedData,
 			overrideAccess: true,
-		});
-		testUserId = testUser.id;
+			req: undefined,
+		}).getOrThrow();
 
-		// Create test category
-		// const testCategoryResult = await tryCreateCategory({
-		// 	payload,
-		// 	name: "Test Category",
-		// 	req: undefined,
-		// 	overrideAccess: true,
-		// });
-		// expect(testCategoryResult.ok).toBe(true);
-		// if (!testCategoryResult.ok) {
-		// 	throw new Error("Failed to create test category");
-		// }
+		testUserId = usersResult.byEmail.get("testuser1@example.com")!.user.id;
 
-		// Create test course
-		const testCourse = await payload.create({
-			collection: "courses",
-			data: {
-				title: "Test Course",
-				description: "A test course for enrollment testing",
-				createdBy: testUserId,
-				slug: "test-course",
-				status: "published",
-				category: null,
-			},
+		const coursesResult = await trySeedCourses({
+			payload,
+			data: courseManagementTestCourseSeedData,
+			usersByEmail: new Map(
+				Array.from(usersResult.byEmail.entries()).map(([email, entry]) => [
+					email,
+					entry.user,
+				]),
+			),
 			overrideAccess: true,
-		});
-		testCourseId = testCourse.id;
+			req: undefined,
+		}).getOrThrow();
+
+		testCourseId = coursesResult.getCourseBySlug("cs-101-fa-2025")!.id;
+
+		await trySeedGroups({
+			payload,
+			data: enrollmentManagementTestGroupSeedData,
+			coursesBySlug: coursesResult.coursesBySlug,
+			overrideAccess: true,
+			req: undefined,
+		}).getOrThrow();
+
+		await trySeedEnrollments({
+			payload,
+			data: enrollmentManagementTestEnrollmentSeedData,
+			usersByEmail: new Map(
+				Array.from(usersResult.byEmail.entries()).map(([email, entry]) => [
+					email,
+					entry.user,
+				]),
+			),
+			coursesBySlug: coursesResult.coursesBySlug,
+			overrideAccess: true,
+			req: undefined,
+		}).getOrThrow();
 	});
 
 	afterAll(async () => {
-		// Clean up any test data
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
+		});
+		await $`bun scripts/clean-s3.ts`;
 	});
 
 	describe("tryCreateEnrollment", () => {
@@ -464,7 +475,6 @@ describe("Enrollment Management Functions", () => {
 					createdBy: testUserForEnrollments,
 					slug: "test-course-2",
 					status: "published",
-					category: null,
 				},
 				overrideAccess: true,
 			});
@@ -478,7 +488,6 @@ describe("Enrollment Management Functions", () => {
 					createdBy: testUserForEnrollments,
 					slug: "test-course-3",
 					status: "published",
-					category: null,
 				},
 				overrideAccess: true,
 			});
@@ -981,22 +990,19 @@ describe("Enrollment Management Functions", () => {
 	});
 });
 
-describe("Enrollment Management Functions with Authentication", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Enrollment Management Functions with Authentication", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let adminUser: TypedUser | null;
 	let testUserId: number;
 	let testCourseId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
-		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
 		});
 
 		// Create admin user for testing
@@ -1061,7 +1067,6 @@ describe("Enrollment Management Functions with Authentication", () => {
 				createdBy: adminUser.id,
 				slug: "test-course",
 				status: "published",
-				category: null,
 			},
 			overrideAccess: true,
 		});
@@ -1070,11 +1075,9 @@ describe("Enrollment Management Functions with Authentication", () => {
 
 	afterAll(async () => {
 		// Clean up any test data
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
+		await payload.db.migrateFresh({
+			forceAcceptWarning: true,
+		});
 	});
 
 	describe("tryCreateEnrollment with Authentication", () => {

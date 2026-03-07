@@ -8,7 +8,7 @@ import {
 } from "./appearance-settings";
 import { tryFindMediaUsages } from "../modules/user/services/media-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
-import { stripDepth, type Depth } from "shared/internal-function-utils";
+import { stripDepth, type Depth } from "@paideia/shared";
 import type { User } from "server/payload-types";
 
 describe("Appearance Settings Functions", () => {

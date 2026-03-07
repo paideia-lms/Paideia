@@ -7,8 +7,7 @@ export {
 	type CreateRequestContextArgs,
 } from "./paideia";
 export * from "./errors";
-export { envVars } from "./modules/infrastructure/services/env";
-export { s3Client } from "./modules/infrastructure/services/s3-client";
+export { envVars, s3Client } from "./modules/infrastructure";
 export { asciiLogo, devConstants } from "./utils/constants";
 export { isD2Available } from "./utils/cli-dependencies-check";
 export { debugLog } from "./utils/debug";
@@ -40,7 +39,7 @@ export {
 	handleTransactionId,
 	commitTransactionIfCreated,
 	rollbackTransactionIfCreated,
-} from "shared/handle-transaction-id";
+} from "@paideia/shared";
 export { convertDatabaseAnswersToQuizAnswers } from "./internal/utils/quiz-answer-converter";
 export {
 	generateCourseStructureTree,
@@ -54,7 +53,7 @@ export {
 	createLocalReq,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 
 export type {
 	SingleUserGradesJsonRepresentation,

@@ -53,12 +53,6 @@ export const Groups = {
 			// Optional limit on number of enrollments in this group
 		},
 		{
-			name: "isActive",
-			type: "checkbox",
-			defaultValue: true,
-			label: "Is Active",
-		},
-		{
 			name: "metadata",
 			type: "json",
 			label: "Metadata",

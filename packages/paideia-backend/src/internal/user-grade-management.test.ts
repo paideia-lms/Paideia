@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import type { TryResultValue } from "server/utils/types";
 import sanitizedConfig from "../payload.config";
 import {

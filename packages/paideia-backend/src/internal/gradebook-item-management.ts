@@ -13,12 +13,12 @@ import {
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
 } from "./gradebook-management";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 
 export interface ValidateOverallWeightTotalArgs

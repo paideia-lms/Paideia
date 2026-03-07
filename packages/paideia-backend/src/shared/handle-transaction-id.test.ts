@@ -3,7 +3,7 @@ import type { Payload } from "payload";
 import {
 	handleTransactionId,
 	type HandleTransactionIdResult,
-} from "./handle-transaction-id";
+} from "@paideia/shared";
 
 describe("handleTransactionId", () => {
 	describe("tx method", () => {

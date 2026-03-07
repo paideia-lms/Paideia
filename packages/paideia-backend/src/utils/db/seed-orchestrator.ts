@@ -19,8 +19,8 @@ import {
 	buildSections,
 	buildModuleLinks,
 } from "./seed-builders/section-builder";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
+import { handleTransactionId } from "@paideia/shared";
 import type { Vfs } from "./seed-utils/vfs-utils";
 
 type DeepReadonly<T> = Simplify<{

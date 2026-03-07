@@ -17,5 +17,6 @@
 			"@mantine/form/lib/paths.types": ["./node_modules/@mantine/form/lib/paths.types"]
 		}
 	},
+	"include": ["types.d.ts"],
     "exclude": ["node_modules", "dist", "src/payload-generated-schema.ts", "src/migrations", "opensrc"]
 }

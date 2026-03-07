@@ -8,10 +8,10 @@ import {
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { AppearanceSettings } from "server/collections/globals";
 import { tryCreateMedia } from "../modules/user/services/media-management";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 export interface GetAppearanceSettingsArgs extends BaseInternalFunctionArgs {}
 
 export interface UpdateAppearanceSettingsArgs extends BaseInternalFunctionArgs {

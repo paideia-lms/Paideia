@@ -6,14 +6,13 @@
  * Changes to module dependencies will require regenerating this file.
  */
 
-import type { PaideiaModuleConstructor } from "./shared/module-interface";
-import { UserModule } from "./modules/user";
 import { InfrastructureModule } from "./modules/infrastructure";
+import { UserModule } from "./modules/user";
 import { NoteModule } from "./modules/note";
-import { DriveModule } from "./modules/drive";
-import { PagesModule } from "./modules/pages";
 import { GradingModule } from "./modules/grading";
 import { CoursesModule } from "./modules/courses";
+import { DriveModule } from "./modules/drive";
+import { PagesModule } from "./modules/pages";
 import { WhiteboardModule } from "./modules/whiteboard";
 import { QuizModule } from "./modules/quiz";
 import { AssignmentModule } from "./modules/assignment";
@@ -26,42 +25,42 @@ import { EnrolmentModule } from "./modules/enrolment";
  * Modules with no dependencies come first, followed by dependent modules.
  */
 export const allModules = [
-	UserModule,
 	InfrastructureModule,
+	UserModule,
 	NoteModule,
-	DriveModule,
-	PagesModule,
 	GradingModule,
 	CoursesModule,
+	DriveModule,
+	PagesModule,
 	WhiteboardModule,
 	QuizModule,
 	AssignmentModule,
 	FilesModule,
 	DiscussionModule,
 	EnrolmentModule,
-] as [typeof UserModule,typeof InfrastructureModule,typeof NoteModule,typeof DriveModule,typeof PagesModule,typeof GradingModule,typeof CoursesModule,typeof WhiteboardModule,typeof QuizModule,typeof AssignmentModule,typeof FilesModule,typeof DiscussionModule,typeof EnrolmentModule] satisfies PaideiaModuleConstructor[];
+] as [typeof InfrastructureModule,typeof UserModule,typeof NoteModule,typeof GradingModule,typeof CoursesModule,typeof DriveModule,typeof PagesModule,typeof WhiteboardModule,typeof QuizModule,typeof AssignmentModule,typeof FilesModule,typeof DiscussionModule,typeof EnrolmentModule];
 
 /**
  * Module initialization order (for logging/debugging):
- * user → infrastructure → note → drive → pages → grading → courses → whiteboard → quiz → assignment → files → discussion → enrolment
+ * infrastructure → user → note → grading → courses → drive → pages → whiteboard → quiz → assignment → files → discussion → enrolment
  */
 
 /**
  * Type representing all valid module names
  */
-export type ModuleName = "user" | "infrastructure" | "note" | "drive" | "pages" | "grading" | "courses" | "whiteboard" | "quiz" | "assignment" | "files" | "discussion" | "enrolment";
+export type ModuleName = "infrastructure" | "user" | "note" | "grading" | "courses" | "drive" | "pages" | "whiteboard" | "quiz" | "assignment" | "files" | "discussion" | "enrolment";
 
 /**
  * Map of module names to module constructors
  */
 export interface ModuleMap {
-	user: typeof UserModule;
 	infrastructure: typeof InfrastructureModule;
+	user: typeof UserModule;
 	note: typeof NoteModule;
-	drive: typeof DriveModule;
-	pages: typeof PagesModule;
 	grading: typeof GradingModule;
 	courses: typeof CoursesModule;
+	drive: typeof DriveModule;
+	pages: typeof PagesModule;
 	whiteboard: typeof WhiteboardModule;
 	quiz: typeof QuizModule;
 	assignment: typeof AssignmentModule;
@@ -74,14 +73,14 @@ export interface ModuleMap {
  * Get a module by name
  */
 export function getModuleByName<T extends ModuleName>(name: T): ModuleMap[T] {
-	const moduleMap: Record<string, PaideiaModuleConstructor> = {
-		"user": UserModule,
+	const moduleMap = {
 		"infrastructure": InfrastructureModule,
+		"user": UserModule,
 		"note": NoteModule,
-		"drive": DriveModule,
-		"pages": PagesModule,
 		"grading": GradingModule,
 		"courses": CoursesModule,
+		"drive": DriveModule,
+		"pages": PagesModule,
 		"whiteboard": WhiteboardModule,
 		"quiz": QuizModule,
 		"assignment": AssignmentModule,
@@ -93,13 +92,13 @@ export function getModuleByName<T extends ModuleName>(name: T): ModuleMap[T] {
 }
 
 // Re-export all modules for convenience
-export { UserModule };
 export { InfrastructureModule };
+export { UserModule };
 export { NoteModule };
-export { DriveModule };
-export { PagesModule };
 export { GradingModule };
 export { CoursesModule };
+export { DriveModule };
+export { PagesModule };
 export { WhiteboardModule };
 export { QuizModule };
 export { AssignmentModule };

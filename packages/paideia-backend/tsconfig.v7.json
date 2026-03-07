@@ -10,8 +10,7 @@
 			"*": ["./*"],
 			"payload.config": ["./src/payload.config.ts"],
 			"payload-generated-schema": ["./src/payload-generated-schema.ts"],
-			"payload-types": ["./src/payload-types.ts"],
-			"shared/*": ["./src/shared/*"]
+			"payload-types": ["./src/payload-types.ts"]
 		},
 	},
 	"include": ["src", "../../apps/paideia/server/types.ts" , "types.d.ts"],

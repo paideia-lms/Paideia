@@ -1,8 +1,8 @@
 import type { Page } from "payload-types";
 import type { User } from "payload-types";
-import { SeedBuilder, type SeedContext } from "shared/seed-builder";
+import { SeedBuilder, type SeedContext } from "@paideia/shared";
 import { UnknownError } from "../../../errors";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import { tryCreatePage } from "../services/page-management";
 import type { PageSeedData } from "./page-seed-schema";
 

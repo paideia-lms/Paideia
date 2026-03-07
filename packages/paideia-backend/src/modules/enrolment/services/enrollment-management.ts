@@ -7,13 +7,13 @@ import {
 	UnknownError,
 } from "../../../errors";
 import type { Course, Enrollment } from "../../../payload-types";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type Depth,
 	stripDepth,
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 
 export interface CreateEnrollmentArgs extends BaseInternalFunctionArgs {
 	userId: number; // User ID

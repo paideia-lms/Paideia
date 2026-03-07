@@ -11,13 +11,13 @@ import {
 import type {
 	CourseActivityModuleLink,
 	CourseSection,
-	ActivityModule as PayloadActivityModule,
+	// ActivityModule as PayloadActivityModule,
 } from "../../../payload-types";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 
 // ============================================================================
@@ -1261,238 +1261,238 @@ export interface MoveActivityModuleBetweenSectionsArgs
 /**
  * Creates link between activity module and section
  */
-export function tryAddActivityModuleToSection(
-	args: AddActivityModuleToSectionArgs,
-) {
-	return Result.try(
-		async () => {
-			const {
-				payload,
-				activityModuleId,
-				sectionId,
-				order,
-				req,
-				overrideAccess = false,
-			} = args;
+// export function tryAddActivityModuleToSection(
+// 	args: AddActivityModuleToSectionArgs,
+// ) {
+// 	return Result.try(
+// 		async () => {
+// 			const {
+// 				payload,
+// 				activityModuleId,
+// 				sectionId,
+// 				order,
+// 				req,
+// 				overrideAccess = false,
+// 			} = args;
 
-			if (!activityModuleId) {
-				throw new InvalidArgumentError("Activity module ID is required");
-			}
+// 			if (!activityModuleId) {
+// 				throw new InvalidArgumentError("Activity module ID is required");
+// 			}
 
-			if (!sectionId) {
-				throw new InvalidArgumentError("Section ID is required");
-			}
+// 			if (!sectionId) {
+// 				throw new InvalidArgumentError("Section ID is required");
+// 			}
 
-			// Verify activity module and section exist in parallel
-			const [_, section] = await Promise.all([
-				payload.findByID({
-					collection: "activity-modules",
-					id: activityModuleId,
-					depth: 0,
-					req,
-					overrideAccess: true,
-				}),
-				payload
-					.findByID({
-						collection: CourseSections.slug,
-						id: sectionId,
-						depth: 1,
-						req,
-						overrideAccess: true,
-					})
-					.then(stripDepth<1, "findByID">()),
-			]);
-			const courseId = section.course.id;
-			// Check if link already exists
-			const existingLinks = await payload
-				.find({
-					collection: CourseActivityModuleLinks.slug,
-					where: {
-						and: [
-							{
-								activityModule: {
-									equals: activityModuleId,
-								},
-							},
-							{
-								section: {
-									equals: sectionId,
-								},
-							},
-						],
-					},
-					limit: 1,
+// 			// Verify activity module and section exist in parallel
+// 			const [_, section] = await Promise.all([
+// 				payload.findByID({
+// 					collection: "activity-modules",
+// 					id: activityModuleId,
+// 					depth: 0,
+// 					req,
+// 					overrideAccess: true,
+// 				}),
+// 				payload
+// 					.findByID({
+// 						collection: CourseSections.slug,
+// 						id: sectionId,
+// 						depth: 1,
+// 						req,
+// 						overrideAccess: true,
+// 					})
+// 					.then(stripDepth<1, "findByID">()),
+// 			]);
+// 			const courseId = section.course.id;
+// 			// Check if link already exists
+// 			const existingLinks = await payload
+// 				.find({
+// 					collection: CourseActivityModuleLinks.slug,
+// 					where: {
+// 						and: [
+// 							{
+// 								activityModule: {
+// 									equals: activityModuleId,
+// 								},
+// 							},
+// 							{
+// 								section: {
+// 									equals: sectionId,
+// 								},
+// 							},
+// 						],
+// 					},
+// 					limit: 1,
 
-					req,
-					overrideAccess: true,
-				})
-				.then(stripDepth<1, "find">());
+// 					req,
+// 					overrideAccess: true,
+// 				})
+// 				.then(stripDepth<1, "find">());
 
-			if (existingLinks.docs.length > 0) {
-				throw new InvalidArgumentError(
-					"Activity module is already linked to this section",
-				);
-			}
-			const transactionInfo = await handleTransactionId(payload, req);
+// 			if (existingLinks.docs.length > 0) {
+// 				throw new InvalidArgumentError(
+// 					"Activity module is already linked to this section",
+// 				);
+// 			}
+// 			const transactionInfo = await handleTransactionId(payload, req);
 
-			return await transactionInfo.tx(async (txInfo) => {
-				// Get next order number if not provided
-				let linkOrder = order ?? 0;
-				if (linkOrder === 0) {
-					const existingModules = await payload
-						.find({
-							collection: CourseActivityModuleLinks.slug,
-							where: {
-								section: {
-									equals: sectionId,
-								},
-							},
-							limit: 1,
-							sort: "-contentOrder",
-							req: txInfo.reqWithTransaction,
-							overrideAccess: true,
-						})
-						.then(stripDepth<1, "find">());
-					linkOrder =
-						existingModules.docs.length > 0
-							? (existingModules.docs[0]!.contentOrder ?? 0) + 1
-							: 1;
-				}
+// 			return await transactionInfo.tx(async (txInfo) => {
+// 				// Get next order number if not provided
+// 				let linkOrder = order ?? 0;
+// 				if (linkOrder === 0) {
+// 					const existingModules = await payload
+// 						.find({
+// 							collection: CourseActivityModuleLinks.slug,
+// 							where: {
+// 								section: {
+// 									equals: sectionId,
+// 								},
+// 							},
+// 							limit: 1,
+// 							sort: "-contentOrder",
+// 							req: txInfo.reqWithTransaction,
+// 							overrideAccess: true,
+// 						})
+// 						.then(stripDepth<1, "find">());
+// 					linkOrder =
+// 						existingModules.docs.length > 0
+// 							? (existingModules.docs[0]!.contentOrder ?? 0) + 1
+// 							: 1;
+// 				}
 
-				// Create the link with temporary contentOrder (will be recalculated)
-				const newLink = await payload
-					.create({
-						collection: CourseActivityModuleLinks.slug,
-						data: {
-							course: courseId,
-							activityModule: activityModuleId,
-							section: sectionId,
-							contentOrder: 999999, // Temporary value, will be recalculated
-						},
-						depth: 1,
-						req: txInfo.reqWithTransaction,
-						overrideAccess,
-					})
-					.then(stripDepth<1, "create">());
+// 				// Create the link with temporary contentOrder (will be recalculated)
+// 				const newLink = await payload
+// 					.create({
+// 						collection: CourseActivityModuleLinks.slug,
+// 						data: {
+// 							course: courseId,
+// 							activityModule: activityModuleId,
+// 							section: sectionId,
+// 							contentOrder: 999999, // Temporary value, will be recalculated
+// 						},
+// 						depth: 1,
+// 						req: txInfo.reqWithTransaction,
+// 						overrideAccess,
+// 					})
+// 					.then(stripDepth<1, "create">());
 
-				// Recalculate contentOrder for the section
-				await recalculateSectionContentOrder({
-					payload,
-					sectionId,
-					req: txInfo.reqWithTransaction,
-					overrideAccess: true,
-				});
+// 				// Recalculate contentOrder for the section
+// 				await recalculateSectionContentOrder({
+// 					payload,
+// 					sectionId,
+// 					req: txInfo.reqWithTransaction,
+// 					overrideAccess: true,
+// 				});
 
-				return newLink;
-			});
-		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to add activity module to section", {
-				cause: error,
-			}),
-	);
-}
+// 				return newLink;
+// 			});
+// 		},
+// 		(error) =>
+// 			transformError(error) ??
+// 			new UnknownError("Failed to add activity module to section", {
+// 				cause: error,
+// 			}),
+// 	);
+// }
 
 /**
  * Removes link between activity module and section
  */
-export function tryRemoveActivityModuleFromSection(
-	args: RemoveActivityModuleFromSectionArgs,
-) {
-	return Result.try(
-		async () => {
-			const { payload, linkId, req, overrideAccess = false } = args;
+// export function tryRemoveActivityModuleFromSection(
+// 	args: RemoveActivityModuleFromSectionArgs,
+// ) {
+// 	return Result.try(
+// 		async () => {
+// 			const { payload, linkId, req, overrideAccess = false } = args;
 
-			if (!linkId) {
-				throw new InvalidArgumentError("Link ID is required");
-			}
+// 			if (!linkId) {
+// 				throw new InvalidArgumentError("Link ID is required");
+// 			}
 
-			const transactionInfo = await handleTransactionId(payload, req);
+// 			const transactionInfo = await handleTransactionId(payload, req);
 
-			return await transactionInfo.tx(async (txInfo) => {
-				// Get the link to find its section before deleting
-				const link = await payload.findByID({
-					collection: CourseActivityModuleLinks.slug,
-					id: linkId,
+// 			return await transactionInfo.tx(async (txInfo) => {
+// 				// Get the link to find its section before deleting
+// 				const link = await payload.findByID({
+// 					collection: CourseActivityModuleLinks.slug,
+// 					id: linkId,
 
-					req: txInfo.reqWithTransaction,
-					overrideAccess: true,
-				});
+// 					req: txInfo.reqWithTransaction,
+// 					overrideAccess: true,
+// 				});
 
-				const sectionId =
-					typeof link.section === "number" ? link.section : link.section.id;
+// 				const sectionId =
+// 					typeof link.section === "number" ? link.section : link.section.id;
 
-				const deletedLink = await payload.delete({
-					collection: CourseActivityModuleLinks.slug,
-					id: linkId,
+// 				const deletedLink = await payload.delete({
+// 					collection: CourseActivityModuleLinks.slug,
+// 					id: linkId,
 
-					req: txInfo.reqWithTransaction,
-					overrideAccess,
-				});
+// 					req: txInfo.reqWithTransaction,
+// 					overrideAccess,
+// 				});
 
-				// Recalculate contentOrder for the section
-				await recalculateSectionContentOrder({
-					payload,
-					sectionId,
-					req: txInfo.reqWithTransaction,
-					overrideAccess: true,
-				});
+// 				// Recalculate contentOrder for the section
+// 				await recalculateSectionContentOrder({
+// 					payload,
+// 					sectionId,
+// 					req: txInfo.reqWithTransaction,
+// 					overrideAccess: true,
+// 				});
 
-				return deletedLink;
-			});
-		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to remove activity module from section", {
-				cause: error,
-			}),
-	);
-}
+// 				return deletedLink;
+// 			});
+// 		},
+// 		(error) =>
+// 			transformError(error) ??
+// 			new UnknownError("Failed to remove activity module from section", {
+// 				cause: error,
+// 			}),
+// 	);
+// }
 
 /**
  * Reorders modules within a section
  */
-export function tryReorderActivityModulesInSection(
-	args: ReorderActivityModulesInSectionArgs,
-) {
-	return Result.try(
-		async () => {
-			const { payload, sectionId, linkIds, req, overrideAccess = false } = args;
+// export function tryReorderActivityModulesInSection(
+// 	args: ReorderActivityModulesInSectionArgs,
+// ) {
+// 	return Result.try(
+// 		async () => {
+// 			const { payload, sectionId, linkIds, req, overrideAccess = false } = args;
 
-			if (!sectionId) {
-				throw new InvalidArgumentError("Section ID is required");
-			}
+// 			if (!sectionId) {
+// 				throw new InvalidArgumentError("Section ID is required");
+// 			}
 
-			if (!linkIds || linkIds.length === 0) {
-				throw new InvalidArgumentError("Link IDs are required");
-			}
+// 			if (!linkIds || linkIds.length === 0) {
+// 				throw new InvalidArgumentError("Link IDs are required");
+// 			}
 
-			const transactionInfo = await handleTransactionId(payload, req);
+// 			const transactionInfo = await handleTransactionId(payload, req);
 
-			return await transactionInfo.tx(async (txInfo) => {
-				// Update each link with its new order
-				for (let i = 0; i < linkIds.length; i++) {
-					await payload.update({
-						collection: CourseActivityModuleLinks.slug,
-						id: linkIds[i]!,
-						data: { contentOrder: i },
+// 			return await transactionInfo.tx(async (txInfo) => {
+// 				// Update each link with its new order
+// 				for (let i = 0; i < linkIds.length; i++) {
+// 					await payload.update({
+// 						collection: CourseActivityModuleLinks.slug,
+// 						id: linkIds[i]!,
+// 						data: { contentOrder: i },
 
-						req: txInfo.reqWithTransaction,
-						overrideAccess,
-					});
-				}
+// 						req: txInfo.reqWithTransaction,
+// 						overrideAccess,
+// 					});
+// 				}
 
-				return { success: true, reorderedCount: linkIds.length };
-			});
-		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to reorder activity modules in section", {
-				cause: error,
-			}),
-	);
-}
+// 				return { success: true, reorderedCount: linkIds.length };
+// 			});
+// 		},
+// 		(error) =>
+// 			transformError(error) ??
+// 			new UnknownError("Failed to reorder activity modules in section", {
+// 				cause: error,
+// 			}),
+// 	);
+// }
 
 /**
  * Moves module from one section to another
@@ -1712,38 +1712,38 @@ export function tryGetSectionModulesCount(args: GetSectionModulesCountArgs) {
 // Course Structure Representation
 // ============================================================================
 
-export interface ActivityModuleSummary {
-	id: number;
-	title: string;
-	type: PayloadActivityModule["type"];
-}
+// export interface ActivityModuleSummary {
+// 	id: number;
+// 	title: string;
+// 	type: PayloadActivityModule["type"];
+// }
 
-export interface CourseStructureItem {
-	/**
-	 * the module link id
-	 */
-	id: number;
-	type: "activity-module";
-	contentOrder: number;
-	module: ActivityModuleSummary;
-}
+// export interface CourseStructureItem {
+// 	/**
+// 	 * the module link id
+// 	 */
+// 	id: number;
+// 	type: "activity-module";
+// 	contentOrder: number;
+// 	module: ActivityModuleSummary;
+// }
 
-export interface CourseStructureSection {
-	/**
-	 * the section id
-	 */
-	id: number;
-	title: string;
-	description: string;
-	contentOrder: number;
-	type: "section";
-	content: (CourseStructureItem | CourseStructureSection)[];
-}
+// export interface CourseStructureSection {
+// 	/**
+// 	 * the section id
+// 	 */
+// 	id: number;
+// 	title: string;
+// 	description: string;
+// 	contentOrder: number;
+// 	type: "section";
+// 	content: (CourseStructureItem | CourseStructureSection)[];
+// }
 
-export interface CourseStructure {
-	courseId: number;
-	sections: CourseStructureSection[];
-}
+// export interface CourseStructure {
+// 	courseId: number;
+// 	sections: CourseStructureSection[];
+// }
 
 export interface GetCourseStructureArgs extends BaseInternalFunctionArgs {
 	courseId: number;
@@ -1758,234 +1758,234 @@ type Section = {
 	content: any[];
 };
 
-type SectionItem = {
-	id: number;
-	type: "activity-module";
-	contentOrder: number;
-	module: ActivityModuleSummary;
-};
+// type SectionItem = {
+// 	id: number;
+// 	type: "activity-module";
+// 	contentOrder: number;
+// 	module: ActivityModuleSummary;
+// };
 
 /**
  * recursively assert the content order is correct
  */
-function assertRightContentOrder(sections: (SectionItem | Section)[]): void {
-	for (let i = 0; i < sections.length; i++) {
-		const section = sections[i]!;
-		if (section.type === "section") {
-			if (section.contentOrder !== i) {
-				throw new InvalidArgumentError(
-					`Section ${section.title} has incorrect content order: ${section.contentOrder}, expected: ${i}`,
-				);
-			}
-			assertRightContentOrder(section.content);
-		} else {
-			if (section.contentOrder !== i) {
-				throw new InvalidArgumentError(
-					`Activity module ${section.module.title} has incorrect content order: ${section.contentOrder}, expected: ${i}`,
-				);
-			}
-		}
-	}
-}
+// function assertRightContentOrder(sections: (SectionItem | Section)[]): void {
+// 	for (let i = 0; i < sections.length; i++) {
+// 		const section = sections[i]!;
+// 		if (section.type === "section") {
+// 			if (section.contentOrder !== i) {
+// 				throw new InvalidArgumentError(
+// 					`Section ${section.title} has incorrect content order: ${section.contentOrder}, expected: ${i}`,
+// 				);
+// 			}
+// 			assertRightContentOrder(section.content);
+// 		} else {
+// 			if (section.contentOrder !== i) {
+// 				throw new InvalidArgumentError(
+// 					`Activity module ${section.module.title} has incorrect content order: ${section.contentOrder}, expected: ${i}`,
+// 				);
+// 			}
+// 		}
+// 	}
+// }
 
 type MapValue<T> = T extends Map<any, infer V> ? V : never;
 
 /**
  * Gets the complete course structure as a hierarchical JSON representation with mixed content ordering
  */
-export function tryGetCourseStructure(args: GetCourseStructureArgs) {
-	return Result.try(
-		async () => {
-			const { payload, courseId, req, overrideAccess = false } = args;
+// export function tryGetCourseStructure(args: GetCourseStructureArgs) {
+// 	return Result.try(
+// 		async () => {
+// 			const { payload, courseId, req, overrideAccess = false } = args;
 
-			if (!courseId) {
-				throw new InvalidArgumentError("Course ID is required");
-			}
+// 			if (!courseId) {
+// 				throw new InvalidArgumentError("Course ID is required");
+// 			}
 
-			// Get all sections for the course
-			const sectionsResult = await payload
-				.find({
-					collection: CourseSections.slug,
-					where: {
-						course: {
-							equals: courseId,
-						},
-					},
-					sort: "contentOrder",
-					pagination: false,
-					depth: 0,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<0, "find">());
+// 			// Get all sections for the course
+// 			const sectionsResult = await payload
+// 				.find({
+// 					collection: CourseSections.slug,
+// 					where: {
+// 						course: {
+// 							equals: courseId,
+// 						},
+// 					},
+// 					sort: "contentOrder",
+// 					pagination: false,
+// 					depth: 0,
+// 					req,
+// 					overrideAccess,
+// 				})
+// 				.then(stripDepth<0, "find">());
 
-			// Get all activity module links for the course
-			const activityModuleLinks = await payload
-				.find({
-					collection: CourseActivityModuleLinks.slug,
-					where: {
-						course: {
-							equals: courseId,
-						},
-					},
-					sort: "contentOrder",
-					pagination: false,
-					depth: 1,
-					req,
-					overrideAccess,
-				})
-				.then(stripDepth<1, "find">());
+// 			// Get all activity module links for the course
+// 			const activityModuleLinks = await payload
+// 				.find({
+// 					collection: CourseActivityModuleLinks.slug,
+// 					where: {
+// 						course: {
+// 							equals: courseId,
+// 						},
+// 					},
+// 					sort: "contentOrder",
+// 					pagination: false,
+// 					depth: 1,
+// 					req,
+// 					overrideAccess,
+// 				})
+// 				.then(stripDepth<1, "find">());
 
-			// Create maps for efficient lookup
-			const sectionMap = new Map(
-				sectionsResult.docs.map((section) => [
-					section.id,
-					{
-						id: section.id,
-						title: section.title,
-						description: section.description || "",
-						contentOrder: section.contentOrder || 0,
-						type: "section" as const,
-						content: [] as any[],
-					},
-				]),
-			);
-			const sectionModulesMap = new Map<
-				number,
-				typeof activityModuleLinks.docs
-			>();
-			for (const link of activityModuleLinks.docs) {
-				const sectionId = link.section.id;
-				const links = sectionModulesMap.get(sectionId);
-				if (links) {
-					links.push(link);
-				} else {
-					sectionModulesMap.set(sectionId, [link]);
-				}
-			}
-			const rootSections: MapValue<typeof sectionMap>[] = [];
+// 			// Create maps for efficient lookup
+// 			const sectionMap = new Map(
+// 				sectionsResult.docs.map((section) => [
+// 					section.id,
+// 					{
+// 						id: section.id,
+// 						title: section.title,
+// 						description: section.description || "",
+// 						contentOrder: section.contentOrder || 0,
+// 						type: "section" as const,
+// 						content: [] as any[],
+// 					},
+// 				]),
+// 			);
+// 			const sectionModulesMap = new Map<
+// 				number,
+// 				typeof activityModuleLinks.docs
+// 			>();
+// 			for (const link of activityModuleLinks.docs) {
+// 				const sectionId = link.section.id;
+// 				const links = sectionModulesMap.get(sectionId);
+// 				if (links) {
+// 					links.push(link);
+// 				} else {
+// 					sectionModulesMap.set(sectionId, [link]);
+// 				}
+// 			}
+// 			const rootSections: MapValue<typeof sectionMap>[] = [];
 
-			// // Group activity modules by section
-			// for (const link of activityModuleLinks.docs) {
-			// 	const sectionId = link.section.id;
-			// 	if (!sectionModulesMap.has(sectionId)) {
-			// 		sectionModulesMap.set(sectionId, []);
-			// 	}
-			// 	const existingLinks = sectionModulesMap.get(sectionId);
-			// 	if (existingLinks) {
-			// 		existingLinks.push(link as CourseActivityModuleLink);
-			// 	}
-			// }
+// 			// // Group activity modules by section
+// 			// for (const link of activityModuleLinks.docs) {
+// 			// 	const sectionId = link.section.id;
+// 			// 	if (!sectionModulesMap.has(sectionId)) {
+// 			// 		sectionModulesMap.set(sectionId, []);
+// 			// 	}
+// 			// 	const existingLinks = sectionModulesMap.get(sectionId);
+// 			// 	if (existingLinks) {
+// 			// 		existingLinks.push(link as CourseActivityModuleLink);
+// 			// 	}
+// 			// }
 
-			// First pass: create all section nodes
-			// for (const section of sectionsResult.docs) {
-			// 	const structureSection: CourseStructureSection = {
-			// 		id: section.id,
-			// 		title: section.title,
-			// 		description: section.description || "",
-			// 		contentOrder: section.contentOrder || 0,
-			// 		type: "section",
-			// 		content: [],
-			// 	};
+// 			// First pass: create all section nodes
+// 			// for (const section of sectionsResult.docs) {
+// 			// 	const structureSection: CourseStructureSection = {
+// 			// 		id: section.id,
+// 			// 		title: section.title,
+// 			// 		description: section.description || "",
+// 			// 		contentOrder: section.contentOrder || 0,
+// 			// 		type: "section",
+// 			// 		content: [],
+// 			// 	};
 
-			// 	sectionMap.set(section.id, structureSection);
-			// }
+// 			// 	sectionMap.set(section.id, structureSection);
+// 			// }
 
-			// Second pass: build the hierarchy and populate content
-			for (const section of sectionsResult.docs) {
-				const structureSection = sectionMap.get(section.id);
-				if (!structureSection) continue;
+// 			// Second pass: build the hierarchy and populate content
+// 			for (const section of sectionsResult.docs) {
+// 				const structureSection = sectionMap.get(section.id);
+// 				if (!structureSection) continue;
 
-				const parentId = section.parentSection ?? null;
+// 				const parentId = section.parentSection ?? null;
 
-				// Get activity modules for this section
-				const activityModules = sectionModulesMap.get(section.id) || [];
+// 				// Get activity modules for this section
+// 				const activityModules = sectionModulesMap.get(section.id) || [];
 
-				// Create mixed content array
-				const mixedContent: (SectionItem | Section)[] = [];
+// 				// Create mixed content array
+// 				const mixedContent: (SectionItem | Section)[] = [];
 
-				// Add activity modules to content
-				for (const link of activityModules) {
-					const activityModule = link.activityModule;
+// 				// Add activity modules to content
+// 				for (const link of activityModules) {
+// 					const activityModule = link.activityModule;
 
-					// Use custom name from settings if available, otherwise use module title
-					const linkSettings =
-						link.settings as LatestCourseModuleSettings | null;
-					const moduleTitle =
-						linkSettings?.settings?.name ?? activityModule.title;
+// 					// Use custom name from settings if available, otherwise use module title
+// 					const linkSettings =
+// 						link.settings as LatestCourseModuleSettings | null;
+// 					const moduleTitle =
+// 						linkSettings?.settings?.name ?? activityModule.title;
 
-					mixedContent.push({
-						id: link.id,
-						type: "activity-module",
-						contentOrder: link.contentOrder || 0,
-						module: {
-							id: activityModule.id,
-							title: moduleTitle,
-							type: activityModule.type,
-						},
-					});
-				}
+// 					mixedContent.push({
+// 						id: link.id,
+// 						type: "activity-module",
+// 						contentOrder: link.contentOrder || 0,
+// 						module: {
+// 							id: activityModule.id,
+// 							title: moduleTitle,
+// 							type: activityModule.type,
+// 						},
+// 					});
+// 				}
 
-				// Add child sections to content
-				for (const childSection of sectionsResult.docs) {
-					const childParentId = childSection.parentSection ?? null;
+// 				// Add child sections to content
+// 				for (const childSection of sectionsResult.docs) {
+// 					const childParentId = childSection.parentSection ?? null;
 
-					if (childParentId === section.id) {
-						const childStructureSection = sectionMap.get(childSection.id);
-						if (childStructureSection) {
-							mixedContent.push(childStructureSection);
-						}
-					}
-				}
+// 					if (childParentId === section.id) {
+// 						const childStructureSection = sectionMap.get(childSection.id);
+// 						if (childStructureSection) {
+// 							mixedContent.push(childStructureSection);
+// 						}
+// 					}
+// 				}
 
-				// Sort content by contentOrder, then by type (sections before activity modules)
-				mixedContent.sort((a, b) => {
-					if (a.contentOrder !== b.contentOrder) {
-						return a.contentOrder - b.contentOrder;
-					}
-					// When contentOrder is equal, sections come before activity modules
-					if (a.type === "section" && b.type === "activity-module") {
-						return -1;
-					}
-					if (a.type === "activity-module" && b.type === "section") {
-						return 1;
-					}
-					return 0;
-				});
+// 				// Sort content by contentOrder, then by type (sections before activity modules)
+// 				mixedContent.sort((a, b) => {
+// 					if (a.contentOrder !== b.contentOrder) {
+// 						return a.contentOrder - b.contentOrder;
+// 					}
+// 					// When contentOrder is equal, sections come before activity modules
+// 					if (a.type === "section" && b.type === "activity-module") {
+// 						return -1;
+// 					}
+// 					if (a.type === "activity-module" && b.type === "section") {
+// 						return 1;
+// 					}
+// 					return 0;
+// 				});
 
-				// Normalize contentOrder to start from 0 with no gaps
-				for (let i = 0; i < mixedContent.length; i++) {
-					mixedContent[i]!.contentOrder = i;
-				}
+// 				// Normalize contentOrder to start from 0 with no gaps
+// 				for (let i = 0; i < mixedContent.length; i++) {
+// 					mixedContent[i]!.contentOrder = i;
+// 				}
 
-				structureSection.content = mixedContent;
+// 				structureSection.content = mixedContent;
 
-				// Add to root sections if no parent
-				if (parentId === null) {
-					rootSections.push(structureSection);
-				}
-			}
+// 				// Add to root sections if no parent
+// 				if (parentId === null) {
+// 					rootSections.push(structureSection);
+// 				}
+// 			}
 
-			// Sort root sections by contentOrder
-			rootSections.sort((a, b) => a.contentOrder - b.contentOrder);
+// 			// Sort root sections by contentOrder
+// 			rootSections.sort((a, b) => a.contentOrder - b.contentOrder);
 
-			// Normalize root sections contentOrder to start from 0
-			for (let i = 0; i < rootSections.length; i++) {
-				rootSections[i]!.contentOrder = i;
-			}
+// 			// Normalize root sections contentOrder to start from 0
+// 			for (let i = 0; i < rootSections.length; i++) {
+// 				rootSections[i]!.contentOrder = i;
+// 			}
 
-			assertRightContentOrder(rootSections);
+// 			assertRightContentOrder(rootSections);
 
-			return {
-				courseId,
-				sections: rootSections,
-			} as CourseStructure;
-		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to get course structure", { cause: error }),
-	);
-}
+// 			return {
+// 				courseId,
+// 				sections: rootSections,
+// 			} as CourseStructure;
+// 		},
+// 		(error) =>
+// 			transformError(error) ??
+// 			new UnknownError("Failed to get course structure", { cause: error }),
+// 	);
+// }
 
 // ============================================================================
 // Helper Functions
@@ -2269,90 +2269,90 @@ export interface GetPreviousNextModuleArgs extends BaseInternalFunctionArgs {
 	moduleLinkId: number;
 }
 
-export interface PreviousNextModule {
-	id: number;
-	title: string;
-	type: PayloadActivityModule["type"];
-}
+// export interface PreviousNextModule {
+// 	id: number;
+// 	title: string;
+// 	type: PayloadActivityModule["type"];
+// }
 
-export interface PreviousNextModuleResult {
-	previousModule: PreviousNextModule | null;
-	nextModule: PreviousNextModule | null;
-}
+// export interface PreviousNextModuleResult {
+// 	previousModule: PreviousNextModule | null;
+// 	nextModule: PreviousNextModule | null;
+// }
 
 /**
  * Gets the previous and next modules for navigation
  * Based on the flattened course structure order
  */
-export function tryGetPreviousNextModule(args: GetPreviousNextModuleArgs) {
-	return Result.try(
-		async () => {
-			const {
-				payload,
-				courseId,
-				moduleLinkId,
-				req,
-				overrideAccess = false,
-			} = args;
+// export function tryGetPreviousNextModule(args: GetPreviousNextModuleArgs) {
+// 	return Result.try(
+// 		async () => {
+// 			const {
+// 				payload,
+// 				courseId,
+// 				moduleLinkId,
+// 				req,
+// 				overrideAccess = false,
+// 			} = args;
 
-			if (!courseId) {
-				throw new InvalidArgumentError("Course ID is required");
-			}
+// 			if (!courseId) {
+// 				throw new InvalidArgumentError("Course ID is required");
+// 			}
 
-			if (!moduleLinkId) {
-				throw new InvalidArgumentError("Module link ID is required");
-			}
+// 			if (!moduleLinkId) {
+// 				throw new InvalidArgumentError("Module link ID is required");
+// 			}
 
-			// Get course structure to determine next/previous modules
-			const courseStructure = await tryGetCourseStructure({
-				payload,
-				courseId,
-				req,
-				overrideAccess,
-			}).getOrThrow();
+// 			// Get course structure to determine next/previous modules
+// 			const courseStructure = await tryGetCourseStructure({
+// 				payload,
+// 				courseId,
+// 				req,
+// 				overrideAccess,
+// 			}).getOrThrow();
 
-			// Get flattened modules with info for previous/next calculation
-			const flattenedModules =
-				flattenCourseStructureWithModuleInfo(courseStructure);
-			const currentModuleIndex = flattenedModules.findIndex(
-				(m) => m.moduleLinkId === moduleLinkId,
-			);
+// 			// Get flattened modules with info for previous/next calculation
+// 			const flattenedModules =
+// 				flattenCourseStructureWithModuleInfo(courseStructure);
+// 			const currentModuleIndex = flattenedModules.findIndex(
+// 				(m) => m.moduleLinkId === moduleLinkId,
+// 			);
 
-			const _previousModule =
-				currentModuleIndex > 0
-					? flattenedModules[currentModuleIndex - 1]!
-					: null;
-			const _nextModule =
-				currentModuleIndex < flattenedModules.length - 1
-					? flattenedModules[currentModuleIndex + 1]!
-					: null;
+// 			const _previousModule =
+// 				currentModuleIndex > 0
+// 					? flattenedModules[currentModuleIndex - 1]!
+// 					: null;
+// 			const _nextModule =
+// 				currentModuleIndex < flattenedModules.length - 1
+// 					? flattenedModules[currentModuleIndex + 1]!
+// 					: null;
 
-			const previousModule = _previousModule
-				? {
-					id: _previousModule.moduleLinkId,
-					title: _previousModule.title,
-					type: _previousModule.type,
-				}
-				: null;
+// 			const previousModule = _previousModule
+// 				? {
+// 					id: _previousModule.moduleLinkId,
+// 					title: _previousModule.title,
+// 					type: _previousModule.type,
+// 				}
+// 				: null;
 
-			const nextModule = _nextModule
-				? {
-					id: _nextModule.moduleLinkId,
-					title: _nextModule.title,
-					type: _nextModule.type,
-				}
-				: null;
+// 			const nextModule = _nextModule
+// 				? {
+// 					id: _nextModule.moduleLinkId,
+// 					title: _nextModule.title,
+// 					type: _nextModule.type,
+// 				}
+// 				: null;
 
-			return {
-				previousModule,
-				nextModule,
-			};
-		},
-		(error) =>
-			transformError(error) ??
-			new UnknownError("Failed to get previous/next module", { cause: error }),
-	);
-}
+// 			return {
+// 				previousModule,
+// 				nextModule,
+// 			};
+// 		},
+// 		(error) =>
+// 			transformError(error) ??
+// 			new UnknownError("Failed to get previous/next module", { cause: error }),
+// 	);
+// }
 
 interface RecalculateSectionContentOrderArgs extends BaseInternalFunctionArgs {
 	sectionId: number | null;

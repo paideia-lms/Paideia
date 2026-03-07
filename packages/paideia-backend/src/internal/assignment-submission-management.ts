@@ -10,11 +10,11 @@ import {
 import { DEFAULT_ALLOWED_FILE_TYPES } from "../utils/file-types";
 import { tryFindCourseActivityModuleLinkById } from "../modules/courses/services/course-activity-module-link-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { tryCreateMedia } from "../modules/user/services/media-management";
 
 type AssignmentSettings = Extract<

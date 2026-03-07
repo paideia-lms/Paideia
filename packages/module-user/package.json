@@ -1,0 +1,39 @@
+{
+	"name": "@paideia/module-user",
+	"description": "Paideia user and media module - self-contained Payload collections and services",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"generate:payload": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile generate:db-schema",
+		"migrate:create": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile migrate:create",
+		"typecheck": "tsc --noEmit",
+		"test": "bun test src/tests"
+	},
+	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1004.0",
+		"@inquirer/core": "^11.1.5",
+		"@paideia/module-infrastructure": "workspace:*",
+		"@paideia/shared": "workspace:*",
+		"@payloadcms/db-postgres": "^3.79.0",
+		"@payloadcms/storage-s3": "^3.79.0",
+		"es-toolkit": "^1.45.1",
+		"payload": "^3.79.0",
+		"search-query-parser": "^1.6.0",
+		"type-fest": "^5.4.4",
+		"typescript-result": "^3.5.2",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@orpc/server": "^1.13.6",
+		"@total-typescript/ts-reset": "^0.6.1",
+		"typescript": "^5.9.3"
+	},
+	"peerDependencies": {
+		"payload": "^3.76.1"
+	}
+}

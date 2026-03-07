@@ -2,8 +2,13 @@ import {
 	QuizConfigValidationError,
 	QuizElementNotFoundError,
 } from "./json/raw-quiz-config/v2";
+import {
+	TransactionIdNotFoundError,
+	UnknownError,
+} from "@paideia/shared";
 
 export { QuizConfigValidationError, QuizElementNotFoundError };
+export { TransactionIdNotFoundError, UnknownError };
 
 export class ContextNotFoundError extends Error {
 	static readonly type = "ContextNotFoundError";
@@ -33,24 +38,10 @@ export class InvalidArgumentError extends Error {
 	}
 }
 
-export class TransactionIdNotFoundError extends Error {
-	static readonly type = "TransactionIdNotFoundError";
-	get type() {
-		return TransactionIdNotFoundError.type;
-	}
-}
-
 export class NonExistingActivityModuleError extends Error {
 	static readonly type = "NonExistingActivityModuleError";
 	get type() {
 		return NonExistingActivityModuleError.type;
-	}
-}
-
-export class UnknownError extends Error {
-	static readonly type = "UnknownError";
-	get type() {
-		return UnknownError.type;
 	}
 }
 

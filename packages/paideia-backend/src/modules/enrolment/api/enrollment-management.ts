@@ -93,175 +93,275 @@ const limitPageSchema = z.object({
 	page: z.coerce.number().int().min(1).optional(),
 });
 
-const handler = async <T>(
-	fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>,
-	args: object,
-): Promise<T> => {
-	const result = await fn({
-		...args,
-		req: undefined,
-		overrideAccess: true,
-	});
-	if (!result.ok) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: result.error?.message ?? "Unknown error",
-		});
-	}
-	return result.value as T;
-};
-
 export const createEnrollment = os
 	.$context<OrpcContext>()
 	.route({ method: "POST", path: "/enrollments" })
 	.input(createEnrollmentSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryCreateEnrollment, {
+	.handler(async ({ input, context }) => {
+		const result = await tryCreateEnrollment({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const updateEnrollment = os
 	.$context<OrpcContext>()
 	.route({ method: "PATCH", path: "/enrollments/{enrollmentId}" })
 	.input(updateEnrollmentSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryUpdateEnrollment, {
+	.handler(async ({ input, context }) => {
+		const result = await tryUpdateEnrollment({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findEnrollmentById = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/{enrollmentId}" })
 	.input(enrollmentIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentById, {
+	.handler(async ({ input, context }) => {
+		const result = await tryFindEnrollmentById({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const searchEnrollments = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/search" })
 	.input(searchSchema.optional())
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(trySearchEnrollments, {
+	.handler(async ({ input, context }) => {
+		const result = await trySearchEnrollments({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const deleteEnrollment = os
 	.$context<OrpcContext>()
 	.route({ method: "DELETE", path: "/enrollments/{enrollmentId}" })
 	.input(enrollmentIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryDeleteEnrollment, {
+	.handler(async ({ input, context }) => {
+		const result = await tryDeleteEnrollment({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findEnrollmentsByUser = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/by-user/{userId}" })
 	.input(userIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentsByUser, {
+	.handler(async ({ input, context }) => {
+		const result = await tryFindEnrollmentsByUser({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findEnrollmentsByCourse = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/by-course/{courseId}" })
 	.input(courseIdSchema.extend({ limit: z.coerce.number().int().min(1).max(100).optional() }))
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentsByCourse, {
+	.handler(async ({ input, context }) => {
+		const result = await tryFindEnrollmentsByCourse({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findUserEnrollmentInCourse = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/user/{userId}/course/{courseId}" })
 	.input(userCourseSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryFindUserEnrollmentInCourse, {
+	.handler(async ({ input, context }) => {
+		const result = await tryFindUserEnrollmentInCourse({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findActiveEnrollments = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/active" })
 	.input(limitPageSchema.optional())
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryFindActiveEnrollments, {
+	.handler(async ({ input, context }) => {
+		const result = await tryFindActiveEnrollments({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const updateEnrollmentStatus = os
 	.$context<OrpcContext>()
 	.route({ method: "PATCH", path: "/enrollments/{enrollmentId}/status" })
 	.input(updateStatusSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryUpdateEnrollmentStatus, {
+	.handler(async ({ input, context }) => {
+		const result = await tryUpdateEnrollmentStatus({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const addGroupsToEnrollment = os
 	.$context<OrpcContext>()
 	.route({ method: "POST", path: "/enrollments/{enrollmentId}/groups" })
 	.input(addGroupsSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryAddGroupsToEnrollment, {
+	.handler(async ({ input, context }) => {
+		const result = await tryAddGroupsToEnrollment({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const removeGroupsFromEnrollment = os
 	.$context<OrpcContext>()
 	.route({ method: "DELETE", path: "/enrollments/{enrollmentId}/groups" })
 	.input(removeGroupsSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryRemoveGroupsFromEnrollment, {
+	.handler(async ({ input, context }) => {
+		const result = await tryRemoveGroupsFromEnrollment({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findEnrollmentsByGroup = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/enrollments/by-group/{groupId}" })
 	.input(groupIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentsByGroup, {
+	.handler(async ({ input, context }) => {
+		const result = await tryFindEnrollmentsByGroup({
 			payload: context.payload,
 			...input,
-		}),
-	);
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});

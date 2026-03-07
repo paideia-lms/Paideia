@@ -9,13 +9,13 @@ import {
 	UnknownError,
 } from "../errors";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	type Depth,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import type { DiscussionSubmission } from "server/payload-types";
 
 export interface CreateDiscussionSubmissionArgs

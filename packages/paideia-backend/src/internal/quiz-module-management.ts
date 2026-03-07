@@ -3,12 +3,12 @@ import {
 	transformError,
 	UnknownError,
 } from "../errors";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import { Result } from "typescript-result";
 import {
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { tryGetActivityModuleById } from "./activity-module-management";
 import {
 	addNestedQuiz,

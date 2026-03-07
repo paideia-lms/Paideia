@@ -13,7 +13,7 @@ import {
 	tryStartQuizAttempt,
 } from "./quiz-submission-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import type { TryResultValue } from "server/utils/types";
 
 describe("Quiz Attempt Management - Start and Retrieve", () => {

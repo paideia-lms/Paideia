@@ -6,7 +6,7 @@ import { transformError, UnknownError } from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 
 const options = {
 	keywords: ["in"],

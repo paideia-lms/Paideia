@@ -11,12 +11,12 @@ import {
 	UnknownError,
 } from "../errors";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { ActivityModules } from "server/collections";
 import { tryCreateMedia } from "../modules/user/services/media-management";
 import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";

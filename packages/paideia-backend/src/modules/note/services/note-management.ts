@@ -10,8 +10,8 @@ import {
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
-import { handleTransactionId } from "shared/handle-transaction-id";
+} from "@paideia/shared";
+import { handleTransactionId } from "@paideia/shared";
 
 export interface CreateNoteArgs extends BaseInternalFunctionArgs {
 	data: {

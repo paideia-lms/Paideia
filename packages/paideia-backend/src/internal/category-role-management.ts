@@ -8,12 +8,12 @@ import {
 	UnknownError,
 } from "../errors";
 import type { CategoryRoleAssignment } from "../payload-types";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 
 export type CategoryRole =
 	| "category-admin"

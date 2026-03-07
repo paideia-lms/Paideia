@@ -22,12 +22,12 @@ import {
 	tryFindUserGradeByEnrollmentAndItem,
 	tryUpdateUserGrade,
 } from "./user-grade-management";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { assertTimeLimit } from "server/utils/db/assertQuizTimeLimit";
 import { tryFindCourseActivityModuleLinkById } from "../modules/courses/services/course-activity-module-link-management";
 import { debugLog } from "../utils/debug";

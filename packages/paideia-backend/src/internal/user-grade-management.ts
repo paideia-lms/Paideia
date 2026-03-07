@@ -26,13 +26,13 @@ import {
 	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
-} from "shared/handle-transaction-id";
+} from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	type Depth,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 import { GradebookItems } from "../modules/grading/collections/gradebook-items";
 

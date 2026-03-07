@@ -139,9 +139,9 @@ function topologicalSort(modules: ModuleInfo[]): ModuleInfo[] {
 
 	return sorted;
 }
+const outputPath = join(import.meta.dir, "..", "src", "modules.gen.ts");
 
 async function generateModulesFile(modules: ModuleInfo[]) {
-	const outputPath = join(import.meta.dir, "..", "src", "modules.gen.ts");
 
 	// Generate imports
 	const imports = modules
@@ -167,7 +167,6 @@ async function generateModulesFile(modules: ModuleInfo[]) {
  * Changes to module dependencies will require regenerating this file.
  */
 
-import type { PaideiaModuleConstructor } from "./shared/module-interface";
 ${imports}
 
 /**
@@ -176,7 +175,7 @@ ${imports}
  */
 export const allModules = [
 ${moduleList}
-] as [${moduleTupleTypes}] satisfies PaideiaModuleConstructor[];
+] as [${moduleTupleTypes}];
 
 /**
  * Module initialization order (for logging/debugging):
@@ -199,7 +198,7 @@ ${moduleMapEntries}
  * Get a module by name
  */
 export function getModuleByName<T extends ModuleName>(name: T): ModuleMap[T] {
-	const moduleMap: Record<string, PaideiaModuleConstructor> = {
+	const moduleMap = {
 ${modules.map((mod) => `\t\t"${mod.moduleName}": ${mod.className},`).join("\n")}
 	};
 	return moduleMap[name] as ModuleMap[T];
@@ -235,7 +234,7 @@ async function main() {
 		// Generate the file
 		await generateModulesFile(sortedModules);
 
-		console.log("✨ Module generation complete!");
+		console.log(`✨ Module generation complete at ${outputPath}!`);
 	} catch (error) {
 		console.error("❌ Error generating modules:", error);
 		process.exit(1);

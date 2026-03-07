@@ -1,12 +1,7 @@
 import { os } from "@orpc/server";
 import type { Payload } from "payload";
-import type { PackageJson } from "type-fest";
-import { InfrastructureModule } from "modules/infrastructure";
-import { UserModule } from "modules/user";
-import { NoteModule } from "modules/note";
-import { PagesModule } from "modules/pages";
-import { CoursesModule } from "modules/courses";
-import { sortModulesTopologically } from "shared/module-sorter";
+import type { PackageJson, UnionToIntersection, } from "type-fest";
+import { allModules } from "../modules.gen";
 
 export interface CliContext {
     payload: Payload;
@@ -18,19 +13,8 @@ export interface CliContext {
  * of all registered modules.
  */
 type CombinedCli =
-    typeof InfrastructureModule.cli &
-    typeof UserModule.cli &
-    typeof NoteModule.cli &
-    typeof CoursesModule.cli &
-    typeof PagesModule.cli;
+    UnionToIntersection<typeof allModules[number]["cli"]>;
 
-const allModules = sortModulesTopologically([
-    InfrastructureModule,
-    UserModule,
-    NoteModule,
-    CoursesModule,
-    PagesModule,
-]);
 
 const cliOs = os.$context<CliContext>();
 

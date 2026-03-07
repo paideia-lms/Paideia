@@ -21,7 +21,7 @@ import { tryCreateEnrollment } from "../../enrolment/services/enrollment-managem
 import { tryCreateMedia } from "../../user/services/media-management";
 import { tryCreateUser } from "../../user/services/user-management";
 import type { TryResultValue } from "server/utils/types";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import type {
 	RecurringScheduleItem,
 	SpecificDateItem,

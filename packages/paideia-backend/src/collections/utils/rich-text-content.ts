@@ -5,7 +5,7 @@ import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { replaceBase64MediaWithMediaUrlsV2 } from "server/utils/replace-base64-images";
 import type { Simplify } from "type-fest";
 

@@ -11,12 +11,12 @@ import sanitizedConfig from "./payload.config";
 import { testConnections } from "./modules/infrastructure/services/health-check";
 import { migrations } from "./migrations";
 import { validateEnvVars } from "./modules/infrastructure/services/env";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import {
 	commitTransactionIfCreated as commitTransactionIfCreatedFn,
 	handleTransactionId,
 	rollbackTransactionIfCreated as rollbackTransactionIfCreatedFn,
-} from "shared/handle-transaction-id";
+} from "@paideia/shared";
 import { permissions } from "./utils/permissions";
 import * as activityModuleAccess from "./internal/activity-module-access";
 import * as activityModuleManagement from "./internal/activity-module-management";
@@ -27,6 +27,7 @@ import * as categoryRoleManagement from "./internal/category-role-management";
 import * as courseActivityModuleLinkManagement from "./modules/courses/services/course-activity-module-link-management";
 import * as courseCategoryManagement from "./internal/course-category-management";
 import * as courseManagement from "./modules/courses/services/course-management";
+import * as CreateGroupArgs from "./modules/enrolment/services/group-management";
 import * as courseSectionManagement from "./modules/courses/services/course-section-management";
 import * as discussionManagement from "./internal/discussion-management";
 import * as email from "modules/infrastructure/services/email";
@@ -1341,7 +1342,7 @@ export class Paideia {
 			"payload"
 		>,
 	) {
-		return courseManagement.tryCreateGroup(this.withPayload(args));
+		return CreateGroupArgs.tryCreateGroup(this.withPayload(args));
 	}
 
 	tryDeleteGroup(
@@ -1350,7 +1351,7 @@ export class Paideia {
 			"payload"
 		>,
 	) {
-		return courseManagement.tryDeleteGroup(this.withPayload(args));
+		return CreateGroupArgs.tryDeleteGroup(this.withPayload(args));
 	}
 
 	tryFindUserEnrollmentInCourse(

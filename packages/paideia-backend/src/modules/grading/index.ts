@@ -1,7 +1,7 @@
-import { Gradebooks } from "server/collections";
+import { Gradebooks, UserGrades } from "server/collections";
 import { GradebookCategories, GradebookItems } from "server/collections";
 
-import { CollectionConfig, Payload } from "payload";
+import { Payload } from "payload";
 
 /**
  * Grading Module
@@ -19,7 +19,12 @@ export class GradingModule {
     private readonly payload: Payload;
     public static readonly moduleName = "grading" as const;
     public static readonly dependencies = ["user", "infrastructure"] as const;
-    public static readonly collections: CollectionConfig[] = [];
+    public static readonly collections = [
+        Gradebooks,
+        GradebookCategories,
+        GradebookItems,
+        UserGrades,
+    ];
     public static readonly cli = {};
     public static readonly search = [];
     public static readonly seedData = {};

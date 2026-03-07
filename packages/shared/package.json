@@ -1,0 +1,27 @@
+{
+	"name": "@paideia/shared",
+	"description": "Shared utilities for Paideia packages (Payload, seed builders, internal function utils)",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./internal-function-utils": "./src/internal-function-utils.ts",
+		"./handle-transaction-id": "./src/handle-transaction-id.ts",
+		"./seed-builder": "./src/seed-builder.ts",
+		"./errors": "./src/errors.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"payload": "^3.76.1",
+		"typescript-result": "^3.5.2"
+	},
+	"devDependencies": {
+	},
+	"peerDependencies": {
+		"payload": "^3.76.1"
+	}
+}

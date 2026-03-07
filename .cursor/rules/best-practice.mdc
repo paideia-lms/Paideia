@@ -67,7 +67,9 @@ each test files should only have one describe block. each test file related to d
 
 if you really want a completely isolated test, you should always create a new root describe block and its own beforeAll and AfterAll. beforeAll and AfterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite. in test case, we should try to provide the test user so that we can test the authentication unless otherwise specified.
 
-when we need to test result ok and then do type narrowing, we should use `expect(result.ok).toBe(true); if (!result.ok) {` pattern for early return so we don't need to have nested if statements. 
+when we need to test result ok and then do type narrowing, we should use `expect(result.ok).toBe(true); if (!result.ok) {` pattern for early return so we don't need to have nested if statements.
+
+when writing search/filter tests that expect exact result counts, use test data that does not collide with seed data (e.g. predefined-user-seed-data). see `release-notes/incidents/2026-03-07-test-search-data-collision-with-seed.md`.
 
 for UI e2e testing, we should use AI agent to test browser. you should write test in `tests/e2e`. see `tests/e2e/login.test.yaml` for example. It use `describe`, `it`, `expect` and `beforeEach`, `AfterEach`, `Before`, `After` to write the test. we don't need to be very rigorous because the UI might change.
 
@@ -149,3 +151,5 @@ avoid function declarations inside blocks (e.g. inside if, for, callbacks) when 
 for tsconfig in monorepo, put shared options in root `tsconfig.json`; child configs extend with `extends`. avoid catch-all `"*"` path—it breaks npm resolution. see `.cursor/skills/tsconfig-monorepo/SKILL.md`.
 
 when `bun run build` fails with "Could not resolve" for path aliases (app/*, server/*) while typecheck passes, use relative imports in server files or add a Bun resolver plugin. see `.cursor/skills/bun-build-monorepo/SKILL.md`.
+
+when extracting a module from paideia-backend to a standalone package (e.g. module-user, module-infrastructure), follow `.cursor/skills/module-package-refactoring/SKILL.md` for path fixes, type fixes, and test data isolation.

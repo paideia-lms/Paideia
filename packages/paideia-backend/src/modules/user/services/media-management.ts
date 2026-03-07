@@ -19,12 +19,12 @@ import {
 } from "../../../errors";
 import { envVars } from "../../infrastructure/services/env";
 import type { Media } from "../../../payload-types";
-import { handleTransactionId } from "shared/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
+import { handleTransactionId } from "@paideia/shared";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import {
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import * as schemas from "src/payload-generated-schema";
 import { and, eq, sql } from "@payloadcms/db-postgres/drizzle";
 import {

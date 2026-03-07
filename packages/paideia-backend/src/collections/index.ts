@@ -7,7 +7,7 @@ export { Assignments } from "../modules/assignment/collections/assignments";
 export { CategoryRoleAssignments } from "./category-role-assignments";
 export { CourseActivityModuleLinks } from "../modules/courses/collections/course-activity-module-links";
 export { CourseCategories } from "./course-categories";
-export { CourseGradeTables } from "../modules/courses/collections/course-grade-tables";
+export { CourseGradeTables } from "../modules/grading/collections/course-grade-tables";
 export { CourseSections } from "../modules/courses/collections/course-sections";
 export { Courses } from "../modules/courses/collections/courses";
 export { DiscussionSubmissions } from "./discussion-submissions";

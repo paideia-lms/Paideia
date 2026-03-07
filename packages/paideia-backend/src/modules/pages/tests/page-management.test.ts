@@ -16,7 +16,7 @@ import {
 	pageManagementTestMediaSeedData,
 	pageManagementTestUserSeedData,
 } from "../seeding/page-management-test-seed-data";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 
 type TestPage = {
 	id: number;

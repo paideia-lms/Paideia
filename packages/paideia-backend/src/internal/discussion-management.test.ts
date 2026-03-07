@@ -23,7 +23,7 @@ import {
 } from "./discussion-management";
 import { tryCreateEnrollment } from "../modules/enrolment/services/enrollment-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import type { TryResultValue } from "server/utils/types";
 
 describe("Discussion Management - Full Workflow", () => {

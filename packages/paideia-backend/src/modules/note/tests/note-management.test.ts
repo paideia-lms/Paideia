@@ -18,7 +18,7 @@ import {
 	noteManagementTestMediaSeedData,
 	noteManagementTestUserSeedData,
 } from "../seeding/note-management-test-seed-data";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 // import PaideiaLogo from "../fixture/paideia-logo.png" with { type: "file" };
 // import Gem from "../fixture/gem.png" with { type: "file" };
 

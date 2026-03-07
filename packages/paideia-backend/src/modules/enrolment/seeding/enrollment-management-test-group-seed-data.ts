@@ -1,0 +1,36 @@
+import { devConstants } from "../../../utils/constants";
+import type { GroupSeedData } from "./group-seed-schema";
+
+export const enrollmentManagementTestGroupSeedData: GroupSeedData = {
+	groups: [
+		{
+			name: "Section A",
+			courseSlug: "cs-101-fa-2025",
+			description: "Primary section for CS 101",
+			color: "#FF5733",
+			isActive: true,
+		},
+		{
+			name: "Section B",
+			courseSlug: "cs-101-fa-2025",
+			description: "Secondary section for CS 101",
+			color: "#33FF57",
+			isActive: true,
+		},
+		{
+			name: "Subsection A1",
+			courseSlug: "cs-101-fa-2025",
+			parentGroupPath: "Section A",
+			description: "Subsection within Section A",
+			color: "#3357FF",
+			isActive: true,
+		},
+		{
+			name: "Math Section",
+			courseSlug: "math-201-fa-2025",
+			description: "Primary section for Math 201",
+			color: "#FF33F5",
+			isActive: true,
+		},
+	],
+};

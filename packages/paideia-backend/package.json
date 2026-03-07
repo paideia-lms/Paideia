@@ -27,6 +27,8 @@
 		"fix-types": "bun scripts/fix-types.ts"
 	},
 	"dependencies": {
+		"@paideia/module-infrastructure": "workspace:*",
+		"@paideia/shared": "workspace:*",
 		"@orpc/openapi": "^1.2.0",
 		"@orpc/server": "^1.2.0",
 		"@orpc/zod": "^1.2.0",

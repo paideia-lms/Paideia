@@ -206,13 +206,13 @@ export const Courses = {
 			relationTo: "users",
 			required: true,
 		},
-		{
-			name: "gradeTable",
-			type: "join",
-			on: "course",
-			collection: "course-grade-tables",
-			label: "Course Grade Table",
-		},
+		// {
+		// 	name: "gradeTable",
+		// 	type: "join",
+		// 	on: "course",
+		// 	collection: "course-grade-tables",
+		// 	label: "Course Grade Table",
+		// },
 		{
 			name: "enrollments",
 			type: "join",

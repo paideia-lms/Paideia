@@ -27,12 +27,12 @@ import {
 	tryGetNextItemSortOrder,
 } from "../../../internal/gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "../../../internal/gradebook-management";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 
 /**
  * Course data that can be included in link results

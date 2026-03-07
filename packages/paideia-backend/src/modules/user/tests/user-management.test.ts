@@ -22,7 +22,7 @@ import {
 	tryRevokeApiKey,
 	tryGetApiKeyStatus,
 } from "../services/user-management";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import { predefinedUserSeedData } from "../seeding/predefined-user-seed-data";
 import { trySeedUsers } from "../seeding/users-builder";
 import type { User } from "payload-types";

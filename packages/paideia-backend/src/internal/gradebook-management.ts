@@ -14,12 +14,12 @@ import {
 	calculateAdjustedWeights,
 	calculateOverallWeights,
 } from "./utils/gradebook-weight-calculations";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 
 export interface CreateGradebookArgs extends BaseInternalFunctionArgs {

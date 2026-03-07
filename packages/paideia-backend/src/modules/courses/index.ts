@@ -1,6 +1,6 @@
 import { Payload } from "payload";
 import { UserModule } from "../user";
-import { Courses, CourseSections, CourseActivityModuleLinks, CourseGradeTables } from "server/collections";
+import { Courses, CourseSections, CourseActivityModuleLinks } from "server/collections";
 
 
 
@@ -27,7 +27,7 @@ export class CoursesModule {
     private readonly payload: Payload;
     public static readonly moduleName = "courses" as const;
     public static readonly dependencies = ["user", "infrastructure"] as const;
-    public static readonly collections = [Courses, CourseSections, CourseActivityModuleLinks, CourseGradeTables];
+    public static readonly collections = [Courses, CourseSections, CourseActivityModuleLinks];
     public static readonly cli = {};
     public static readonly search = [
         Courses.slug,

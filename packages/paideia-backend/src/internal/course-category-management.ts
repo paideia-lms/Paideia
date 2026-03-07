@@ -7,12 +7,12 @@ import {
 	UnknownError,
 } from "../errors";
 import type { CourseCategory } from "../payload-types";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 
 export interface CreateCategoryArgs extends BaseInternalFunctionArgs {
 	name: string;

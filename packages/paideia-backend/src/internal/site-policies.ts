@@ -3,7 +3,7 @@ import { transformError, UnknownError } from "../errors";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { SitePolicies } from "server/collections/globals";
 
 export interface GetSitePoliciesArgs extends BaseInternalFunctionArgs {}

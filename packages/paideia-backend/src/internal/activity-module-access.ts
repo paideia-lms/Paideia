@@ -8,12 +8,12 @@ import {
 	transformError,
 	UnknownError,
 } from "../errors";
-import { handleTransactionId } from "shared/handle-transaction-id";
+import { handleTransactionId } from "@paideia/shared";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-} from "shared/internal-function-utils";
+} from "@paideia/shared";
 import { ActivityModules } from "server/collections";
 import type { Enrollment } from "server/payload-types";
 

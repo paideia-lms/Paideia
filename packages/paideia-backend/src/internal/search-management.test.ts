@@ -9,7 +9,7 @@ import {
 } from "../modules/courses/services/course-management";
 import { parseQuery, tryGlobalSearch } from "./search-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import type { TryResultValue } from "server/utils/types";
 
 describe("parseQuery", () => {

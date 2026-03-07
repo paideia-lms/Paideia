@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"types": ["bun"],
+		"baseUrl": ".",
+		"paths": {
+			"payload.config": ["./src/payload.config.ts"],
+			"payload-types": ["./src/payload-types.ts"],
+			"payload-generated-schema": ["./src/payload-generated-schema.ts"]
+		}
+	},
+	"include": ["src", "../../types.d.ts"],
+	"exclude": ["node_modules", "src/payload-generated-schema.ts"]
+}

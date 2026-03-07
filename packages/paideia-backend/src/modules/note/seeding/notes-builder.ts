@@ -1,8 +1,8 @@
 import type { Note } from "payload-types";
 import type { User } from "payload-types";
-import { SeedBuilder, type SeedContext } from "shared/seed-builder";
+import { SeedBuilder, type SeedContext } from "@paideia/shared";
 import { UnknownError } from "../../../errors";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import { tryCreateNote } from "../services/note-management";
 import type { NoteSeedData } from "./note-seed-schema";
 

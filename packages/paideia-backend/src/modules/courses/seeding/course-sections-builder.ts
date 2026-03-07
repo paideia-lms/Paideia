@@ -1,8 +1,8 @@
 import type { CourseSection } from "payload-types";
 import type { Course } from "payload-types";
-import { SeedBuilder, type SeedContext } from "shared/seed-builder";
+import { SeedBuilder, type SeedContext } from "@paideia/shared";
 import { UnknownError } from "../../../errors";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import { tryCreateSection } from "../services/course-section-management";
 import type { CourseSectionSeedData } from "./course-section-seed-schema";
 

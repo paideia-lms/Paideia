@@ -1,6 +1,6 @@
 import type { User } from "payload-types";
-import { SeedBuilder, type SeedContext } from "../../../shared/seed-builder";
-import type { BaseInternalFunctionArgs } from "shared/internal-function-utils";
+import { SeedBuilder, type SeedContext } from "../../../@paideia/shared";
+import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import {
 	tryCreateUser,
 	tryGenerateApiKey,

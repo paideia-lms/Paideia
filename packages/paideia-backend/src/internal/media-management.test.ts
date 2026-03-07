@@ -9,7 +9,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
-import { createLocalReq } from "shared/internal-function-utils";
+import { createLocalReq } from "@paideia/shared";
 import { envVars } from "../modules/infrastructure/services/env";
 import config from "../payload.config";
 import { s3Client } from "../modules/infrastructure/services/s3-client";
