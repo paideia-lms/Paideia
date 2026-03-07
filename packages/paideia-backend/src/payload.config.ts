@@ -56,6 +56,8 @@ import { InfrastructureModule } from "modules/infrastructure";
 import { UserModule } from "modules/user";
 import { NoteModule } from "modules/note";
 import { CoursesModule } from "./modules/courses";
+import { PagesModule } from "./modules/pages";
+import { sortModulesTopologically } from "shared/module-sorter";
 
 
 // extends the RequestContext type from payload 
@@ -67,10 +69,20 @@ declare module "payload" {
 
 // extends the Request type for global
 declare global {
-	interface Request {
-		_c?: Readonly<RouterContextProvider>;
-	}
+    interface Request {
+        _c?: Readonly<RouterContextProvider>;
+    }
 }
+
+const allModules = sortModulesTopologically([
+    InfrastructureModule,
+    UserModule,
+    NoteModule,
+    CoursesModule,
+    PagesModule
+]);
+
+console.log("📦 Module initialization order:", allModules.map(m => m.moduleName).join(" → "))
 
 const pg = postgresAdapter({
 	pool: {
@@ -193,14 +205,8 @@ const sanitizedConfig = buildConfig({
 		...InfrastructureModule.envVars.CSRF_ORIGINS.origins,
 	].filter(Boolean) as string[],
 	collections: [
-		...UserModule.collections,
-		...InfrastructureModule.collections,
-		...NoteModule.collections,
-		...CoursesModule.collections,
-		// Courses,
-		// CourseSections,
-		// CourseActivityModuleLinks,
-		CourseCategories,
+        ...allModules.flatMap(m => m.collections),
+        CourseCategories,
 		CategoryRoleAssignments,
 		Enrollments,
 		ActivityModules,
@@ -279,8 +285,8 @@ const sanitizedConfig = buildConfig({
 		return undefined;
 	})(),
 	plugins: [
-		searchPlugin({
-			collections: [...UserModule.search, ...InfrastructureModule.search, ...NoteModule.search, ...CoursesModule.search],
+       	searchPlugin({
+            collections: allModules.flatMap(m => m.search),
 			searchOverrides: {
 				slug: "search" as const,
 				fields: ({ defaultFields }) => [
@@ -315,15 +321,10 @@ const sanitizedConfig = buildConfig({
 		}),
 	],
 	jobs: {
-		deleteJobOnComplete: false,
-		// the cron queue
-		autoRun: [
-			...InfrastructureModule.queues,
-			...UserModule.queues,
-		],
-		// ! this will change the database structure so you cannot be conditional here
-		tasks: [...InfrastructureModule.tasks, ...UserModule.tasks, autoSubmitQuiz] as TaskConfig[],
-	},
+        deleteJobOnComplete: false,
+        autoRun: allModules.flatMap(m => m.queues),
+        tasks: [...allModules.flatMap(m => m.tasks), autoSubmitQuiz] as TaskConfig[]
+    },
 	defaultDepth: 1,
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),

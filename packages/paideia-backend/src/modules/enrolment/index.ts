@@ -1,6 +1,8 @@
 import { Payload } from "payload";
 export class EnrolmentModule {
     private readonly payload: Payload;
+    public static readonly moduleName = "enrolment" as const;
+    public static readonly dependencies = ["courses"] as const;
     public static readonly collections = [
     ];
     public static readonly cli = {};

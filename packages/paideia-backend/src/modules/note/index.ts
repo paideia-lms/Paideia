@@ -28,8 +28,20 @@ export namespace NoteModule {
     export type NoteSeedData = NoteSeedDataType;
 }
 
+/**
+ * Note Module
+ * 
+ * @upstream
+ * - `user`: Required for the `createdBy` relationship in the Notes collection.
+ * 
+ * @downstream None. Notes are standalone entities that other modules can reference.
+ * 
+ * Provides note-taking functionality for users with full-text search capabilities.
+ */
 export class NoteModule {
     private readonly payload: Payload;
+    public static readonly moduleName = "note" as const;
+    public static readonly dependencies = ["user"] as const;
     public static readonly collections = [Notes];
     public static readonly cli = {};
     public static readonly search = [];

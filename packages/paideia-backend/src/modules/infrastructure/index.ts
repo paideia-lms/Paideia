@@ -44,12 +44,22 @@ export namespace InfrastructureModule {
 }
 
 /**
- * Infrastructure Module - responsible for infrastructure services
+ * Infrastructure Module
  * 
- * this is the single point of export for the infrastructure module.
+ * @upstream None. This is a root infrastructure module.
+ * 
+ * @downstream
+ * - `user`: Uses infrastructure services for platform detection, email, etc.
+ * - `courses`: Uses cron jobs for scheduled publishing.
+ * - All modules: Infrastructure provides foundational services (env vars, S3, email, etc.).
+ * 
+ * Core infrastructure module providing environment configuration, S3 storage,
+ * email services, cron jobs, health checks, and platform detection.
  */
 export class InfrastructureModule {
     private readonly payload: Payload;
+    public static readonly moduleName = "infrastructure" as const;
+    public static readonly dependencies = [] as const;
     public static readonly s3Client = s3Client;
     public static readonly envVars = envVars;
     public static readonly tasks = [sandboxReset]

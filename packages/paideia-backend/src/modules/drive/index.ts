@@ -3,6 +3,8 @@ import { Payload } from "payload";
 
 export class DriveModule {
     private readonly payload: Payload;
+    public static readonly moduleName = "drive" as const;
+    public static readonly dependencies = ["user"] as const;
     public static readonly collections = [
 
     ];

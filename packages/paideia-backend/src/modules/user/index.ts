@@ -38,12 +38,22 @@ export namespace UserModule {
 }
 
 /**
- * User Module - responsible for user management
+ * User Module
  * 
- * this is the single point of export for the user module.
+ * @upstream None. This is a root domain module.
+ * @downstream
+ * - `note`: Requires User for the `createdBy` field.
+ * - `courses`: Requires User for course instructors/creators.
+ * - `pages`: Requires User for page ownership.
+ * - `infrastructure`: May use infrastructure services for platform detection.
+ * 
+ * Core user management module handling authentication, registration, CRUD operations,
+ * impersonation, API keys, and media management.
  */
 export class UserModule {
     private readonly payload: Payload;
+    public static readonly moduleName = "user" as const;
+    public static readonly dependencies = [] as const;
     public static readonly collections = [
         Users,
         Media

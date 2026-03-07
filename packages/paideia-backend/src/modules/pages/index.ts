@@ -23,8 +23,21 @@ import {
 	findPagesByUser,
 } from "./api/page-management";
 
+/**
+ * Pages Module
+ * 
+ * @upstream
+ * - `user`: Required for page ownership (createdBy/updatedBy fields).
+ * 
+ * @downstream None. Pages are standalone content entities.
+ * 
+ * Provides page management functionality for creating and managing static content pages.
+ * Similar to the note module but designed for different content use cases.
+ */
 export class PagesModule {
 	private readonly payload: Payload;
+	public static readonly moduleName = "pages" as const;
+	public static readonly dependencies = ["user"] as const;
 	public static readonly collections = [Pages];
 	public static readonly cli = {};
 	public static readonly search = [];
