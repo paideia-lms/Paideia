@@ -16,7 +16,7 @@
 		"migrate:refresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:refresh --force-accept-warning && bun scripts/clean-s3.ts",
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:reset",
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts",
-		"typegen": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile generate:db-schema",
+		"generate:payload": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun --bun payload --disable-transpile generate:db-schema",
 		"generate:modules": "bun scripts/generate-modules.ts",
 		"typecheck": "tsgo --noEmit --project tsconfig.v7.json",
 		"knip": "knip",

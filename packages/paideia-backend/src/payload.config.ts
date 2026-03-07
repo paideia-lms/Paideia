@@ -57,7 +57,7 @@ import { UserModule } from "modules/user";
 import { NoteModule } from "modules/note";
 import { CoursesModule } from "./modules/courses";
 import { PagesModule } from "./modules/pages";
-import { sortModulesTopologically } from "shared/module-sorter";
+import { allModules } from "./modules.gen";
 
 
 // extends the RequestContext type from payload 
@@ -69,20 +69,10 @@ declare module "payload" {
 
 // extends the Request type for global
 declare global {
-    interface Request {
-        _c?: Readonly<RouterContextProvider>;
-    }
+	interface Request {
+		_c?: Readonly<RouterContextProvider>;
+	}
 }
-
-const allModules = sortModulesTopologically([
-    InfrastructureModule,
-    UserModule,
-    NoteModule,
-    CoursesModule,
-    PagesModule
-]);
-
-console.log("📦 Module initialization order:", allModules.map(m => m.moduleName).join(" → "))
 
 const pg = postgresAdapter({
 	pool: {
@@ -205,8 +195,8 @@ const sanitizedConfig = buildConfig({
 		...InfrastructureModule.envVars.CSRF_ORIGINS.origins,
 	].filter(Boolean) as string[],
 	collections: [
-        ...allModules.flatMap(m => m.collections),
-        CourseCategories,
+		...allModules.flatMap(m => m.collections),
+		CourseCategories,
 		CategoryRoleAssignments,
 		Enrollments,
 		ActivityModules,
@@ -285,8 +275,8 @@ const sanitizedConfig = buildConfig({
 		return undefined;
 	})(),
 	plugins: [
-       	searchPlugin({
-            collections: allModules.flatMap(m => m.search),
+		searchPlugin({
+			collections: allModules.flatMap(m => m.search),
 			searchOverrides: {
 				slug: "search" as const,
 				fields: ({ defaultFields }) => [
@@ -321,10 +311,11 @@ const sanitizedConfig = buildConfig({
 		}),
 	],
 	jobs: {
-        deleteJobOnComplete: false,
-        autoRun: allModules.flatMap(m => m.queues),
-        tasks: [...allModules.flatMap(m => m.tasks), autoSubmitQuiz] as TaskConfig[]
-    },
+		deleteJobOnComplete: false,
+		autoRun: allModules.flatMap(m => m.queues),
+		tasks: [...allModules.flatMap(m => m.tasks), autoSubmitQuiz] as TaskConfig[]
+		workflows: allModules.flatMap(m => m.workflows),
+	},
 	defaultDepth: 1,
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),

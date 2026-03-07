@@ -13,7 +13,7 @@ export { Courses } from "../modules/courses/collections/courses";
 export { DiscussionSubmissions } from "./discussion-submissions";
 export { Discussions } from "../modules/discussion/collections/discussions";
 export { Enrollments } from "../modules/enrolment/collections/enrollments";
-export { Files } from "./files";
+export { Files } from "../modules/files/collections/files";
 // Globals
 export { SystemGradeTable } from "./globals";
 export { GradebookCategories } from "../modules/gradebook/collections/gradebook-categories";
@@ -25,5 +25,5 @@ export { Notes } from "../modules/note/collections/notes";
 export { Pages } from "../modules/pages/collections/pages";
 export { QuizSubmissions } from "./quiz-submissions";
 export { Quizzes } from "../modules/quiz/collections/quizzes";
-export { UserGrades } from "./user-grades";
+export { UserGrades } from "../modules/grading/collections/user-grades";
 export { Whiteboards } from "../modules/whiteboard/collections/whiteboards";

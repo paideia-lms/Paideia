@@ -1,6 +1,6 @@
 import { AssignmentSubmissions } from "server/collections/assignment-submissions";
 import { GradebookCategories } from "server/modules/gradebook/collections/gradebook-categories";
-import { UserGrades } from "server/collections/user-grades";
+import { UserGrades } from "server/modules/grading/collections/user-grades";
 import { Users } from "server/modules/user/collections/users";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";

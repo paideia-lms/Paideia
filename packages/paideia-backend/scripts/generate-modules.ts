@@ -176,7 +176,7 @@ ${imports}
  */
 export const allModules = [
 ${moduleList}
-] as [${moduleTupleTypes}];
+] as [${moduleTupleTypes}] satisfies PaideiaModuleConstructor[];
 
 /**
  * Module initialization order (for logging/debugging):

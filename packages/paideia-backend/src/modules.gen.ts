@@ -15,9 +15,10 @@ import { DriveModule } from "./modules/drive";
 import { PagesModule } from "./modules/pages";
 import { CoursesModule } from "./modules/courses";
 import { DiscussionModule } from "./modules/discussion";
+import { GradebookModule } from "./modules/grading";
 import { WhiteboardModule } from "./modules/whiteboard";
 import { QuizModule } from "./modules/quiz";
-import { GradebookModule } from "./modules/gradebook";
+import { FilesModule } from "./modules/files";
 import { EnrolmentModule } from "./modules/enrolment";
 
 /**
@@ -33,21 +34,22 @@ export const allModules = [
 	PagesModule,
 	CoursesModule,
 	DiscussionModule,
+	GradebookModule,
 	WhiteboardModule,
 	QuizModule,
-	GradebookModule,
+	FilesModule,
 	EnrolmentModule,
-] as [typeof AssignmentModule,typeof UserModule,typeof InfrastructureModule,typeof NoteModule,typeof DriveModule,typeof PagesModule,typeof CoursesModule,typeof DiscussionModule,typeof WhiteboardModule,typeof QuizModule,typeof GradebookModule,typeof EnrolmentModule];
+] as [typeof AssignmentModule,typeof UserModule,typeof InfrastructureModule,typeof NoteModule,typeof DriveModule,typeof PagesModule,typeof CoursesModule,typeof DiscussionModule,typeof GradebookModule,typeof WhiteboardModule,typeof QuizModule,typeof FilesModule,typeof EnrolmentModule] satisfies PaideiaModuleConstructor[];
 
 /**
  * Module initialization order (for logging/debugging):
- * assignment → user → infrastructure → note → drive → pages → courses → discussion → whiteboard → quiz → gradebook → enrolment
+ * assignment → user → infrastructure → note → drive → pages → courses → discussion → gradebook → whiteboard → quiz → files → enrolment
  */
 
 /**
  * Type representing all valid module names
  */
-export type ModuleName = "assignment" | "user" | "infrastructure" | "note" | "drive" | "pages" | "courses" | "discussion" | "whiteboard" | "quiz" | "gradebook" | "enrolment";
+export type ModuleName = "assignment" | "user" | "infrastructure" | "note" | "drive" | "pages" | "courses" | "discussion" | "gradebook" | "whiteboard" | "quiz" | "files" | "enrolment";
 
 /**
  * Map of module names to module constructors
@@ -61,9 +63,10 @@ export interface ModuleMap {
 	pages: typeof PagesModule;
 	courses: typeof CoursesModule;
 	discussion: typeof DiscussionModule;
+	gradebook: typeof GradebookModule;
 	whiteboard: typeof WhiteboardModule;
 	quiz: typeof QuizModule;
-	gradebook: typeof GradebookModule;
+	files: typeof FilesModule;
 	enrolment: typeof EnrolmentModule;
 }
 
@@ -80,9 +83,10 @@ export function getModuleByName<T extends ModuleName>(name: T): ModuleMap[T] {
 		"pages": PagesModule,
 		"courses": CoursesModule,
 		"discussion": DiscussionModule,
+		"gradebook": GradebookModule,
 		"whiteboard": WhiteboardModule,
 		"quiz": QuizModule,
-		"gradebook": GradebookModule,
+		"files": FilesModule,
 		"enrolment": EnrolmentModule,
 	};
 	return moduleMap[name] as ModuleMap[T];
@@ -97,7 +101,8 @@ export { DriveModule };
 export { PagesModule };
 export { CoursesModule };
 export { DiscussionModule };
+export { GradebookModule };
 export { WhiteboardModule };
 export { QuizModule };
-export { GradebookModule };
+export { FilesModule };
 export { EnrolmentModule };

@@ -1,15 +1,22 @@
 import type { CollectionConfig } from "payload";
+import { richTextContentWithHook } from "server/collections/utils/rich-text-content";
 
 // Whiteboards collection - for whiteboard-type activity modules
 export const Whiteboards = {
 	slug: "whiteboards",
-	access: {
-		read: () => true,
-		create: () => true,
-		update: () => true,
-		delete: () => true,
-	},
 	fields: [
+		{
+			name: "title",
+			type: "text",
+			required: true,
+		},
+		...richTextContentWithHook({
+			/**
+			 * in page and whiteboard, this is basically the content
+			 */
+			name: "description",
+			type: "textarea",
+		}, "Whiteboard description image").fields,
 		{
 			name: "content",
 			type: "textarea",

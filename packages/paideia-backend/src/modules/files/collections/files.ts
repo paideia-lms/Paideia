@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload";
+import { richTextContentWithHook } from "server/collections/utils/rich-text-content";
 
 // Files collection - for file-type activity modules
 export const Files = {
@@ -10,6 +11,18 @@ export const Files = {
 		delete: () => true,
 	},
 	fields: [
+		{
+			name: "title",
+			type: "text",
+			required: true,
+		},
+		...richTextContentWithHook({
+			/**
+			 * in page and whiteboard, this is basically the content
+			 */
+			name: "description",
+			type: "textarea",
+		}, "File description image").fields,
 		{
 			name: "media",
 			type: "relationship",
