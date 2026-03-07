@@ -44,6 +44,20 @@ packages/module-{name}/
 - **Only a class and a namespace** can be exposed. Nothing else (no bare `export { x }`, no exported functions/constants at top level).
 - The class implements the module facade; the namespace holds shared types.
 
+### moduleName and dependencies
+
+Use `packageJson` so values stay in sync with `package.json` and avoid mistakes:
+
+```typescript
+import packageJson from "../package.json";
+
+export class NoteModule {
+    public static readonly moduleName = packageJson.name;
+    public static readonly dependencies = Object.keys(packageJson.dependencies);
+    // ...
+}
+```
+
 ### Mock payload.config.ts
 
 Each module has a **mock** `payload.config.ts` so that a minimal db schema can be generated for the module. This lets tests run in isolation without the full app.

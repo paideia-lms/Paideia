@@ -1,0 +1,360 @@
+import dayjs from "dayjs";
+import { Notes } from "../collections/notes";
+import { MOCK_INFINITY } from "../utils/constants";
+import { Result } from "typescript-result";
+import {
+	transformError,
+} from "../errors";
+import { InvalidArgumentError, UnknownError } from "@paideia/shared";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "@paideia/shared";
+import { handleTransactionId } from "@paideia/shared";
+
+export interface CreateNoteArgs extends BaseInternalFunctionArgs {
+	data: {
+		content: string;
+		createdBy: number;
+		isPublic?: boolean;
+	};
+}
+
+export interface UpdateNoteArgs extends BaseInternalFunctionArgs {
+	noteId: number;
+	data: {
+		content?: string;
+		isPublic?: boolean;
+	};
+}
+
+export interface FindNoteByIdArgs extends BaseInternalFunctionArgs {
+	noteId: number;
+}
+
+export interface SearchNotesArgs extends BaseInternalFunctionArgs {
+	filters?: {
+		createdBy?: number;
+		content?: string;
+		limit?: number;
+		page?: number;
+	};
+}
+
+export interface DeleteNoteArgs extends BaseInternalFunctionArgs {
+	noteId: number;
+}
+
+export interface FindNotesByUserArgs extends BaseInternalFunctionArgs {
+	userId: number;
+	limit?: number;
+}
+
+/**
+ * Creates a new note using Payload local API
+ */
+export function tryCreateNote(args: CreateNoteArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				data: { content, createdBy, isPublic = false },
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Validate content is not empty
+			if (!content || content.trim().length === 0) {
+				throw new Error("Note content cannot be empty");
+			}
+
+			// Handle transaction
+			const transactionInfo = await handleTransactionId(payload, req);
+
+			return await transactionInfo.tx(async (txInfo) => {
+				// Create note with access control
+				const newNote = await payload
+					.create({
+						collection: "notes",
+						data: {
+							content: content.trim(),
+							createdBy,
+							isPublic,
+						},
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 0,
+					})
+					.then(stripDepth<0, "create">());
+
+				return newNote;
+			});
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to create note", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Updates an existing note using Payload local API
+ */
+export function tryUpdateNote(args: UpdateNoteArgs) {
+	return Result.try(
+		async () => {
+			const { payload, noteId, data, req, overrideAccess = false } = args;
+
+			// Handle transaction
+			const transactionInfo = await handleTransactionId(payload, req);
+
+			const currentUser = req?.user;
+			if (!currentUser) {
+				throw new InvalidArgumentError("User ID is required");
+			}
+
+			return await transactionInfo.tx(async (txInfo) => {
+				const updatedNote = await payload
+					.update({
+						collection: "notes",
+						id: noteId,
+						data: {
+							isPublic: data.isPublic,
+							...(data.content ? { content: data.content.trim() } : {}),
+						},
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 0,
+					})
+					.then(stripDepth<0, "update">());
+
+				return updatedNote;
+			});
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to update note", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Finds a note by ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export function tryFindNoteById(args: FindNoteByIdArgs) {
+	return Result.try(
+		async () => {
+			const { payload, noteId, req, overrideAccess = false } = args;
+
+			// Find note with access control
+			const note = await payload
+				.findByID({
+					collection: Notes.slug,
+					id: noteId,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			return note;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to find note by ID", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Searches notes with various filters
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export function trySearchNotes(args: SearchNotesArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				filters = {},
+
+				req,
+				overrideAccess = false,
+			} = args;
+
+			const { createdBy, content, limit = 10, page = 1 } = filters;
+
+			const where: Record<string, { equals?: number; contains?: string }> = {};
+
+			if (createdBy) {
+				where.createdBy = {
+					equals: createdBy,
+				};
+			}
+
+			if (content) {
+				where.content = {
+					contains: content,
+				};
+			}
+
+			// Search notes with access control
+			const notes = await payload.find({
+				collection: "notes",
+				where,
+				limit,
+				page,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+			});
+
+			return {
+				docs: notes.docs,
+				totalDocs: notes.totalDocs,
+				totalPages: notes.totalPages,
+				page: notes.page,
+				limit: notes.limit,
+				hasNextPage: notes.hasNextPage,
+				hasPrevPage: notes.hasPrevPage,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to search notes", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Deletes a note by ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export function tryDeleteNote(args: DeleteNoteArgs) {
+	return Result.try(
+		async () => {
+			const { payload, noteId, req, overrideAccess = false } = args;
+
+			// Delete note with access control
+			const deletedNote = await payload.delete({
+				collection: "notes",
+				id: noteId,
+				req,
+				overrideAccess,
+			});
+
+			return deletedNote;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to delete note", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Finds notes by user ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export function tryFindNotesByUser(args: FindNotesByUserArgs) {
+	return Result.try(
+		async () => {
+			const {
+				payload,
+				userId,
+				limit = 10,
+
+				req,
+				overrideAccess = false,
+			} = args;
+
+			// Find notes with access control
+			const notes = await payload.find({
+				collection: "notes",
+				where: {
+					createdBy: {
+						equals: userId,
+					},
+				},
+				limit,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+			});
+
+			return notes.docs;
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to find notes by user", {
+				cause: error,
+			}),
+	);
+}
+
+export interface GenerateNoteHeatmapArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+/**
+ * Generates heatmap data for user's note activity
+ * Returns heatmap data (date -> count), available years, and all notes
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export function tryGenerateNoteHeatmap(args: GenerateNoteHeatmapArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			// Fetch all notes for the user
+			const notes = await payload
+				.find({
+					collection: "notes",
+					where: {
+						createdBy: { equals: userId },
+					},
+					limit: MOCK_INFINITY,
+					sort: "-createdAt",
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
+
+			const heatmapData: Record<string, number> = {};
+			const availableYears: number[] = [];
+
+			notes.docs.forEach((note) => {
+				const date = dayjs(note.createdAt).format("YYYY-MM-DD");
+				heatmapData[date] = (heatmapData[date] || 0) + 1;
+
+				const year = dayjs(note.createdAt).year();
+				if (!availableYears.includes(year)) {
+					availableYears.push(year);
+				}
+			});
+
+			availableYears.sort((a, b) => b - a);
+
+			return {
+				heatmapData,
+				availableYears,
+				notes: notes.docs,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to generate note heatmap", {
+				cause: error,
+			}),
+	);
+}
