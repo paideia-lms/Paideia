@@ -21,7 +21,7 @@ import {
 	tryUpvoteDiscussionSubmission,
 	type UpdateDiscussionSubmissionArgs,
 } from "./discussion-management";
-import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateEnrollment } from "../modules/enrolment/services/enrollment-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
 import { createLocalReq } from "shared/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";

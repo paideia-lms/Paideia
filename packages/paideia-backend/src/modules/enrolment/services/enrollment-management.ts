@@ -5,8 +5,8 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "../errors";
-import type { Course, Enrollment } from "../payload-types";
+} from "../../../errors";
+import type { Course, Enrollment } from "../../../payload-types";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type Depth,

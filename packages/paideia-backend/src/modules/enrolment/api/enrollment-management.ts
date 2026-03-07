@@ -14,8 +14,8 @@ import {
 	tryAddGroupsToEnrollment,
 	tryRemoveGroupsFromEnrollment,
 	tryFindEnrollmentsByGroup,
-} from "../../internal/enrollment-management";
-import type { OrpcContext } from "../context";
+} from "../services/enrollment-management";
+import type { OrpcContext } from "server/orpc/context";
 
 const outputSchema = z.any();
 const roleSchema = z.enum(["student", "teacher", "ta", "manager"]);

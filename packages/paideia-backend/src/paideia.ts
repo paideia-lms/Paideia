@@ -30,7 +30,7 @@ import * as courseManagement from "./modules/courses/services/course-management"
 import * as courseSectionManagement from "./modules/courses/services/course-section-management";
 import * as discussionManagement from "./internal/discussion-management";
 import * as email from "modules/infrastructure/services/email";
-import * as enrollmentManagement from "./internal/enrollment-management";
+import * as enrollmentManagement from "./modules/enrolment/services/enrollment-management";
 import * as gradebookCategoryManagement from "./internal/gradebook-category-management";
 import * as gradebookItemManagement from "./internal/gradebook-item-management";
 import * as gradebookManagement from "./internal/gradebook-management";

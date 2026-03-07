@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
-import sanitizedConfig from "../payload.config";
+import sanitizedConfig from "payload.config";
 import {
 	tryCreateGroup,
 	tryFindCourseById,
 	tryFindGroupsByCourse,
-} from "../modules/courses/services/course-management";
-import { tryCreateCategory } from "./course-category-management";
+} from "modules/courses/services/course-management";
+// import { tryCreateCategory } from "./course-category-management";
 import {
 	type CreateEnrollmentArgs,
 	type SearchEnrollmentsArgs,
@@ -21,7 +21,7 @@ import {
 	trySearchEnrollments,
 	tryUpdateEnrollment,
 	type UpdateEnrollmentArgs,
-} from "./enrollment-management";
+} from "../services/enrollment-management";
 
 describe("Enrollment Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -56,16 +56,16 @@ describe("Enrollment Management Functions", () => {
 		testUserId = testUser.id;
 
 		// Create test category
-		const testCategoryResult = await tryCreateCategory({
-			payload,
-			name: "Test Category",
-			req: undefined,
-			overrideAccess: true,
-		});
-		expect(testCategoryResult.ok).toBe(true);
-		if (!testCategoryResult.ok) {
-			throw new Error("Failed to create test category");
-		}
+		// const testCategoryResult = await tryCreateCategory({
+		// 	payload,
+		// 	name: "Test Category",
+		// 	req: undefined,
+		// 	overrideAccess: true,
+		// });
+		// expect(testCategoryResult.ok).toBe(true);
+		// if (!testCategoryResult.ok) {
+		// 	throw new Error("Failed to create test category");
+		// }
 
 		// Create test course
 		const testCourse = await payload.create({
@@ -76,7 +76,7 @@ describe("Enrollment Management Functions", () => {
 				createdBy: testUserId,
 				slug: "test-course",
 				status: "published",
-				category: testCategoryResult.value.id,
+				category: null,
 			},
 			overrideAccess: true,
 		});
@@ -444,16 +444,16 @@ describe("Enrollment Management Functions", () => {
 			testUserForEnrollments = testUserForEnrollmentsDoc.id;
 
 			// Create test category
-			const testCategory2Result = await tryCreateCategory({
-				payload,
-				name: "Test Category 2",
-				req: undefined,
-				overrideAccess: true,
-			});
-			expect(testCategory2Result.ok).toBe(true);
-			if (!testCategory2Result.ok) {
-				throw new Error("Failed to create test category 2");
-			}
+			// const testCategory2Result = await tryCreateCategory({
+			// 	payload,
+			// 	name: "Test Category 2",
+			// 	req: undefined,
+			// 	overrideAccess: true,
+			// });
+			// expect(testCategory2Result.ok).toBe(true);
+			// if (!testCategory2Result.ok) {
+			// 	throw new Error("Failed to create test category 2");
+			// }
 
 			// Create multiple test courses
 			const testCourse2 = await payload.create({
@@ -464,7 +464,7 @@ describe("Enrollment Management Functions", () => {
 					createdBy: testUserForEnrollments,
 					slug: "test-course-2",
 					status: "published",
-					category: testCategory2Result.value.id,
+					category: null,
 				},
 				overrideAccess: true,
 			});
@@ -478,7 +478,7 @@ describe("Enrollment Management Functions", () => {
 					createdBy: testUserForEnrollments,
 					slug: "test-course-3",
 					status: "published",
-					category: testCategory2Result.value.id,
+					category: null,
 				},
 				overrideAccess: true,
 			});
@@ -1041,16 +1041,16 @@ describe("Enrollment Management Functions with Authentication", () => {
 		testUserId = testUser2.id;
 
 		// Create test category
-		const testCategoryResult = await tryCreateCategory({
-			payload,
-			name: "Test Category",
-			req: undefined,
-			overrideAccess: true,
-		});
-		expect(testCategoryResult.ok).toBe(true);
-		if (!testCategoryResult.ok) {
-			throw new Error("Failed to create test category");
-		}
+		// const testCategoryResult = await tryCreateCategory({
+		// 	payload,
+		// 	name: "Test Category",
+		// 	req: undefined,
+		// 	overrideAccess: true,
+		// });
+		// expect(testCategoryResult.ok).toBe(true);
+		// if (!testCategoryResult.ok) {
+		// 	throw new Error("Failed to create test category");
+		// }
 
 		// Create test course
 		const testCourse = await payload.create({
@@ -1061,7 +1061,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 				createdBy: adminUser.id,
 				slug: "test-course",
 				status: "published",
-				category: testCategoryResult.value.id,
+				category: null,
 			},
 			overrideAccess: true,
 		});

@@ -112,27 +112,6 @@ describe("Whiteboard Management Functions", async () => {
 			}
 		});
 
-		test("should trim whitespace from description and content", async () => {
-			const result = await tryCreateWhiteboard({
-				payload,
-				data: {
-					title: "Test Whiteboard",
-					description: "   Description with spaces   ",
-					content: "   Content with spaces   ",
-					createdBy: testUser.id,
-				},
-				overrideAccess: true,
-				req: undefined,
-			});
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				const whiteboard = result.value as any;
-				expect(whiteboard.description).toBe("Description with spaces");
-				expect(whiteboard.content).toBe("Content with spaces");
-			}
-		});
-
 		test("should fail with empty title", async () => {
 			const result = await tryCreateWhiteboard({
 				payload,

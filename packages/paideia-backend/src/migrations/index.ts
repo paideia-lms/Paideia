@@ -1,93 +1,9 @@
-import * as migration_20251103_161045_v0_5_0 from './20251103_161045_v0_5_0';
-import * as migration_20251108_175955_v0_5_5 from './20251108_175955_v0_5_5';
-import * as migration_20251108_205148_v0_5_6 from './20251108_205148_v0_5_6';
-import * as migration_20251112_215652_v0_6_0 from './20251112_215652_v0_6_0';
-import * as migration_20251115_192550_v0_7_0 from './20251115_192550_v0_7_0';
-import * as migration_20251119_005342_v0_7_1 from './20251119_005342_v0_7_1';
-import * as migration_20251121_012340_v0_7_2 from './20251121_012340_v0_7_2';
-import * as migration_20251129_010524_v0_7_3 from './20251129_010524_v0_7_3';
-import * as migration_20251231_201458_v0_7_7 from './20251231_201458_v0_7_7';
-import * as migration_20260109_112642_v0_7_10 from './20260109_112642_v0_7_10';
-import * as migration_20260110_213305_v0_7_12 from './20260110_213305_v0_7_12';
-import * as migration_20260217_212003_v0_7_14 from './20260217_212003_v0_7_14';
-import * as migration_20260304_045544 from './20260304_045544';
-import * as migration_20260307_012622 from './20260307_012622';
-import * as migration_20260307_063059 from './20260307_063059';
+import * as migration_20260307_164215 from './20260307_164215';
 
 export const migrations = [
   {
-    up: migration_20251103_161045_v0_5_0.up,
-    down: migration_20251103_161045_v0_5_0.down,
-    name: '20251103_161045_v0_5_0',
-  },
-  {
-    up: migration_20251108_175955_v0_5_5.up,
-    down: migration_20251108_175955_v0_5_5.down,
-    name: '20251108_175955_v0_5_5',
-  },
-  {
-    up: migration_20251108_205148_v0_5_6.up,
-    down: migration_20251108_205148_v0_5_6.down,
-    name: '20251108_205148_v0_5_6',
-  },
-  {
-    up: migration_20251112_215652_v0_6_0.up,
-    down: migration_20251112_215652_v0_6_0.down,
-    name: '20251112_215652_v0_6_0',
-  },
-  {
-    up: migration_20251115_192550_v0_7_0.up,
-    down: migration_20251115_192550_v0_7_0.down,
-    name: '20251115_192550_v0_7_0',
-  },
-  {
-    up: migration_20251119_005342_v0_7_1.up,
-    down: migration_20251119_005342_v0_7_1.down,
-    name: '20251119_005342_v0_7_1',
-  },
-  {
-    up: migration_20251121_012340_v0_7_2.up,
-    down: migration_20251121_012340_v0_7_2.down,
-    name: '20251121_012340_v0_7_2',
-  },
-  {
-    up: migration_20251129_010524_v0_7_3.up,
-    down: migration_20251129_010524_v0_7_3.down,
-    name: '20251129_010524_v0_7_3',
-  },
-  {
-    up: migration_20251231_201458_v0_7_7.up,
-    down: migration_20251231_201458_v0_7_7.down,
-    name: '20251231_201458_v0_7_7',
-  },
-  {
-    up: migration_20260109_112642_v0_7_10.up,
-    down: migration_20260109_112642_v0_7_10.down,
-    name: '20260109_112642_v0_7_10',
-  },
-  {
-    up: migration_20260110_213305_v0_7_12.up,
-    down: migration_20260110_213305_v0_7_12.down,
-    name: '20260110_213305_v0_7_12',
-  },
-  {
-    up: migration_20260217_212003_v0_7_14.up,
-    down: migration_20260217_212003_v0_7_14.down,
-    name: '20260217_212003_v0_7_14',
-  },
-  {
-    up: migration_20260304_045544.up,
-    down: migration_20260304_045544.down,
-    name: '20260304_045544',
-  },
-  {
-    up: migration_20260307_012622.up,
-    down: migration_20260307_012622.down,
-    name: '20260307_012622',
-  },
-  {
-    up: migration_20260307_063059.up,
-    down: migration_20260307_063059.down,
-    name: '20260307_063059'
+    up: migration_20260307_164215.up,
+    down: migration_20260307_164215.down,
+    name: '20260307_164215'
   },
 ];

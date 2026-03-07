@@ -17,7 +17,7 @@ import {
 	tryUpdateCourse,
 	type UpdateCourseArgs,
 } from "../services/course-management";
-import { tryCreateEnrollment } from "../../../internal/enrollment-management";
+import { tryCreateEnrollment } from "../../enrolment/services/enrollment-management";
 import { tryCreateMedia } from "../../user/services/media-management";
 import { tryCreateUser } from "../../user/services/user-management";
 import type { TryResultValue } from "server/utils/types";

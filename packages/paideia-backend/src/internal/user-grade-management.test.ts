@@ -21,7 +21,7 @@ import {
 	tryCreateDiscussionSubmission,
 	tryGradeDiscussionSubmission,
 } from "./discussion-management";
-import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateEnrollment } from "../modules/enrolment/services/enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";

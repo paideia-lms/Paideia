@@ -1,5 +1,5 @@
 import type { SeedData } from "../seed-schema";
-import { tryCreateEnrollment } from "../../../internal/enrollment-management";
+import { tryCreateEnrollment } from "../../../modules/enrolment/services/enrollment-management";
 import { seedLogger } from "../seed-utils/logger";
 import type { SeedContext, CreatedUsers } from "./user-builder";
 

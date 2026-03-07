@@ -213,7 +213,8 @@ export function trySearchWhiteboards(args: SearchWhiteboardsArgs) {
 				sort: "-createdAt",
 				req,
 				overrideAccess,
-			});
+				depth: 1,
+			}).then(stripDepth<1, "find">());
 
 			return {
 				docs: whiteboards.docs,
@@ -243,7 +244,8 @@ export function tryDeleteWhiteboard(args: DeleteWhiteboardArgs) {
 				id: whiteboardId,
 				req,
 				overrideAccess,
-			});
+				depth: 0,
+			}).then(stripDepth<0, "delete">());
 
 			return deletedWhiteboard;
 		},
@@ -278,7 +280,8 @@ export function tryFindWhiteboardsByUser(args: FindWhiteboardsByUserArgs) {
 				sort: "-createdAt",
 				req,
 				overrideAccess,
-			});
+				depth: 1,
+			}).then(stripDepth<1, "find">());
 
 			return whiteboards.docs;
 		},

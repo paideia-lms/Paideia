@@ -23,7 +23,7 @@ import { tryCreateSection } from "../modules/courses/services/course-section-man
 import {
 	type CreateEnrollmentArgs,
 	tryCreateEnrollment,
-} from "./enrollment-management";
+} from "../modules/enrolment/services/enrollment-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 

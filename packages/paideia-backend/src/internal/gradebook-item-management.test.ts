@@ -4,7 +4,7 @@ import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/types";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCourse } from "../modules/courses/services/course-management";
-import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateEnrollment } from "../modules/enrolment/services/enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import {
 	tryCreateGradebookItem,

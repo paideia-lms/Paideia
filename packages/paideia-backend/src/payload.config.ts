@@ -196,7 +196,7 @@ const sanitizedConfig = buildConfig({
 		...InfrastructureModule.envVars.CSRF_ORIGINS.origins,
 	].filter(Boolean) as string[],
 	collections: [
-		...allModules.flatMap(m => m.collections),
+		...allModules.flatMap(m => m.collections as CollectionConfig[]),
 		// CourseCategories,
 		// CategoryRoleAssignments,
 		// Enrollments,

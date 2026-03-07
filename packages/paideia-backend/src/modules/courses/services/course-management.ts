@@ -14,7 +14,7 @@ import {
 	UnknownError,
 } from "../../../errors";
 import type { Course, Group } from "../../../payload-types";
-import { tryFindEnrollmentsByUser } from "../../../internal/enrollment-management";
+import { tryFindEnrollmentsByUser } from "../../enrolment/services/enrollment-management";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type Depth,
