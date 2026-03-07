@@ -32,25 +32,25 @@ export const CourseActivityModuleLinks = {
 			type: "text",
 			virtual: `course.slug`,
 		},
-		{
-			name: "activityModule",
-			type: "relationship",
-			relationTo: "activity-modules",
-			label: "Activity Module",
+		// {
+		// 	name: "activityModule",
+		// 	type: "relationship",
+		// 	relationTo: "activity-modules",
+		// 	label: "Activity Module",
 
-			required: true,
-		},
-		{
-			name: "activityModuleName",
-			type: "text",
-			hasMany: true,
-			virtual: `activityModule.title`,
-		},
-		{
-			name: "activityModuleType",
-			type: "text",
-			virtual: `activityModule.type`,
-		},
+		// 	required: true,
+		// },
+		// {
+		// 	name: "activityModuleName",
+		// 	type: "text",
+		// 	hasMany: true,
+		// 	virtual: `activityModule.title`,
+		// },
+		// {
+		// 	name: "activityModuleType",
+		// 	type: "text",
+		// 	virtual: `activityModule.type`,
+		// },
 		{
 			name: "section",
 			type: "relationship",

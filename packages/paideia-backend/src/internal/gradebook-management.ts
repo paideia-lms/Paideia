@@ -1,5 +1,5 @@
-import { GradebookCategories } from "../modules/gradebook/collections/gradebook-categories";
-import { Gradebooks } from "../modules/gradebook/collections/gradebooks";
+import { GradebookCategories } from "../modules/grading/collections/gradebook-categories";
+import { Gradebooks } from "../modules/grading/collections/gradebooks";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {

@@ -195,30 +195,30 @@ export const Discussions = {
 			defaultValue: "recent",
 			label: "Default Thread Sorting",
 		},
-		{
-			name: "pinnedThreads",
-			type: "array",
-			fields: [
-				{
-					name: "thread",
-					type: "relationship",
-					relationTo: "discussion-submissions",
-					required: true,
-				},
-				{
-					name: "pinnedAt",
-					type: "date",
-					required: true,
-				},
-				{
-					name: "pinnedBy",
-					type: "relationship",
-					relationTo: "users",
-					required: true,
-				},
-			],
-			label: "Pinned Threads",
-		},
+		// {
+		// 	name: "pinnedThreads",
+		// 	type: "array",
+		// 	fields: [
+		// 		{
+		// 			name: "thread",
+		// 			type: "relationship",
+		// 			relationTo: "discussion-submissions",
+		// 			required: true,
+		// 		},
+		// 		{
+		// 			name: "pinnedAt",
+		// 			type: "date",
+		// 			required: true,
+		// 		},
+		// 		{
+		// 			name: "pinnedBy",
+		// 			type: "relationship",
+		// 			relationTo: "users",
+		// 			required: true,
+		// 		},
+		// 	],
+		// 	label: "Pinned Threads",
+		// },
 		{
 			name: "createdBy",
 			type: "relationship",

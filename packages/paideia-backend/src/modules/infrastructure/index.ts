@@ -1,5 +1,5 @@
 import { envVars, validateEnvVars } from "./services/env";
-import { Payload } from "payload";
+import { Collection, Payload } from "payload";
 import { testConnections } from "./services/health-check";
 import { dumpDatabase } from "./services/dump";
 import { sandboxReset } from "./tasks/sandbox-reset";

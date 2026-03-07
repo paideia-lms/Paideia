@@ -1,5 +1,5 @@
 import { AssignmentSubmissions } from "server/collections/assignment-submissions";
-import { GradebookCategories } from "server/modules/gradebook/collections/gradebook-categories";
+import { GradebookCategories } from "server/modules/grading/collections/gradebook-categories";
 import { UserGrades } from "server/modules/grading/collections/user-grades";
 import { Users } from "server/modules/user/collections/users";
 import { MOCK_INFINITY } from "server/utils/constants";
@@ -34,7 +34,7 @@ import {
 	stripDepth,
 } from "shared/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
-import { GradebookItems } from "../modules/gradebook/collections/gradebook-items";
+import { GradebookItems } from "../modules/grading/collections/gradebook-items";
 
 export interface CreateUserGradeArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;

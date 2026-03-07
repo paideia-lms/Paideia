@@ -3,7 +3,7 @@ import searchQueryParser from "search-query-parser";
 import { CourseCategories } from "../../../collections/course-categories";
 import { CourseSections } from "../collections/course-sections";
 import { Courses } from "../collections/courses";
-import { Gradebooks } from "../../gradebook/collections/gradebooks";
+import { Gradebooks } from "../../grading/collections/gradebooks";
 import { Groups } from "../../enrolment/collections/groups";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
@@ -220,17 +220,17 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 						thumbnail: !data.thumbnail
 							? data.thumbnail
 							: await tryCreateMedia({
-									payload,
-									file: await data.thumbnail.arrayBuffer().then(Buffer.from),
-									filename: data.thumbnail.name || "thumbnail",
-									mimeType: data.thumbnail.type || "image/png",
-									alt: "Course thumbnail",
-									userId,
-									req,
-									overrideAccess,
-								})
-									.getOrThrow()
-									.then((r) => r.media.id),
+								payload,
+								file: await data.thumbnail.arrayBuffer().then(Buffer.from),
+								filename: data.thumbnail.name || "thumbnail",
+								mimeType: data.thumbnail.type || "image/png",
+								alt: "Course thumbnail",
+								userId,
+								req,
+								overrideAccess,
+							})
+								.getOrThrow()
+								.then((r) => r.media.id),
 					},
 					req,
 					overrideAccess,

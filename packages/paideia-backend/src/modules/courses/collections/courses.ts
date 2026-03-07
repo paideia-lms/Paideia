@@ -229,12 +229,12 @@ export const Courses = {
 			label: "Groups",
 			maxDepth: 2,
 		},
-		{
-			name: "category",
-			type: "relationship",
-			relationTo: "course-categories",
-			label: "Category",
-		},
+		// {
+		// 	name: "category",
+		// 	type: "relationship",
+		// 	relationTo: "course-categories",
+		// 	label: "Category",
+		// },
 		{
 			name: "sections",
 			type: "join",

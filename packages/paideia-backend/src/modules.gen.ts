@@ -7,18 +7,18 @@
  */
 
 import type { PaideiaModuleConstructor } from "./shared/module-interface";
-import { AssignmentModule } from "./modules/assignment";
 import { UserModule } from "./modules/user";
 import { InfrastructureModule } from "./modules/infrastructure";
 import { NoteModule } from "./modules/note";
 import { DriveModule } from "./modules/drive";
 import { PagesModule } from "./modules/pages";
+import { GradingModule } from "./modules/grading";
 import { CoursesModule } from "./modules/courses";
-import { DiscussionModule } from "./modules/discussion";
-import { GradebookModule } from "./modules/grading";
 import { WhiteboardModule } from "./modules/whiteboard";
 import { QuizModule } from "./modules/quiz";
+import { AssignmentModule } from "./modules/assignment";
 import { FilesModule } from "./modules/files";
+import { DiscussionModule } from "./modules/discussion";
 import { EnrolmentModule } from "./modules/enrolment";
 
 /**
@@ -26,47 +26,47 @@ import { EnrolmentModule } from "./modules/enrolment";
  * Modules with no dependencies come first, followed by dependent modules.
  */
 export const allModules = [
-	AssignmentModule,
 	UserModule,
 	InfrastructureModule,
 	NoteModule,
 	DriveModule,
 	PagesModule,
+	GradingModule,
 	CoursesModule,
-	DiscussionModule,
-	GradebookModule,
 	WhiteboardModule,
 	QuizModule,
+	AssignmentModule,
 	FilesModule,
+	DiscussionModule,
 	EnrolmentModule,
-] as [typeof AssignmentModule,typeof UserModule,typeof InfrastructureModule,typeof NoteModule,typeof DriveModule,typeof PagesModule,typeof CoursesModule,typeof DiscussionModule,typeof GradebookModule,typeof WhiteboardModule,typeof QuizModule,typeof FilesModule,typeof EnrolmentModule] satisfies PaideiaModuleConstructor[];
+] as [typeof UserModule,typeof InfrastructureModule,typeof NoteModule,typeof DriveModule,typeof PagesModule,typeof GradingModule,typeof CoursesModule,typeof WhiteboardModule,typeof QuizModule,typeof AssignmentModule,typeof FilesModule,typeof DiscussionModule,typeof EnrolmentModule] satisfies PaideiaModuleConstructor[];
 
 /**
  * Module initialization order (for logging/debugging):
- * assignment → user → infrastructure → note → drive → pages → courses → discussion → gradebook → whiteboard → quiz → files → enrolment
+ * user → infrastructure → note → drive → pages → grading → courses → whiteboard → quiz → assignment → files → discussion → enrolment
  */
 
 /**
  * Type representing all valid module names
  */
-export type ModuleName = "assignment" | "user" | "infrastructure" | "note" | "drive" | "pages" | "courses" | "discussion" | "gradebook" | "whiteboard" | "quiz" | "files" | "enrolment";
+export type ModuleName = "user" | "infrastructure" | "note" | "drive" | "pages" | "grading" | "courses" | "whiteboard" | "quiz" | "assignment" | "files" | "discussion" | "enrolment";
 
 /**
  * Map of module names to module constructors
  */
 export interface ModuleMap {
-	assignment: typeof AssignmentModule;
 	user: typeof UserModule;
 	infrastructure: typeof InfrastructureModule;
 	note: typeof NoteModule;
 	drive: typeof DriveModule;
 	pages: typeof PagesModule;
+	grading: typeof GradingModule;
 	courses: typeof CoursesModule;
-	discussion: typeof DiscussionModule;
-	gradebook: typeof GradebookModule;
 	whiteboard: typeof WhiteboardModule;
 	quiz: typeof QuizModule;
+	assignment: typeof AssignmentModule;
 	files: typeof FilesModule;
+	discussion: typeof DiscussionModule;
 	enrolment: typeof EnrolmentModule;
 }
 
@@ -75,34 +75,34 @@ export interface ModuleMap {
  */
 export function getModuleByName<T extends ModuleName>(name: T): ModuleMap[T] {
 	const moduleMap: Record<string, PaideiaModuleConstructor> = {
-		"assignment": AssignmentModule,
 		"user": UserModule,
 		"infrastructure": InfrastructureModule,
 		"note": NoteModule,
 		"drive": DriveModule,
 		"pages": PagesModule,
+		"grading": GradingModule,
 		"courses": CoursesModule,
-		"discussion": DiscussionModule,
-		"gradebook": GradebookModule,
 		"whiteboard": WhiteboardModule,
 		"quiz": QuizModule,
+		"assignment": AssignmentModule,
 		"files": FilesModule,
+		"discussion": DiscussionModule,
 		"enrolment": EnrolmentModule,
 	};
 	return moduleMap[name] as ModuleMap[T];
 }
 
 // Re-export all modules for convenience
-export { AssignmentModule };
 export { UserModule };
 export { InfrastructureModule };
 export { NoteModule };
 export { DriveModule };
 export { PagesModule };
+export { GradingModule };
 export { CoursesModule };
-export { DiscussionModule };
-export { GradebookModule };
 export { WhiteboardModule };
 export { QuizModule };
+export { AssignmentModule };
 export { FilesModule };
+export { DiscussionModule };
 export { EnrolmentModule };
