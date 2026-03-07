@@ -1,10 +1,10 @@
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
-import { CourseCategories } from "../collections/course-categories";
+import { CourseCategories } from "../../../collections/course-categories";
 import { CourseSections } from "../collections/course-sections";
 import { Courses } from "../collections/courses";
-import { Gradebooks } from "../collections/gradebooks";
-import { Groups } from "../collections/groups";
+import { Gradebooks } from "../../gradebook/collections/gradebooks";
+import { Groups } from "../../enrolment/collections/groups";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
@@ -12,9 +12,9 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "../errors";
-import type { Course, Group } from "../payload-types";
-import { tryFindEnrollmentsByUser } from "./enrollment-management";
+} from "../../../errors";
+import type { Course, Group } from "../../../payload-types";
+import { tryFindEnrollmentsByUser } from "../../../internal/enrollment-management";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type Depth,
@@ -22,12 +22,11 @@ import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "shared/internal-function-utils";
-import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
-import { tryCreateMedia } from "../modules/user/services/media-management";
+import { tryCreateMedia } from "../../user/services/media-management";
 import type {
 	RecurringScheduleItem,
 	SpecificDateItem,
-} from "../utils/schedule-types";
+} from "../../../utils/schedule-types";
 
 export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -102,18 +101,7 @@ export function tryCreateCourse(args: CreateCourseArgs) {
 						collection: Courses.slug,
 						data: {
 							title,
-							...(await processRichTextMediaV2({
-								payload,
-								userId: createdBy,
-								req: txInfo.reqWithTransaction,
-								overrideAccess,
-								data: {
-									description,
-								},
-								fields: [
-									{ key: "description", alt: "Course description image" },
-								],
-							})),
+							description,
 							slug,
 							createdBy,
 							status,
@@ -243,20 +231,6 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 								})
 									.getOrThrow()
 									.then((r) => r.media.id),
-						...(data.description
-							? await processRichTextMediaV2({
-									payload,
-									userId,
-									req,
-									overrideAccess,
-									data: {
-										description: data.description,
-									},
-									fields: [
-										{ key: "description", alt: "Course description image" },
-									],
-								})
-							: {}),
 					},
 					req,
 					overrideAccess,

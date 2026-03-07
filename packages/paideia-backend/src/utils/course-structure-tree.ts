@@ -2,7 +2,7 @@ import type {
 	CourseStructure,
 	CourseStructureItem,
 	CourseStructureSection,
-} from "../internal/course-section-management";
+} from "../modules/courses/services/course-section-management";
 
 /**
  * Generates a plain text tree representation from a course structure

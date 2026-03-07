@@ -1,0 +1,1 @@
+enrolment module handle the user enrolment in courses

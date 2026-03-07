@@ -1,5 +1,5 @@
-import { GradebookItems } from "server/collections/gradebook-items";
-import { GradebookCategories } from "../collections/gradebook-categories";
+import { GradebookItems } from "server/modules/gradebook/collections/gradebook-items";
+import { GradebookCategories } from "../modules/gradebook/collections/gradebook-categories";
 import { Result } from "typescript-result";
 import {
 	GradebookCategoryNotFoundError,

@@ -1,5 +1,5 @@
 import { CourseCategories } from "../collections/course-categories";
-import { Courses } from "../collections/courses";
+import { Courses } from "../modules/courses/collections/courses";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -250,7 +250,7 @@ export function tryFindCategoryById(args: FindCategoryByIdArgs) {
 	);
 }
 
-export interface GetCategoryTreeArgs extends BaseInternalFunctionArgs {}
+export interface GetCategoryTreeArgs extends BaseInternalFunctionArgs { }
 
 /**
  * Gets all categories as a tree structure

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { healthCheck, ping } from "./routers/health";
+import { healthCheck, ping } from "../modules/infrastructure/api/health";
 import { createOpenApiGenerator } from "./openapi-handler";
 import { orpcRouter } from "./router";
 

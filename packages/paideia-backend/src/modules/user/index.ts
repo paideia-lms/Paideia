@@ -11,6 +11,26 @@ import { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
 import type { MediaSeedData as MediaSeedDataType } from "./seeding/media-seed-schema";
 import type { UserSeedData as UserSeedDataType } from "./seeding/user-seed-schema";
 import { Media } from "server/collections";
+import {
+    findUserById,
+    findUserByEmail,
+    findAllUsers,
+} from "./api/user-management";
+import {
+    getMediaById,
+    getMediaByFilenames,
+    getMediaByIds,
+    getAllMedia,
+    deleteMedia,
+    getMediaByMimeType,
+    findMediaByUser,
+    renameMedia,
+    getUserMediaStats,
+    getSystemMediaStats,
+    getOrphanedMedia,
+    getAllOrphanedFilenames,
+    findMediaUsages,
+} from "./api/media-management";
 
 export namespace UserModule {
     export type MediaSeedData = MediaSeedDataType;
@@ -37,6 +57,28 @@ export class UserModule {
     }
     public static readonly queues = []
     public static readonly tasks = []
+    public static readonly api = {
+        users: {
+            findById: findUserById,
+            findByEmail: findUserByEmail,
+            findAll: findAllUsers,
+        },
+        media: {
+            getById: getMediaById,
+            getByFilenames: getMediaByFilenames,
+            getByIds: getMediaByIds,
+            getAll: getAllMedia,
+            delete: deleteMedia,
+            getByMimeType: getMediaByMimeType,
+            findByUser: findMediaByUser,
+            rename: renameMedia,
+            getUserStats: getUserMediaStats,
+            getSystemStats: getSystemMediaStats,
+            getOrphaned: getOrphanedMedia,
+            getAllOrphanedFilenames: getAllOrphanedFilenames,
+            findUsages: findMediaUsages,
+        },
+    }
 
     constructor(payload: Payload) {
         this.payload = payload;

@@ -1,5 +1,5 @@
 import type { Where } from "payload";
-import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
+import { CourseActivityModuleLinks } from "server/modules/courses/collections/course-activity-module-links";
 import type {
 	LatestCourseAssignmentSettings,
 	LatestCourseModuleSettings,
@@ -16,17 +16,17 @@ import {
 	NonExistingActivityModuleError,
 	transformError,
 	UnknownError,
-} from "../errors";
+} from "../../../errors";
 import {
 	type ActivityModuleResult,
 	tryGetActivityModuleById,
-} from "./activity-module-management";
+} from "../../../internal/activity-module-management";
 import {
 	tryCreateGradebookItem,
 	tryDeleteGradebookItem,
 	tryGetNextItemSortOrder,
-} from "./gradebook-item-management";
-import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
+} from "../../../internal/gradebook-item-management";
+import { tryGetGradebookByCourseWithDetails } from "../../../internal/gradebook-management";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
-import sanitizedConfig from "../payload.config";
-import { tryCreateCategory } from "./course-category-management";
+import sanitizedConfig from "../../../payload.config";
+import { tryCreateCategory } from "../../../internal/course-category-management";
 import {
 	type CreateCourseArgs,
 	tryAddRecurringSchedule,
@@ -16,16 +16,16 @@ import {
 	trySearchCourses,
 	tryUpdateCourse,
 	type UpdateCourseArgs,
-} from "./course-management";
-import { tryCreateEnrollment } from "./enrollment-management";
-import { tryCreateMedia } from "../modules/user/services/media-management";
-import { tryCreateUser } from "../modules/user/services/user-management";
+} from "../services/course-management";
+import { tryCreateEnrollment } from "../../../internal/enrollment-management";
+import { tryCreateMedia } from "../../user/services/media-management";
+import { tryCreateUser } from "../../user/services/user-management";
 import type { TryResultValue } from "server/utils/types";
 import { createLocalReq } from "shared/internal-function-utils";
 import type {
 	RecurringScheduleItem,
 	SpecificDateItem,
-} from "../utils/schedule-types";
+} from "../../../utils/schedule-types";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -1627,9 +1627,9 @@ describe("Course Management Functions", () => {
 					req: {
 						user: noCoursesUser
 							? {
-									...noCoursesUser,
-									collection: "users",
-								}
+								...noCoursesUser,
+								collection: "users",
+							}
 							: null,
 					},
 					overrideAccess: false,

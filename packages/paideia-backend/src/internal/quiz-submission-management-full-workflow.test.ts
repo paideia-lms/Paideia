@@ -10,9 +10,9 @@ import {
 import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
-} from "./course-activity-module-link-management";
-import { tryCreateCourse } from "./course-management";
-import { tryCreateSection } from "./course-section-management";
+} from "../modules/courses/services/course-activity-module-link-management";
+import { tryCreateCourse } from "../modules/courses/services/course-management";
+import { tryCreateSection } from "../modules/courses/services/course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {

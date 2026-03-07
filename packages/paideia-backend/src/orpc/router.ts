@@ -1,4 +1,4 @@
-import { healthCheck, ping } from "./routers/health";
+import { healthCheck, ping } from "../modules/infrastructure/api/health";
 import { getSystemGlobals } from "./routers/system-globals";
 import { getLatestVersion } from "../modules/infrastructure/api/version-management";
 import {
@@ -10,7 +10,7 @@ import {
 	deleteCourse,
 	findCoursesByInstructor,
 	findAllCourses,
-} from "./routers/course-management";
+} from "../modules/courses/api/course-management";
 import {
 	findUserById,
 	findUserByEmail,
@@ -114,7 +114,7 @@ import {
 	getSectionTree,
 	getSectionAncestors,
 	getSectionDepth,
-} from "./routers/course-section-management";
+} from "../modules/courses/api/course-section-management";
 import {
 	createCourseActivityModuleLink,
 	findLinksByCourse,
@@ -124,7 +124,7 @@ import {
 	findCourseActivityModuleLinkById,
 	getCourseModuleSettings,
 	checkCourseActivityModuleLinkExists,
-} from "./routers/course-activity-module-link-management";
+} from "../modules/courses/api/course-activity-module-link-management";
 import {
 	createDiscussionSubmission,
 	updateDiscussionSubmission,

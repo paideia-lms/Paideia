@@ -1,4 +1,4 @@
-import { os } from "@orpc/server";
+import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
 import {
 	tryCreateCourse,
@@ -9,9 +9,8 @@ import {
 	tryDeleteCourse,
 	tryFindCoursesByInstructor,
 	tryFindAllCourses,
-} from "../../internal/course-management";
-import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+} from "../services/course-management";
+import type { OrpcContext } from "../../../orpc/context";
 
 const courseIdSchema = z.object({
 	courseId: z.coerce.number().int().min(1),
@@ -70,67 +69,170 @@ const findAllSchema = z.object({
 
 const outputSchema = z.any();
 
-const run = <T>(fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>, args: object) =>
-	handleResult(() => fn({ ...args, req: undefined, overrideAccess: true }));
-
 export const createCourse = os
 	.$context<OrpcContext>()
 	.route({ method: "POST", path: "/courses" })
 	.input(createCourseSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) => run(tryCreateCourse, { payload: context.payload, ...input }));
+	.handler(async ({ input, context }) => {
+		const result = await tryCreateCourse({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const updateCourse = os
 	.$context<OrpcContext>()
 	.route({ method: "PATCH", path: "/courses/{courseId}" })
 	.input(updateCourseSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) => run(tryUpdateCourse, { payload: context.payload, ...input }));
+	.handler(async ({ input, context }) => {
+		const result = await tryUpdateCourse({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		} as any);
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findCourseById = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/courses/{courseId}" })
 	.input(courseIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) => run(tryFindCourseById, { payload: context.payload, ...input }));
+	.handler(async ({ input, context }) => {
+		const result = await tryFindCourseById({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const searchCourses = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/courses/search" })
 	.input(searchFiltersSchema.optional())
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		run(trySearchCourses, { payload: context.payload, filters: input }),
-	);
+	.handler(async ({ input, context }) => {
+		const result = await trySearchCourses({
+			payload: context.payload,
+			filters: input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findPublishedCourses = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/courses/published" })
 	.input(publishedFiltersSchema.optional())
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		run(tryFindPublishedCourses, { payload: context.payload, ...input }),
-	);
+	.handler(async ({ input, context }) => {
+		const result = await tryFindPublishedCourses({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const deleteCourse = os
 	.$context<OrpcContext>()
 	.route({ method: "DELETE", path: "/courses/{courseId}" })
 	.input(courseIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) => run(tryDeleteCourse, { payload: context.payload, ...input }));
+	.handler(async ({ input, context }) => {
+		const result = await tryDeleteCourse({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findCoursesByInstructor = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/courses/by-instructor/{instructorId}" })
 	.input(instructorIdSchema)
 	.output(outputSchema)
-	.handler(async ({ input, context }) =>
-		run(tryFindCoursesByInstructor, { payload: context.payload, ...input }),
-	);
+	.handler(async ({ input, context }) => {
+		const result = await tryFindCoursesByInstructor({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});
 
 export const findAllCourses = os
 	.$context<OrpcContext>()
 	.route({ method: "GET", path: "/courses/all" })
 	.input(findAllSchema.optional())
 	.output(outputSchema)
-	.handler(async ({ input, context }) => run(tryFindAllCourses, { payload: context.payload, ...input }));
+	.handler(async ({ input, context }) => {
+		const result = await tryFindAllCourses({
+			payload: context.payload,
+			...input,
+			req: context.req,
+			overrideAccess: false,
+		});
+		if (!result.ok) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: result.error.message,
+				cause: result.error,
+			});
+		}
+		return result.value;
+	});

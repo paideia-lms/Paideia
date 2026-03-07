@@ -1,5 +1,8 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { richTextContent } from "server/collections/utils/rich-text-content";
+import {
+	createRichTextBeforeChangeHook,
+	richTextContentWithHook,
+} from "server/collections/utils/rich-text-content";
 
 /**
  * notes are like journals and tweets
@@ -66,6 +69,11 @@ export const Notes = {
 			};
 		},
 	},
+	hooks: {
+		beforeChange: [
+
+		],
+	},
 	fields: [
 		{
 			name: "createdBy",
@@ -77,12 +85,12 @@ export const Notes = {
 				update: () => false,
 			},
 		},
-		...richTextContent({
+		...richTextContentWithHook({
 			name: "content",
 			type: "textarea",
 			label: "Content",
 			required: true,
-		}),
+		}, "Note content image").fields,
 		{
 			name: "isPublic",
 			type: "checkbox",

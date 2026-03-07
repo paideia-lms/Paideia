@@ -29,7 +29,7 @@ import {
 	stripDepth,
 } from "shared/internal-function-utils";
 import { assertTimeLimit } from "server/utils/db/assertQuizTimeLimit";
-import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
+import { tryFindCourseActivityModuleLinkById } from "../modules/courses/services/course-activity-module-link-management";
 import { debugLog } from "../utils/debug";
 
 /**
@@ -1702,11 +1702,11 @@ type CalculateQuizGradeArgs = BaseInternalFunctionArgs & {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string | null;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -2615,10 +2615,10 @@ export function tryGetQuizStatisticsReport(args: GetQuizStatisticsReportArgs) {
 				// Build response distribution for multiple choice
 				let responseDistribution:
 					| Array<{
-							option: string;
-							count: number;
-							percentage: number;
-					  }>
+						option: string;
+						count: number;
+						percentage: number;
+					}>
 					| undefined;
 
 				if (

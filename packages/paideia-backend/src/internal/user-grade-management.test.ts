@@ -12,9 +12,9 @@ import {
 	tryCreateAssignmentSubmission,
 	tryGradeAssignmentSubmission,
 } from "./assignment-submission-management";
-import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
-import { tryCreateCourse } from "./course-management";
-import { tryCreateSection } from "./course-section-management";
+import { tryCreateCourseActivityModuleLink } from "../modules/courses/services/course-activity-module-link-management";
+import { tryCreateCourse } from "../modules/courses/services/course-management";
+import { tryCreateSection } from "../modules/courses/services/course-section-management";
 import {
 	type CreateDiscussionSubmissionArgs,
 	type GradeDiscussionSubmissionArgs,
@@ -1072,8 +1072,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-						userGrade.submission !== null &&
-						"value" in userGrade.submission
+					userGrade.submission !== null &&
+					"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id

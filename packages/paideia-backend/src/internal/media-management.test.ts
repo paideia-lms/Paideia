@@ -1,3 +1,6 @@
+/** 
+ * this file might be deprecatd, we keep it because the comments are useful for integration tests.
+ */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
 	DeleteObjectCommand,

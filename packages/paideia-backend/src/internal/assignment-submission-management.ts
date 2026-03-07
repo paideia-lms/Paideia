@@ -8,7 +8,7 @@ import {
 	UnknownError,
 } from "../errors";
 import { DEFAULT_ALLOWED_FILE_TYPES } from "../utils/file-types";
-import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
+import { tryFindCourseActivityModuleLinkById } from "../modules/courses/services/course-activity-module-link-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
@@ -192,10 +192,10 @@ export function tryCreateAssignmentSubmission(
 				const assignmentForValidation =
 					activityModule.type === "assignment"
 						? {
-								allowedFileTypes: activityModule.allowedFileTypes ?? null,
-								maxFileSize: activityModule.maxFileSize ?? null,
-								maxFiles: activityModule.maxFiles ?? null,
-							}
+							allowedFileTypes: activityModule.allowedFileTypes ?? null,
+							maxFileSize: activityModule.maxFileSize ?? null,
+							maxFiles: activityModule.maxFiles ?? null,
+						}
 						: null;
 
 				// Validate file attachments if provided
@@ -225,25 +225,25 @@ export function tryCreateAssignmentSubmission(
 							content,
 							attachments: attachments
 								? await Promise.all(
-										attachments.map(async (attachment) =>
-											tryCreateMedia({
-												payload,
-												file: Buffer.from(await attachment.arrayBuffer()),
-												filename: attachment.name,
-												mimeType: attachment.type,
-												alt: attachment.name,
-												caption: attachment.name,
-												userId: studentId,
-												req: reqWithTransaction,
-												overrideAccess,
-											})
-												.getOrThrow()
-												.then((result) => ({
-													file: result.media.id,
-													description: attachment.name,
-												})),
-										),
-									)
+									attachments.map(async (attachment) =>
+										tryCreateMedia({
+											payload,
+											file: Buffer.from(await attachment.arrayBuffer()),
+											filename: attachment.name,
+											mimeType: attachment.type,
+											alt: attachment.name,
+											caption: attachment.name,
+											userId: studentId,
+											req: reqWithTransaction,
+											overrideAccess,
+										})
+											.getOrThrow()
+											.then((result) => ({
+												file: result.media.id,
+												description: attachment.name,
+											})),
+									),
+								)
 								: [],
 							isLate,
 							timeSpent,

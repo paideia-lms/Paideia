@@ -7,12 +7,12 @@ import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
-} from "../errors";
+} from "../../../errors";
 import type {
 	CourseActivityModuleLink,
 	CourseSection,
 	ActivityModule as PayloadActivityModule,
-} from "../payload-types";
+} from "../../../payload-types";
 import { handleTransactionId } from "shared/handle-transaction-id";
 import {
 	stripDepth,
@@ -2075,45 +2075,45 @@ export function tryGeneralMove(args: GeneralMoveArgs) {
 				const sourceItem =
 					source.type === "section"
 						? await payload
-								.findByID({
-									collection: CourseSections.slug,
-									id: source.id,
-									depth: 1,
-									req: txInfo.reqWithTransaction,
-									overrideAccess: true,
-								})
-								.then(stripDepth<1, "findByID">())
+							.findByID({
+								collection: CourseSections.slug,
+								id: source.id,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then(stripDepth<1, "findByID">())
 						: await payload
-								.findByID({
-									collection: CourseActivityModuleLinks.slug,
-									id: source.id,
-									depth: 1,
-									req: txInfo.reqWithTransaction,
-									overrideAccess: true,
-								})
-								.then(stripDepth<1, "findByID">());
+							.findByID({
+								collection: CourseActivityModuleLinks.slug,
+								id: source.id,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then(stripDepth<1, "findByID">());
 
 				// Get target item (skip for root moves)
 				const targetItem =
 					target.type === "section"
 						? await payload
-								.findByID({
-									collection: CourseSections.slug,
-									id: target.id,
-									depth: 1,
-									req: txInfo.reqWithTransaction,
-									overrideAccess: true,
-								})
-								.then(stripDepth<1, "findByID">())
+							.findByID({
+								collection: CourseSections.slug,
+								id: target.id,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then(stripDepth<1, "findByID">())
 						: await payload
-								.findByID({
-									collection: CourseActivityModuleLinks.slug,
-									id: target.id,
-									depth: 1,
-									req: txInfo.reqWithTransaction,
-									overrideAccess: true,
-								})
-								.then(stripDepth<1, "findByID">());
+							.findByID({
+								collection: CourseActivityModuleLinks.slug,
+								id: target.id,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then(stripDepth<1, "findByID">());
 				// Determine course ID
 				const sourceCourseId = sourceItem.course.id;
 
@@ -2243,17 +2243,17 @@ export function tryGeneralMove(args: GeneralMoveArgs) {
 				const finalResult =
 					source.type === "section"
 						? await payload.findByID({
-								collection: CourseSections.slug,
-								id: source.id,
-								req: txInfo.reqWithTransaction,
-								overrideAccess: true,
-							})
+							collection: CourseSections.slug,
+							id: source.id,
+							req: txInfo.reqWithTransaction,
+							overrideAccess: true,
+						})
 						: await payload.findByID({
-								collection: CourseActivityModuleLinks.slug,
-								id: source.id,
-								req: txInfo.reqWithTransaction,
-								overrideAccess: true,
-							});
+							collection: CourseActivityModuleLinks.slug,
+							id: source.id,
+							req: txInfo.reqWithTransaction,
+							overrideAccess: true,
+						});
 
 				return finalResult;
 			});
@@ -2329,18 +2329,18 @@ export function tryGetPreviousNextModule(args: GetPreviousNextModuleArgs) {
 
 			const previousModule = _previousModule
 				? {
-						id: _previousModule.moduleLinkId,
-						title: _previousModule.title,
-						type: _previousModule.type,
-					}
+					id: _previousModule.moduleLinkId,
+					title: _previousModule.title,
+					type: _previousModule.type,
+				}
 				: null;
 
 			const nextModule = _nextModule
 				? {
-						id: _nextModule.moduleLinkId,
-						title: _nextModule.title,
-						type: _nextModule.type,
-					}
+					id: _nextModule.moduleLinkId,
+					title: _nextModule.title,
+					type: _nextModule.type,
+				}
 				: null;
 
 			return {

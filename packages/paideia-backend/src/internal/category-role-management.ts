@@ -1,6 +1,6 @@
 import { CategoryRoleAssignments } from "../collections/category-role-assignments";
 import { CourseCategories } from "../collections/course-categories";
-import { Courses } from "../collections/courses";
+import { Courses } from "../modules/courses/collections/courses";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -150,52 +150,52 @@ export function tryAssignCategoryRole(args: AssignCategoryRoleArgs) {
 				const assignment =
 					existing.docs.length > 0
 						? await payload
-								.update({
-									collection: CategoryRoleAssignments.slug,
-									id: existing.docs[0]!.id,
-									data: {
-										role,
-										assignedBy,
-										assignedAt: new Date().toISOString(),
-										notes,
-									},
-									overrideAccess,
-									depth: 1,
-									req: txInfo.reqWithTransaction,
-								})
-								.then(stripDepth<1, "update">())
-								.catch((error) => {
-									interceptPayloadError({
-										error,
-										functionNamePrefix: "tryAssignCategoryRole",
-										args: { payload, req, overrideAccess },
-									});
-									throw error;
-								})
-						: await payload
-								.create({
-									collection: CategoryRoleAssignments.slug,
-									data: {
-										user: userId,
-										category: categoryId,
-										role,
-										assignedBy,
-										assignedAt: new Date().toISOString(),
-										notes,
-									},
-									overrideAccess,
-									depth: 1,
-									req: txInfo.reqWithTransaction,
-								})
-								.then(stripDepth<1, "create">())
-								.catch((error) => {
-									interceptPayloadError({
-										error,
-										functionNamePrefix: "tryAssignCategoryRole",
-										args: { payload, req, overrideAccess },
-									});
-									throw error;
+							.update({
+								collection: CategoryRoleAssignments.slug,
+								id: existing.docs[0]!.id,
+								data: {
+									role,
+									assignedBy,
+									assignedAt: new Date().toISOString(),
+									notes,
+								},
+								overrideAccess,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+							})
+							.then(stripDepth<1, "update">())
+							.catch((error) => {
+								interceptPayloadError({
+									error,
+									functionNamePrefix: "tryAssignCategoryRole",
+									args: { payload, req, overrideAccess },
 								});
+								throw error;
+							})
+						: await payload
+							.create({
+								collection: CategoryRoleAssignments.slug,
+								data: {
+									user: userId,
+									category: categoryId,
+									role,
+									assignedBy,
+									assignedAt: new Date().toISOString(),
+									notes,
+								},
+								overrideAccess,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+							})
+							.then(stripDepth<1, "create">())
+							.catch((error) => {
+								interceptPayloadError({
+									error,
+									functionNamePrefix: "tryAssignCategoryRole",
+									args: { payload, req, overrideAccess },
+								});
+								throw error;
+							});
 
 				return assignment;
 			});

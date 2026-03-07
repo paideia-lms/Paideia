@@ -1,14 +1,18 @@
 import type { CollectionConfig } from "payload";
-import { richTextContent } from "./utils/rich-text-content";
+import {
+
+	richTextContentWithHook,
+} from "../../../collections/utils/rich-text-content";
 
 // Pages collection - for page-type activity modules
 export const Pages = {
 	slug: "pages",
-	access: {
-		read: () => true,
-		create: () => true,
-		update: () => true,
-		delete: () => true,
+	hooks: {
+		beforeChange: [
+			// createRichTextBeforeChangeHook({
+			// 	fields: [{ key: "content", alt: "Page content image" }],
+			// }),
+		],
 	},
 	fields: [
 		{
@@ -18,11 +22,11 @@ export const Pages = {
 			required: true,
 			label: "Created By",
 		},
-		...richTextContent({
+		...richTextContentWithHook({
 			name: "content",
 			type: "textarea",
 			label: "Page Content (HTML)",
-		}),
+		}, "Page content image").fields,
 	],
 	indexes: [
 		{

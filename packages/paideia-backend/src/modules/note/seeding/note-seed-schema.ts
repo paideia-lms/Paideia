@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const noteSeedInputSchema = z.object({
 	content: z.string().min(1),
-	userEmail: z.string().email(),
+	userEmail: z.email(),
 	isPublic: z.boolean().optional().default(false),
 });
 

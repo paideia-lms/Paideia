@@ -1,4 +1,4 @@
-import { GradebookItems } from "server/collections/gradebook-items";
+import { GradebookItems } from "server/modules/gradebook/collections/gradebook-items";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {

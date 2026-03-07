@@ -1,0 +1,1 @@
+page module add a page resource to paideia

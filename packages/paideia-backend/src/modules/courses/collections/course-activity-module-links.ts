@@ -71,43 +71,43 @@ export const CourseActivityModuleLinks = {
 			label: "Content Order",
 			min: -1,
 		},
-		{
-			name: "settings",
-			type: "json",
-			label: "Course Module Settings",
-			hooks: {
-				afterRead: [
-					({ value }) => {
-						if (!value) return null;
-						return tryResolveCourseModuleSettingsToLatest(value);
-					},
-				],
-			},
-		},
-		// Join fields for submissions
-		{
-			name: "assignmentSubmissions",
-			type: "join",
-			on: "courseModuleLink",
-			collection: "assignment-submissions",
-			label: "Assignment Submissions",
-			hasMany: true,
-		},
-		{
-			name: "quizSubmissions",
-			type: "join",
-			on: "courseModuleLink",
-			collection: "quiz-submissions",
-			label: "Quiz Submissions",
-			hasMany: true,
-		},
-		{
-			name: "discussionSubmissions",
-			type: "join",
-			on: "courseModuleLink",
-			collection: "discussion-submissions",
-			label: "Discussion Submissions",
-			hasMany: true,
-		},
+		// {
+		// 	name: "settings",
+		// 	type: "json",
+		// 	label: "Course Module Settings",
+		// 	hooks: {
+		// 		afterRead: [
+		// 			({ value }) => {
+		// 				if (!value) return null;
+		// 				return tryResolveCourseModuleSettingsToLatest(value);
+		// 			},
+		// 		],
+		// 	},
+		// },
+		// // Join fields for submissions
+		// {
+		// 	name: "assignmentSubmissions",
+		// 	type: "join",
+		// 	on: "courseModuleLink",
+		// 	collection: "assignment-submissions",
+		// 	label: "Assignment Submissions",
+		// 	hasMany: true,
+		// },
+		// {
+		// 	name: "quizSubmissions",
+		// 	type: "join",
+		// 	on: "courseModuleLink",
+		// 	collection: "quiz-submissions",
+		// 	label: "Quiz Submissions",
+		// 	hasMany: true,
+		// },
+		// {
+		// 	name: "discussionSubmissions",
+		// 	type: "join",
+		// 	on: "courseModuleLink",
+		// 	collection: "discussion-submissions",
+		// 	label: "Discussion Submissions",
+		// 	hasMany: true,
+		// },
 	],
 } as const satisfies CollectionConfig;

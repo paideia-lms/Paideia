@@ -1,5 +1,5 @@
 import { AssignmentSubmissions } from "server/collections/assignment-submissions";
-import { GradebookCategories } from "server/collections/gradebook-categories";
+import { GradebookCategories } from "server/modules/gradebook/collections/gradebook-categories";
 import { UserGrades } from "server/collections/user-grades";
 import { Users } from "server/modules/user/collections/users";
 import { MOCK_INFINITY } from "server/utils/constants";
@@ -34,7 +34,7 @@ import {
 	stripDepth,
 } from "shared/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
-import { GradebookItems } from "../collections/gradebook-items";
+import { GradebookItems } from "../modules/gradebook/collections/gradebook-items";
 
 export interface CreateUserGradeArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
@@ -66,12 +66,12 @@ export interface UpdateUserGradeArgs extends BaseInternalFunctionArgs {
 export interface AddAdjustmentArgs extends BaseInternalFunctionArgs {
 	gradeId: number;
 	type:
-		| "bonus"
-		| "penalty"
-		| "late_deduction"
-		| "participation"
-		| "curve"
-		| "other";
+	| "bonus"
+	| "penalty"
+	| "late_deduction"
+	| "participation"
+	| "curve"
+	| "other";
 	points: number;
 	reason: string;
 	appliedBy: number;
@@ -110,12 +110,12 @@ export interface UserGradeItem {
 	item_id: number;
 	item_name: string;
 	item_type:
-		| "manual_item"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	category_id?: number | null;
 	category_name?: string | null;
 	weight: number;
@@ -276,14 +276,14 @@ export function tryCreateUserGrade(args: CreateUserGradeArgs) {
 							baseGradeSource,
 							submission: submission
 								? {
-										relationTo:
-											submissionType === "assignment"
-												? "assignment-submissions"
-												: submissionType === "quiz"
-													? "quiz-submissions"
-													: "discussion-submissions",
-										value: submission,
-									}
+									relationTo:
+										submissionType === "assignment"
+											? "assignment-submissions"
+											: submissionType === "quiz"
+												? "quiz-submissions"
+												: "discussion-submissions",
+									value: submission,
+								}
 								: undefined,
 							submissionType,
 							feedback,
@@ -623,8 +623,8 @@ export function tryFindUserGradesBySubmissionIds(
 						gradesBySubmissionId.set(submissionId, {
 							baseGrade:
 								grade.isOverridden &&
-								grade.overrideGrade !== null &&
-								grade.overrideGrade !== undefined
+									grade.overrideGrade !== null &&
+									grade.overrideGrade !== undefined
 									? grade.overrideGrade
 									: (grade.baseGrade ?? null),
 							maxGrade: grade.maxGrade ?? null,
@@ -850,11 +850,11 @@ export function tryCalculateUserFinalGrade(args: CalculateUserFinalGradeArgs) {
 				const gradebookItem =
 					typeof grade.gradebookItem === "number"
 						? await payload.findByID({
-								collection: "gradebook-items",
-								id: grade.gradebookItem,
-								req,
-								overrideAccess,
-							})
+							collection: "gradebook-items",
+							id: grade.gradebookItem,
+							req,
+							overrideAccess,
+						})
 						: grade.gradebookItem;
 
 				if (!gradebookItem) {
@@ -1120,8 +1120,8 @@ export interface BuildUserGradeRepresentationArgs
 	gradebookId: number;
 	gradebookItems: Array<Depth<GradebookItem, 1>>;
 	gradesByEnrollment:
-		| Map<number, Depth<UserGrade, 2>[]>
-		| Map<number, Depth<UserGrade, 1>[]>;
+	| Map<number, Depth<UserGrade, 2>[]>
+	| Map<number, Depth<UserGrade, 1>[]>;
 }
 
 /**
@@ -1145,13 +1145,13 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 		const user =
 			typeof enrollment.userId === "number"
 				? await payload
-						.findByID({
-							collection: Users.slug,
-							id: enrollment.userId,
-							req,
-							overrideAccess,
-						})
-						.then(stripDepth<1, "findByID">())
+					.findByID({
+						collection: Users.slug,
+						id: enrollment.userId,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">())
 				: enrollment.userId;
 
 		if (!user) {
@@ -1188,13 +1188,13 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 			const category =
 				typeof item.category === "number"
 					? await payload
-							.findByID({
-								collection: GradebookCategories.slug,
-								id: item.category,
-								req,
-								overrideAccess,
-							})
-							.then(stripDepth<1, "findByID">())
+						.findByID({
+							collection: GradebookCategories.slug,
+							id: item.category,
+							req,
+							overrideAccess,
+						})
+						.then(stripDepth<1, "findByID">())
 					: item.category;
 
 			// Calculate effective weight, effective weight cannot be null
@@ -1208,21 +1208,21 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 				: item.activityModuleType;
 			const validItemType =
 				itemType &&
-				[
-					"manual_item",
-					"page",
-					"whiteboard",
-					"assignment",
-					"quiz",
-					"discussion",
-				].includes(itemType)
+					[
+						"manual_item",
+						"page",
+						"whiteboard",
+						"assignment",
+						"quiz",
+						"discussion",
+					].includes(itemType)
 					? (itemType as
-							| "manual_item"
-							| "page"
-							| "whiteboard"
-							| "assignment"
-							| "quiz"
-							| "discussion")
+						| "manual_item"
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion")
 					: "manual_item";
 
 			items.push({
@@ -1838,8 +1838,8 @@ export function tryGetAdjustedSingleUserGrades(
 						: "-";
 				const overrideGradeStr =
 					item.is_overridden &&
-					item.override_grade !== null &&
-					item.override_grade !== undefined
+						item.override_grade !== null &&
+						item.override_grade !== undefined
 						? formatNumberForMarkdown(item.override_grade)
 						: "-";
 				const statusStr =
@@ -1862,11 +1862,10 @@ export function tryGetAdjustedSingleUserGrades(
 			|--------|-------|
 			| Total Grade | ${totalGrade > 0 ? formatNumberForMarkdown(totalGrade) : "-"} |
 			| Total Max Grade | ${formatNumberForMarkdown(totalMaxGrade)} |
-			| Final Grade | ${
-				enrollment.final_grade !== null && enrollment.final_grade !== undefined
+			| Final Grade | ${enrollment.final_grade !== null && enrollment.final_grade !== undefined
 					? formatNumberForMarkdown(enrollment.final_grade)
 					: "-"
-			} |
+				} |
 			| Total Weight | ${formatPercentageForMarkdown(enrollment.total_weight)} |
 			| Graded Items | ${enrollment.graded_items} / ${enrollment.items.length} |`;
 

@@ -1,5 +1,5 @@
-import { GradebookCategories } from "../collections/gradebook-categories";
-import { Gradebooks } from "../collections/gradebooks";
+import { GradebookCategories } from "../modules/gradebook/collections/gradebook-categories";
+import { Gradebooks } from "../modules/gradebook/collections/gradebooks";
 import { MOCK_INFINITY } from "server/utils/constants";
 import { Result } from "typescript-result";
 import {
@@ -45,13 +45,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-		| "manual_item"
-		| "category"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "category"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;

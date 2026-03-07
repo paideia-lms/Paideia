@@ -2,40 +2,52 @@ import { Notes } from "./collections/notes";
 
 import { Payload } from "payload";
 import {
-	CreateNoteArgs,
-	tryCreateNote,
-	tryUpdateNote,
-	UpdateNoteArgs,
-	FindNoteByIdArgs,
-	tryFindNoteById,
-	trySearchNotes,
-	SearchNotesArgs,
-	tryDeleteNote,
-	DeleteNoteArgs,
-	tryFindNotesByUser,
-	FindNotesByUserArgs,
+    CreateNoteArgs,
+    tryCreateNote,
+    tryUpdateNote,
+    UpdateNoteArgs,
+    FindNoteByIdArgs,
+    tryFindNoteById,
+    trySearchNotes,
+    SearchNotesArgs,
+    tryDeleteNote,
+    DeleteNoteArgs,
+    tryFindNotesByUser,
+    FindNotesByUserArgs,
 } from "./services/note-management";
 import { UserModule } from "modules/user";
 import {
-	trySeedNotes,
-	TrySeedNotesArgs,
+    trySeedNotes,
+    TrySeedNotesArgs,
 } from "./seeding/notes-builder";
 import { predefinedNoteSeedData } from "./seeding/predefined-note-seed-data";
 import type { NoteSeedData as NoteSeedDataType } from "./seeding/note-seed-schema";
+import { createNote, updateNote, findNoteById, searchNotes, deleteNote, findNotesByUser } from "./api/note-management";
 
 export namespace NoteModule {
-	export type NoteSeedData = NoteSeedDataType;
+    export type NoteSeedData = NoteSeedDataType;
 }
 
 export class NoteModule {
-	private readonly payload: Payload;
-	public static readonly deps = [UserModule] as const;
-	public static readonly collections = [Notes];
-	public static readonly cli = {};
-	public static readonly search = [];
-	public static readonly seedData = predefinedNoteSeedData;
+    private readonly payload: Payload;
+    public static readonly deps = [
+        // every note must have a user, so note depends on user module.
+        UserModule
+    ] as const;
+    public static readonly collections = [Notes];
+    public static readonly cli = {};
+    public static readonly search = [];
+    public static readonly seedData = predefinedNoteSeedData;
     public static readonly queues = []
     public static readonly tasks = []
+    public static readonly api = {
+        createNote,
+        updateNote,
+        findNoteById,
+        searchNotes,
+        deleteNote,
+        findNotesByUser,
+    }
 
     constructor(payload: Payload) {
         this.payload = payload;

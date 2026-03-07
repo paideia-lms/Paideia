@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
-import sanitizedConfig from "../payload.config";
+import sanitizedConfig from "payload.config";
 import {
 	type CreateAssignmentModuleArgs,
 	type CreateDiscussionModuleArgs,
@@ -14,7 +14,7 @@ import {
 	tryCreatePageModule,
 	tryCreateQuizModule,
 	tryCreateWhiteboardModule,
-} from "./activity-module-management";
+} from "../../../internal/activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCheckCourseActivityModuleLinkExists,
@@ -28,13 +28,16 @@ import {
 	tryUpdateAssignmentModuleSettings,
 	tryUpdateDiscussionModuleSettings,
 	tryUpdateQuizModuleSettings,
-} from "./course-activity-module-link-management";
-import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
-import { tryCreateSection } from "./course-section-management";
-import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
+} from "../services/course-activity-module-link-management";
+import { type CreateCourseArgs, tryCreateCourse } from "../services/course-management";
+import { tryCreateSection } from "../services/course-section-management";
+import { type CreateUserArgs, tryCreateUser } from "../../user/services/user-management";
 
-describe("Course Activity Module Link Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Course Activity Module Link Management Functions", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let testUser: { id: number };
 	let testCourse: { id: number };
@@ -44,14 +47,15 @@ describe("Course Activity Module Link Management Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			// await $`bun run migrate:fresh --force-accept-warning`;
+			await payload.db.migrateFresh({
+				forceAcceptWarning: true,
+			})
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -135,7 +139,10 @@ describe("Course Activity Module Link Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await payload.db.migrateFresh({
+				forceAcceptWarning: true,
+			})
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

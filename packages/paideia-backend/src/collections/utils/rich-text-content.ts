@@ -9,17 +9,310 @@ import {
 import { replaceBase64MediaWithMediaUrlsV2 } from "server/utils/replace-base64-images";
 import type { Simplify } from "type-fest";
 
-export function richTextContent<T extends TextareaField>(o: T) {
-	return [
-		o satisfies T,
-		{
-			name: `${o.name}Media`,
-			type: "relationship",
-			relationTo: "media",
-			hasMany: true,
-			label: `${o.label} Media`,
-		},
-	] as const;
+// function richTextContent<T extends TextareaField>(o: T) {
+// 	return [
+// 		o satisfies T,
+// 		{
+// 			name: `${o.name}Media`,
+// 			type: "relationship",
+// 			relationTo: "media",
+// 			hasMany: true,
+// 			label: `${o.label} Media`,
+// 		},
+// 	] as const;
+// }
+
+/**
+ * Creates a rich text field configuration WITH automatic beforeChange hook.
+ *
+ * This is a convenience function that combines:
+ * - The textarea field (with hook defined ON THE FIELD)
+ * - The media relationship field
+ *
+ * @param o - The textarea field configuration (name, type, label, etc.)
+ * @param alt - Alt text to use for images found in this field's content
+ *
+ * @example
+ * ```typescript
+ * // In a collection config:
+ * fields: [
+ *   ...richTextContentWithHook({
+ *     name: "content",
+ *     type: "textarea",
+ *     label: "Content",
+ *   }, "Note content image")
+ * ]
+ * ```
+ *
+ * =============================================================================
+ * COLLECTION HOOK vs FIELD HOOK - Choosing the Right Approach
+ * =============================================================================
+ *
+ * There are THREE ways to use this functionality:
+ *
+ * ---- METHOD 1: Collection Hook (recommended for most cases) ----
+ * Use: richTextContent() + collection-level hooks
+ *
+ * Pros:
+ * + Single hook processes ALL rich text fields in the collection
+ * + Easier to maintain - one place to update logic
+ * + Better performance - one hook call per operation
+ * + Works automatically with any create/update operation
+ *
+ * Cons:
+ * - All fields use the same hook configuration
+ * - Less granular control per field
+ *
+ * Example:
+ * ```typescript
+ * // In collection config:
+ * hooks: {
+ *   beforeChange: [
+ *     createRichTextBeforeChangeHook({
+ *       fields: [
+ *         { key: 'description', alt: 'Course description image' },
+ *         { key: 'summary', alt: 'Course summary image' }
+ *       ]
+ *     })
+ *   ]
+ * },
+ * fields: [
+ *   ...richTextContent({ name: 'description', type: 'textarea' }),
+ *   ...richTextContent({ name: 'summary', type: 'textarea' }),
+ * ]
+ * ```
+ *
+ * ---- METHOD 2: Field Hook (richTextContentWithHook) ----
+ * Use: richTextContentWithHook() - returns fields with hook DEFINED ON EACH FIELD
+ *
+ * This creates a field that has the beforeChange hook directly on the field itself,
+ * similar to Payload's field-level hooks:
+ * ```typescript
+ * {
+ *   name: 'title',
+ *   type: 'text',
+ *   hooks: {
+ *     beforeChange: [{ value, siblingData, operation } => { ... }]
+ *   }
+ * }
+ * ```
+ *
+ * Pros:
+ * + Self-contained - field and hook defined together
+ * + Clear ownership - each field manages its own media processing
+ * + Easy to copy/paste between collections
+ * + Type-safe - field name is tied to the hook configuration
+ * + Hook only runs when THIS SPECIFIC FIELD changes
+ *
+ * Cons:
+ * - Multiple hooks (one per field) - slight performance overhead
+ * - More verbose if you have many rich text fields
+ * - Harder to update logic across all fields at once
+ *
+ * Example:
+ * ```typescript
+ * // In collection config - note: NO collection-level hooks needed:
+ * fields: [
+ *   ...richTextContentWithHook({
+ *     name: "content",
+ *     type: "textarea",
+ *     label: "Content",
+ *   }, "Note content image")
+ * ]
+ * ```
+ *
+ * The hook is embedded directly in the field configuration:
+ * ```typescript
+ * {
+ *   name: "content",
+ *   type: "textarea",
+ *   hooks: {
+ *     beforeChange: [{ data, req, siblingData, value, operation } => { ... }]
+ *   }
+ * }
+ * ```
+ *
+ * ---- RECOMMENDATION ----
+ * - Use Method 1 (collection hook) when:
+ *   * You have multiple rich text fields
+ *   * You want centralized logic
+ *   * Performance is critical
+ *
+ * - Use Method 2 (field hook) when:
+ *   * You have a single rich text field
+ *   * You want self-contained field definitions
+ *   * You copy/paste field configs between projects
+ *   * You want hook to only run when THIS specific field changes
+ *
+ * =============================================================================
+ */
+export function richTextContentWithHook<T extends TextareaField>(
+	o: T,
+	alt: string,
+) {
+	const fieldName = o.name;
+
+	return {
+		fields: [
+			{
+				...o,
+				hooks: {
+					beforeChange: [
+						async ({
+							data,
+							req,
+							siblingData,
+							value,
+							operation,
+							originalDoc,
+						}: any) => {
+							if (!data) {
+								return value;
+							}
+
+							const result = await createRichTextHookHandler({
+								data,
+								req,
+								operation,
+								originalDoc,
+								fields: [{ key: fieldName, alt }],
+							});
+
+							if (result !== data) {
+								data[fieldName] = result[fieldName];
+								const mediaFieldName = `${fieldName}Media`;
+								siblingData[mediaFieldName] = result[mediaFieldName];
+							}
+
+							return value;
+						},
+					],
+				},
+			},
+			{
+				name: `${o.name}Media`,
+				type: "relationship",
+				relationTo: "media",
+				hasMany: true,
+				label: `${o.label} Media`,
+			} as const,
+		],
+	};
+}
+
+export interface RichTextFieldConfig {
+	key: string;
+	alt: string;
+}
+
+export interface RichTextHookConfig {
+	fields: RichTextFieldConfig[];
+}
+
+interface UserIdAndPayload {
+	userId: number;
+	payload: Payload;
+}
+
+export function extractUserIdAndPayload(args: {
+	data: any;
+	req?: any;
+	operation?: string;
+	originalDoc?: any;
+}): UserIdAndPayload | undefined {
+	const { data, req, operation, originalDoc } = args;
+
+	if (req?.user?.id && req?.payload) {
+		return { userId: req.user.id, payload: req.payload };
+	}
+
+	if (data.createdBy && typeof data.createdBy === "number" && req?.payload) {
+		return { userId: data.createdBy, payload: req.payload };
+	}
+
+	if (
+		operation === "update" &&
+		originalDoc?.createdBy &&
+		typeof originalDoc.createdBy === "number" &&
+		req?.payload
+	) {
+		return { userId: originalDoc.createdBy, payload: req.payload };
+	}
+
+	return undefined;
+}
+
+export interface RichTextHookHandlerArgs {
+	data: any;
+	req?: any;
+	operation?: string;
+	originalDoc?: any;
+	fields: RichTextFieldConfig[];
+}
+
+export async function createRichTextHookHandler(
+	args: RichTextHookHandlerArgs,
+): Promise<any> {
+	const { data, req, operation, originalDoc, fields } = args;
+
+	if (!data) {
+		return data;
+	}
+
+	const userAndPayload = extractUserIdAndPayload({
+		data,
+		req,
+		operation,
+		originalDoc,
+	});
+
+	if (!userAndPayload) {
+		return data;
+	}
+
+	const { userId, payload } = userAndPayload;
+
+	const fieldsToProcess = fields.filter((field) => {
+		return field.key in data && typeof data[field.key] === "string";
+	});
+
+	if (fieldsToProcess.length === 0) {
+		return data;
+	}
+
+	const dataToProcess: Record<string, string> = {};
+	for (const field of fieldsToProcess) {
+		dataToProcess[field.key] = data[field.key];
+	}
+
+	const processedData = await processRichTextMediaV2({
+		payload,
+		userId,
+		req,
+		overrideAccess: true,
+		data: dataToProcess,
+		fields: fieldsToProcess,
+	});
+
+	return {
+		...data,
+		...processedData,
+	};
+}
+
+/** 
+ * @deprecated use richTextContentWithHook instead
+ */
+export function createRichTextBeforeChangeHook(config: RichTextHookConfig) {
+	return async ({ data, req, operation, originalDoc }: any) => {
+		return createRichTextHookHandler({
+			data,
+			req,
+			operation,
+			originalDoc,
+			fields: config.fields,
+		});
+	};
 }
 
 export interface ExtractMediaIdsFromRichTextArgs

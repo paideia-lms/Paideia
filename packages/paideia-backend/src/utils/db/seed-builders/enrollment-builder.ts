@@ -5,7 +5,7 @@ import type { SeedContext, CreatedUsers } from "./user-builder";
 
 type Course = Awaited<
 	ReturnType<
-		typeof import("../../../internal/course-management").tryCreateCourse
+		typeof import("../../../modules/courses/services/course-management").tryCreateCourse
 	>
 >["value"];
 

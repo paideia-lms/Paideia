@@ -8,6 +8,10 @@ import { s3Client } from "./services/s3-client";
 import { commands as sandboxCommands } from "./cli/sandbox";
 import { commands as migrateCommands } from "./cli/migrate";
 import { trySendEmail, TrySendEmailArgs } from "./services/email";
+import { getCronJobs, getCronJobHistory, getPendingJobsByQueue, } from "./api/cron-jobs-management";
+import { getLatestVersion } from "./api/version-management";
+import { ping, healthCheck } from "./api/health";
+
 // export * as HostingPlatformDetection from "./services/hosting-platform-detection";
 
 // enum JobQueue {
@@ -96,6 +100,21 @@ export class InfrastructureModule {
         cron: "0 */12 * * *", // every 12 hours
         queue: "12-hourly",
     },]
+
+    public static readonly api = {
+        health: {
+            ping,
+            healthCheck,
+        },
+        version: {
+            getLatest: getLatestVersion,
+        },
+        cronJobs: {
+            getCronJobs,
+            getCronJobHistory,
+            getPendingJobsByQueue,
+        },
+    }
 
     constructor(payload: Payload) {
         this.payload = payload;

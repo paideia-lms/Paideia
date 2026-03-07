@@ -6,7 +6,7 @@ import {
 	tryCreateCourse,
 	tryDeleteCourse,
 	tryUpdateCourse,
-} from "./course-management";
+} from "../modules/courses/services/course-management";
 import { parseQuery, tryGlobalSearch } from "./search-management";
 import { tryCreateUser } from "../modules/user/services/user-management";
 import { createLocalReq } from "shared/internal-function-utils";

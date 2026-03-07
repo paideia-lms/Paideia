@@ -12,9 +12,6 @@ import {
 	type BaseInternalFunctionArgs,
 } from "shared/internal-function-utils";
 import { handleTransactionId } from "shared/handle-transaction-id";
-import {
-	processRichTextMediaV2,
-} from "server/collections/utils/rich-text-content";
 
 export interface CreateNoteArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -76,33 +73,12 @@ export function tryCreateNote(args: CreateNoteArgs) {
 			const transactionInfo = await handleTransactionId(payload, req);
 
 			return await transactionInfo.tx(async (txInfo) => {
-				// // Extract media IDs from HTML content
-				// const mediaIds = await tryExtractMediaIdsFromRichText({
-				// 	payload,
-				// 	htmlContent: [content.trim()],
-				// 	req: txInfo.reqWithTransaction,
-				// }).getOrThrow();
-
 				// Create note with access control
 				const newNote = await payload
 					.create({
 						collection: "notes",
 						data: {
-							...(await processRichTextMediaV2({
-								payload,
-								userId: createdBy,
-								req: txInfo.reqWithTransaction,
-								overrideAccess,
-								data: {
-									content: content.trim(),
-								},
-								fields: [
-									{
-										key: "content",
-										alt: "Note content image",
-									},
-								],
-							})),
+							content: content.trim(),
 							createdBy,
 							isPublic,
 						},
@@ -146,23 +122,7 @@ export function tryUpdateNote(args: UpdateNoteArgs) {
 						id: noteId,
 						data: {
 							isPublic: data.isPublic,
-							...(data.content
-								? await processRichTextMediaV2({
-									payload,
-									userId: currentUser.id,
-									req: txInfo.reqWithTransaction,
-									overrideAccess,
-									data: {
-										content: data.content.trim(),
-									},
-									fields: [
-										{
-											key: "content",
-											alt: "Note content image",
-										},
-									],
-								})
-								: {}),
+							...(data.content ? { content: data.content.trim() } : {}),
 						},
 						req: txInfo.reqWithTransaction,
 						overrideAccess,

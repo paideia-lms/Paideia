@@ -12,7 +12,7 @@ import {
 import {
 	tryAddActivityModuleToSection,
 	tryCreateSection,
-} from "./course-section-management";
+} from "../modules/courses/services/course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "../modules/user/services/user-management";
 
 describe("Activity Module Access Control", () => {

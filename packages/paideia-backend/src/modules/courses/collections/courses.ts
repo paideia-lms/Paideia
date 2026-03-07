@@ -1,5 +1,7 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
-import { richTextContent } from "./utils/rich-text-content";
+import {
+	richTextContentWithHook,
+} from "../../../collections/utils/rich-text-content";
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -28,6 +30,13 @@ export const Courses = {
 			return req.user.role === "admin";
 		},
 	},
+	hooks: {
+		beforeChange: [
+			// createRichTextBeforeChangeHook({
+			// 	fields: [{ key: "description", alt: "Course description image" }],
+			// }),
+		],
+	},
 	fields: [
 		{
 			name: "title",
@@ -49,12 +58,12 @@ export const Courses = {
 				return true as const;
 			}) as TextFieldValidation,
 		},
-		...richTextContent({
+		...richTextContentWithHook({
 			name: "description",
 			type: "textarea",
 			label: "Description",
 			required: true,
-		}),
+		}, "Course description image").fields,
 		{
 			name: "status",
 			type: "select",

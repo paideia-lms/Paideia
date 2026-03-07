@@ -4,6 +4,7 @@ import type { UserSeedData } from "./user-seed-schema";
 /**
  * Predefined user seed data for tests.
  * Aligns with devConstants for admin credentials.
+ * Includes various roles for testing different permission levels.
  */
 export const predefinedUserSeedData: UserSeedData = {
 	users: [
@@ -33,6 +34,24 @@ export const predefinedUserSeedData: UserSeedData = {
 			role: "student",
 			generateApiKey: true,
 			login: false,
+		},
+		{
+			email: "instructor@example.com",
+			password: "instructorpassword123",
+			firstName: "Instructor",
+			lastName: "User",
+			role: "instructor",
+			generateApiKey: false,
+			login: true,
+		},
+		{
+			email: "contentmanager@example.com",
+			password: "contentmanager123",
+			firstName: "Content",
+			lastName: "Manager",
+			role: "content-manager",
+			generateApiKey: false,
+			login: true,
 		},
 	],
 };

@@ -1,6 +1,6 @@
 import type { SeedData } from "../seed-schema";
-import { tryCreateSection } from "../../../internal/course-section-management";
-import { tryCreateCourseActivityModuleLink } from "../../../internal/course-activity-module-link-management";
+import { tryCreateSection } from "../../../modules/courses/services/course-section-management";
+import { tryCreateCourseActivityModuleLink } from "../../../modules/courses/services/course-activity-module-link-management";
 import { seedLogger } from "../seed-utils/logger";
 import type { SeedContext } from "./user-builder";
 import type { ActivityModuleResult } from "../../../internal/activity-module-management";

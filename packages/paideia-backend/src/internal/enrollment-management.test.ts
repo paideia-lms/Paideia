@@ -6,7 +6,7 @@ import {
 	tryCreateGroup,
 	tryFindCourseById,
 	tryFindGroupsByCourse,
-} from "./course-management";
+} from "../modules/courses/services/course-management";
 import { tryCreateCategory } from "./course-category-management";
 import {
 	type CreateEnrollmentArgs,

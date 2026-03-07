@@ -4,7 +4,7 @@ import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/types";
 import { DuplicateGradebookError } from "../errors";
 import sanitizedConfig from "../payload.config";
-import { tryCreateCourse } from "./course-management";
+import { tryCreateCourse } from "../modules/courses/services/course-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CourseStructure } from "../internal/course-section-management";
+import type { CourseStructure } from "../modules/courses/services/course-section-management";
 import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,

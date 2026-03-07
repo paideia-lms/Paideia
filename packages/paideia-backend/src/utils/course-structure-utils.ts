@@ -2,7 +2,7 @@ import type {
 	CourseStructure,
 	CourseStructureItem,
 	CourseStructureSection,
-} from "../internal/course-section-management";
+} from "../modules/courses/services/course-section-management";
 import type { ActivityModule } from "../payload-types";
 
 export type FlattenedModule = {
