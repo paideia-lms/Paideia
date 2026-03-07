@@ -10,6 +10,7 @@ import { commands as migrateCommands } from "./cli/migrate";
 import { trySendEmail, TrySendEmailArgs } from "./services/email";
 import { getCronJobs, getCronJobHistory, getPendingJobsByQueue, } from "./api/cron-jobs-management";
 import { getLatestVersion } from "./api/version-management";
+import { getScheduledTasks, getPendingScheduledTasks } from "./api/scheduled-tasks-management";
 import { ping, healthCheck } from "./api/health";
 
 // export * as HostingPlatformDetection from "./services/hosting-platform-detection";
@@ -113,6 +114,10 @@ export class InfrastructureModule {
             getCronJobs,
             getCronJobHistory,
             getPendingJobsByQueue,
+        },
+        scheduledTasks: {
+            getScheduledTasks,
+            getPendingScheduledTasks,
         },
     }
 

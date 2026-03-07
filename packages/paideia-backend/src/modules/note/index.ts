@@ -30,10 +30,6 @@ export namespace NoteModule {
 
 export class NoteModule {
     private readonly payload: Payload;
-    public static readonly deps = [
-        // every note must have a user, so note depends on user module.
-        UserModule
-    ] as const;
     public static readonly collections = [Notes];
     public static readonly cli = {};
     public static readonly search = [];

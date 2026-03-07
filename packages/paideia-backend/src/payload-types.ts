@@ -72,6 +72,7 @@ export interface Config {
     notes: Note;
     courses: Course;
     'course-sections': CourseSection;
+    'course-activity-module-links': CourseActivityModuleLink;
     'course-categories': CourseCategory;
     'category-role-assignments': CategoryRoleAssignment;
     enrollments: Enrollment;
@@ -82,7 +83,6 @@ export interface Config {
     assignments: Assignment;
     quizzes: Quiz;
     discussions: Discussion;
-    'course-activity-module-links': CourseActivityModuleLink;
     gradebooks: Gradebook;
     'gradebook-categories': GradebookCategory;
     'gradebook-items': GradebookItem;
@@ -119,11 +119,6 @@ export interface Config {
       grants: 'activity-module-grants';
       linkedCourses: 'course-activity-module-links';
     };
-    'course-activity-module-links': {
-      assignmentSubmissions: 'assignment-submissions';
-      quizSubmissions: 'quiz-submissions';
-      discussionSubmissions: 'discussion-submissions';
-    };
     gradebooks: {
       categories: 'gradebook-categories';
       items: 'gradebook-items';
@@ -148,6 +143,7 @@ export interface Config {
     notes: NotesSelect<false> | NotesSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     'course-sections': CourseSectionsSelect<false> | CourseSectionsSelect<true>;
+    'course-activity-module-links': CourseActivityModuleLinksSelect<false> | CourseActivityModuleLinksSelect<true>;
     'course-categories': CourseCategoriesSelect<false> | CourseCategoriesSelect<true>;
     'category-role-assignments': CategoryRoleAssignmentsSelect<false> | CategoryRoleAssignmentsSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
@@ -158,7 +154,6 @@ export interface Config {
     assignments: AssignmentsSelect<false> | AssignmentsSelect<true>;
     quizzes: QuizzesSelect<false> | QuizzesSelect<true>;
     discussions: DiscussionsSelect<false> | DiscussionsSelect<true>;
-    'course-activity-module-links': CourseActivityModuleLinksSelect<false> | CourseActivityModuleLinksSelect<true>;
     gradebooks: GradebooksSelect<false> | GradebooksSelect<true>;
     'gradebook-categories': GradebookCategoriesSelect<false> | GradebookCategoriesSelect<true>;
     'gradebook-items': GradebookItemsSelect<false> | GradebookItemsSelect<true>;
@@ -503,30 +498,6 @@ export interface CourseActivityModuleLink {
   section: number | CourseSection;
   sectionTitle?: string | null;
   contentOrder: number;
-  settings?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  assignmentSubmissions?: {
-    docs?: (number | AssignmentSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  quizSubmissions?: {
-    docs?: (number | QuizSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  discussionSubmissions?: {
-    docs?: (number | DiscussionSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -569,6 +540,9 @@ export interface ActivityModule {
  */
 export interface Page {
   id: number;
+  title: string;
+  description?: string | null;
+  descriptionMedia?: (number | Media)[] | null;
   createdBy: number | User;
   content?: string | null;
   contentMedia?: (number | Media)[] | null;
@@ -749,119 +723,6 @@ export interface ActivityModuleGrant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "assignment-submissions".
- */
-export interface AssignmentSubmission {
-  id: number;
-  courseModuleLink: number | CourseActivityModuleLink;
-  activityModule?: string | null;
-  activityModuleTitle?: string | null;
-  assignment?: string | null;
-  assignmentTitle?: string | null;
-  section?: string | null;
-  sectionTitle?: string | null;
-  student: number | User;
-  studentEmail?: string | null;
-  studentName?: string | null;
-  enrollment: number | Enrollment;
-  course?: string | null;
-  courseTitle?: string | null;
-  attemptNumber: number;
-  status: 'draft' | 'submitted' | 'graded' | 'returned';
-  submittedAt?: string | null;
-  grade?: number | null;
-  feedback?: string | null;
-  gradedBy?: (number | null) | User;
-  gradedAt?: string | null;
-  content?: string | null;
-  attachments?:
-    | {
-        file: number | Media;
-        description?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  isLate?: boolean | null;
-  timeSpent?: number | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "quiz-submissions".
- */
-export interface QuizSubmission {
-  id: number;
-  courseModuleLink: number | CourseActivityModuleLink;
-  activityModule?: string | null;
-  activityModuleTitle?: string | null;
-  quiz?: string | null;
-  quizTitle?: string | null;
-  section?: string | null;
-  sectionTitle?: string | null;
-  student: number | User;
-  studentEmail?: string | null;
-  studentName?: string | null;
-  enrollment: number | Enrollment;
-  course?: string | null;
-  courseTitle?: string | null;
-  attemptNumber: number;
-  status: 'in_progress' | 'completed' | 'graded' | 'returned';
-  /**
-   * Marks this submission as a preview attempt. Preview attempts are excluded from normal display and don't count toward attempt limits.
-   */
-  isPreview?: boolean | null;
-  startedAt?: string | null;
-  submittedAt?: string | null;
-  timeSpent?: number | null;
-  answers?:
-    | {
-        questionId: string;
-        questionText?: string | null;
-        questionType: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
-        selectedAnswer?: string | null;
-        multipleChoiceAnswers?:
-          | {
-              option: string;
-              isSelected?: boolean | null;
-              id?: string | null;
-            }[]
-          | null;
-        isCorrect?: boolean | null;
-        pointsEarned?: number | null;
-        maxPoints?: number | null;
-        feedback?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  flaggedQuestions?:
-    | {
-        questionId: string;
-        id?: string | null;
-      }[]
-    | null;
-  totalScore?: number | null;
-  maxScore?: number | null;
-  percentage?: number | null;
-  isLate?: boolean | null;
-  autoGraded?: boolean | null;
-  grade?: number | null;
-  feedback?: string | null;
-  gradedBy?: (number | null) | User;
-  gradedAt?: string | null;
-  completedNestedQuizzes?:
-    | {
-        nestedQuizId: string;
-        startedAt?: string | null;
-        completedAt?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "category-role-assignments".
  */
 export interface CategoryRoleAssignment {
@@ -1005,6 +866,119 @@ export interface UserGrade {
   gradedAt?: string | null;
   submittedAt?: string | null;
   status?: ('draft' | 'graded' | 'returned') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "assignment-submissions".
+ */
+export interface AssignmentSubmission {
+  id: number;
+  courseModuleLink: number | CourseActivityModuleLink;
+  activityModule?: string | null;
+  activityModuleTitle?: string | null;
+  assignment?: string | null;
+  assignmentTitle?: string | null;
+  section?: string | null;
+  sectionTitle?: string | null;
+  student: number | User;
+  studentEmail?: string | null;
+  studentName?: string | null;
+  enrollment: number | Enrollment;
+  course?: string | null;
+  courseTitle?: string | null;
+  attemptNumber: number;
+  status: 'draft' | 'submitted' | 'graded' | 'returned';
+  submittedAt?: string | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
+  content?: string | null;
+  attachments?:
+    | {
+        file: number | Media;
+        description?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  isLate?: boolean | null;
+  timeSpent?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "quiz-submissions".
+ */
+export interface QuizSubmission {
+  id: number;
+  courseModuleLink: number | CourseActivityModuleLink;
+  activityModule?: string | null;
+  activityModuleTitle?: string | null;
+  quiz?: string | null;
+  quizTitle?: string | null;
+  section?: string | null;
+  sectionTitle?: string | null;
+  student: number | User;
+  studentEmail?: string | null;
+  studentName?: string | null;
+  enrollment: number | Enrollment;
+  course?: string | null;
+  courseTitle?: string | null;
+  attemptNumber: number;
+  status: 'in_progress' | 'completed' | 'graded' | 'returned';
+  /**
+   * Marks this submission as a preview attempt. Preview attempts are excluded from normal display and don't count toward attempt limits.
+   */
+  isPreview?: boolean | null;
+  startedAt?: string | null;
+  submittedAt?: string | null;
+  timeSpent?: number | null;
+  answers?:
+    | {
+        questionId: string;
+        questionText?: string | null;
+        questionType: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
+        selectedAnswer?: string | null;
+        multipleChoiceAnswers?:
+          | {
+              option: string;
+              isSelected?: boolean | null;
+              id?: string | null;
+            }[]
+          | null;
+        isCorrect?: boolean | null;
+        pointsEarned?: number | null;
+        maxPoints?: number | null;
+        feedback?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  flaggedQuestions?:
+    | {
+        questionId: string;
+        id?: string | null;
+      }[]
+    | null;
+  totalScore?: number | null;
+  maxScore?: number | null;
+  percentage?: number | null;
+  isLate?: boolean | null;
+  autoGraded?: boolean | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
+  completedNestedQuizzes?:
+    | {
+        nestedQuizId: string;
+        startedAt?: string | null;
+        completedAt?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1177,6 +1151,10 @@ export interface PayloadLockedDocument {
         value: number | CourseSection;
       } | null)
     | ({
+        relationTo: 'course-activity-module-links';
+        value: number | CourseActivityModuleLink;
+      } | null)
+    | ({
         relationTo: 'course-categories';
         value: number | CourseCategory;
       } | null)
@@ -1215,10 +1193,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'discussions';
         value: number | Discussion;
-      } | null)
-    | ({
-        relationTo: 'course-activity-module-links';
-        value: number | CourseActivityModuleLink;
       } | null)
     | ({
         relationTo: 'gradebooks';
@@ -1441,6 +1415,23 @@ export interface CourseSectionsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-activity-module-links_select".
+ */
+export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
+  course?: T;
+  courseName?: T;
+  courseSlug?: T;
+  activityModule?: T;
+  activityModuleName?: T;
+  activityModuleType?: T;
+  section?: T;
+  sectionTitle?: T;
+  contentOrder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "course-categories_select".
  */
 export interface CourseCategoriesSelect<T extends boolean = true> {
@@ -1521,6 +1512,9 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  descriptionMedia?: T;
   createdBy?: T;
   content?: T;
   contentMedia?: T;
@@ -1604,27 +1598,6 @@ export interface DiscussionsSelect<T extends boolean = true> {
         id?: T;
       };
   createdBy?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "course-activity-module-links_select".
- */
-export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
-  course?: T;
-  courseName?: T;
-  courseSlug?: T;
-  activityModule?: T;
-  activityModuleName?: T;
-  activityModuleType?: T;
-  section?: T;
-  sectionTitle?: T;
-  contentOrder?: T;
-  settings?: T;
-  assignmentSubmissions?: T;
-  quizSubmissions?: T;
-  discussionSubmissions?: T;
   updatedAt?: T;
   createdAt?: T;
 }

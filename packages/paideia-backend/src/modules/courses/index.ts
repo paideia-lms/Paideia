@@ -2,6 +2,11 @@ import { Payload } from "payload";
 import { UserModule } from "../user";
 import { Courses, CourseSections, CourseActivityModuleLinks } from "server/collections";
 
+
+export namespace CoursesModule {
+
+}
+
 /** 
  * this is the single point of export for the courses module.
  * 
@@ -9,13 +14,11 @@ import { Courses, CourseSections, CourseActivityModuleLinks } from "server/colle
  */
 export class CoursesModule {
     private readonly payload: Payload;
-    public static readonly deps = [
-        // every course must have a user, so courses depends on user module. 
-        UserModule
-    ] as const;
     public static readonly collections = [Courses, CourseSections, CourseActivityModuleLinks];
     public static readonly cli = {};
-    public static readonly search = [];
+    public static readonly search = [
+        Courses.slug,
+    ];
     public static readonly seedData = {
 
     };

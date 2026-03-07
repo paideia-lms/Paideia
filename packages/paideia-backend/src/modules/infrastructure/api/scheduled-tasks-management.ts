@@ -1,8 +1,8 @@
 import { os } from "@orpc/server";
 import { z } from "zod";
-import { tryGetScheduledTasks, tryGetPendingScheduledTasks } from "../../internal/scheduled-tasks-management";
-import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+import { tryGetScheduledTasks, tryGetPendingScheduledTasks } from "../../../internal/scheduled-tasks-management";
+import type { OrpcContext } from "../../../orpc/context";
+import { handleResult } from "../../../orpc/utils/handler";
 
 const outputSchema = z.any();
 

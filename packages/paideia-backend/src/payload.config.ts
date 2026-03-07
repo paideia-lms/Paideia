@@ -55,6 +55,7 @@ import { RouterContextProvider } from "react-router";
 import { InfrastructureModule } from "modules/infrastructure";
 import { UserModule } from "modules/user";
 import { NoteModule } from "modules/note";
+import { CoursesModule } from "./modules/courses";
 
 
 // extends the RequestContext type from payload 
@@ -195,8 +196,10 @@ const sanitizedConfig = buildConfig({
 		...UserModule.collections,
 		...InfrastructureModule.collections,
 		...NoteModule.collections,
-		Courses,
-		CourseSections,
+		...CoursesModule.collections,
+		// Courses,
+		// CourseSections,
+		// CourseActivityModuleLinks,
 		CourseCategories,
 		CategoryRoleAssignments,
 		Enrollments,
@@ -207,7 +210,6 @@ const sanitizedConfig = buildConfig({
 		Assignments,
 		Quizzes,
 		Discussions,
-		CourseActivityModuleLinks,
 		Gradebooks,
 		GradebookCategories,
 		GradebookItems,
@@ -278,7 +280,7 @@ const sanitizedConfig = buildConfig({
 	})(),
 	plugins: [
 		searchPlugin({
-			collections: [...UserModule.search, ...InfrastructureModule.search, ...NoteModule.search, Courses.slug],
+			collections: [...UserModule.search, ...InfrastructureModule.search, ...NoteModule.search, ...CoursesModule.search],
 			searchOverrides: {
 				slug: "search" as const,
 				fields: ({ defaultFields }) => [

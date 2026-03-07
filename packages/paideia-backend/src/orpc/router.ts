@@ -80,7 +80,7 @@ import {
 import {
 	getScheduledTasks,
 	getPendingScheduledTasks,
-} from "./routers/scheduled-tasks-management";
+} from "../modules/infrastructure/api/scheduled-tasks-management";
 import { globalSearch } from "./routers/search-management";
 import {
 	getMediaById,

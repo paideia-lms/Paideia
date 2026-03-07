@@ -224,6 +224,110 @@ export const users = pgTable(
   ],
 );
 
+export const media = pgTable(
+  "media",
+  {
+    id: serial("id").primaryKey(),
+    alt: varchar("alt"),
+    caption: varchar("caption"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    url: varchar("url"),
+    thumbnailURL: varchar("thumbnail_u_r_l"),
+    filename: varchar("filename"),
+    mimeType: varchar("mime_type"),
+    filesize: numeric("filesize", { mode: "number" }),
+    width: numeric("width", { mode: "number" }),
+    height: numeric("height", { mode: "number" }),
+    focalX: numeric("focal_x", { mode: "number" }),
+    focalY: numeric("focal_y", { mode: "number" }),
+  },
+  (columns) => [
+    index("media_created_by_idx").on(columns.createdBy),
+    index("media_updated_at_idx").on(columns.updatedAt),
+    index("media_created_at_idx").on(columns.createdAt),
+    uniqueIndex("media_filename_idx").on(columns.filename),
+    index("createdBy_idx").on(columns.createdBy),
+  ],
+);
+
+export const notes = pgTable(
+  "notes",
+  {
+    id: serial("id").primaryKey(),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    content: varchar("content").notNull(),
+    isPublic: boolean("is_public").default(false),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("notes_created_by_idx").on(columns.createdBy),
+    index("notes_updated_at_idx").on(columns.updatedAt),
+    index("notes_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const notes_rels = pgTable(
+  "notes_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("notes_rels_order_idx").on(columns.order),
+    index("notes_rels_parent_idx").on(columns.parent),
+    index("notes_rels_path_idx").on(columns.path),
+    index("notes_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [notes.id],
+      name: "notes_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "notes_rels_media_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const courses_recurring_schedules_days_of_week = pgTable(
   "courses_recurring_schedules_days_of_week",
   {
@@ -432,6 +536,54 @@ export const course_sections = pgTable(
     index("course_sections_parent_section_idx").on(columns.parentSection),
     index("course_sections_updated_at_idx").on(columns.updatedAt),
     index("course_sections_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const course_activity_module_links = pgTable(
+  "course_activity_module_links",
+  {
+    id: serial("id").primaryKey(),
+    course: integer("course_id")
+      .notNull()
+      .references(() => courses.id, {
+        onDelete: "set null",
+      }),
+    activityModule: integer("activity_module_id")
+      .notNull()
+      .references(() => activity_modules.id, {
+        onDelete: "set null",
+      }),
+    section: integer("section_id")
+      .notNull()
+      .references(() => course_sections.id, {
+        onDelete: "set null",
+      }),
+    contentOrder: numeric("content_order", { mode: "number" })
+      .notNull()
+      .default(0),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("course_activity_module_links_course_idx").on(columns.course),
+    index("course_activity_module_links_activity_module_idx").on(
+      columns.activityModule,
+    ),
+    index("course_activity_module_links_section_idx").on(columns.section),
+    index("course_activity_module_links_updated_at_idx").on(columns.updatedAt),
+    index("course_activity_module_links_created_at_idx").on(columns.createdAt),
   ],
 );
 
@@ -660,7 +812,7 @@ export const activity_modules = pgTable(
     index("activity_modules_updated_at_idx").on(columns.updatedAt),
     index("activity_modules_created_at_idx").on(columns.createdAt),
     index("owner_idx").on(columns.owner),
-    index("createdBy_idx").on(columns.createdBy),
+    index("createdBy_1_idx").on(columns.createdBy),
     index("type_idx").on(columns.type),
     index("page_idx").on(columns.page),
     index("whiteboard_idx").on(columns.whiteboard),
@@ -730,6 +882,8 @@ export const pages = pgTable(
   "pages",
   {
     id: serial("id").primaryKey(),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
@@ -755,7 +909,7 @@ export const pages = pgTable(
     index("pages_created_by_idx").on(columns.createdBy),
     index("pages_updated_at_idx").on(columns.updatedAt),
     index("pages_created_at_idx").on(columns.createdAt),
-    index("createdBy_1_idx").on(columns.createdBy),
+    index("createdBy_2_idx").on(columns.createdBy),
   ],
 );
 
@@ -815,7 +969,7 @@ export const whiteboards = pgTable(
     index("whiteboards_created_by_idx").on(columns.createdBy),
     index("whiteboards_updated_at_idx").on(columns.updatedAt),
     index("whiteboards_created_at_idx").on(columns.createdAt),
-    index("createdBy_2_idx").on(columns.createdBy),
+    index("createdBy_3_idx").on(columns.createdBy),
   ],
 );
 
@@ -874,7 +1028,7 @@ export const assignments = pgTable(
     index("assignments_created_by_idx").on(columns.createdBy),
     index("assignments_updated_at_idx").on(columns.updatedAt),
     index("assignments_created_at_idx").on(columns.createdAt),
-    index("createdBy_3_idx").on(columns.createdBy),
+    index("createdBy_4_idx").on(columns.createdBy),
   ],
 );
 
@@ -910,7 +1064,7 @@ export const quizzes = pgTable(
     index("quizzes_created_by_idx").on(columns.createdBy),
     index("quizzes_updated_at_idx").on(columns.updatedAt),
     index("quizzes_created_at_idx").on(columns.createdAt),
-    index("createdBy_4_idx").on(columns.createdBy),
+    index("createdBy_5_idx").on(columns.createdBy),
   ],
 );
 
@@ -1001,162 +1155,9 @@ export const discussions = pgTable(
     index("discussions_created_by_idx").on(columns.createdBy),
     index("discussions_updated_at_idx").on(columns.updatedAt),
     index("discussions_created_at_idx").on(columns.createdAt),
-    index("createdBy_5_idx").on(columns.createdBy),
+    index("createdBy_6_idx").on(columns.createdBy),
     index("dueDate_idx").on(columns.dueDate),
     index("threadSorting_idx").on(columns.threadSorting),
-  ],
-);
-
-export const course_activity_module_links = pgTable(
-  "course_activity_module_links",
-  {
-    id: serial("id").primaryKey(),
-    course: integer("course_id")
-      .notNull()
-      .references(() => courses.id, {
-        onDelete: "set null",
-      }),
-    activityModule: integer("activity_module_id")
-      .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    section: integer("section_id")
-      .notNull()
-      .references(() => course_sections.id, {
-        onDelete: "set null",
-      }),
-    contentOrder: numeric("content_order", { mode: "number" })
-      .notNull()
-      .default(0),
-    settings: jsonb("settings"),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("course_activity_module_links_course_idx").on(columns.course),
-    index("course_activity_module_links_activity_module_idx").on(
-      columns.activityModule,
-    ),
-    index("course_activity_module_links_section_idx").on(columns.section),
-    index("course_activity_module_links_updated_at_idx").on(columns.updatedAt),
-    index("course_activity_module_links_created_at_idx").on(columns.createdAt),
-  ],
-);
-
-export const media = pgTable(
-  "media",
-  {
-    id: serial("id").primaryKey(),
-    alt: varchar("alt"),
-    caption: varchar("caption"),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references((): AnyPgColumn=> users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    url: varchar("url"),
-    thumbnailURL: varchar("thumbnail_u_r_l"),
-    filename: varchar("filename"),
-    mimeType: varchar("mime_type"),
-    filesize: numeric("filesize", { mode: "number" }),
-    width: numeric("width", { mode: "number" }),
-    height: numeric("height", { mode: "number" }),
-    focalX: numeric("focal_x", { mode: "number" }),
-    focalY: numeric("focal_y", { mode: "number" }),
-  },
-  (columns) => [
-    index("media_created_by_idx").on(columns.createdBy),
-    index("media_updated_at_idx").on(columns.updatedAt),
-    index("media_created_at_idx").on(columns.createdAt),
-    uniqueIndex("media_filename_idx").on(columns.filename),
-    index("createdBy_6_idx").on(columns.createdBy),
-  ],
-);
-
-export const notes = pgTable(
-  "notes",
-  {
-    id: serial("id").primaryKey(),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    content: varchar("content").notNull(),
-    isPublic: boolean("is_public").default(false),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => [
-    index("notes_created_by_idx").on(columns.createdBy),
-    index("notes_updated_at_idx").on(columns.updatedAt),
-    index("notes_created_at_idx").on(columns.createdAt),
-  ],
-);
-
-export const notes_rels = pgTable(
-  "notes_rels",
-  {
-    id: serial("id").primaryKey(),
-    order: integer("order"),
-    parent: integer("parent_id").notNull(),
-    path: varchar("path").notNull(),
-    mediaID: integer("media_id"),
-  },
-  (columns) => [
-    index("notes_rels_order_idx").on(columns.order),
-    index("notes_rels_parent_idx").on(columns.parent),
-    index("notes_rels_path_idx").on(columns.path),
-    index("notes_rels_media_id_idx").on(columns.mediaID),
-    foreignKey({
-      columns: [columns["parent"]],
-      foreignColumns: [notes.id],
-      name: "notes_rels_parent_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["mediaID"]],
-      foreignColumns: [media.id],
-      name: "notes_rels_media_fk",
-    }).onDelete("cascade"),
   ],
 );
 
@@ -2256,8 +2257,13 @@ export const payload_locked_documents_rels = pgTable(
     parent: integer("parent_id").notNull(),
     path: varchar("path").notNull(),
     usersID: integer("users_id"),
+    mediaID: integer("media_id"),
+    notesID: integer("notes_id"),
     coursesID: integer("courses_id"),
     "course-sectionsID": integer("course_sections_id"),
+    "course-activity-module-linksID": integer(
+      "course_activity_module_links_id",
+    ),
     "course-categoriesID": integer("course_categories_id"),
     "category-role-assignmentsID": integer("category_role_assignments_id"),
     enrollmentsID: integer("enrollments_id"),
@@ -2268,11 +2274,6 @@ export const payload_locked_documents_rels = pgTable(
     assignmentsID: integer("assignments_id"),
     quizzesID: integer("quizzes_id"),
     discussionsID: integer("discussions_id"),
-    "course-activity-module-linksID": integer(
-      "course_activity_module_links_id",
-    ),
-    mediaID: integer("media_id"),
-    notesID: integer("notes_id"),
     gradebooksID: integer("gradebooks_id"),
     "gradebook-categoriesID": integer("gradebook_categories_id"),
     "gradebook-itemsID": integer("gradebook_items_id"),
@@ -2290,9 +2291,14 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_parent_idx").on(columns.parent),
     index("payload_locked_documents_rels_path_idx").on(columns.path),
     index("payload_locked_documents_rels_users_id_idx").on(columns.usersID),
+    index("payload_locked_documents_rels_media_id_idx").on(columns.mediaID),
+    index("payload_locked_documents_rels_notes_id_idx").on(columns.notesID),
     index("payload_locked_documents_rels_courses_id_idx").on(columns.coursesID),
     index("payload_locked_documents_rels_course_sections_id_idx").on(
       columns["course-sectionsID"],
+    ),
+    index("payload_locked_documents_rels_course_activity_module_lin_idx").on(
+      columns["course-activity-module-linksID"],
     ),
     index("payload_locked_documents_rels_course_categories_id_idx").on(
       columns["course-categoriesID"],
@@ -2320,11 +2326,6 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_discussions_id_idx").on(
       columns.discussionsID,
     ),
-    index("payload_locked_documents_rels_course_activity_module_lin_idx").on(
-      columns["course-activity-module-linksID"],
-    ),
-    index("payload_locked_documents_rels_media_id_idx").on(columns.mediaID),
-    index("payload_locked_documents_rels_notes_id_idx").on(columns.notesID),
     index("payload_locked_documents_rels_gradebooks_id_idx").on(
       columns.gradebooksID,
     ),
@@ -2363,6 +2364,16 @@ export const payload_locked_documents_rels = pgTable(
       name: "payload_locked_documents_rels_users_fk",
     }).onDelete("cascade"),
     foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "payload_locked_documents_rels_media_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["notesID"]],
+      foreignColumns: [notes.id],
+      name: "payload_locked_documents_rels_notes_fk",
+    }).onDelete("cascade"),
+    foreignKey({
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "payload_locked_documents_rels_courses_fk",
@@ -2371,6 +2382,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["course-sectionsID"]],
       foreignColumns: [course_sections.id],
       name: "payload_locked_documents_rels_course_sections_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["course-activity-module-linksID"]],
+      foreignColumns: [course_activity_module_links.id],
+      name: "payload_locked_documents_rels_course_activity_module_link_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["course-categoriesID"]],
@@ -2421,21 +2437,6 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["discussionsID"]],
       foreignColumns: [discussions.id],
       name: "payload_locked_documents_rels_discussions_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["course-activity-module-linksID"]],
-      foreignColumns: [course_activity_module_links.id],
-      name: "payload_locked_documents_rels_course_activity_module_link_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["mediaID"]],
-      foreignColumns: [media.id],
-      name: "payload_locked_documents_rels_media_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["notesID"]],
-      foreignColumns: [notes.id],
-      name: "payload_locked_documents_rels_notes_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["gradebooksID"]],
@@ -2823,6 +2824,35 @@ export const relations_users = relations(users, ({ one, many }) => ({
     relationName: "sessions",
   }),
 }));
+export const relations_media = relations(media, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [media.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
+export const relations_notes_rels = relations(notes_rels, ({ one }) => ({
+  parent: one(notes, {
+    fields: [notes_rels.parent],
+    references: [notes.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [notes_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_notes = relations(notes, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [notes.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+  _rels: many(notes_rels, {
+    relationName: "_rels",
+  }),
+}));
 export const relations_courses_recurring_schedules_days_of_week = relations(
   courses_recurring_schedules_days_of_week,
   ({ one }) => ({
@@ -2916,6 +2946,26 @@ export const relations_course_sections = relations(
       fields: [course_sections.parentSection],
       references: [course_sections.id],
       relationName: "parentSection",
+    }),
+  }),
+);
+export const relations_course_activity_module_links = relations(
+  course_activity_module_links,
+  ({ one }) => ({
+    course: one(courses, {
+      fields: [course_activity_module_links.course],
+      references: [courses.id],
+      relationName: "course",
+    }),
+    activityModule: one(activity_modules, {
+      fields: [course_activity_module_links.activityModule],
+      references: [activity_modules.id],
+      relationName: "activityModule",
+    }),
+    section: one(course_sections, {
+      fields: [course_activity_module_links.section],
+      references: [course_sections.id],
+      relationName: "section",
     }),
   }),
 );
@@ -3139,55 +3189,6 @@ export const relations_discussions = relations(
     }),
   }),
 );
-export const relations_course_activity_module_links = relations(
-  course_activity_module_links,
-  ({ one }) => ({
-    course: one(courses, {
-      fields: [course_activity_module_links.course],
-      references: [courses.id],
-      relationName: "course",
-    }),
-    activityModule: one(activity_modules, {
-      fields: [course_activity_module_links.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
-    section: one(course_sections, {
-      fields: [course_activity_module_links.section],
-      references: [course_sections.id],
-      relationName: "section",
-    }),
-  }),
-);
-export const relations_media = relations(media, ({ one }) => ({
-  createdBy: one(users, {
-    fields: [media.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-}));
-export const relations_notes_rels = relations(notes_rels, ({ one }) => ({
-  parent: one(notes, {
-    fields: [notes_rels.parent],
-    references: [notes.id],
-    relationName: "_rels",
-  }),
-  mediaID: one(media, {
-    fields: [notes_rels.mediaID],
-    references: [media.id],
-    relationName: "media",
-  }),
-}));
-export const relations_notes = relations(notes, ({ one, many }) => ({
-  createdBy: one(users, {
-    fields: [notes.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-  _rels: many(notes_rels, {
-    relationName: "_rels",
-  }),
-}));
 export const relations_gradebooks = relations(gradebooks, ({ one }) => ({
   course: one(courses, {
     fields: [gradebooks.course],
@@ -3596,6 +3597,16 @@ export const relations_payload_locked_documents_rels = relations(
       references: [users.id],
       relationName: "users",
     }),
+    mediaID: one(media, {
+      fields: [payload_locked_documents_rels.mediaID],
+      references: [media.id],
+      relationName: "media",
+    }),
+    notesID: one(notes, {
+      fields: [payload_locked_documents_rels.notesID],
+      references: [notes.id],
+      relationName: "notes",
+    }),
     coursesID: one(courses, {
       fields: [payload_locked_documents_rels.coursesID],
       references: [courses.id],
@@ -3605,6 +3616,11 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels["course-sectionsID"]],
       references: [course_sections.id],
       relationName: "course-sections",
+    }),
+    "course-activity-module-linksID": one(course_activity_module_links, {
+      fields: [payload_locked_documents_rels["course-activity-module-linksID"]],
+      references: [course_activity_module_links.id],
+      relationName: "course-activity-module-links",
     }),
     "course-categoriesID": one(course_categories, {
       fields: [payload_locked_documents_rels["course-categoriesID"]],
@@ -3655,21 +3671,6 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels.discussionsID],
       references: [discussions.id],
       relationName: "discussions",
-    }),
-    "course-activity-module-linksID": one(course_activity_module_links, {
-      fields: [payload_locked_documents_rels["course-activity-module-linksID"]],
-      references: [course_activity_module_links.id],
-      relationName: "course-activity-module-links",
-    }),
-    mediaID: one(media, {
-      fields: [payload_locked_documents_rels.mediaID],
-      references: [media.id],
-      relationName: "media",
-    }),
-    notesID: one(notes, {
-      fields: [payload_locked_documents_rels.notesID],
-      references: [notes.id],
-      relationName: "notes",
     }),
     gradebooksID: one(gradebooks, {
       fields: [payload_locked_documents_rels.gradebooksID],
@@ -3888,6 +3889,9 @@ type DatabaseSchema = {
   enum_appearance_settings_radius: typeof enum_appearance_settings_radius;
   users_sessions: typeof users_sessions;
   users: typeof users;
+  media: typeof media;
+  notes: typeof notes;
+  notes_rels: typeof notes_rels;
   courses_recurring_schedules_days_of_week: typeof courses_recurring_schedules_days_of_week;
   courses_recurring_schedules: typeof courses_recurring_schedules;
   courses_specific_dates: typeof courses_specific_dates;
@@ -3895,6 +3899,7 @@ type DatabaseSchema = {
   courses: typeof courses;
   courses_rels: typeof courses_rels;
   course_sections: typeof course_sections;
+  course_activity_module_links: typeof course_activity_module_links;
   course_categories: typeof course_categories;
   category_role_assignments: typeof category_role_assignments;
   enrollments: typeof enrollments;
@@ -3909,10 +3914,6 @@ type DatabaseSchema = {
   quizzes: typeof quizzes;
   discussions_pinned_threads: typeof discussions_pinned_threads;
   discussions: typeof discussions;
-  course_activity_module_links: typeof course_activity_module_links;
-  media: typeof media;
-  notes: typeof notes;
-  notes_rels: typeof notes_rels;
   gradebooks: typeof gradebooks;
   gradebook_categories: typeof gradebook_categories;
   gradebook_items: typeof gradebook_items;
@@ -3956,6 +3957,9 @@ type DatabaseSchema = {
   payload_jobs_stats: typeof payload_jobs_stats;
   relations_users_sessions: typeof relations_users_sessions;
   relations_users: typeof relations_users;
+  relations_media: typeof relations_media;
+  relations_notes_rels: typeof relations_notes_rels;
+  relations_notes: typeof relations_notes;
   relations_courses_recurring_schedules_days_of_week: typeof relations_courses_recurring_schedules_days_of_week;
   relations_courses_recurring_schedules: typeof relations_courses_recurring_schedules;
   relations_courses_specific_dates: typeof relations_courses_specific_dates;
@@ -3963,6 +3967,7 @@ type DatabaseSchema = {
   relations_courses_rels: typeof relations_courses_rels;
   relations_courses: typeof relations_courses;
   relations_course_sections: typeof relations_course_sections;
+  relations_course_activity_module_links: typeof relations_course_activity_module_links;
   relations_course_categories: typeof relations_course_categories;
   relations_category_role_assignments: typeof relations_category_role_assignments;
   relations_enrollments_rels: typeof relations_enrollments_rels;
@@ -3977,10 +3982,6 @@ type DatabaseSchema = {
   relations_quizzes: typeof relations_quizzes;
   relations_discussions_pinned_threads: typeof relations_discussions_pinned_threads;
   relations_discussions: typeof relations_discussions;
-  relations_course_activity_module_links: typeof relations_course_activity_module_links;
-  relations_media: typeof relations_media;
-  relations_notes_rels: typeof relations_notes_rels;
-  relations_notes: typeof relations_notes;
   relations_gradebooks: typeof relations_gradebooks;
   relations_gradebook_categories: typeof relations_gradebook_categories;
   relations_gradebook_items: typeof relations_gradebook_items;

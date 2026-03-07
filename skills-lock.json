@@ -5,6 +5,11 @@
       "source": "better-auth/skills",
       "sourceType": "github",
       "computedHash": "a4c830509e85557b59339d8d93a4e243e9e59c686e7678854d39230e12c2a6dc"
+    },
+    "payload": {
+      "source": "payloadcms/payload",
+      "sourceType": "github",
+      "computedHash": "72d39c67fd7f25ed377e273276b7262e60e874399f38846a374c482e4cf18403"
     }
   }
 }

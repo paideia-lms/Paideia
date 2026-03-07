@@ -16,6 +16,18 @@ export const Pages = {
 	},
 	fields: [
 		{
+			name: "title",
+			type: "text",
+			required: true,
+		},
+		...richTextContentWithHook({
+			/**
+			 * in page and whiteboard, this is basically the content
+			 */
+			name: "description",
+			type: "textarea",
+		}, "Page description image").fields,
+		{
 			name: "createdBy",
 			type: "relationship",
 			relationTo: "users",
