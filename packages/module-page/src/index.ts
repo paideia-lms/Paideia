@@ -1,5 +1,6 @@
-import { Pages } from "server/collections";
 import { Payload } from "payload";
+import packageJson from "../package.json";
+import { Pages } from "./collections/pages";
 import {
 	CreatePageArgs,
 	tryCreatePage,
@@ -36,8 +37,8 @@ import {
  */
 export class PagesModule {
 	private readonly payload: Payload;
-	public static readonly moduleName = "pages" as const;
-	public static readonly dependencies = ["user"] as const;
+	public static readonly moduleName = packageJson.name;
+	public static readonly dependencies = Object.keys(packageJson.dependencies);
 	public static readonly collections = [Pages];
 	public static readonly cli = {};
 	public static readonly search = [];

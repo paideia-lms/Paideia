@@ -1,6 +1,8 @@
-import { devConstants } from "../../../utils/constants";
-import type { MediaSeedData } from "../../user/seeding/media-seed-schema";
-import type { UserSeedData } from "../../user/seeding/user-seed-schema";
+import type { UserModule } from "@paideia/module-user";
+import { devConstants } from "../utils/constants";
+
+type UserSeedData = UserModule.UserSeedData;
+type MediaSeedData = UserModule.MediaSeedData;
 
 /**
  * Seed data for page-management.test.ts.
@@ -55,7 +57,7 @@ export const pageManagementTestMediaSeedData: MediaSeedData = {
 			alt: "Test page media",
 			caption: "Media for page management tests",
 			userEmail: "testuser1@example.com",
-			filePath: "src/modules/note/fixture/gem.png",
+			filePath: "src/fixture/gem.png",
 		},
 	],
 };

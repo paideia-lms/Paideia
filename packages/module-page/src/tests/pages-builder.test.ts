@@ -1,41 +1,40 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getPayload } from "payload";
-import sanitizedConfig from "../../../payload.config";
+import sanitizedConfig from "payload.config";
 import { predefinedPageSeedData } from "../seeding/predefined-page-seed-data";
 import {
 	trySeedPages,
 	type SeedPagesResult,
 } from "../seeding/pages-builder";
-import {
-	trySeedUsers,
-	type SeedUsersResult,
-} from "../../user/seeding/users-builder";
-import { predefinedUserSeedData } from "../../user/seeding/predefined-user-seed-data";
-import { devConstants } from "../../../utils/constants";
+import { UserModule } from "@paideia/module-user";
+import { InfrastructureModule } from "@paideia/module-infrastructure";
+import { devConstants } from "../utils/constants";
+import { migrations } from "src/migrations";
 
 describe("Pages Builder", async () => {
 	const payload = await getPayload({
 		key: `test-${Math.random().toString(36).substring(2, 15)}`,
 		config: sanitizedConfig,
 	});
-	let usersResult: SeedUsersResult;
+	const userModule = new UserModule(payload);
+	const infrastructureModule = new InfrastructureModule(payload);
+	let usersResult: UserModule.SeedUsersResult;
 	let pagesResult: SeedPagesResult;
 
 	beforeAll(async () => {
-		while (!payload.db.drizzle) {
-			await new Promise((resolve) => setTimeout(resolve, 100));
-		}
-
-		await payload.db.migrateFresh({
+		await infrastructureModule.migrateFresh({
+			migrations: migrations as import("payload").Migration[],
 			forceAcceptWarning: true,
 		});
+		await infrastructureModule.cleanS3();
 
-		usersResult = await trySeedUsers({
-			payload,
-			data: predefinedUserSeedData,
-			overrideAccess: true,
-			req: undefined,
-		}).getOrThrow();
+		usersResult = (
+			await userModule.seedUsers({
+				data: UserModule.seedData.users,
+				overrideAccess: true,
+				req: undefined,
+			})
+		).getOrThrow();
 
 		pagesResult = await trySeedPages({
 			payload,
@@ -47,9 +46,15 @@ describe("Pages Builder", async () => {
 	});
 
 	afterAll(async () => {
-		await payload.db.migrateFresh({
-			forceAcceptWarning: true,
-		});
+		try {
+			await infrastructureModule.migrateFresh({
+				migrations: migrations as import("payload").Migration[],
+				forceAcceptWarning: true,
+			});
+			await infrastructureModule.cleanS3();
+		} catch (error) {
+			console.warn("Cleanup failed:", error);
+		}
 	});
 
 	test("seeds pages from predefined data successfully", () => {

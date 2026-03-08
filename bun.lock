@@ -222,6 +222,29 @@
         "payload": "^3.76.1",
       },
     },
+    "packages/module-page": {
+      "name": "@paideia/module-page",
+      "version": "0.1.0",
+      "dependencies": {
+        "@aws-sdk/client-s3": "^3.1004.0",
+        "@paideia/module-infrastructure": "workspace:*",
+        "@paideia/module-user": "workspace:*",
+        "@paideia/shared": "workspace:*",
+        "@payloadcms/db-postgres": "^3.79.0",
+        "@payloadcms/storage-s3": "^3.79.0",
+        "es-toolkit": "^1.45.1",
+        "payload": "^3.79.0",
+        "typescript-result": "^3.5.2",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@orpc/server": "^1.13.6",
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "payload": "^3.76.1",
+      },
+    },
     "packages/module-user": {
       "name": "@paideia/module-user",
       "version": "0.1.0",
@@ -940,6 +963,8 @@
     "@paideia/module-infrastructure": ["@paideia/module-infrastructure@workspace:packages/module-infrastructure"],
 
     "@paideia/module-note": ["@paideia/module-note@workspace:packages/module-note"],
+
+    "@paideia/module-page": ["@paideia/module-page@workspace:packages/module-page"],
 
     "@paideia/module-user": ["@paideia/module-user@workspace:packages/module-user"],
 

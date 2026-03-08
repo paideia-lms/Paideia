@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { PagesModule } from "../index";
 import { getPayload } from "payload";
-import sanitizedConfig from "server/payload.config";
+import sanitizedConfig from "payload.config";
 
 describe("Pages Module", async () => {
     const payload = await getPayload({

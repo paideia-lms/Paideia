@@ -7,7 +7,7 @@ import {
 	deletePage,
 	findPagesByUser,
 } from "../api/page-management";
-import { createOpenApiGenerator } from "../../../orpc/openapi-handler";
+import { createOpenApiGenerator } from "@paideia/module-infrastructure/openapi-handler";
 
 const pagesApiRouter = {
 	pages: {

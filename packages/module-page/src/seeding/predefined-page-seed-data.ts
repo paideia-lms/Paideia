@@ -1,4 +1,4 @@
-import { devConstants } from "../../../utils/constants";
+import { devConstants } from "../utils/constants";
 import type { PageSeedData } from "./page-seed-schema";
 
 /**

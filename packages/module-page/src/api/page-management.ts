@@ -8,7 +8,7 @@ import {
 	tryDeletePage,
 	tryFindPagesByUser,
 } from "../services/page-management";
-import type { OrpcContext } from "../../../orpc/context";
+import type { OrpcContext } from "../orpc/context";
 
 const outputSchema = z.any();
 

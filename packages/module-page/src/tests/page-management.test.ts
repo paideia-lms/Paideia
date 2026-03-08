@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "payload.config";
 import {
 	tryCreatePage,
@@ -10,13 +9,14 @@ import {
 	trySearchPages,
 	tryUpdatePage,
 } from "../services/page-management";
-import { trySeedMedia } from "../../user/seeding/media-builder";
-import { trySeedUsers } from "../../user/seeding/users-builder";
+import { UserModule } from "@paideia/module-user";
+import { InfrastructureModule } from "@paideia/module-infrastructure";
 import {
 	pageManagementTestMediaSeedData,
 	pageManagementTestUserSeedData,
 } from "../seeding/page-management-test-seed-data";
 import { createLocalReq } from "@paideia/shared";
+import { migrations } from "src/migrations";
 
 type TestPage = {
 	id: number;
@@ -33,6 +33,8 @@ describe("Page Management Functions", async () => {
 		key: `test-${Math.random().toString(36).substring(2, 15)}`,
 		config: sanitizedConfig,
 	});
+	const userModule = new UserModule(payload);
+	const infrastructureModule = new InfrastructureModule(payload);
 	let testUser: { id: number };
 	let testUser2: { id: number };
 	let noUser: { id: number };
@@ -54,28 +56,28 @@ describe("Page Management Functions", async () => {
 	};
 
 	beforeAll(async () => {
-		while (!payload.db.drizzle) {
-			await new Promise((resolve) => setTimeout(resolve, 100));
-		}
-
-		await payload.db.migrateFresh({
+		await infrastructureModule.migrateFresh({
+			migrations: migrations as Migration[],
 			forceAcceptWarning: true,
 		});
+		await infrastructureModule.cleanS3();
 
-		const usersResult = await trySeedUsers({
-			payload,
-			data: pageManagementTestUserSeedData,
-			overrideAccess: true,
-			req: undefined,
-		}).getOrThrow();
+		const usersResult = (
+			await userModule.seedUsers({
+				data: pageManagementTestUserSeedData,
+				overrideAccess: true,
+				req: undefined,
+			})
+		).getOrThrow();
 
-		const mediaResult = await trySeedMedia({
-			payload,
-			data: pageManagementTestMediaSeedData,
-			usersByEmail: usersResult.getUsersByEmail(),
-			overrideAccess: true,
-			req: undefined,
-		}).getOrThrow();
+		const mediaResult = (
+			await userModule.seedMedia({
+				data: pageManagementTestMediaSeedData,
+				usersByEmail: usersResult.getUsersByEmail(),
+				overrideAccess: true,
+				req: undefined,
+			})
+		).getOrThrow();
 
 		const user1Entry = usersResult.byEmail.get("testuser1@example.com")!;
 		const user2Entry = usersResult.byEmail.get("testuser2@example.com")!;
@@ -96,10 +98,15 @@ describe("Page Management Functions", async () => {
 	});
 
 	afterAll(async () => {
-		await payload.db.migrateFresh({
-			forceAcceptWarning: true,
-		});
-		await $`bun scripts/clean-s3.ts`;
+		try {
+			await infrastructureModule.migrateFresh({
+				migrations: migrations as Migration[],
+				forceAcceptWarning: true,
+			});
+			await infrastructureModule.cleanS3();
+		} catch (error) {
+			console.warn("Cleanup failed:", error);
+		}
 	});
 
 	describe("tryCreatePage", () => {

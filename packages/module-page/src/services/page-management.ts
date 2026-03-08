@@ -1,10 +1,7 @@
-import { Pages } from "server/collections";
 import { Result } from "typescript-result";
-import {
-	InvalidArgumentError,
-	transformError,
-	UnknownError,
-} from "../../../errors";
+import { InvalidArgumentError, UnknownError } from "@paideia/shared";
+import { transformError } from "../errors";
+import { Pages } from "../collections/pages";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
