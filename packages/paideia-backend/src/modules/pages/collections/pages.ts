@@ -2,7 +2,7 @@ import type { CollectionConfig } from "payload";
 import {
 
 	richTextContentWithHook,
-} from "../../../collections/utils/rich-text-content";
+} from "../../../../../module-user/src/internal/utils/rich-text-content";
 
 // Pages collection - for page-type activity modules
 export const Pages = {

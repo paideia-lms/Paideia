@@ -1,7 +1,7 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { s3Storage } from "@payloadcms/storage-s3";
-import { buildConfig } from "payload";
+import { buildConfig, TaskConfig } from "payload";
 import { UserModule } from "@paideia/module-user";
 import { InfrastructureModule } from "@paideia/module-infrastructure";
 import { Notes } from "./collections/notes";

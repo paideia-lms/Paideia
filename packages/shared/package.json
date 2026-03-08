@@ -16,11 +16,11 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"cheerio": "^1.2.0",
 		"payload": "^3.76.1",
 		"typescript-result": "^3.5.2"
 	},
-	"devDependencies": {
-	},
+	"devDependencies": {},
 	"peerDependencies": {
 		"payload": "^3.76.1"
 	}

@@ -15,6 +15,16 @@ const pg = postgresAdapter({
 	push: process.env.NODE_ENV === "test",
 });
 
+
+const autoSubmitQuiz = {
+	slug: "autoSubmitQuiz" as const,
+	handler: async () => {
+		return {
+			state: "succeeded",
+		}
+	}
+};
+
 const config = buildConfig({
 	db: pg,
 	secret: envVars.PAYLOAD_SECRET.value ?? envVars.PAYLOAD_SECRET.default!,
@@ -36,7 +46,7 @@ const config = buildConfig({
 			{ cron: "* * * * *", queue: "minute" },
 			{ cron: "0 * * * *", queue: "hourly" },
 		],
-		tasks: [sandboxReset] as TaskConfig[],
+		tasks: [sandboxReset, autoSubmitQuiz] as TaskConfig[],
 	},
 });
 

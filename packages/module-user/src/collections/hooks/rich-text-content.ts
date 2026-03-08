@@ -1,12 +1,12 @@
 import type { Payload, PayloadRequest, TextareaField } from "payload";
 import { Result } from "typescript-result";
-import { tryParseMediaFromHtml } from "server/internal/utils/parse-media-from-html";
+import { tryParseMediaFromHtml } from "../../internal/utils/parse-media-from-html";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
 } from "@paideia/shared";
-import { replaceBase64MediaWithMediaUrlsV2 } from "server/utils/replace-base64-images";
+import { replaceBase64MediaWithMediaUrlsV2 } from "../../internal/utils/replace-base64-images";
 import type { Simplify } from "type-fest";
 
 // function richTextContent<T extends TextareaField>(o: T) {
@@ -184,7 +184,8 @@ export function richTextContentWithHook<T extends TextareaField>(
 								siblingData[mediaFieldName] = result[mediaFieldName];
 							}
 
-							return value;
+							// Return processed value so validation runs on media URLs, not base64
+							return result[fieldName] ?? value;
 						},
 					],
 				},
@@ -375,6 +376,7 @@ export function tryExtractMediaIdsFromRichText(
 						pagination: false,
 						// ! this is a server request
 						overrideAccess: true,
+						// @ts-ignore 
 						req: req?.transactionID
 							? { ...req, transactionID: req.transactionID }
 							: req,

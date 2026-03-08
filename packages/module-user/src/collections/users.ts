@@ -1,5 +1,6 @@
 import type { AccessResult, CollectionConfig } from "payload";
 import { InfrastructureModule } from "@paideia/module-infrastructure";
+import { mediaFieldWithHook } from "./hooks/avatar-field";
 
 const envVars = InfrastructureModule.envVars;
 
@@ -167,13 +168,14 @@ export const Users = {
 			required: true,
 			saveToJWT: true,
 		},
-		{
-			saveToJWT: true,
+		...mediaFieldWithHook({
 			name: "avatar",
-			type: "relationship",
-			relationTo: "media",
 			label: "Avatar",
-		},
+			saveToJWT: true,
+			hasMany: false,
+			relationTo: "media",
+			"type": "relationship",
+		}).fields,
 	],
 	slug: "users" as const,
 } as const satisfies CollectionConfig;

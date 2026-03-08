@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import { TestError } from "@paideia/shared";
 import sanitizedConfig from "../payload.config";
 import { tryGetPendingJobsByQueue } from "../services/cron-jobs-management";
+import { InfrastructureModule } from "../index";
+import { migrations } from "src/migrations";
 
 
 describe("Cron Jobs Pending by Queue", async () => {
@@ -12,24 +14,22 @@ describe("Cron Jobs Pending by Queue", async () => {
 		key: `test-${Math.random().toString(36).substring(2, 15)}`,
 		config: sanitizedConfig,
 	});
-
+	const infrastructureModule = new InfrastructureModule(payload);
 	beforeAll(async () => {
-		// await until payload.db.drizzle is ready
-		while (!payload.db.drizzle) {
-			await new Promise(resolve => setTimeout(resolve, 100));
-		}
-
-		await payload.db.migrateFresh({
+		await infrastructureModule.migrateFresh({
+			migrations: migrations as Migration[],
 			forceAcceptWarning: true,
 		});
+		await infrastructureModule.cleanS3();
 	});
 
 	afterAll(async () => {
 		try {
-			await payload.db.migrateFresh({
+			await infrastructureModule.migrateFresh({
+				migrations: migrations as Migration[],
 				forceAcceptWarning: true,
 			});
-			await $`bun scripts/clean-s3.ts`.cwd(import.meta.dirname + "/../..");
+			await infrastructureModule.cleanS3();
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

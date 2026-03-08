@@ -1,31 +1,29 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { TestError } from "@paideia/shared";
 import sanitizedConfig from "../payload.config";
 import { dumpDatabase } from "../services/dump";
+import { InfrastructureModule } from "../index";
+import { migrations } from "src/migrations";
 
-describe("Database Dump", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Database Dump", async () => {
+	const payload = await getPayload({
+		key: `test-${Math.random().toString(36).substring(2, 15)}`,
+		config: sanitizedConfig,
+	});
+	const infrastructureModule = new InfrastructureModule(payload);
+
 
 	beforeAll(async () => {
-		payload = await getPayload({
-			key: `test-${Math.random().toString(36).substring(2, 15)}`,
-			config: sanitizedConfig,
-		});
-
-		// await until payload.db.drizzle is ready
-		while (!payload.db.drizzle) {
-			await new Promise(resolve => setTimeout(resolve, 100));
-		}
-
 		// Refresh environment and database for clean test state
 		try {
-			await payload.db.migrateFresh({
+			await infrastructureModule.migrateFresh({
+				migrations: migrations as Migration[],
 				forceAcceptWarning: true,
 			});
-			await $`bun scripts/clean-s3.ts`.cwd(import.meta.dirname + "/../..");
+			await infrastructureModule.cleanS3();
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
@@ -34,10 +32,11 @@ describe("Database Dump", () => {
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await payload.db.migrateFresh({
+			await infrastructureModule.migrateFresh({
+				migrations: migrations as Migration[],
 				forceAcceptWarning: true,
 			});
-			await $`bun scripts/clean-s3.ts`.cwd(import.meta.dirname + "/../..");
+			await infrastructureModule.cleanS3();
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

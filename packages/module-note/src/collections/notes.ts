@@ -1,4 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
+import { UserModule } from "@paideia/module-user";
 
 /**
  * notes are like journals and tweets
@@ -79,19 +80,12 @@ export const Notes = {
 				update: () => false,
 			},
 		},
-		{
+		...UserModule.fieldHooks.richTextContentWithHook({
 			name: "content",
 			type: "textarea",
 			label: "Content",
 			required: true,
-		},
-		{
-			name: "contentMedia",
-			type: "relationship",
-			relationTo: "media",
-			hasMany: true,
-			label: "Content Media",
-		},
+		}, "Note content image").fields,
 		{
 			name: "isPublic",
 			type: "checkbox",

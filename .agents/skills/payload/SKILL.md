@@ -145,6 +145,22 @@ export const Posts: CollectionConfig = {
 
 For all hook patterns, see [HOOKS.md](reference/HOOKS.md). For access control, see [ACCESS-CONTROL.md](reference/ACCESS-CONTROL.md).
 
+### Field Hook Typing (Paideia)
+
+When creating reusable field helpers with `beforeChange` hooks (e.g. `mediaFieldWithHook`):
+
+1. **Require base config** – Make `baseField` required with a type that includes `name`, `type`, `relationTo` for relationship fields. Use `Pick<RelationshipField, "name" | "type" | "relationTo">` plus optional overrides.
+
+2. **Return type** – Return `{ fields: [RelationshipField] }` or `{ fields: [Field] }` so consumers get proper typing. Build the merged field and assert as `RelationshipField` when spreading base config.
+
+3. **Internal function `req`** – When passing `req` from the hook to internal functions (e.g. `tryCreateMedia`), use `req as Parameters<typeof tryCreateMedia>[0]["req"]` if passing a partial (e.g. `{ transactionID }` for transactions). Internal args typically accept `req?: BaseRequest | undefined`.
+
+4. **Unit testing field hooks** – `FieldHookArgs` requires many props (`blockData`, `collection`, `context`, `field`, etc.). For unit tests that only need `value`, `req`, `operation`, `originalDoc`:
+   - Use `{ payload: {} } as any` for minimal `req`
+   - Use `as Parameters<typeof hookFn>[0]` on the args object to satisfy the type checker with a partial
+
+Example: `packages/module-user/src/collections/hooks/avatar-field.ts`, `packages/module-user/src/tests/avatar-field.unit.test.ts`
+
 ### Access Control with Type Safety
 
 ```ts

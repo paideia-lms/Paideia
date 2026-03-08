@@ -1,11 +1,12 @@
 import { Payload } from "payload";
-import * as internal from "./services/user-management"
-import { Users } from "./collections/users"
+import * as internal from "./services/user-management";
+import { Users } from "./collections/users";
 import {
     trySeedMedia,
     TrySeedMediaArgs,
 } from "./seeding/media-builder";
 import { trySeedUsers, TrySeedUsersArgs } from "./seeding/users-builder";
+import type { SeedUsersResult as SeedUsersResultType } from "./seeding/users-builder";
 import { predefinedMediaSeedData } from "./seeding/predefined-media-seed-data";
 import { predefinedUserSeedData } from "./seeding/predefined-user-seed-data";
 import type { MediaSeedData as MediaSeedDataType } from "./seeding/media-seed-schema";
@@ -32,10 +33,13 @@ import {
     findMediaUsages,
 } from "./api/media-management";
 import packageJson from "../package.json";
+import { mediaFieldWithHook } from "./collections/hooks/avatar-field";
+import { createRichTextBeforeChangeHook, richTextContentWithHook } from "./collections/hooks/rich-text-content";
 
 export namespace UserModule {
     export type MediaSeedData = MediaSeedDataType;
     export type UserSeedData = UserSeedDataType;
+    export type SeedUsersResult = SeedUsersResultType;
 }
 
 /**
@@ -59,6 +63,14 @@ export class UserModule {
         Users,
         Media
     ];
+
+    public static readonly collectionHooks = {
+        createRichTextBeforeChangeHook
+    }
+    public static readonly fieldHooks = {
+        mediaFieldWithHook,
+        richTextContentWithHook
+    }
     public static readonly cli = {
     }
     public static readonly search = [Users.slug]

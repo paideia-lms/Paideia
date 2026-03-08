@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { tryParseMediaFromHtml } from "./parse-media-from-html";
-import { TestError } from "../../tests/errors";
+import { tryParseMediaFromHtml } from "../internal/utils/parse-media-from-html";
+import { TestError } from "@paideia/shared";
 
 describe("Parse Media From HTML", () => {
 	test("should parse media IDs from HTML", () => {

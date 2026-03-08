@@ -147,6 +147,30 @@
         "vite-tsconfig-paths": "^6.1.1",
       },
     },
+    "packages/module-course": {
+      "name": "@paideia/module-course",
+      "version": "0.1.0",
+      "dependencies": {
+        "@aws-sdk/client-s3": "^3.1004.0",
+        "@paideia/module-infrastructure": "workspace:*",
+        "@paideia/module-user": "workspace:*",
+        "@paideia/shared": "workspace:*",
+        "@payloadcms/db-postgres": "^3.79.0",
+        "@payloadcms/storage-s3": "^3.79.0",
+        "es-toolkit": "^1.45.1",
+        "payload": "^3.79.0",
+        "search-query-parser": "^1.6.0",
+        "typescript-result": "^3.5.2",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@orpc/server": "^1.13.6",
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "payload": "^3.76.1",
+      },
+    },
     "packages/module-infrastructure": {
       "name": "@paideia/module-infrastructure",
       "version": "0.1.0",
@@ -208,7 +232,9 @@
         "@paideia/shared": "workspace:*",
         "@payloadcms/db-postgres": "^3.79.0",
         "@payloadcms/storage-s3": "^3.79.0",
+        "cheerio": "^1.2.0",
         "es-toolkit": "^1.45.1",
+        "mime": "^4.1.0",
         "payload": "^3.79.0",
         "search-query-parser": "^1.6.0",
         "type-fest": "^5.4.4",
@@ -275,6 +301,7 @@
       "name": "@paideia/shared",
       "version": "0.1.0",
       "dependencies": {
+        "cheerio": "^1.2.0",
         "payload": "^3.76.1",
         "typescript-result": "^3.5.2",
       },
@@ -907,6 +934,8 @@
     "@oxc-resolver/binding-win32-ia32-msvc": ["@oxc-resolver/binding-win32-ia32-msvc@11.19.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-EW+ND5q2Tl+a3pH81l1QbfgbF3HmqgwLfDfVithRFheac8OTcnbXt/JxqD2GbDkb7xYEqy1zNaVFRr3oeG8npA=="],
 
     "@oxc-resolver/binding-win32-x64-msvc": ["@oxc-resolver/binding-win32-x64-msvc@11.19.1", "", { "os": "win32", "cpu": "x64" }, "sha512-6hIU3RQu45B+VNTY4Ru8ppFwjVS/S5qwYyGhBotmjxfEKk41I2DlGtRfGJndZ5+6lneE2pwloqunlOyZuX/XAw=="],
+
+    "@paideia/module-course": ["@paideia/module-course@workspace:packages/module-course"],
 
     "@paideia/module-infrastructure": ["@paideia/module-infrastructure@workspace:packages/module-infrastructure"],
 

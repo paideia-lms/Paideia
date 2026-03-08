@@ -7,8 +7,6 @@ import type { User } from "payload-types";
 import { handleTransactionId } from "@paideia/shared";
 import type { BaseInternalFunctionArgs } from "@paideia/shared";
 import { stripDepth } from "@paideia/shared";
-import { tryCreateMedia } from "./media-management";
-
 export interface CreateUserArgs extends BaseInternalFunctionArgs {
 	data: {
 		email: string;
@@ -230,7 +228,7 @@ export function tryCreateUser(args: CreateUserArgs) {
 
 			const transactionInfo = await handleTransactionId(payload, req);
 			const newUser = transactionInfo.tx(async ({ reqWithTransaction }) => {
-				let user = await payload
+				const user = await payload
 					.create({
 						collection: "users",
 						data: {
@@ -240,43 +238,18 @@ export function tryCreateUser(args: CreateUserArgs) {
 							lastName,
 							role,
 							bio,
+							// @ts-expect-error - field hook is doing conversion
+							avatar: avatar,
 							theme: theme ?? "light",
 							direction: direction ?? "ltr",
 							// ! TODO: automatically verify the user for now, we need to fix this in the future
 							_verified: true,
 						},
-						req: reqWithTransaction,
+						req: { ...reqWithTransaction, payload },
 						depth: 0,
 						overrideAccess,
 					})
 					.then(stripDepth<0, "create">());
-
-				if (avatar) {
-					const mediaId = await tryCreateMedia({
-						payload,
-						file: await avatar.arrayBuffer().then(Buffer.from),
-						filename: avatar.name,
-						mimeType: avatar.type,
-						userId: user.id,
-						req: reqWithTransaction,
-						overrideAccess,
-					})
-						.getOrThrow()
-						.then((r) => r.media.id);
-
-					user = await payload
-						.update({
-							collection: "users",
-							id: user.id,
-							data: {
-								avatar: mediaId,
-							},
-							req: reqWithTransaction,
-							depth: 0,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "update">());
-				}
 
 				return user;
 			});
@@ -310,23 +283,10 @@ export function tryUpdateUser(args: UpdateUserArgs) {
 						id: userId,
 						data: {
 							...data,
-							avatar: data.avatar
-								? await tryCreateMedia({
-									payload,
-									file: await data.avatar.arrayBuffer().then(Buffer.from),
-									filename: data.avatar.name,
-									mimeType: data.avatar.type,
-									alt: "User avatar",
-									caption: "User avatar",
-									req: reqWithTransaction,
-									overrideAccess,
-									userId,
-								})
-									.getOrThrow()
-									.then((r) => r.media.id)
-								: undefined,
+							// ! media hook 
+							avatar: data.avatar as number | null,
 						},
-						req: reqWithTransaction,
+						req: { ...reqWithTransaction, payload },
 						overrideAccess,
 					})
 					.then(stripDepth<0, "update">());

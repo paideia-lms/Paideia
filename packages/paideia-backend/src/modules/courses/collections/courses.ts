@@ -1,7 +1,7 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
 import {
 	richTextContentWithHook,
-} from "../../../collections/utils/rich-text-content";
+} from "../../../../../module-user/src/internal/utils/rich-text-content";
 
 // Courses collection - core LMS content
 export const Courses = {

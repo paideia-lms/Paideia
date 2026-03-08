@@ -401,6 +401,7 @@ Before considering module complete, verify:
 
 - SeedBuilder Pattern: `.agents/skills/seed-builder-pattern/SKILL.md`
 - Payload Skills: `.agents/skills/payload/SKILL.md`
+- Rich text with base64: `.cursor/skills/richtext-content-with-hook/SKILL.md` (for description/content fields)
 - Module-to-Package Refactoring: `.cursor/skills/module-package-refactoring/SKILL.md` (when extracting to standalone package)
 - Example: `packages/paideia-backend/src/modules/note/`
 - Example: `packages/paideia-backend/src/modules/pages/`

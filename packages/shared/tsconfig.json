@@ -5,6 +5,6 @@
 		"baseUrl": ".",
 		"paths": {}
 	},
-	"include": ["src"],
+	"include": ["src", "../module-user/src/parse-media-from-html.test.ts", "../module-user/src/parse-media-from-html.ts", "../module-user/src/replace-base64-images.test.ts", "../module-user/src/replace-base64-images.ts", "../module-user/src/rich-text-content.ts", "../module-user/src/rich-text-content.unit.test.ts"],
 	"exclude": ["node_modules", "types.d.ts"]
 }

@@ -4,7 +4,7 @@ import {
 	createRichTextHookHandler,
 	extractUserIdAndPayload,
 	richTextContentWithHook,
-} from "./rich-text-content";
+} from "../collections/hooks/rich-text-content";
 
 
 describe("extractUserIdAndPayload", () => {
