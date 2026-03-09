@@ -2,7 +2,7 @@ import type {
 	ActivityModuleSummary,
 	CourseStructure,
 	CourseStructureSection,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";
 
 // Tree node interface for headless-tree
 export interface TreeNode {

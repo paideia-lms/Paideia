@@ -32,7 +32,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/core";
 import {
 	badRequest,
 	ForbiddenResponse,

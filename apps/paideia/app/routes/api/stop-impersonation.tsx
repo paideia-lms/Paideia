@@ -4,7 +4,7 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { removeImpersonationCookie } from "@paideia/paideia-backend";
+import { removeImpersonationCookie } from "@paideia/core";
 import {
 	badRequest,
 	StatusCode,

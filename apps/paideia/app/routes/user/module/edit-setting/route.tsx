@@ -16,7 +16,7 @@ import { parseAsStringEnum } from "nuqs/server";
 import { useState } from "react";
 import { globalContextKey } from "server/contexts/global-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
-import type { ActivityModuleResult } from "@paideia/paideia-backend";
+import type { ActivityModuleResult } from "@paideia/core";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";

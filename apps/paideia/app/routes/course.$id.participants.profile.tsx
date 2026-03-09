@@ -16,7 +16,7 @@ import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/core";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,

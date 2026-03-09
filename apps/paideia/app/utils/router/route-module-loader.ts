@@ -1,7 +1,7 @@
 import type { ParserMap } from "nuqs";
 import type { ServerBuild } from "react-router";
 import type { RouteId } from "app/utils/router/routes-utils";
-import { debugLog } from "@paideia/paideia-backend";
+import { debugLog } from "@paideia/core";
 
 /**
  * Extracts search params parsers from a route module

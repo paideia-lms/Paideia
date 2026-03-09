@@ -45,4 +45,4 @@ export {
 	QuizConfigValidationError,
 	QuizElementNotFoundError,
 	transformError,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";

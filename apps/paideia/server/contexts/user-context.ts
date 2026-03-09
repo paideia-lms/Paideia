@@ -6,10 +6,10 @@
  * it stores all the notes created by this user with heatmap data
  */
 
-import type { Paideia } from "@paideia/paideia-backend";
-import { stripDepth } from "@paideia/paideia-backend";
+import type { Paideia } from "@paideia/core";
+import { stripDepth } from "@paideia/core";
 import { createContext, type RouterContextProvider } from "react-router";
-import { permissions } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/core";
 
 export type UserContextResult = Awaited<ReturnType<typeof tryGetUserContext>>;
 

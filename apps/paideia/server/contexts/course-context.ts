@@ -5,7 +5,7 @@
  */
 
 import { createContext } from "react-router";
-import { permissions } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/core";
 import { Result } from "typescript-result";
 import type { PaideiaContextArgs } from "./global-context";
 import {
@@ -18,7 +18,7 @@ import {
 	flattenGradebookCategories,
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";
 export { courseContextKey } from "./utils/context-keys";
 
 // interface Group {
@@ -135,7 +135,7 @@ export { courseContextKey } from "./utils/context-keys";
 // 	moduleLinks: CourseActivityModuleLink[];
 // }
 
-export type { FlattenedCategory } from "@paideia/paideia-backend";
+export type { FlattenedCategory } from "@paideia/core";
 
 // export interface CourseContext {
 // 	course: Course;

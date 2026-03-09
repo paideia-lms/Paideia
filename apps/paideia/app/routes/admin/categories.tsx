@@ -40,7 +40,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { type FlatNode, flattenCategories } from "@paideia/paideia-backend";
+import { type FlatNode, flattenCategories } from "@paideia/core";
 import { useReorderCategories } from "~/routes/api/category-reorder";
 import {
 	badRequest,

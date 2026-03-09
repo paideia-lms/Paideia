@@ -1,4 +1,4 @@
 export {
 	getRequestInfo,
 	type RequestInfo,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";

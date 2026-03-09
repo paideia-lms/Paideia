@@ -3,10 +3,7 @@ import { href, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import {
-	removeAuthCookie,
-	removeImpersonationCookie,
-} from "@paideia/paideia-backend";
+import { removeAuthCookie, removeImpersonationCookie } from "@paideia/core";
 import { UnauthorizedResponse } from "app/utils/router/responses";
 
 const createRouteLoader = typeCreateLoader<LoaderFunctionArgs>();

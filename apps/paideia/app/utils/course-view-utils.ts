@@ -1,9 +1,4 @@
-import type {
-	ActivityModule,
-	Course,
-	Enrollment,
-	User,
-} from "@paideia/paideia-backend";
+import type { ActivityModule, Course, Enrollment, User } from "@paideia/core";
 
 export const getStatusBadgeColor = (status: Course["status"]) => {
 	switch (status) {

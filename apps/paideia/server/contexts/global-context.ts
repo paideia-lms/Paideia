@@ -1,5 +1,5 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { Paideia, RequestContext } from "@paideia/paideia-backend";
+import type { Paideia, RequestContext } from "@paideia/core";
 
 /** Args for context functions that use Paideia instead of raw payload */
 export interface PaideiaContextArgs {
@@ -14,7 +14,7 @@ import type { Storage } from "unstorage";
 import type { RouteId, MyRouteInfo } from "../../app/utils/router/routes-utils";
 import type { TypeSafeRouteParams } from "../../app/utils/router/route-params-schema";
 import type { TypeSafeRouteSearchParams } from "../../app/utils/router/search-params-utils";
-import type { envVars } from "@paideia/paideia-backend";
+import type { envVars } from "@paideia/core";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
 import type { ParamsType } from "../../app/utils/router/route-params-schema";

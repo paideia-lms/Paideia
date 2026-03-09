@@ -4,7 +4,7 @@ import type { ServerBuild } from "react-router";
 import type { RouteId } from "app/utils/router/routes-utils";
 import type { TypeSafeRouteSearchParams } from "app/utils/router/search-params-utils";
 import { tryGetSearchParamsParsers } from "app/utils/router/route-module-loader";
-import { debugLog } from "@paideia/paideia-backend";
+import { debugLog } from "@paideia/core";
 
 /**
  * Parses search params from URL for a specific route

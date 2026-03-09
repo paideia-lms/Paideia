@@ -11,12 +11,12 @@
 import { createContext, href } from "react-router";
 import type { GlobalContext } from "server/contexts/global-context";
 import type { UserSession } from "server/contexts/user-context";
-import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
+import type { BaseInternalFunctionArgs } from "@paideia/core";
 import type {
 	ActivityModule as PayloadActivityModule,
 	Enrollment as PayloadEnrollment,
-} from "@paideia/paideia-backend";
-import { permissions } from "@paideia/paideia-backend";
+} from "@paideia/core";
+import { permissions } from "@paideia/core";
 
 type Course = {
 	id: number;

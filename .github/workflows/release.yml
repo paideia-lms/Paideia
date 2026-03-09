@@ -72,7 +72,7 @@ jobs:
           done
 
       - name: Create S3 bucket
-        run: bun run --cwd packages/paideia-backend ensure-bucket
+        run: bun run --cwd packages/core ensure-bucket
         env:
           DATABASE_URL: postgresql://paideia:paideia_password@localhost:5432/paideia_db
           S3_URL: http://localhost:9000
@@ -84,7 +84,7 @@ jobs:
           PAYLOAD_SECRET: ci-test-secret-change-in-production
 
       - name: Run tests
-        run: bun run --cwd packages/paideia-backend test:all
+        run: bun run --cwd packages/core test:all
         env:
           DATABASE_URL: postgresql://paideia:paideia_password@localhost:5432/paideia_db
           S3_URL: http://localhost:9000

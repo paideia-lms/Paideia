@@ -1,0 +1,152 @@
+import type { AccessResult, CollectionConfig } from "payload";
+
+export const Discussions = {
+	slug: "discussions",
+	defaultSort: "-createdAt",
+	access: {
+		read: async ({ req }): Promise<AccessResult> => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+			return true;
+		},
+		update: async ({ req }): Promise<AccessResult> => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+			return true;
+		},
+		delete: ({ req }): AccessResult => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+			return {
+				createdBy: { equals: req.user.id },
+			};
+		},
+	},
+	fields: [
+		{
+			name: "title",
+			type: "text",
+			required: true,
+			label: "Discussion Title",
+		},
+		{
+			name: "description",
+			type: "textarea",
+			label: "Discussion Description",
+		},
+		{
+			name: "instructions",
+			type: "textarea",
+			label: "Instructions for Students",
+		},
+		{
+			name: "dueDate",
+			type: "date",
+			label: "Due Date",
+		},
+		{
+			name: "requireThread",
+			type: "checkbox",
+			label: "Require Thread Creation",
+			defaultValue: true,
+		},
+		{
+			name: "requireReplies",
+			type: "checkbox",
+			label: "Require Replies to Threads",
+			defaultValue: true,
+		},
+		{
+			name: "minReplies",
+			type: "number",
+			label: "Minimum Number of Replies per Thread",
+			defaultValue: 2,
+			min: 0,
+		},
+		{
+			name: "minWordsPerPost",
+			type: "number",
+			label: "Minimum Words per Post",
+			defaultValue: 50,
+			min: 0,
+		},
+		{
+			name: "allowAttachments",
+			type: "checkbox",
+			label: "Allow File Attachments",
+			defaultValue: true,
+		},
+		{
+			name: "allowUpvotes",
+			type: "checkbox",
+			label: "Allow Thread Upvoting",
+			defaultValue: true,
+		},
+		{
+			name: "allowEditing",
+			type: "checkbox",
+			label: "Allow Post Editing",
+			defaultValue: true,
+		},
+		{
+			name: "allowDeletion",
+			type: "checkbox",
+			label: "Allow Post Deletion",
+			defaultValue: false,
+		},
+		{
+			name: "moderationRequired",
+			type: "checkbox",
+			label: "Require Moderation",
+			defaultValue: false,
+		},
+		{
+			name: "anonymousPosting",
+			type: "checkbox",
+			label: "Allow Anonymous Posting",
+			defaultValue: false,
+		},
+		{
+			name: "groupDiscussion",
+			type: "checkbox",
+			label: "Group Discussion",
+			defaultValue: false,
+		},
+		{
+			name: "maxGroupSize",
+			type: "number",
+			label: "Maximum Group Size",
+			min: 2,
+		},
+		{
+			name: "threadSorting",
+			type: "select",
+			options: [
+				{ label: "Most Recent", value: "recent" },
+				{ label: "Most Upvoted", value: "upvoted" },
+				{ label: "Most Active", value: "active" },
+				{ label: "Alphabetical", value: "alphabetical" },
+			],
+			defaultValue: "recent",
+			label: "Default Thread Sorting",
+		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+			label: "Created By",
+		},
+	],
+	indexes: [
+		{
+			fields: ["createdBy"],
+		},
+		{
+			fields: ["dueDate"],
+		},
+		{
+			fields: ["threadSorting"],
+		},
+	],
+} as const satisfies CollectionConfig;

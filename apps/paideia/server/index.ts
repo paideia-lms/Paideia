@@ -5,7 +5,7 @@ import {
 	s3Client,
 	// tryRunSeed,
 	// S3BucketNotFoundError,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";
 
 import { RouterContextProvider } from "react-router";
 import { createRequestHandler } from "react-router";

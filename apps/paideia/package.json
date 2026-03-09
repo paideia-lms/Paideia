@@ -57,7 +57,7 @@
 		"@mantine/notifications": "^8.3.15",
 		"@mantine/tiptap": "^8.3.15",
 		"@monaco-editor/react": "^4.7.0",
-		"@paideia/paideia-backend": "workspace:*",
+		"@paideia/core": "workspace:*",
 		"@react-router/fs-routes": "^7.13.0",
 		"@react-router/node": "^7.13.0",
 		"@remix-run/node-fetch-server": "^0.12.0",

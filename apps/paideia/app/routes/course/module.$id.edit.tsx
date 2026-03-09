@@ -35,9 +35,9 @@ import type {
 	LatestCourseQuizSettings,
 	LatestCoursePageSettings,
 	LatestCourseWhiteboardSettings,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";
 
-import { permissions } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/core";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import {
 	badRequest,

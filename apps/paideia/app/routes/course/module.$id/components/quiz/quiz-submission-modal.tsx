@@ -8,7 +8,7 @@ import {
 	Tooltip,
 } from "@mantine/core";
 import { forwardRef, useImperativeHandle, useState } from "react";
-import type { QuizAnswers } from "@paideia/paideia-backend";
+import type { QuizAnswers } from "@paideia/core";
 import {
 	useMarkQuizAttemptAsComplete,
 	useMarkNestedQuizAsComplete,

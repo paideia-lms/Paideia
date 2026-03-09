@@ -7,8 +7,8 @@ import { courseModuleContextKey } from "server/contexts/utils/context-keys";
 import { enrolmentContextKey } from "server/contexts/utils/context-keys";
 import { globalContextKey } from "server/contexts/utils/context-keys";
 import { userContextKey } from "server/contexts/utils/context-keys";
-import type { TypedQuestionAnswer } from "@paideia/paideia-backend";
-import { permissions } from "@paideia/paideia-backend";
+import type { TypedQuestionAnswer } from "@paideia/core";
+import { permissions } from "@paideia/core";
 import z from "zod";
 import {
 	badRequest,

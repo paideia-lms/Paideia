@@ -19,7 +19,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { redirect, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { permissions } from "@paideia/paideia-backend";
+import { permissions } from "@paideia/core";
 import { FormableRichTextEditor } from "app/components/form-components/formable-rich-text-editor";
 import {
 	badRequest,

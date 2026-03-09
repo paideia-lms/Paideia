@@ -1,4 +1,4 @@
 export {
 	detectSystemResources,
 	getServerTimezone,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";

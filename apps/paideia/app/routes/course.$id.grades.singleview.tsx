@@ -24,7 +24,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import type { SingleUserGradesJsonRepresentation } from "@paideia/paideia-backend";
+import type { SingleUserGradesJsonRepresentation } from "@paideia/core";
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";

@@ -26,7 +26,7 @@ import {
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { USER_ROLES } from "@paideia/paideia-backend";
+import { USER_ROLES } from "@paideia/core";
 import type { User } from "server/types/frontend-types";
 import { z } from "zod";
 import {

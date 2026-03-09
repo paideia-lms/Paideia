@@ -38,7 +38,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import type { CategoryTreeNode } from "@paideia/paideia-backend";
+import type { CategoryTreeNode } from "@paideia/core";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,

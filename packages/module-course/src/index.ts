@@ -1,6 +1,5 @@
 import packageJson from "../package.json";
 import { Payload } from "payload";
-import { UserModule } from "@paideia/module-user";
 import { Courses } from "./collections/courses";
 import { CourseSections } from "./collections/course-sections";
 import {
@@ -28,11 +27,12 @@ export namespace CourseModule {
  * — those are handled by other modules.
  *
  * @upstream
- * - `user`: Required for the `createdBy` relationship in the Courses collection (course creators/instructors).
- * - `infrastructure`: Required for cron jobs to process scheduled publishing and other automated tasks.
+ * - `user`: Required for the `createdBy` relationship in the Courses collection.
+ * - `infrastructure`: Required for environment variables and scheduled tasks.
  *
  * @downstream
- * - `enrolment`, `gradebook`, `pages`, `assignments`, `quizzes`, `discussions`, `files`: All require a course to exist.
+ * - Leaf modules (assignment, quiz, discussion, etc.) reference course-sections directly.
+ * - `enrolment` module references courses for enrollment.
  */
 export class CourseModule {
 	private readonly payload: Payload;

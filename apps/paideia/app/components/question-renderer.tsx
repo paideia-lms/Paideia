@@ -68,7 +68,7 @@ import type {
 	ShortAnswerQuestion,
 	SingleSelectionMatrixQuestion,
 	WhiteboardQuestion,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "./activity-module-forms/use-whiteboard-data";
 import { SimpleRichTextEditor } from "./rich-text/simple-rich-text-editor";

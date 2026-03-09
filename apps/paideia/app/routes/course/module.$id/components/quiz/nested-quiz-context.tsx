@@ -1,7 +1,4 @@
-import type {
-	ContainerQuizConfig,
-	NestedQuizConfig,
-} from "@paideia/paideia-backend";
+import type { ContainerQuizConfig, NestedQuizConfig } from "@paideia/core";
 import { constate } from "app/utils/ui/constate";
 import { useLoaderData } from "react-router";
 import type { Route } from "../../route";

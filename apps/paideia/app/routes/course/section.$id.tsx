@@ -19,7 +19,7 @@ import { userContextKey } from "server/contexts/user-context";
 import type {
 	CourseStructureItem,
 	CourseStructureSection,
-} from "@paideia/paideia-backend";
+} from "@paideia/core";
 import { useCreateModuleLink } from "~/routes/course.$id.modules";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, ok } from "app/utils/router/responses";

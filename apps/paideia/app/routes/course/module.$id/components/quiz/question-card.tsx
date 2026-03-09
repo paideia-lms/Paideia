@@ -13,11 +13,8 @@ import {
 	IconInfoCircle,
 	IconX,
 } from "@tabler/icons-react";
-import type { Question, QuestionAnswer } from "@paideia/paideia-backend";
-import {
-	getQuestionPoints,
-	getScoringDescription,
-} from "@paideia/paideia-backend";
+import type { Question, QuestionAnswer } from "@paideia/core";
+import { getQuestionPoints, getScoringDescription } from "@paideia/core";
 import { QuestionRenderer } from "app/components/question-renderer";
 import {
 	useFlagQuizQuestion,
@@ -25,7 +22,7 @@ import {
 	useAnswerQuizQuestion,
 	useUnanswerQuizQuestion,
 } from "../../route";
-import type { TypedQuestionAnswer } from "@paideia/paideia-backend";
+import type { TypedQuestionAnswer } from "@paideia/core";
 import { useRef, useEffect } from "react";
 import { useQuestionContext } from "./question-context";
 

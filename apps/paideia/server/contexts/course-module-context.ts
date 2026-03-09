@@ -1,12 +1,12 @@
 import { createContext } from "react-router";
-import type { LatestCourseQuizSettings } from "@paideia/paideia-backend";
-import type { LatestQuizConfig } from "@paideia/paideia-backend";
+import type { LatestCourseQuizSettings } from "@paideia/core";
+import type { LatestQuizConfig } from "@paideia/core";
 import {
 	calculateTotalPoints,
 	convertDatabaseAnswersToQuizAnswers,
 	permissions,
-} from "@paideia/paideia-backend";
-import type { QuizAnswers } from "@paideia/paideia-backend";
+} from "@paideia/core";
+import type { QuizAnswers } from "@paideia/core";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "../../app/utils/error";
 import type { PaideiaContextArgs } from "./global-context";

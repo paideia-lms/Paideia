@@ -1,8 +1,4 @@
-import type {
-	GradingConfig,
-	Question,
-	QuestionAnswer,
-} from "@paideia/paideia-backend";
+import type { GradingConfig, Question, QuestionAnswer } from "@paideia/core";
 import { constate } from "app/utils/ui/constate";
 import { useRegularQuizAttemptContext } from "./quiz-attempt-component";
 

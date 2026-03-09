@@ -7,7 +7,7 @@ import type { RouterContextProvider } from "react-router";
 import serveStatic from "serve-static";
 import type { ViteDevServer } from "vite";
 import { getServerBuild, setVite } from "./server-build-access";
-import type { Payload } from "@paideia/paideia-backend";
+import type { Payload } from "@paideia/core";
 
 export interface DevServerOptions {
 	port: number;
