@@ -1,0 +1,4 @@
+.DS_Store
+migrations/
+payload-generated-schema.ts
+payload-types.ts
