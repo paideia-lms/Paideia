@@ -171,6 +171,30 @@
         "payload": "^3.76.1",
       },
     },
+    "packages/module-enrolment": {
+      "name": "@paideia/module-enrolment",
+      "version": "0.1.0",
+      "dependencies": {
+        "@aws-sdk/client-s3": "^3.1004.0",
+        "@paideia/module-course": "workspace:*",
+        "@paideia/module-infrastructure": "workspace:*",
+        "@paideia/module-user": "workspace:*",
+        "@paideia/shared": "workspace:*",
+        "@payloadcms/db-postgres": "^3.79.0",
+        "@payloadcms/storage-s3": "^3.79.0",
+        "es-toolkit": "^1.45.1",
+        "payload": "^3.79.0",
+        "typescript-result": "^3.5.2",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@orpc/server": "^1.13.6",
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "payload": "^3.76.1",
+      },
+    },
     "packages/module-file": {
       "name": "@paideia/module-file",
       "version": "0.1.0",
@@ -1005,6 +1029,8 @@
     "@oxc-resolver/binding-win32-x64-msvc": ["@oxc-resolver/binding-win32-x64-msvc@11.19.1", "", { "os": "win32", "cpu": "x64" }, "sha512-6hIU3RQu45B+VNTY4Ru8ppFwjVS/S5qwYyGhBotmjxfEKk41I2DlGtRfGJndZ5+6lneE2pwloqunlOyZuX/XAw=="],
 
     "@paideia/module-course": ["@paideia/module-course@workspace:packages/module-course"],
+
+    "@paideia/module-enrolment": ["@paideia/module-enrolment@workspace:packages/module-enrolment"],
 
     "@paideia/module-file": ["@paideia/module-file@workspace:packages/module-file"],
 
