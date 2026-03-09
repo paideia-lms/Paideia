@@ -361,6 +361,55 @@ class CourseSectionsSeedBuilder extends SeedBuilder<SectionInput, CourseSection>
 }
 ```
 
+### 6. GroupsSeedBuilder (Hierarchical with Parent Resolution)
+
+**File**: `packages/module-enrolment/src/seeding/groups-builder.ts`
+
+**Pattern**: Parent-child entities where children reference parents created in the same seed run. Uses incremental map building.
+
+```typescript
+class GroupsSeedBuilder extends SeedBuilder<GroupSeedInput, Group> {
+  readonly entityName = "group";
+  private coursesBySlug: Map<string, Course>;
+
+  protected async seedEntities(inputs: GroupSeedInput[], context: SeedContext): Promise<Group[]> {
+    const groups: Group[] = [];
+    const groupsByPath = new Map<string, Group>();
+
+    for (const input of inputs) {
+      const course = this.coursesBySlug.get(input.courseSlug);
+      if (!course) throw new UnknownError(`Course not found: ${input.courseSlug}`);
+
+      let parentId: number | undefined;
+      if (input.parentGroupPath) {
+        const parentGroup = groupsByPath.get(`${input.courseSlug}:${input.parentGroupPath}`);
+        if (!parentGroup) throw new UnknownError(`Parent group not found: ${input.parentGroupPath}`);
+        parentId = parentGroup.id;
+      }
+
+      const group = await tryCreateGroup({
+        payload: context.payload,
+        name: input.name,
+        course: course.id,
+        parent: parentId,
+        req: context.req,
+        overrideAccess: context.overrideAccess,
+      }).getOrThrow();
+
+      groups.push(group);
+      // Build map incrementally so children can find their parents
+      groupsByPath.set(`${input.courseSlug}:${group.path}`, group);
+    }
+
+    return groups;
+  }
+}
+```
+
+**Key requirement**: Seed data must be ordered so parents appear before children. The builder tracks created entities in a map for child reference resolution.
+
+**CRITICAL**: The Groups collection's `beforeValidate` hook must pass `req` to internal Payload operations, or parent lookups will fail within the SeedBuilder transaction. See incident: `release-notes/incidents/2026-03-09-groups-hook-transaction-visibility.md`
+
 ---
 
 ## Common Patterns
@@ -444,6 +493,44 @@ This is acceptable because the runtime data is correct; the mismatch is due to j
 - Don't use `args.req` directly (use `context.req`)
 - Don't change existing result interfaces (breaking change)
 
+## CRITICAL: Transaction-Aware Collection Hooks
+
+SeedBuilder wraps all operations in a single transaction. If a collection has hooks (`beforeValidate`, `beforeChange`, etc.) that call Payload operations, those hooks **MUST pass `req`** to maintain transaction visibility.
+
+**Without `req`**: The hook's Payload operation runs in a separate DB connection that cannot see uncommitted writes from the SeedBuilder's transaction → `NotFound` errors for entities created moments earlier.
+
+```typescript
+// ❌ BROKEN inside SeedBuilder transactions
+hooks: {
+  beforeValidate: [
+    async ({ data, req }) => {
+      const parent = await req.payload.findByID({
+        collection: "groups",
+        id: data.parent,
+        // Missing req — can't see parent created in same transaction!
+      });
+    },
+  ],
+}
+
+// ✅ WORKS inside SeedBuilder transactions
+hooks: {
+  beforeValidate: [
+    async ({ data, req }) => {
+      const parent = await req.payload.findByID({
+        collection: "groups",
+        id: data.parent,
+        req,  // Same transaction connection
+      });
+    },
+  ],
+}
+```
+
+This is the #1 cause of mysterious `NotFound` errors in SeedBuilder tests with parent-child or hierarchical data. When debugging SeedBuilder failures, always check collection hooks for missing `req` parameters first.
+
+See incident: `release-notes/incidents/2026-03-09-groups-hook-transaction-visibility.md`
+
 ---
 
 ## Migration Checklist
@@ -513,12 +600,18 @@ const result = await trySeedCourses({
 
 ## References
 
-- Base class: `packages/paideia-backend/src/shared/seed-builder.ts`
-- Examples: 
+- Base class: `packages/shared/src/seed-builder.ts`
+- Examples (in-backend):
   - `packages/paideia-backend/src/modules/note/seeding/notes-builder.ts`
   - `packages/paideia-backend/src/modules/user/seeding/media-builder.ts`
   - `packages/paideia-backend/src/modules/user/seeding/users-builder.ts`
   - `packages/paideia-backend/src/modules/courses/seeding/courses-builder.ts`
   - `packages/paideia-backend/src/modules/courses/seeding/course-sections-builder.ts`
-- Related: `packages/paideia-backend/src/shared/internal-function-utils.ts` (BaseInternalFunctionArgs)
-- Related: `packages/paideia-backend/src/shared/handle-transaction-id.ts` (Transaction handling)
+- Examples (standalone packages):
+  - `packages/module-whiteboard/src/seeding/whiteboards-builder.ts` (simple)
+  - `packages/module-file/src/seeding/files-builder.ts` (media resolution)
+  - `packages/module-enrolment/src/seeding/groups-builder.ts` (hierarchical parent-child)
+  - `packages/module-enrolment/src/seeding/enrollments-builder.ts` (multi-entity dependencies)
+- Related: `packages/shared/src/internal-function-utils.ts` (BaseInternalFunctionArgs)
+- Related: `packages/shared/src/handle-transaction-id.ts` (Transaction handling)
+- Incident: `release-notes/incidents/2026-03-09-groups-hook-transaction-visibility.md` (hooks must pass `req`)

@@ -152,10 +152,26 @@ Example: Searching for `"Manager"` matches both a test user (Bob Manager) and a 
 
 Always check `predefined-*-seed-data.ts` before writing search/filter assertions.
 
+## Collection Hooks and Transaction Visibility
+
+When migrating collections with hooks (`beforeValidate`, `beforeChange`, etc.), ensure ALL Payload operations inside hooks pass `req` to maintain transaction context. This is critical for SeedBuilder-based tests.
+
+```typescript
+// ❌ Breaks inside SeedBuilder transactions
+const parent = await req.payload.findByID({ collection: "groups", id: data.parent });
+
+// ✅ Maintains transaction context
+const parent = await req.payload.findByID({ collection: "groups", id: data.parent, req });
+```
+
+See incident: `release-notes/incidents/2026-03-09-groups-hook-transaction-visibility.md`
+
 ## References
 
-- Example: `packages/module-user/`
-- Example: `packages/module-infrastructure/`
+- Example (foundation): `packages/module-user/`, `packages/module-infrastructure/`
+- Example (simple): `packages/module-whiteboard/`, `packages/module-file/`
+- Example (complex multi-collection): `packages/module-enrolment/`
 - Payload module pattern: `.agents/skills/payload-module-pattern/SKILL.md`
 - DDD module deps: `.agents/skills/ddd-module-depend-system/SKILL.md`
-- Incidents: `release-notes/incidents/` (TaskConfig, test data collision)
+- SeedBuilder pattern: `.agents/skills/seed-builder-pattern/SKILL.md`
+- Incidents: `release-notes/incidents/` (TaskConfig, test data collision, hook transaction visibility)

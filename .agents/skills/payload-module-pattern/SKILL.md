@@ -9,6 +9,48 @@ Standard pattern for creating complete resource modules in Paideia with services
 
 ## Module Structure
 
+### Standalone Package (Preferred)
+
+```
+packages/module-{name}/
+├── src/
+│   ├── index.ts              # Single export: module class + namespace
+│   ├── payload.config.ts     # Standalone Payload config for isolated schema generation
+│   ├── payload-types.ts      # Generated via bun run generate:payload
+│   ├── payload-generated-schema.ts  # Generated, add // @ts-nocheck
+│   ├── errors.ts             # Module-specific error classes
+│   ├── orpc/
+│   │   └── context.ts        # OrpcContext type
+│   ├── utils/
+│   │   └── constants.ts      # devConstants, etc.
+│   ├── collections/
+│   │   └── {name}.ts         # Collection definition(s)
+│   ├── services/
+│   │   └── {name}-management.ts
+│   ├── api/
+│   │   └── {name}-management.ts
+│   ├── seeding/
+│   │   ├── {name}-seed-schema.ts
+│   │   ├── {name}-builder.ts
+│   │   ├── predefined-{name}-seed-data.ts
+│   │   ├── {name}-management-test-seed-data.ts
+│   │   └── index.ts          # Re-exports all seeding artifacts
+│   ├── tests/
+│   │   ├── {name}-management.test.ts
+│   │   ├── seed-builders.test.ts
+│   │   ├── openapi-generation.test.ts
+│   │   └── {name}-module.test.ts
+│   └── migrations/
+│       ├── index.ts           # Auto-updated by migrate:create
+│       └── {timestamp}.ts     # Generated migration
+├── package.json
+├── tsconfig.json
+├── .env / .env.example
+└── .gitignore
+```
+
+### Legacy In-Backend Structure
+
 ```
 packages/paideia-backend/src/modules/{module-name}/
 ├── collections/           # Already exists (collection definition)
@@ -356,6 +398,85 @@ export class {Module}Module {
 }
 ```
 
+## Standalone Package Key Differences
+
+When creating a standalone package (vs in-backend module):
+
+### payload.config.ts (Mock)
+
+Each package has a minimal `payload.config.ts` that imports only the collections needed for schema generation:
+
+```typescript
+import { buildConfig } from "payload";
+import { postgresAdapter } from "@payloadcms/db-postgres";
+import { UserModule } from "@paideia/module-user";
+import { MyCollections } from "./collections/my-collections";
+
+export default buildConfig({
+  collections: [...UserModule.collections, MyCollections],
+  db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URL ?? "" } }),
+  secret: process.env.PAYLOAD_SECRET ?? "dev-secret",
+  typescript: {
+    outputFile: path.resolve(dirname, "payload-types.ts"),
+    declare: false,
+  },
+});
+```
+
+### Module Class (index.ts)
+
+Use `packageJson` for `moduleName` and `dependencies`:
+
+```typescript
+import packageJson from "../package.json";
+
+export class MyModule {
+  public static readonly moduleName = packageJson.name;
+  public static readonly dependencies = Object.keys(packageJson.dependencies);
+  public static readonly collections = [MyCollection];
+  public static readonly api = { /* ORPC endpoints */ };
+  public static readonly seedData = { items: predefinedSeedData };
+
+  constructor(private readonly payload: Payload) {}
+
+  // Instance methods wrapping service functions
+  tryCreate(args: Omit<CreateArgs, "payload">) {
+    return tryCreate({ payload: this.payload, ...args });
+  }
+}
+```
+
+### package.json Scripts
+
+```json
+{
+  "scripts": {
+    "generate:payload": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload generate:db-schema",
+    "migrate:create": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload migrate:create",
+    "typecheck": "tsc --noEmit"
+  }
+}
+```
+
+### Import Paths
+
+| In-Backend Import | Standalone Package Import |
+|---|---|
+| `server/collections` | `./collections/{name}` |
+| `server/errors` | `../errors` |
+| `../../shared/handle-transaction-id` | `@paideia/shared` |
+| `../../shared/seed-builder` | `@paideia/shared` |
+| `modules/user` | `@paideia/module-user` |
+| `modules/courses` | `@paideia/module-course` |
+
+### Multi-Collection Modules
+
+Modules with multiple collections (e.g., enrolment has Enrollments + Groups):
+- Each collection gets its own file in `collections/`
+- Services can be split by domain: `enrollment-management.ts` + `group-management.ts`
+- SeedBuilder subclasses for each entity type
+- Dedicated test files for each concern (e.g., `groups-before-validate.test.ts`)
+
 ## Common Gotchas
 
 ### 1. Zod Email Validation
@@ -381,6 +502,42 @@ Payload types may not include newly added fields until type generation runs.
 ### 5. Transaction Handling
 Always use `handleTransactionId()` and `transactionInfo.tx()` for create/update operations.
 
+### 6. Collection Hooks MUST Pass `req` (CRITICAL)
+
+**ALL** Payload operations inside collection hooks (`beforeValidate`, `beforeChange`, `afterChange`, etc.) **MUST** pass `req` to maintain transaction context. Without `req`, operations run in a separate database connection and cannot see uncommitted writes within the current transaction.
+
+```typescript
+// ❌ BROKEN: findByID runs outside the transaction
+hooks: {
+  beforeValidate: [
+    async ({ data, req }) => {
+      const parent = await req.payload.findByID({
+        collection: "groups",
+        id: data.parent,
+        // Missing req — breaks transaction visibility!
+      });
+    },
+  ],
+}
+
+// ✅ FIXED: findByID uses the same transaction connection
+hooks: {
+  beforeValidate: [
+    async ({ data, req }) => {
+      const parent = await req.payload.findByID({
+        collection: "groups",
+        id: data.parent,
+        req,  // Maintains transaction context
+      });
+    },
+  ],
+}
+```
+
+This is especially dangerous because it works fine without transactions (e.g., direct API calls) but breaks silently inside SeedBuilder transactions or nested service function calls.
+
+See incident: `release-notes/incidents/2026-03-09-groups-hook-transaction-visibility.md`
+
 ## Validation Checklist
 
 Before considering module complete, verify:
@@ -403,6 +560,9 @@ Before considering module complete, verify:
 - Payload Skills: `.agents/skills/payload/SKILL.md`
 - Rich text with base64: `.cursor/skills/richtext-content-with-hook/SKILL.md` (for description/content fields)
 - Module-to-Package Refactoring: `.cursor/skills/module-package-refactoring/SKILL.md` (when extracting to standalone package)
-- Example: `packages/paideia-backend/src/modules/note/`
-- Example: `packages/paideia-backend/src/modules/pages/`
-- Standalone packages: `packages/module-user/`, `packages/module-infrastructure/`
+- DDD Module Dependencies: `.agents/skills/ddd-module-depend-system/SKILL.md`
+- Example (in-backend): `packages/paideia-backend/src/modules/note/`, `packages/paideia-backend/src/modules/pages/`
+- Example (standalone simple): `packages/module-whiteboard/`, `packages/module-file/`
+- Example (standalone complex): `packages/module-enrolment/` (multi-collection, hierarchical groups)
+- Example (standalone foundation): `packages/module-user/`, `packages/module-infrastructure/`, `packages/module-course/`
+- Incident (hook transactions): `release-notes/incidents/2026-03-09-groups-hook-transaction-visibility.md`
