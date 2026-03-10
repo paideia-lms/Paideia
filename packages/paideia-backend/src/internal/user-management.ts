@@ -17,7 +17,6 @@ export interface CreateUserArgs extends BaseInternalFunctionArgs {
 		lastName?: string;
 		role?: User["role"];
 		bio?: string;
-		avatar?: File | null;
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
@@ -30,7 +29,7 @@ export interface UpdateUserArgs extends BaseInternalFunctionArgs {
 		lastName?: string;
 		role?: User["role"];
 		bio?: string;
-		avatar?: File | null;
+		avatar?: number | null;
 		_verified?: boolean;
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
@@ -200,7 +199,6 @@ export function tryCreateUser(args: CreateUserArgs) {
 					lastName,
 					role = "student",
 					bio,
-					avatar,
 					theme,
 					direction,
 				},
@@ -251,33 +249,6 @@ export function tryCreateUser(args: CreateUserArgs) {
 					})
 					.then(stripDepth<0, "create">());
 
-				if (avatar) {
-					const mediaId = await tryCreateMedia({
-						payload,
-						file: await avatar.arrayBuffer().then(Buffer.from),
-						filename: avatar.name,
-						mimeType: avatar.type,
-						userId: user.id,
-						req: reqWithTransaction,
-						overrideAccess,
-					})
-						.getOrThrow()
-						.then((r) => r.media.id);
-
-					user = await payload
-						.update({
-							collection: "users",
-							id: user.id,
-							data: {
-								avatar: mediaId,
-							},
-							req: reqWithTransaction,
-							depth: 0,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "update">());
-				}
-
 				return user;
 			});
 
@@ -308,24 +279,7 @@ export function tryUpdateUser(args: UpdateUserArgs) {
 					.update({
 						collection: "users",
 						id: userId,
-						data: {
-							...data,
-							avatar: data.avatar
-								? await tryCreateMedia({
-										payload,
-										file: await data.avatar.arrayBuffer().then(Buffer.from),
-										filename: data.avatar.name,
-										mimeType: data.avatar.type,
-										alt: "User avatar",
-										caption: "User avatar",
-										req: reqWithTransaction,
-										overrideAccess,
-										userId,
-									})
-										.getOrThrow()
-										.then((r) => r.media.id)
-								: undefined,
-						},
+						data: data,
 						req: reqWithTransaction,
 						overrideAccess,
 					})

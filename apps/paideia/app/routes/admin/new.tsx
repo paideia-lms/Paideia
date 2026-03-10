@@ -1,5 +1,4 @@
 import {
-	Avatar,
 	Button,
 	Container,
 	Group,
@@ -7,17 +6,13 @@ import {
 	PasswordInput,
 	Select,
 	Stack,
-	Text,
 	Textarea,
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { parseAsStringEnum } from "nuqs/server";
-import { useState } from "react";
 import { redirect } from "react-router";
 import {
 	createActionMap,
@@ -88,7 +83,6 @@ const createUserRpc = createActionRpc({
 		lastName: z.string().min(1),
 		bio: z.string().optional(),
 		role: z.enum(USER_ROLES),
-		avatar: z.file().nullish(),
 	}),
 	method: "POST",
 	action: Action.Create,
@@ -132,7 +126,6 @@ const createAction = createUserRpc.createAction(
 				lastName: formData.lastName,
 				bio: formData.bio,
 				role: formData.role,
-				avatar: formData.avatar ?? undefined,
 			},
 			overrideAccess: false,
 			req: requestContext,
@@ -194,8 +187,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function NewUserPage() {
 	const { submit: createUser, isLoading } = useCreateUser();
-	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -227,18 +218,6 @@ export default function NewUserPage() {
 		},
 	});
 
-	const handleDrop = (files: File[]) => {
-		const file = files[0];
-		if (file) {
-			setSelectedFile(file);
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				setAvatarPreview(reader.result as string);
-			};
-			reader.readAsDataURL(file);
-		}
-	};
-
 	const handleSubmit = async (values: typeof form.values) => {
 		await createUser({
 			values: {
@@ -248,7 +227,6 @@ export default function NewUserPage() {
 				lastName: values.lastName,
 				bio: values.bio || undefined,
 				role: (values.role ?? "student") as NonNullable<User["role"]>,
-				avatar: selectedFile || null,
 			},
 		});
 	};
@@ -276,73 +254,6 @@ export default function NewUserPage() {
 
 				<form onSubmit={form.onSubmit(handleSubmit)}>
 					<Stack gap="lg">
-						<div>
-							<Text size="sm" fw={500} mb="xs">
-								Avatar
-							</Text>
-							<Stack align="center" gap="md">
-								<Avatar
-									src={avatarPreview}
-									alt="Profile"
-									size={120}
-									radius={120}
-								/>
-								<Dropzone
-									onDrop={handleDrop}
-									onReject={() => {
-										notifications.show({
-											title: "Upload failed",
-											message: "File must be an image under 5MB",
-											color: "red",
-										});
-									}}
-									// 5MB
-									maxSize={5 * 1024 ** 2}
-									accept={IMAGE_MIME_TYPE}
-									multiple={false}
-									style={{ width: "100%" }}
-								>
-									<Group
-										justify="center"
-										gap="xl"
-										mih={100}
-										style={{ pointerEvents: "none" }}
-									>
-										<Dropzone.Accept>
-											<IconUpload
-												size={32}
-												color="var(--mantine-color-blue-6)"
-												stroke={1.5}
-											/>
-										</Dropzone.Accept>
-										<Dropzone.Reject>
-											<IconX
-												size={32}
-												color="var(--mantine-color-red-6)"
-												stroke={1.5}
-											/>
-										</Dropzone.Reject>
-										<Dropzone.Idle>
-											<IconPhoto
-												size={32}
-												color="var(--mantine-color-dimmed)"
-												stroke={1.5}
-											/>
-										</Dropzone.Idle>
-
-										<div>
-											<Text size="sm" inline>
-												Drag image here or click to select
-											</Text>
-											<Text size="xs" c="dimmed" inline mt={7}>
-												Image should not exceed 5MB
-											</Text>
-										</div>
-									</Group>
-								</Dropzone>
-							</Stack>
-						</div>
-
 						<TextInput
 							{...form.getInputProps("email")}
 							key={form.key("email")}

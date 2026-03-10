@@ -11,7 +11,6 @@ import { Dropzone, type FileWithPath } from "@mantine/dropzone";
 import { IconFile, IconUpload, IconX, IconRestore } from "@tabler/icons-react";
 import prettyBytes from "pretty-bytes";
 import type { ComponentProps } from "react";
-// biome-ignore lint/style/noRestrictedImports: We need to use useEffect to sync the filesWithStatus when value or existingMedia changes
 import { useEffect, useEffectEvent, useState } from "react";
 // import { href } from "react-router";
 import {

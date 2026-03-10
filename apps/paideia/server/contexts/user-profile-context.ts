@@ -137,6 +137,7 @@ export const convertUserAccessContextToUserProfileContext = (
 		email: currentUser.email,
 		role: currentUser.role ?? "student",
 		avatarUrl,
+		avatar: currentUser.avatar ?? undefined,
 	};
 
 	// Calculate permissions
@@ -245,6 +246,7 @@ export const getUserProfileContext = async (
 		email: profileUserData.email,
 		role: profileUserData.role ?? "student",
 		avatarUrl,
+		avatar: profileUserData.avatar,
 	};
 
 	const result = await paideia.tryGetUserActivityModules({

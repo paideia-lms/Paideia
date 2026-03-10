@@ -59,6 +59,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import type { Media } from "server/types/frontend-types";
 import { useMediaUsageData } from "~/routes/api/media-usage";
+import { MediaPreviewText } from "~/components/media-preview-text";
 import {
 	canPreview,
 	getFileIcon,
@@ -66,6 +67,7 @@ import {
 	isAudio,
 	isImage,
 	isPdf,
+	isText,
 	isVideo,
 } from "~/utils/media-helpers";
 import {
@@ -1031,6 +1033,17 @@ export const MediaPreviewModal = forwardRef<
 						border: "none",
 					}}
 					title={file.filename ?? "PDF Preview"}
+				/>
+			);
+		}
+
+		if (file.mimeType && isText(file.mimeType)) {
+			return (
+				<MediaPreviewText
+					fileUrl={mediaUrl}
+					filename={file.filename}
+					fileSize={file.filesize}
+					active={opened}
 				/>
 			);
 		}

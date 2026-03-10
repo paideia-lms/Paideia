@@ -9,9 +9,12 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
-import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
+import { IconPhoto, IconTrash } from "@tabler/icons-react";
+import {
+	MediaPickerModal,
+	type MediaPickerModalHandle,
+} from "app/components/media-picker";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	typeCreateActionRpc,
@@ -19,7 +22,8 @@ import {
 } from "app/utils/router/action-utils";
 import { parseAsStringEnum } from "nuqs/server";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import prettyBytes from "pretty-bytes";
+import type React from "react";
+import { useRef } from "react";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -86,6 +90,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	return {
 		logos: logoData,
 		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit,
+		currentUserId: currentUser.id,
 	};
 });
 
@@ -116,12 +121,12 @@ const inputSchema = z.object({
 		])
 		.optional(),
 	radius: z.enum(["xs", "sm", "md", "lg", "xl"]).optional(),
-	logoLight: z.file().nullish(),
-	logoDark: z.file().nullish(),
-	compactLogoLight: z.file().nullish(),
-	compactLogoDark: z.file().nullish(),
-	faviconLight: z.file().nullish(),
-	faviconDark: z.file().nullish(),
+	logoLight: z.number().nullable(),
+	logoDark: z.number().nullable(),
+	compactLogoLight: z.number().nullable(),
+	compactLogoDark: z.number().nullable(),
+	faviconLight: z.number().nullable(),
+	faviconDark: z.number().nullable(),
 });
 
 const createActionRpc = typeCreateActionRpc<Route.ActionArgs>({
@@ -135,7 +140,7 @@ const clearRpc = createActionRpc({
 });
 
 const uploadRpc = createActionRpc({
-	formDataSchema: inputSchema,
+	formDataSchema: inputSchema.partial(),
 	searchParams: logoSearchParams,
 	method: "POST",
 	action: Action.Upload,
@@ -246,7 +251,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useUploadLogo(field: Field) {
 	const { submit, isLoading, fetcher } = useUploadLogoRpc();
 
-	const uploadLogo = (file: File) => {
+	const uploadLogo = (file: number) => {
 		submit({
 			searchParams: { field },
 			values: {
@@ -278,22 +283,20 @@ export function useClearLogo(field: Field) {
 	};
 }
 
-function LogoDropzoneBase({
+function LogoCardBase({
 	label,
 	logo,
-	onDrop,
 	onClear,
 	isLoading,
 	isClearing,
-	uploadLimit,
+	mediaPickerRef,
 }: {
 	label: string;
 	logo?: Media | null;
-	onDrop: (files: File[]) => void;
 	onClear: () => void;
 	isLoading: boolean;
 	isClearing: boolean;
-	uploadLimit?: number;
+	mediaPickerRef: React.RefObject<MediaPickerModalHandle | null>;
 }) {
 	const logoUrl = logo?.id
 		? href(`/api/media/file/:mediaId`, {
@@ -308,253 +311,246 @@ function LogoDropzoneBase({
 					<Text size="sm" fw={500}>
 						{label}
 					</Text>
-					{logoUrl && (
+					<Group gap="xs">
 						<Button
-							variant="subtle"
-							color="red"
+							variant="light"
 							size="xs"
-							leftSection={<IconTrash size={14} />}
-							onClick={onClear}
-							loading={isClearing}
+							leftSection={<IconPhoto size={14} />}
+							onClick={() => mediaPickerRef.current?.open()}
 							disabled={isLoading || isClearing}
 						>
-							Clear
+							Choose
 						</Button>
-					)}
-				</Group>
-				<Dropzone
-					onDrop={onDrop}
-					onReject={() => {
-						notifications.show({
-							title: "Upload failed",
-							message: `File must be an image${uploadLimit ? ` under ${prettyBytes(uploadLimit)}` : ""}`,
-							color: "red",
-						});
-					}}
-					maxSize={uploadLimit}
-					accept={IMAGE_MIME_TYPE}
-					multiple={false}
-					disabled={isLoading || isClearing}
-				>
-					<Group
-						justify="center"
-						gap="xl"
-						mih={220}
-						style={{ pointerEvents: "none" }}
-					>
-						{logoUrl ? (
-							<Image
-								src={logoUrl}
-								alt={label}
-								fit="contain"
-								style={{ maxHeight: 200, maxWidth: "100%" }}
-							/>
-						) : (
-							<>
-								<Dropzone.Accept>
-									<IconUpload
-										size={52}
-										color="var(--mantine-color-blue-6)"
-										stroke={1.5}
-									/>
-								</Dropzone.Accept>
-								<Dropzone.Reject>
-									<IconX
-										size={52}
-										color="var(--mantine-color-red-6)"
-										stroke={1.5}
-									/>
-								</Dropzone.Reject>
-								<Dropzone.Idle>
-									<IconPhoto
-										size={52}
-										color="var(--mantine-color-dimmed)"
-										stroke={1.5}
-									/>
-								</Dropzone.Idle>
-
-								<div>
-									<Text size="xl" inline>
-										Drag images here or click to select files
-									</Text>
-									<Text size="sm" c="dimmed" inline mt={7}>
-										{uploadLimit
-											? `Attach as many files as you like, each file should not exceed ${prettyBytes(uploadLimit)}`
-											: "Image file"}
-									</Text>
-								</div>
-							</>
+						{logoUrl && (
+							<Button
+								variant="subtle"
+								color="red"
+								size="xs"
+								leftSection={<IconTrash size={14} />}
+								onClick={onClear}
+								loading={isClearing}
+								disabled={isLoading || isClearing}
+							>
+								Clear
+							</Button>
 						)}
 					</Group>
-				</Dropzone>
+				</Group>
+				<Group
+					justify="center"
+					style={{
+						minHeight: 180,
+						backgroundColor: "var(--mantine-color-gray-0)",
+						borderRadius: "var(--mantine-radius-sm)",
+					}}
+				>
+					{logoUrl ? (
+						<Image
+							src={logoUrl}
+							alt={label}
+							fit="contain"
+							style={{ maxHeight: 180, maxWidth: "100%" }}
+						/>
+					) : (
+						<IconPhoto
+							size={52}
+							color="var(--mantine-color-dimmed)"
+							stroke={1.5}
+						/>
+					)}
+				</Group>
 			</Stack>
 		</Card>
 	);
 }
 
-function LogoLightDropzone({
+function LogoLightCard({
 	logo,
-	uploadLimit,
+	currentUserId,
 }: {
 	logo?: Media | null;
-	uploadLimit?: number;
+	currentUserId: number;
 }) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 	const { uploadLogo, isLoading } = useUploadLogo(Field.LogoLight);
 	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.LogoLight);
 
 	return (
-		<LogoDropzoneBase
-			label="Logo (Light Mode)"
-			logo={logo}
-			onDrop={(files) => {
-				if (files[0]) {
-					uploadLogo(files[0]);
-				}
-			}}
-			onClear={clearLogo}
-			isLoading={isLoading}
-			isClearing={isClearing}
-			uploadLimit={uploadLimit}
-		/>
+		<>
+			<LogoCardBase
+				label="Logo (Light Mode)"
+				logo={logo}
+				onClear={clearLogo}
+				isLoading={isLoading}
+				isClearing={isClearing}
+				mediaPickerRef={mediaPickerRef}
+			/>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={currentUserId}
+				onSelect={(mediaId) => uploadLogo(mediaId)}
+				imagesOnly
+			/>
+		</>
 	);
 }
 
-function LogoDarkDropzone({
+function LogoDarkCard({
 	logo,
-	uploadLimit,
+	currentUserId,
 }: {
 	logo?: Media | null;
-	uploadLimit?: number;
+	currentUserId: number;
 }) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 	const { uploadLogo, isLoading } = useUploadLogo(Field.LogoDark);
 	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.LogoDark);
 
 	return (
-		<LogoDropzoneBase
-			label="Logo (Dark Mode)"
-			logo={logo}
-			onDrop={(files) => {
-				if (files[0]) {
-					uploadLogo(files[0]);
-				}
-			}}
-			onClear={clearLogo}
-			isLoading={isLoading}
-			isClearing={isClearing}
-			uploadLimit={uploadLimit}
-		/>
+		<>
+			<LogoCardBase
+				label="Logo (Dark Mode)"
+				logo={logo}
+				onClear={clearLogo}
+				isLoading={isLoading}
+				isClearing={isClearing}
+				mediaPickerRef={mediaPickerRef}
+			/>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={currentUserId}
+				onSelect={(mediaId) => uploadLogo(mediaId)}
+				imagesOnly
+			/>
+		</>
 	);
 }
 
-function CompactLogoLightDropzone({
+function CompactLogoLightCard({
 	logo,
-	uploadLimit,
+	currentUserId,
 }: {
 	logo?: Media | null;
-	uploadLimit?: number;
+	currentUserId: number;
 }) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 	const { uploadLogo, isLoading } = useUploadLogo(Field.CompactLogoLight);
 	const { clearLogo, isLoading: isClearing } = useClearLogo(
 		Field.CompactLogoLight,
 	);
 
 	return (
-		<LogoDropzoneBase
-			label="Compact Logo (Light Mode)"
-			logo={logo}
-			onDrop={(files) => {
-				if (files[0]) {
-					uploadLogo(files[0]);
-				}
-			}}
-			onClear={clearLogo}
-			isLoading={isLoading}
-			isClearing={isClearing}
-			uploadLimit={uploadLimit}
-		/>
+		<>
+			<LogoCardBase
+				label="Compact Logo (Light Mode)"
+				logo={logo}
+				onClear={clearLogo}
+				isLoading={isLoading}
+				isClearing={isClearing}
+				mediaPickerRef={mediaPickerRef}
+			/>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={currentUserId}
+				onSelect={(mediaId) => uploadLogo(mediaId)}
+				imagesOnly
+			/>
+		</>
 	);
 }
 
-function CompactLogoDarkDropzone({
+function CompactLogoDarkCard({
 	logo,
-	uploadLimit,
+	currentUserId,
 }: {
 	logo?: Media | null;
-	uploadLimit?: number;
+	currentUserId: number;
 }) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 	const { uploadLogo, isLoading } = useUploadLogo(Field.CompactLogoDark);
 	const { clearLogo, isLoading: isClearing } = useClearLogo(
 		Field.CompactLogoDark,
 	);
 
 	return (
-		<LogoDropzoneBase
-			label="Compact Logo (Dark Mode)"
-			logo={logo}
-			onDrop={(files) => {
-				if (files[0]) {
-					uploadLogo(files[0]);
-				}
-			}}
-			onClear={clearLogo}
-			isLoading={isLoading}
-			isClearing={isClearing}
-			uploadLimit={uploadLimit}
-		/>
+		<>
+			<LogoCardBase
+				label="Compact Logo (Dark Mode)"
+				logo={logo}
+				onClear={clearLogo}
+				isLoading={isLoading}
+				isClearing={isClearing}
+				mediaPickerRef={mediaPickerRef}
+			/>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={currentUserId}
+				onSelect={(mediaId) => uploadLogo(mediaId)}
+				imagesOnly
+			/>
+		</>
 	);
 }
 
-function FaviconLightDropzone({
+function FaviconLightCard({
 	logo,
-	uploadLimit,
+	currentUserId,
 }: {
 	logo?: Media | null;
-	uploadLimit?: number;
+	currentUserId: number;
 }) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 	const { uploadLogo, isLoading } = useUploadLogo(Field.FaviconLight);
 	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.FaviconLight);
 
 	return (
-		<LogoDropzoneBase
-			label="Favicon (Light Mode)"
-			logo={logo}
-			onDrop={(files) => {
-				if (files[0]) {
-					uploadLogo(files[0]);
-				}
-			}}
-			onClear={clearLogo}
-			isLoading={isLoading}
-			isClearing={isClearing}
-			uploadLimit={uploadLimit}
-		/>
+		<>
+			<LogoCardBase
+				label="Favicon (Light Mode)"
+				logo={logo}
+				onClear={clearLogo}
+				isLoading={isLoading}
+				isClearing={isClearing}
+				mediaPickerRef={mediaPickerRef}
+			/>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={currentUserId}
+				onSelect={(mediaId) => uploadLogo(mediaId)}
+				imagesOnly
+			/>
+		</>
 	);
 }
 
-function FaviconDarkDropzone({
+function FaviconDarkCard({
 	logo,
-	uploadLimit,
+	currentUserId,
 }: {
 	logo?: Media | null;
-	uploadLimit?: number;
+	currentUserId: number;
 }) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 	const { uploadLogo, isLoading } = useUploadLogo(Field.FaviconDark);
 	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.FaviconDark);
 
 	return (
-		<LogoDropzoneBase
-			label="Favicon (Dark Mode)"
-			logo={logo}
-			onDrop={(files) => {
-				if (files[0]) {
-					uploadLogo(files[0]);
-				}
-			}}
-			onClear={clearLogo}
-			isLoading={isLoading}
-			isClearing={isClearing}
-			uploadLimit={uploadLimit}
-		/>
+		<>
+			<LogoCardBase
+				label="Favicon (Dark Mode)"
+				logo={logo}
+				onClear={clearLogo}
+				isLoading={isLoading}
+				isClearing={isClearing}
+				mediaPickerRef={mediaPickerRef}
+			/>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={currentUserId}
+				onSelect={(mediaId) => uploadLogo(mediaId)}
+				imagesOnly
+			/>
+		</>
 	);
 }
 
@@ -563,7 +559,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function AdminLogoPage({ loaderData }: Route.ComponentProps) {
-	const { logos, uploadLimit } = loaderData;
+	const { logos, currentUserId } = loaderData;
 
 	return (
 		<Stack gap="md" my="lg">
@@ -593,44 +589,41 @@ export default function AdminLogoPage({ loaderData }: Route.ComponentProps) {
 					<br />
 					<strong>Favicon:</strong> The favicon appears in browser tabs and
 					bookmarks. Different favicons can be set for light and dark themes.
+					<br />
+					<strong>Choose:</strong> Select an image from your media drive or
+					upload a new one.
 				</Text>
 			</Alert>
 
 			<Grid>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<LogoLightDropzone
-						logo={logos.logoLight}
-						uploadLimit={uploadLimit ?? undefined}
-					/>
+					<LogoLightCard logo={logos.logoLight} currentUserId={currentUserId} />
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<LogoDarkDropzone
-						logo={logos.logoDark}
-						uploadLimit={uploadLimit ?? undefined}
-					/>
+					<LogoDarkCard logo={logos.logoDark} currentUserId={currentUserId} />
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<CompactLogoLightDropzone
+					<CompactLogoLightCard
 						logo={logos.compactLogoLight}
-						uploadLimit={uploadLimit ?? undefined}
+						currentUserId={currentUserId}
 					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<CompactLogoDarkDropzone
+					<CompactLogoDarkCard
 						logo={logos.compactLogoDark}
-						uploadLimit={uploadLimit ?? undefined}
+						currentUserId={currentUserId}
 					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<FaviconLightDropzone
+					<FaviconLightCard
 						logo={logos.faviconLight}
-						uploadLimit={uploadLimit ?? undefined}
+						currentUserId={currentUserId}
 					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<FaviconDarkDropzone
+					<FaviconDarkCard
 						logo={logos.faviconDark}
-						uploadLimit={uploadLimit ?? undefined}
+						currentUserId={currentUserId}
 					/>
 				</Grid.Col>
 			</Grid>

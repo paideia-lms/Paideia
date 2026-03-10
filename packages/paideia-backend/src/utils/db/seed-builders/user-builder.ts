@@ -9,6 +9,7 @@ import { seedLogger } from "../seed-utils/logger";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 
 import type { Vfs } from "../seed-utils/vfs-utils";
+import { tryCreateMedia } from "server/internal/media-management";
 
 export interface SeedContext {
 	payload: BaseInternalFunctionArgs["payload"];
@@ -59,17 +60,31 @@ async function createAdminUser(
 		ctx.vfs,
 	);
 	if (avatarFile) {
-		const updateResult = await tryUpdateUser({
+		const createMediaResult = await tryCreateMedia({
 			payload: ctx.payload,
-			userId: adminUser.id,
-			data: { avatar: avatarFile },
+			file: await avatarFile.arrayBuffer().then(Buffer.from),
+			filename: avatarFile.name,
+			mimeType: avatarFile.type,
+			alt: "Admin avatar",
+			caption: "Admin avatar",
 			req: ctx.req,
 			overrideAccess: true,
-		}).getOrThrow();
+			userId: adminUser.id,
+		});
+		if (createMediaResult.ok) {
+			const updateResult = await tryUpdateUser({
+				payload: ctx.payload,
+				userId: adminUser.id,
+				data: { avatar: createMediaResult.value.media.id },
+				req: ctx.req,
+				overrideAccess: true,
+			}).getOrThrow();
 
-		seedLogger.success(
-			`Admin avatar assigned with media ID: ${updateResult.avatar}`,
-		);
+			seedLogger.success(
+				`Admin avatar assigned with media ID: ${updateResult.avatar}`,
+			);
+		}
+
 	}
 
 	seedLogger.success(`Admin user created with ID: ${adminUser.id}`);
@@ -91,10 +106,6 @@ async function createUser(
 	avatarPath: string | null,
 	avatarFilename: string | null,
 ): Promise<Awaited<ReturnType<typeof tryCreateUser>>["value"]> {
-	const avatarFile =
-		avatarPath && avatarFilename
-			? await createFileFromVfs(avatarPath, avatarFilename, ctx.vfs)
-			: null;
 
 	const user = await tryCreateUser({
 		payload: ctx.payload,
@@ -104,7 +115,6 @@ async function createUser(
 			firstName: userData.firstName,
 			lastName: userData.lastName,
 			role: userData.role,
-			avatar: avatarFile || undefined,
 		},
 		req: ctx.req,
 		overrideAccess: true,

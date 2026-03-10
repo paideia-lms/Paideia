@@ -14,7 +14,6 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
@@ -24,17 +23,20 @@ import {
 	IconNotes,
 	IconPhoto,
 	IconTrophy,
-	IconUpload,
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
 import { parseAsStringEnum } from "nuqs/server";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { href, Link, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import z from "zod";
+import {
+	MediaPickerModal,
+	type MediaPickerModalHandle,
+} from "app/components/media-picker";
 import { useImpersonate } from "~/routes/user/profile";
 import {
 	badRequest,
@@ -110,6 +112,7 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 			email: profileUser.email,
 			role: profileUser.role,
 			avatarUrl,
+			avatar: profileUser.avatar,
 		},
 		currentUser: {
 			id: currentUser.id,
@@ -150,7 +153,7 @@ const createUpdateActionRpc = createActionRpc({
 		firstName: z.string(),
 		lastName: z.string(),
 		bio: z.string(),
-		avatar: z.file().nullish(),
+		avatar: z.number().nullable(),
 		email: z.email().nullish(),
 		role: z
 			.enum([
@@ -207,7 +210,7 @@ const updateAction = createUpdateActionRpc.createAction(
 			lastName: formData.lastName,
 			email: formData.email ?? undefined,
 			bio: formData.bio,
-			avatar: formData.avatar ?? undefined,
+			avatar: formData.avatar,
 			role: formData.role ?? undefined,
 		};
 
@@ -314,13 +317,12 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const { submit: updateUser, isLoading: isUpdating } = useUpdateUser();
 
 	const location = useLocation();
-
-	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			avatar: user.avatarUrl,
+			avatar: user.avatar ?? null,
 			firstName: user.firstName,
 			lastName: user.lastName,
 			bio: user.bio,
@@ -346,7 +348,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	useEffect(() => {
 		// when the pathname changes, we need to set the form values to the user values
 		form.setInitialValues({
-			avatar: user.avatarUrl,
+			avatar: user.avatar ?? null,
 			firstName: user.firstName,
 			lastName: user.lastName,
 			bio: user.bio,
@@ -356,26 +358,14 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		form.reset();
 	}, [location.pathname]);
 
-	const handleDrop = (files: File[]) => {
-		const file = files[0];
-		if (file) {
-			setSelectedFile(file);
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				form.setFieldValue("avatar", reader.result as string);
-			};
-			reader.readAsDataURL(file);
-		}
-	};
-
-	const handleSubmit = (values: typeof form.values) => {
-		updateUser({
+	const handleSubmit = async (values: typeof form.values) => {
+		await updateUser({
 			params: { id: user.id },
 			values: {
 				firstName: values.firstName,
 				lastName: values.lastName,
 				bio: values.bio,
-				avatar: selectedFile ?? null,
+				avatar: values.avatar,
 				email: emailPermission.allowed ? values.email : null,
 				// Only include role if user can edit role
 				role: rolePermission.allowed ? values.role : null,
@@ -442,71 +432,50 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 
 					<form onSubmit={form.onSubmit(handleSubmit)}>
 						<Stack gap="lg">
-							<div>
-								<Text size="sm" fw={500} mb="xs">
-									Avatar
-								</Text>
-								<Group gap="md">
-									<Avatar
-										src={form.values.avatar ?? undefined}
-										alt="Profile"
-										size={120}
-										radius={120}
-									/>
-									<Dropzone
-										onDrop={handleDrop}
-										onReject={() => {
-											notifications.show({
-												title: "Upload failed",
-												message: "File must be an image under 5MB",
-												color: "red",
-											});
-										}}
-										maxSize={5 * 1024 ** 2}
-										accept={IMAGE_MIME_TYPE}
-										multiple={false}
-										disabled={!avatarPermission.allowed}
-									>
-										<Group
-											justify="center"
-											gap="xl"
-											mih={100}
-											style={{ pointerEvents: "none" }}
-										>
-											<Dropzone.Accept>
-												<IconUpload
-													size={32}
-													color="var(--mantine-color-blue-6)"
-													stroke={1.5}
-												/>
-											</Dropzone.Accept>
-											<Dropzone.Reject>
-												<IconX
-													size={32}
-													color="var(--mantine-color-red-6)"
-													stroke={1.5}
-												/>
-											</Dropzone.Reject>
-											<Dropzone.Idle>
-												<IconPhoto
-													size={32}
-													color="var(--mantine-color-dimmed)"
-													stroke={1.5}
-												/>
-											</Dropzone.Idle>
-
-											<div>
-												<Text size="sm" inline>
-													Drag image here or click to select
-												</Text>
-												<Text size="xs" c="dimmed" inline mt={7}>
-													Image should not exceed 5MB
-												</Text>
-											</div>
+							{avatarPermission.allowed && (
+								<Stack gap="xs">
+									<Text size="sm" fw={500} component="label">
+										Avatar
+									</Text>
+									<Group gap="md">
+										<Avatar
+											src={
+												form.values.avatar
+													? href("/api/media/file/:mediaId", {
+															mediaId: form.values.avatar.toString(),
+														})
+													: null
+											}
+											alt={fullName}
+											size={80}
+											radius="xl"
+										/>
+										<Group gap="xs">
+											<Button
+												type="button"
+												variant="light"
+												size="sm"
+												leftSection={<IconPhoto size={16} />}
+												onClick={() => mediaPickerRef.current?.open()}
+											>
+												Choose avatar
+											</Button>
+											{form.values.avatar && (
+												<Button
+													type="button"
+													variant="subtle"
+													size="sm"
+													leftSection={<IconX size={16} />}
+													color="red"
+													onClick={() => form.setFieldValue("avatar", null)}
+												>
+													Remove
+												</Button>
+											)}
 										</Group>
-									</Dropzone>
-								</Group>
-							</div>
+									</Group>
+								</Stack>
+							)}
 
 							<TextInput
 								{...form.getInputProps("firstName")}
@@ -595,6 +564,15 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 							</Group>
 						</Stack>
 					</form>
+
+					<MediaPickerModal
+						ref={mediaPickerRef}
+						userId={user.id}
+						onSelect={(mediaId) => {
+							form.setFieldValue("avatar", mediaId);
+						}}
+						imagesOnly
+					/>
 				</Paper>
 
 				{/* Quick Stats Cards */}

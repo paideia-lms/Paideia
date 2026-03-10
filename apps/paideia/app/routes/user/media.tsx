@@ -63,6 +63,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { permissions } from "@paideia/paideia-backend";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
+import { MediaPreviewText } from "~/components/media-preview-text";
 import {
 	canPreview,
 	getFileIcon,
@@ -70,6 +71,7 @@ import {
 	isAudio,
 	isImage,
 	isPdf,
+	isText,
 	isVideo,
 } from "~/utils/media-helpers";
 import {
@@ -289,6 +291,7 @@ const uploadAction = createUploadActionRpc.createAction(
 
 		return ok({
 			message: "Media uploaded successfully",
+			mediaId: createResult.value.media.id,
 		});
 	},
 );
@@ -1211,6 +1214,17 @@ export const MediaPreviewModal = forwardRef<
 						border: "none",
 					}}
 					title={file.filename ?? "PDF Preview"}
+				/>
+			);
+		}
+
+		if (file.mimeType && isText(file.mimeType)) {
+			return (
+				<MediaPreviewText
+					fileUrl={mediaUrl}
+					filename={file.filename}
+					fileSize={file.filesize}
+					active={opened}
 				/>
 			);
 		}
