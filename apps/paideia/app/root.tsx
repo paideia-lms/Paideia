@@ -94,13 +94,22 @@ export const middleware = [
 	 */
 	async ({ request, context, params }) => {
 		const url = new URL(request.url);
-		const routeHierarchy = tryGetRouteHierarchy(url.pathname);
+		const { serverBuild } = context.get(globalContextKey);
+		if (!serverBuild) {
+			throw new Error("serverBuild is required in load context");
+		}
+		const routes = serverBuild.routes;
+		const routeHierarchy = tryGetRouteHierarchy(url.pathname, routes);
 		const parsedParams = parseParams(params);
 
 		// Parse search params for each route in the hierarchy
 		const isEntries = await Promise.all(
 			routeHierarchy.map(async (route) => {
-				const searchParams = await parseSearchParamsForRoute(route.id, url);
+				const searchParams = await parseSearchParamsForRoute(
+					route.id,
+					url,
+					routes,
+				);
 				return [
 					route.id,
 					{

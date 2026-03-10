@@ -20,3 +20,6 @@ export const userProfileContextKey =
 	"userProfileContext" as typeof userProfileContext;
 export const userModuleContextKey =
 	"userModuleContext" as typeof userModuleContext;
+
+/** Server-only: ServerBuild from React Router, not serialized to client */
+export const serverBuildContextKey = "serverBuild" as const;

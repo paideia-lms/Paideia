@@ -1,5 +1,5 @@
 import type { ParserMap } from "nuqs";
-import { routes } from "virtual:react-router/server-build";
+import type { ServerBuild } from "react-router";
 import type { RouteId } from "app/utils/router/routes-utils";
 import { debugLog } from "@paideia/paideia-backend";
 
@@ -47,10 +47,12 @@ function extractSearchParamsParsers(module: unknown): ParserMap | null {
  * Always loads directly from route.module without caching
  *
  * @param routeId - The route ID to load
+ * @param routes - The routes from ServerBuild
  * @returns The search params parsers or null if not found
  */
 export async function tryGetSearchParamsParsers(
 	routeId: RouteId,
+	routes: ServerBuild["routes"],
 ): Promise<ParserMap | null> {
 	// Get route from routes object
 	const route = routes[routeId];

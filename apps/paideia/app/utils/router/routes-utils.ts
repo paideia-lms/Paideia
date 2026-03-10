@@ -1,7 +1,7 @@
-import { routes } from "virtual:react-router/server-build";
 import {
 	matchRoutes,
 	type Register,
+	type ServerBuild,
 	type ActionFunctionArgs,
 	type ClientLoaderFunctionArgs,
 	type ClientActionFunctionArgs,
@@ -71,7 +71,10 @@ function getCompleteRouteHierarchy(
 	return uniqueHierarchy;
 }
 
-export function tryGetRouteHierarchy(pathname: string) {
+export function tryGetRouteHierarchy(
+	pathname: string,
+	routes: ServerBuild["routes"],
+) {
 	const matchedRoutes = matchRoutes(
 		Object.values(routes).filter(Boolean),
 		pathname,

@@ -1,7 +1,11 @@
 import type { Migration, Payload } from "payload";
 import type { Where } from "payload";
 import { executeAuthStrategies, generateCookie, getPayload, parseCookies } from "payload";
-import { createOpenApiHandler } from "./orpc/openapi-handler";
+import {
+	createOpenApiGenerator,
+	createOpenApiHandler,
+	createScalarDocsHtml,
+} from "./orpc/openapi-handler";
 import { orpcRouter } from "./orpc/router";
 import sanitizedConfig from "./payload.config";
 import { testConnections } from "./health-check";
@@ -44,6 +48,7 @@ import * as systemGlobals from "./internal/system-globals";
 import * as userGradeManagement from "./internal/user-grade-management";
 import * as userManagement from "./internal/user-management";
 import * as versionManagement from "./internal/version-management";
+import { s3Client } from "./utils/s3-client";
 import { tryResolveCourseModuleSettingsToLatest } from "./json/course-module-settings/version-resolver";
 import { getMigrationStatus } from "./utils/db/migration-status";
 import { dumpDatabase } from "./utils/db/dump";
@@ -137,6 +142,42 @@ export class Paideia {
 
 	getOpenApiHandler() {
 		return createOpenApiHandler(orpcRouter, this.getPayload());
+	}
+
+	async handleOpenApiRequest(request: Request): Promise<Response> {
+		const pathname = new URL(request.url).pathname;
+		const baseUrl = `${new URL(request.url).origin}/openapi`;
+
+		if (pathname === "/openapi/spec.json") {
+			const openApiGenerator = createOpenApiGenerator();
+			const spec = await openApiGenerator.generate(orpcRouter, {
+				info: { title: "Paideia LMS API", version: "1.0.0" },
+				servers: [{ url: baseUrl }],
+			});
+			return new Response(JSON.stringify(spec), {
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		if (pathname === "/openapi" || pathname === "/openapi/") {
+			return new Response(createScalarDocsHtml(`${baseUrl}/spec.json`), {
+				headers: { "Content-Type": "text/html" },
+			});
+		}
+		const { user } = await this.executeAuthStrategies({
+			headers: request.headers,
+			canSetHeaders: false,
+		});
+		const orpcHandler = this.getOpenApiHandler();
+		const { matched, response } = await orpcHandler.handle(request, {
+			prefix: "/openapi",
+			context: {
+				payload: this.getPayload(),
+				s3Client,
+				user: user ?? null,
+				req: user ? { user } : undefined,
+			},
+		});
+		return matched ? response : new Response("Not Found", { status: 404 });
 	}
 
 	// --- Request context & auth ---

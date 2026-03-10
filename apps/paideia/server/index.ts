@@ -1,21 +1,14 @@
 import {
 	Paideia,
 	asciiLogo,
-	createOpenApiGenerator,
-	createScalarDocsHtml,
 	displayHelp,
 	envVars,
-	orpcRouter,
 	s3Client,
-	// tryRunSeed,
-	// S3BucketNotFoundError,
 } from "@paideia/paideia-backend";
 
-import { Elysia } from "elysia";
 import { RouterContextProvider } from "react-router";
+import { createRequestHandler } from "react-router";
 import { createStorage } from "unstorage";
-// biome-ignore lint/suspicious/noTsIgnore: unstorage driver types
-// @ts-ignore
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
 import packageJson from "../package.json";
@@ -27,8 +20,10 @@ import { globalContextKey } from "./contexts/global-context";
 import { userContextKey } from "./contexts/user-context";
 import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
-import { reactRouter } from "./elysia-react-router";
 import { parseParams } from "../app/utils/router/route-params-schema";
+import { createDevServer } from "./dev-server";
+import { getServerBuild, setVite } from "./server-build-access";
+import { serveFromVfs } from "./static/serve-vfs";
 import prompts from "prompts";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
@@ -90,7 +85,7 @@ async function startServer() {
 	// if (process.env.NODE_ENV === "development") {
 	// 	// ! a system request, so we don't need to provide a request
 	// 	const seedResult = await tryRunSeed({
-	// 		payload: paideia.getPayload(),
+	// 		pa: paideia.getPayload(),
 	// 		req: undefined,
 	// 		overrideAccess: true,
 	// 		vfs: vfs as Record<string, string>,
@@ -124,7 +119,6 @@ async function startServer() {
 	await paideia.migrate();
 	// }
 
-	const port = Number(envVars.PORT.value) || envVars.PORT.default;
 	const frontendPort =
 		Number(envVars.FRONTEND_PORT.value) || envVars.FRONTEND_PORT.default;
 
@@ -136,133 +130,113 @@ async function startServer() {
 	const bunRevision = typeof Bun !== "undefined" ? Bun.revision : "unknown";
 	const packageVersion = packageJson.version;
 
-	const orpcHandler = paideia.getOpenApiHandler();
-	const openApiGenerator = createOpenApiGenerator();
+	function buildLoadContext(
+		request: Request,
+		serverBuild: Awaited<ReturnType<typeof getServerBuild>>,
+	): RouterContextProvider {
+		const c = new RouterContextProvider();
+		// ! patch the request
+		(request as Request & { _c?: RouterContextProvider })._c = c;
+		const requestInfo = getRequestInfo(request);
+		const hints = getHints(request);
 
-	const getBaseUrl = (request: Request) => {
-		const url = new URL(request.url);
-		return `${url.origin}/openapi`;
-	};
-
-	const handleOpenApiRequest = async (request: Request): Promise<Response> => {
-		const pathname = new URL(request.url).pathname;
-		const baseUrl = getBaseUrl(request);
-
-		if (pathname === "/openapi/spec.json") {
-			const spec = await openApiGenerator.generate(orpcRouter, {
-				info: { title: "Paideia LMS API", version: "1.0.0" },
-				servers: [{ url: baseUrl }],
-			});
-			return new Response(JSON.stringify(spec), {
-				headers: { "Content-Type": "application/json" },
-			});
-		}
-		if (pathname === "/openapi" || pathname === "/openapi/") {
-			return new Response(createScalarDocsHtml(`${baseUrl}/spec.json`), {
-				headers: { "Content-Type": "text/html" },
-			});
-		}
-		const { user } = await paideia.executeAuthStrategies({
-			headers: request.headers,
-			canSetHeaders: false,
+		const requestContext = paideia.createRequestContext({
+			request,
+			user: null,
+			context: { routerContext: c },
 		});
-		const { matched, response } = await orpcHandler.handle(request, {
-			prefix: "/openapi",
-			context: {
-				payload: paideia.getPayload(),
-				s3Client,
-				user: user ?? null,
-				req: user ? { user } : undefined,
+		c.set(globalContextKey, {
+			serverBuild,
+			environment: process.env.NODE_ENV,
+			paideia,
+			requestInfo,
+			s3Client,
+			unstorage,
+			envVars: envVars,
+			platformInfo,
+			bunVersion,
+			bunRevision,
+			packageVersion,
+			hints,
+			routeHierarchy: [],
+			systemGlobals: {
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm",
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			},
+			requestContext,
+			pageInfo: {
+				is: {} as any,
+				params: parseParams({}),
 			},
 		});
-		return matched ? response : new Response("Not Found", { status: 404 });
-	};
+		c.set(userContextKey, null);
+		c.set(courseContextKey, null);
+		c.set(enrolmentContextKey, null);
+		c.set(courseModuleContextKey, null);
+		c.set(courseSectionContextKey, null);
+		c.set(userProfileContextKey, null);
+		c.set(userModuleContextKey, null);
+		return c;
+	}
 
-	// OpenAPI must run BEFORE reactRouter's catch-all so /openapi/* is not served as SPA.
-	// Use onRequest and return Response to short-circuit the pipeline (skip route matching).
-	const frontend = new Elysia()
-		.onRequest(async ({ request }) => {
-			const pathname = new URL(request.url).pathname;
-			if (!pathname.startsWith("/openapi")) return;
+	let frontend:
+		| {
+				server?: ReturnType<typeof import("node:http").createServer>;
+				vite?: unknown;
+		  }
+		| ReturnType<typeof Bun.serve>;
 
-			const response = await handleOpenApiRequest(request);
-			return response;
-		})
-		.use(
-			async (e) =>
-				await reactRouter(e, {
-					getLoadContext: ({ request, params }) => {
-						const c = new RouterContextProvider();
-
-						// ! patch the request
-						request._c = c;
-						const requestInfo = getRequestInfo(request);
-						const hints = getHints(request);
-
-						const requestContext = paideia.createRequestContext({
-							request,
-							user: null,
-							context: { routerContext: c },
-						});
-						c.set(globalContextKey, {
-							environment: process.env.NODE_ENV,
-							paideia,
-							requestInfo,
-							s3Client,
-							unstorage,
-							envVars: envVars,
-							platformInfo,
-							bunVersion,
-							bunRevision,
-							packageVersion,
-							hints,
-							// some fake data for now
-							routeHierarchy: [],
-							systemGlobals: {
-								maintenanceSettings: { maintenanceMode: false },
-								sitePolicies: {
-									userMediaStorageTotal: null,
-									siteUploadLimit: null,
-								},
-								appearanceSettings: {
-									additionalCssStylesheets: [],
-									color: "blue",
-									radius: "sm",
-									logoLight: null,
-									logoDark: null,
-									compactLogoLight: null,
-									compactLogoDark: null,
-									faviconLight: null,
-									faviconDark: null,
-								},
-								analyticsSettings: {
-									additionalJsScripts: [],
-								},
-							},
-							// ! for now the request context has no user; user middleware will update it
-							requestContext,
-							pageInfo: {
-								is: {} as any,
-								params: parseParams(params),
-							},
-						});
-						// set all the contexts to be null in the beginning??
-						c.set(userContextKey, null);
-						c.set(courseContextKey, null);
-						c.set(enrolmentContextKey, null);
-						c.set(courseModuleContextKey, null);
-						c.set(courseSectionContextKey, null);
-						c.set(userProfileContextKey, null);
-						c.set(userModuleContextKey, null);
-						return c;
+	if (process.env.ENV === "production") {
+		setVite(undefined);
+		frontend = Bun.serve({
+			port: frontendPort,
+			async fetch(request: Request) {
+				const pathname = new URL(request.url).pathname;
+				if (pathname.startsWith("/openapi")) {
+					return paideia.handleOpenApiRequest(request);
+				}
+				const vfsResponse = await serveFromVfs(
+					request,
+					vfs as Record<string, string>,
+					{
+						maxAge: 31536000,
 					},
-				}),
-		)
-		.listen(frontendPort, () => {
-			console.log(
-				`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
-			);
+				);
+				if (vfsResponse) return vfsResponse;
+				const serverBuild = await getServerBuild();
+				const handler = createRequestHandler(serverBuild, "production");
+				const loadContext = buildLoadContext(request, serverBuild);
+				return handler(request, loadContext);
+			},
 		});
+		console.log(
+			`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
+		);
+	} else {
+		const dev = await createDevServer({
+			port: frontendPort,
+			handleOpenApiRequest: (request) => paideia.handleOpenApiRequest(request),
+			buildLoadContext,
+		});
+		frontend = { server: dev.server, vite: dev.vite };
+	}
 
 	return { frontend };
 }
@@ -279,7 +253,6 @@ program
 	});
 
 // Default action: run server if no command provided
-// This will run when no subcommand is given
 program.action(async () => {
 	await startServer();
 });
