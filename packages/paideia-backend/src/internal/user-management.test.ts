@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateUserArgs,
@@ -24,9 +23,15 @@ import {
 } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { User } from "../payload-types";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { migrations } from "server/migrations";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("User Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("User Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let adminToken: string;
 	const mockRequest = new Request("http://localhost:3000/test");
 
@@ -45,14 +50,11 @@ describe("User Management Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create admin user for testing
 		const adminArgs: CreateUserArgs = {
@@ -103,7 +105,8 @@ describe("User Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh( { payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -1286,29 +1289,28 @@ describe("User Management Functions", () => {
 	});
 });
 
-describe("First User Check Functions - With overrideAccess", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("First User Check Functions - With overrideAccess", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			// Run fresh migration to ensure clean database state
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 	});
 
 	afterAll(async () => {
 		// Clean up any test data if needed
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -1352,8 +1354,11 @@ describe("First User Check Functions - With overrideAccess", () => {
 	});
 });
 
-describe("First User Check Functions - With Access Control", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("First User Check Functions - With Access Control", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let adminToken: string;
 	let userToken: string;
 
@@ -1372,15 +1377,11 @@ describe("First User Check Functions - With Access Control", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create admin user
 		const adminArgs: CreateUserArgs = {
@@ -1470,8 +1471,8 @@ describe("First User Check Functions - With Access Control", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -1518,22 +1519,21 @@ describe("First User Check Functions - With Access Control", () => {
 	});
 });
 
-describe("Authentication Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Authentication Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -1542,8 +1542,8 @@ describe("Authentication Functions", () => {
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh( { payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

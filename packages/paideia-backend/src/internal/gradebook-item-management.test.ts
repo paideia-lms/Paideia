@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import type { TryResultValue } from "server/utils/types";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCourse } from "./course-management";
@@ -22,9 +21,15 @@ import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import { tryCreateUserGrade } from "./user-grade-management";
 import type { CreateUserArgs } from "./user-management";
 import { tryCreateUser } from "./user-management";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Gradebook Item Management", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Gradebook Item Management", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
@@ -37,14 +42,11 @@ describe("Gradebook Item Management", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create test users (instructor and student)
 		const instructorArgs: CreateUserArgs = {
@@ -159,7 +161,8 @@ describe("Gradebook Item Management", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

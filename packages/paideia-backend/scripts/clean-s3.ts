@@ -4,12 +4,16 @@
  */
 import { deleteEverythingInBucket } from "../src/utils/s3-client";
 
-const logger = {
-	info: console.log,
-	error: console.error,
-};
-
 // Only run if this file is executed directly
 if (import.meta.main) {
-	await deleteEverythingInBucket({ logger });
+	// @ts-ignore
+	await deleteEverythingInBucket({ logger: { 
+		info: console.log,
+		error: console.error,
+		warn: console.warn,
+		debug: console.debug,
+		trace: console.trace,
+		fatal: console.error,
+		level: "info",
+	} });
 }

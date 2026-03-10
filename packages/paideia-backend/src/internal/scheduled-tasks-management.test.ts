@@ -1,32 +1,34 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import sanitizedConfig from "../payload.config";
 import { JobQueue } from "../utils/job-queue";
 import { tryGetScheduledTasks } from "./scheduled-tasks-management";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { migrations } from "server/migrations";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Scheduled Tasks Management", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Scheduled Tasks Management", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 	});
 
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

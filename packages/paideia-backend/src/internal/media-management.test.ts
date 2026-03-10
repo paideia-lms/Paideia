@@ -4,12 +4,11 @@ import {
 	GetObjectCommand,
 	PutObjectCommand,
 } from "@aws-sdk/client-s3";
-import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { getPayload, Migration, type TypedUser } from "payload";
 import { createLocalReq } from "./utils/internal-function-utils";
 import { envVars } from "../env";
 import config from "../payload.config";
-import { s3Client } from "../utils/s3-client";
+import { deleteEverythingInBucket, s3Client } from "../utils/s3-client";
 import {
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
@@ -38,23 +37,25 @@ import {
 } from "./media-management";
 import { tryCreateNote } from "./note-management";
 import { tryCreateUser } from "./user-management";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import Gem from "fixture/gem.png" with { type: "file" }
 
-describe("Media Management", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Media Management",async  () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: config,
+	});
 	let testUserId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: config,
-		});
 
 		// Create test user
 		const userResult = await tryCreateUser({
@@ -81,8 +82,8 @@ describe("Media Management", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -103,7 +104,7 @@ describe("Media Management", () => {
 	});
 
 	test("Should create image media", async () => {
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const result = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -163,7 +164,7 @@ describe("Media Management", () => {
 
 	test("should get media by filename", async () => {
 		// First create a media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -238,7 +239,7 @@ describe("Media Management", () => {
 
 	test("should get media buffer from filename", async () => {
 		// First create a media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const originalBuffer = Buffer.from(fileBuffer);
 
 		const createResult = await tryCreateMedia({
@@ -332,7 +333,7 @@ describe("Media Management", () => {
 
 	test("should find media by user", async () => {
 		// First create some media files for the test user
-		const fileBuffer1 = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer1 = await Bun.file(Gem).arrayBuffer();
 		const createResult1 = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer1),
@@ -347,7 +348,7 @@ describe("Media Management", () => {
 
 		expect(createResult1.ok).toBe(true);
 
-		const fileBuffer2 = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer2 = await Bun.file(Gem).arrayBuffer();
 		const createResult2 = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer2),
@@ -415,7 +416,7 @@ describe("Media Management", () => {
 
 	test("should delete a single media record", async () => {
 		// First create a media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -483,7 +484,7 @@ describe("Media Management", () => {
 
 	test("should fail to delete media with usage", async () => {
 		// Create a media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -542,7 +543,7 @@ describe("Media Management", () => {
 
 	test("should delete multiple media records (batch delete)", async () => {
 		// Create multiple media files
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult1 = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -662,7 +663,7 @@ describe("Media Management", () => {
 
 	test("should fail to delete media when some IDs don't exist", async () => {
 		// Create one media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -710,7 +711,7 @@ describe("Media Management", () => {
 
 	test("should fail to delete multiple media when one has usage", async () => {
 		// Create two media files
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult1 = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -789,7 +790,7 @@ describe("Media Management", () => {
 
 	test("should get user media stats", async () => {
 		// Create some media files with different types
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -887,7 +888,7 @@ describe("Media Management", () => {
 
 	test("should rename media file", async () => {
 		// First create a media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -958,7 +959,7 @@ describe("Media Management", () => {
 
 	test("should fail to rename media with duplicate filename", async () => {
 		// Create two media files
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult1 = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -1005,7 +1006,7 @@ describe("Media Management", () => {
 
 	test("should get orphaned media files", async () => {
 		// First, create a media file that will be in the database
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -1167,7 +1168,7 @@ describe("Media Management", () => {
 
 	test("should fail to delete non-orphaned media files", async () => {
 		// Create a managed media file
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),
@@ -1219,7 +1220,7 @@ describe("Media Management", () => {
 
 	test("should find all media usages across collections", async () => {
 		// Create a media file to test with
-		const file = Bun.file("fixture/gem.png") as unknown as File;
+		const file = Bun.file(Gem) as unknown as File;
 		const createMediaResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(await file.arrayBuffer()),
@@ -1625,7 +1626,7 @@ describe("Media Management", () => {
 
 	test("should find no usages for media with no references", async () => {
 		// Create a media file that won't be used anywhere
-		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const fileBuffer = await Bun.file(Gem).arrayBuffer();
 		const createMediaResult = await tryCreateMedia({
 			payload,
 			file: Buffer.from(fileBuffer),

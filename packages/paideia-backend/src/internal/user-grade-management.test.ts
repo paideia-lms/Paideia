@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { getPayload, Migration, type TypedUser } from "payload";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
 import sanitizedConfig from "../payload.config";
@@ -44,6 +43,9 @@ import {
 	tryUpdateUserGrade,
 } from "./user-grade-management";
 import { tryCreateUser } from "./user-management";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { migrations } from "server/migrations";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
 /**
  * in the before all, we create 3 users: admin, instructor, and student
@@ -56,8 +58,11 @@ import { tryCreateUser } from "./user-management";
  *
  * test 1: create a auto weighted grade for the enrollment and item at the root
  */
-describe("User Grade Management", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("User Grade Management", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let admin: TryResultValue<typeof tryCreateUser>;
 	let instructor: TryResultValue<typeof tryCreateUser>;
@@ -73,14 +78,11 @@ describe("User Grade Management", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -207,7 +209,8 @@ describe("User Grade Management", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
