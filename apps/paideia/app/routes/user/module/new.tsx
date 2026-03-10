@@ -114,7 +114,7 @@ const createCreateFileActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		fileMedia: z.array(z.file()).optional(),
+		fileMedia: z.array(z.coerce.number()).optional(),
 	}),
 	method: "POST",
 	action: Action.CreateFile,
@@ -444,7 +444,6 @@ function getFileFormInitialValues() {
 		title: "",
 		description: "",
 		files: {
-			files: [] as File[],
 			mediaIds: [] as number[],
 		},
 	};
@@ -452,24 +451,22 @@ function getFileFormInitialValues() {
 
 export type FileFormInitialValues = ReturnType<typeof getFileFormInitialValues>;
 
-function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
+function FileFormWrapper({ userId }: { userId: number }) {
 	const { submit: createFile, isLoading } = useCreateFile();
 	const initialValues = getFileFormInitialValues();
 	return (
 		<FileForm
 			initialValues={initialValues}
 			onSubmit={(values) => {
-				console.log(values);
 				createFile({
 					values: {
 						title: values.title,
 						description: values.description,
-						// we don't care about mediaIds here, because the create Form is all new files
-						fileMedia: values.files.files,
+						fileMedia: values.files.mediaIds,
 					},
 				});
 			}}
-			uploadLimit={uploadLimit}
+			userId={userId}
 			isLoading={isLoading}
 		/>
 	);
@@ -607,7 +604,7 @@ function DiscussionFormWrapper() {
 }
 
 export default function NewModulePage({ loaderData }: Route.ComponentProps) {
-	const { uploadLimit, searchParams } = loaderData;
+	const { searchParams } = loaderData;
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 	const selectedType = searchParams.type;
 
@@ -657,7 +654,7 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 					{selectedType === "page" && <PageFormWrapper />}
 					{selectedType === "whiteboard" && <WhiteboardFormWrapper />}
 					{selectedType === "file" && (
-						<FileFormWrapper uploadLimit={uploadLimit} />
+						<FileFormWrapper userId={loaderData.user.id} />
 					)}
 					{selectedType === "assignment" && <AssignmentFormWrapper />}
 					{selectedType === "quiz" && <CreateQuizForm />}

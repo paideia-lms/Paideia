@@ -141,7 +141,7 @@ const createUpdateFileActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		fileMedia: z.array(z.coerce.number().or(z.file())).optional(),
+		fileMedia: z.array(z.coerce.number()).optional(),
 	}),
 	method: "POST",
 	action: Action.UpdateFile,
@@ -1886,7 +1886,6 @@ function getFileFormInitialValues(
 		title: module.title,
 		description: module.description || "",
 		files: {
-			files: [] as File[],
 			mediaIds: module.media?.map((m) => m.id) ?? [],
 		},
 	};
@@ -1896,13 +1895,11 @@ export type FileFormInitialValues = ReturnType<typeof getFileFormInitialValues>;
 
 function FileFormWrapper({
 	module,
-	uploadLimit,
 }: {
 	module: Extract<
 		Route.ComponentProps["loaderData"]["module"],
 		{ type: "file" }
 	>;
-	uploadLimit?: number;
 }) {
 	const { submit: updateFile, isLoading } = useUpdateFile();
 	const initialValues = getFileFormInitialValues(module);
@@ -1910,17 +1907,16 @@ function FileFormWrapper({
 		<FileForm
 			initialValues={initialValues}
 			onSubmit={async (values) => {
-				console.log(values);
 				await updateFile({
 					params: { moduleId: module.id },
 					values: {
 						title: values.title,
 						description: values.description,
-						fileMedia: [...values.files.mediaIds, ...values.files.files],
+						fileMedia: values.files.mediaIds,
 					},
 				});
 			}}
-			uploadLimit={uploadLimit}
+			userId={module.owner.id}
 			existingMedia={module.media ?? []}
 			isLoading={isLoading}
 		/>
@@ -2042,7 +2038,7 @@ function DiscussionFormWrapper({
 }
 
 export default function EditModulePage({ loaderData }: Route.ComponentProps) {
-	const { module, uploadLimit, hasLinkedCourses } = loaderData;
+	const { module, hasLinkedCourses } = loaderData;
 
 	return (
 		<Container size="md" py="xl">
@@ -2083,9 +2079,7 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 						{module.type === "whiteboard" && (
 							<WhiteboardFormWrapper module={module} />
 						)}
-						{module.type === "file" && (
-							<FileFormWrapper module={module} uploadLimit={uploadLimit} />
-						)}
+						{module.type === "file" && <FileFormWrapper module={module} />}
 						{module.type === "assignment" && (
 							<AssignmentFormWrapper module={module} />
 						)}

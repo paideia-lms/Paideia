@@ -130,8 +130,12 @@ export const clientAction = async ({
 	return actionData;
 };
 
-export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
+export default function NoteCreatePage({
+	actionData,
+	loaderData,
+}: Route.ComponentProps) {
 	const navigate = useNavigate();
+	const { user: currentUser } = loaderData;
 	const { submit: createNote, isLoading, fetcher } = useCreateNote();
 
 	const form = useForm({
@@ -142,7 +146,7 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+	const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		createNote({
 			values: {
@@ -151,6 +155,8 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 			},
 		});
 	};
+
+	console.log(form.values);
 
 	return (
 		<Container size="md" py="xl">
@@ -167,10 +173,11 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 						<Stack gap="lg">
 							<FormableRichTextEditor
 								form={form}
-								formKey={"content"}
+								formKey="content"
 								key={form.key("content")}
 								label="Content"
 								placeholder="Write your note here..."
+								userId={currentUser.id}
 							/>
 
 							<Checkbox

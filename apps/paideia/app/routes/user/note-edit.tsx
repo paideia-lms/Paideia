@@ -62,6 +62,7 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	}
 
 	return {
+		user: currentUser,
 		note,
 		params,
 	};
@@ -156,6 +157,7 @@ export default function NoteEditPage({
 	actionData,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
+	const { user } = loaderData;
 	const { submit: updateNote, isLoading, fetcher } = useUpdateNote();
 
 	const form = useForm({
@@ -166,7 +168,7 @@ export default function NoteEditPage({
 		},
 	});
 
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+	const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		updateNote({
 			values: {
@@ -196,6 +198,7 @@ export default function NoteEditPage({
 								key={form.key("content")}
 								label="Content"
 								placeholder="Write your note here..."
+								userId={user.id}
 							/>
 
 							<Checkbox

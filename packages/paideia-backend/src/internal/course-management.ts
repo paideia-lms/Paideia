@@ -195,7 +195,7 @@ export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
 		title?: string;
 		status?: "draft" | "published" | "archived";
 		description?: string;
-		thumbnail?: File | null;
+		thumbnail?: number | null;
 		tags?: { tag?: string }[];
 		category?: number | null;
 	};
@@ -229,20 +229,7 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 					id: courseId,
 					data: {
 						...data,
-						thumbnail: !data.thumbnail
-							? data.thumbnail
-							: await tryCreateMedia({
-									payload,
-									file: await data.thumbnail.arrayBuffer().then(Buffer.from),
-									filename: data.thumbnail.name || "thumbnail",
-									mimeType: data.thumbnail.type || "image/png",
-									alt: "Course thumbnail",
-									userId,
-									req,
-									overrideAccess,
-								})
-									.getOrThrow()
-									.then((r) => r.media.id),
+						thumbnail: data.thumbnail  ,
 						...(data.description
 							? await processRichTextMediaV2({
 									payload,

@@ -30,6 +30,7 @@ import {
 	IconLayoutNavbar,
 	IconLayoutSidebar,
 	IconPhoto,
+	IconPhotoPlus,
 	IconRowInsertBottom,
 	IconRowInsertTop,
 	IconRowRemove,
@@ -45,7 +46,7 @@ import {
 	DetailsContent,
 	DetailsSummary,
 } from "@tiptap/extension-details";
-import Dropcursor from "@tiptap/extension-dropcursor";
+// import Dropcursor from "@tiptap/extension-dropcursor";
 import FileHandler from "@tiptap/extension-file-handler";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
@@ -84,6 +85,7 @@ import { createLowlight } from "lowlight";
 import { mermaidGrammar } from "lowlight-mermaid";
 import {
 	forwardRef,
+	memo,
 	useCallback,
 	useEffect,
 	useImperativeHandle,
@@ -91,6 +93,11 @@ import {
 	useState,
 	type ForwardedRef,
 } from "react";
+import {
+	MediaPickerModal,
+	type MediaPickerModalHandle,
+} from "app/components/media-picker";
+import { getRouteUrl } from "app/utils/router/search-params-utils";
 import rehypeFormat from "rehype-format";
 import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
@@ -941,6 +948,40 @@ function AddImageControl({
 	);
 }
 
+function AddImageFromMediaPickerControl({ userId }: { userId: number }) {
+	const { editor } = useRichTextEditorContext();
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
+
+	const handleSelect = useCallback(
+		(mediaId: number) => {
+			const imageUrl = getRouteUrl("/api/media/file/:mediaId", {
+				params: { mediaId: mediaId.toString() },
+				searchParams: {},
+			});
+			editor?.chain().focus().setImage({ src: imageUrl }).run();
+		},
+		[editor],
+	);
+
+	return (
+		<>
+			<MantineRTE.Control
+				onClick={() => mediaPickerRef.current?.open()}
+				aria-label="Insert image from media"
+				title="Insert image from media"
+			>
+				<IconPhotoPlus stroke={1.5} size={16} />
+			</MantineRTE.Control>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={userId}
+				onSelect={handleSelect}
+				imagesOnly
+			/>
+		</>
+	);
+}
+
 function ImageSizeSmallControl() {
 	const { editor } = useRichTextEditorContext();
 
@@ -1088,6 +1129,8 @@ interface RichTextEditorProps {
 	disableImageUpload?: boolean; // Disable image upload (also disables Image, Dropcursor, FileHandler extensions)
 	disableMentions?: boolean; // Disable @ mentions, [[ page links, and # tag mentions
 	disableYoutube?: boolean; // Disable YouTube video embedding
+	/** When provided, shows MediaPicker tool to insert images from user's media drive (images only) */
+	userId?: number;
 }
 
 const DEBOUNCE_TIME = 300;
@@ -1107,6 +1150,7 @@ export const RichTextEditor = forwardRef<
 		disableImageUpload = false,
 		disableMentions = false,
 		disableYoutube = false,
+		userId,
 	},
 	ref,
 ) {
@@ -1255,7 +1299,7 @@ export const RichTextEditor = forwardRef<
 							inline: false,
 							allowBase64: true,
 						}),
-						Dropcursor,
+						// Dropcursor,
 						FileHandler.configure({
 							allowedMimeTypes: [
 								"image/jpeg",
@@ -1551,10 +1595,13 @@ export const RichTextEditor = forwardRef<
 								<MantineRTE.Unlink />
 							</MantineRTE.ControlsGroup>
 
-							{(!disableImageUpload || !disableYoutube) && (
+							{(!disableImageUpload || !disableYoutube || userId) && (
 								<MantineRTE.ControlsGroup>
 									{!disableImageUpload && (
 										<AddImageControl onImageAdd={handleImageAdd} />
+									)}
+									{!disableImageUpload && userId != null && (
+										<AddImageFromMediaPickerControl userId={userId} />
 									)}
 									{!disableYoutube && <AddYoutubeVideoControl />}
 								</MantineRTE.ControlsGroup>
@@ -1629,7 +1676,8 @@ export const RichTextEditor = forwardRef<
 						{editorState.characterCount !== 1 ? "s" : ""}
 					</span>
 					<span>
-						{editorState.wordCount} word{editorState.wordCount !== 1 ? "s" : ""}
+						{editorState.wordCount} word
+						{editorState.wordCount !== 1 ? "s" : ""}
 					</span>
 					{editorState.isEmpty && (
 						<span style={{ color: "var(--mantine-color-yellow-6)" }}>

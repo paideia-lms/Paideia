@@ -172,6 +172,7 @@ export function tryGetApiKeyStatus(args: GetApiKeyStatusArgs) {
 
 			return {
 				hasApiKey: Boolean(user.enableAPIKey),
+				apiKey: user.apiKey,
 			};
 		},
 		(error) =>

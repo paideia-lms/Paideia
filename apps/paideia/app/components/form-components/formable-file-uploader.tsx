@@ -2,12 +2,10 @@ import type { UseFormReturnType } from "@mantine/form";
 import { Input } from "@mantine/core";
 import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { FileUploader } from "../file-uploader";
-import { getRouteUrl } from "app/utils/router/search-params-utils";
 import type { ComponentProps } from "react";
 import type { Path } from "@mantine/form/lib/paths.types";
 
 type FileUploaderValue = {
-	files: File[];
 	mediaIds: number[];
 };
 
@@ -36,11 +34,11 @@ interface FormableFileUploaderProps<T> extends FileUploaderProps {
  * ```
  * <FormableFileUploader
  *   form={form}
- *   formKey={form.key("files")}
+ *   formKey={"files"}
  *   key={form.key("files")}
  *   label="Files"
+ *   userId={userId}
  *   existingMedia={existingMedia}
- *   uploadLimit={uploadLimit}
  *   allowDeleteUploaded={true}
  * />
  * ```
@@ -63,21 +61,9 @@ export function FormableFileUploader<T>({
 	return (
 		<Input.Wrapper label={label}>
 			<FileUploader
-				existingMedia={existingMedia.map((media) => ({
-					...media,
-					previewUrl: getRouteUrl("/api/media/file/:mediaId", {
-						params: { mediaId: media.id.toString() },
-						searchParams: {},
-					}),
-				}))}
-				onChange={({ files: newFiles, mediaIds: newMediaIds }) => {
-					// console.log("newFiles", newFiles);
-					// console.log("newMediaIds", newMediaIds);
-					// console.log("formKey", formKey);
-					form.setFieldValue(formKey, {
-						files: newFiles,
-						mediaIds: newMediaIds,
-					} as any);
+				existingMedia={existingMedia}
+				onChange={({ mediaIds }) => {
+					form.setFieldValue(formKey, { mediaIds } as never);
 				}}
 				value={filesValue as FileUploaderValue | undefined}
 				{...fileUploaderProps}

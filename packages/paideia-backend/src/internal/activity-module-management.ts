@@ -18,7 +18,6 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
-import { tryCreateMedia } from "./media-management";
 import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
 
 // Base args that are common to all module types
@@ -75,7 +74,7 @@ export interface CreateDiscussionModuleArgs
 }
 
 export interface CreateFileModuleArgs extends BaseCreateActivityModuleArgs {
-	media?: File[];
+	media?: number[];
 }
 
 export type CreateActivityModuleArgs =
@@ -139,7 +138,7 @@ export interface UpdateDiscussionModuleArgs
 }
 
 export interface UpdateFileModuleArgs extends BaseUpdateActivityModuleArgs {
-	media?: (number | File)[];
+	media?: (number)[];
 }
 
 export type UpdateActivityModuleArgs =
@@ -812,30 +811,12 @@ export function tryCreateFileModule(args: CreateFileModuleArgs) {
 			const transactionInfo = await handleTransactionId(payload, req);
 
 			return transactionInfo.tx(async ({ reqWithTransaction }) => {
-				// Create the file entity
+				// Create the file entity (media IDs are pre-created via MediaPicker)
 				const file = await payload
 					.create({
 						collection: "files",
 						data: {
-							media: media
-								? await Promise.all(
-										media.map(async (m) => {
-											const buffer = Buffer.from(await m.arrayBuffer());
-											const createMediaResult = await tryCreateMedia({
-												payload,
-												file: buffer,
-												filename: m.name ?? "unknown",
-												mimeType: m.type ?? "application/octet-stream",
-												alt: "File attachment",
-												caption: "File attachment",
-												userId,
-												req: reqWithTransaction,
-												overrideAccess,
-											}).getOrThrow();
-											return createMediaResult.media.id;
-										}),
-									)
-								: undefined,
+							media: media ?? undefined,
 							createdBy: userId,
 						},
 						req: reqWithTransaction,
@@ -1800,27 +1781,7 @@ export function tryUpdateFileModule(args: UpdateFileModuleArgs) {
 						collection: "files",
 						id: fileId,
 						data: {
-							media: media
-								? await Promise.all(
-										media.map(async (m) =>
-											m instanceof File
-												? await tryCreateMedia({
-														payload,
-														file: await m.arrayBuffer().then(Buffer.from),
-														filename: m.name ?? "unknown",
-														mimeType: m.type ?? "application/octet-stream",
-														alt: "File attachment",
-														caption: "File attachment",
-														userId: req?.user?.id ?? 0,
-														req: reqWithTransaction,
-														overrideAccess,
-													})
-														.getOrThrow()
-														.then((r) => r.media.id)
-												: m,
-										),
-									)
-								: undefined,
+							media : media
 						},
 						req: reqWithTransaction,
 						overrideAccess,

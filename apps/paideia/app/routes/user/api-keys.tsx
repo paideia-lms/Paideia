@@ -2,18 +2,17 @@ import {
 	Alert,
 	Anchor,
 	Button,
+	Code,
 	Container,
 	CopyButton,
-	Group,
 	Paper,
 	Stack,
 	Text,
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCopy, IconKey, IconKeyOff } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
-import { Link, useLoaderData } from "react-router";
+import { IconCheck, IconCopy, IconKey, IconKeyOff } from "@tabler/icons-react";
+import { Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -73,6 +72,7 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 
 	return {
 		hasApiKey: statusResult.value.hasApiKey,
+		apiKey: statusResult.value.apiKey,
 		params,
 	};
 })!;
@@ -211,24 +211,24 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function ApiKeysPage({ loaderData }: Route.ComponentProps) {
-	const { hasApiKey, params } = loaderData;
+	const { hasApiKey, params, apiKey } = loaderData;
 	const {
 		submit: generate,
 		isLoading: isGenerating,
 		data: generateData,
 	} = useGenerateApiKey();
 	const { submit: revoke, isLoading: isRevoking } = useRevokeApiKey();
-	const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+	// const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
-	useEffect(() => {
-		if (
-			generateData?.status === StatusCode.Ok &&
-			"apiKey" in generateData &&
-			generateData.apiKey
-		) {
-			setGeneratedKey(generateData.apiKey);
-		}
-	}, [generateData]);
+	// useEffect(() => {
+	// 	if (
+	// 		generateData?.status === StatusCode.Ok &&
+	// 		"apiKey" in generateData &&
+	// 		generateData.apiKey
+	// 	) {
+	// 		setGeneratedKey(generateData.apiKey);
+	// 	}
+	// }, [generateData]);
 
 	const handleGenerate = () => {
 		generate({
@@ -242,12 +242,12 @@ export default function ApiKeysPage({ loaderData }: Route.ComponentProps) {
 			params: params.id ? { id: params.id } : {},
 			values: {},
 		});
-		setGeneratedKey(null);
+		// setGeneratedKey(null);
 	};
 
-	const handleCloseKeyModal = () => {
-		setGeneratedKey(null);
-	};
+	// const handleCloseKeyModal = () => {
+	// 	setGeneratedKey(null);
+	// };
 
 	return (
 		<Container size="md" py="xl">
@@ -290,8 +290,8 @@ export default function ApiKeysPage({ loaderData }: Route.ComponentProps) {
 						</Text>
 					</Alert>
 
-					{generatedKey && (
-						<Alert mb="lg" color="yellow" title="Copy your API key now">
+					{/* {generatedKey && ( */}
+					{/* <Alert mb="lg" color="yellow" title="Copy your API key now">
 							<Text size="sm" mb="sm">
 								This is the only time you'll see this key. Store it securely —
 								it cannot be retrieved again.
@@ -330,14 +330,30 @@ export default function ApiKeysPage({ loaderData }: Route.ComponentProps) {
 									Close
 								</Button>
 							</Group>
-						</Alert>
-					)}
+						</Alert> */}
+					{/* )} */}
 
-					{hasApiKey && !generatedKey ? (
+					{apiKey ? (
 						<Stack gap="md">
 							<Alert color="green" title="API key active">
 								You have an active API key. Use it in the Authorization header
-								as: <code>Bearer pld_...</code>
+								as:
+								<CopyButton value={apiKey}>
+									{({ copied, copy }) => (
+										<Code
+											component="span"
+											onClick={copy}
+											style={{ cursor: "pointer" }}
+										>
+											Bearer pld_...{" "}
+											{copied ? (
+												<IconCheck size={12} />
+											) : (
+												<IconCopy size={12} />
+											)}
+										</Code>
+									)}
+								</CopyButton>
 							</Alert>
 							<Button
 								color="red"
@@ -354,7 +370,6 @@ export default function ApiKeysPage({ loaderData }: Route.ComponentProps) {
 							leftSection={<IconKey size={16} />}
 							onClick={handleGenerate}
 							loading={isGenerating}
-							disabled={!!generatedKey}
 						>
 							Generate API Key
 						</Button>

@@ -70,6 +70,26 @@ const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
 - `onSelect` calls `uploadLogo(mediaId)` which submits the media ID for that field
 - Form uses `inputSchema.partial()` for partial updates; only the selected field is sent
 
+### 3. Course Settings — Thumbnail Selection (`app/routes/course.$id.settings.tsx`)
+
+- `ThumbnailPicker` component uses MediaPicker for course thumbnail
+- "Choose thumbnail" opens MediaPicker with `imagesOnly`
+- `onSelect` sets form field `thumbnail: mediaId`; "Remove" clears it
+- Backend `tryUpdateCourse` expects `thumbnail?: number | null` (media ID)
+
+### 4. File Module — Add Files (`app/components/file-uploader.tsx`)
+
+- `FileUploader` uses MediaPicker for adding files (replaces defer-upload Dropzone)
+- "Add files" opens MediaPicker; user selects existing or uploads new (immediate)
+- `onSelect` appends `mediaId` to linked list; remove button unlinks
+- Form value: `{ mediaIds: number[] }`; backend expects `media: number[]`
+
+### 5. Rich Text Editor — Insert Image Tool (`app/components/rich-text/rich-text-editor.tsx`)
+
+- `AddImageFromMediaPickerControl` toolbar button (IconPhotoPlus) when `userId` prop provided
+- Opens MediaPicker with `imagesOnly`; `onSelect` inserts image node with `src="/api/media/file/:mediaId"`
+- Used in course description (`course.$id.settings.tsx`), notes (`note-edit.tsx`, `note-create.tsx`) when `userId` passed via `FormableRichTextEditor`
+
 ## Data Flow
 
 1. User clicks "Choose" → `mediaPickerRef.current?.open()`
