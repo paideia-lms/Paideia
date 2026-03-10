@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import sanitizedConfig from "../payload.config";
 import type { CourseActivityModuleLink, CourseSection } from "../payload-types";
 import { generateCourseStructureTree } from "../utils/course-structure-tree";
@@ -38,9 +37,15 @@ import {
 	tryValidateNoCircularReference,
 } from "./course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Course Section Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Course Section Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let testUser: { id: number };
 	let testCourse: { id: number };
 	let testActivityModule: { id: number };
@@ -48,14 +53,11 @@ describe("Course Section Management Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create test user
 		const userArgs: CreateUserArgs = {
@@ -119,7 +121,8 @@ describe("Course Section Management Functions", () => {
 	});
 
 	afterAll(async () => {
-		await $`bun run migrate:fresh --force-accept-warning`;
+		await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+		await deleteEverythingInBucket({ logger: payload.logger})
 	});
 
 	test("should create a nested section with valid parent", async () => {

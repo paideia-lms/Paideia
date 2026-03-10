@@ -2,7 +2,6 @@ import { TagsInput } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindAllUsers } from "@paideia/paideia-backend";
 import { parseAsInteger, parseAsString } from "nuqs/server";
 import {
 	badRequest,
@@ -31,7 +30,7 @@ const loaderRpc = createLoaderRpc({
 
 export const loader = loaderRpc.createLoader(
 	async ({ context, searchParams }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -44,14 +43,12 @@ export const loader = loaderRpc.createLoader(
 
 		const { query, limit } = searchParams;
 
-		// Fetch users with search
-		const usersResult = await tryFindAllUsers({
-			payload,
+		const usersResult = await paideia.tryFindAllUsers({
 			query: query || undefined,
 			limit,
 			page: 1,
 			sort: "-createdAt",
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		// ! we return error response in loader because this route has no default page component

@@ -24,6 +24,7 @@ import { getRouteUrl } from "app/utils/router/search-params-utils";
 enum UserTab {
 	Profile = "profile",
 	Preference = "preference",
+	ApiKeys = "api-keys",
 	Modules = "modules",
 	Grades = "grades",
 	Notes = "notes",
@@ -84,6 +85,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 	const getCurrentTab = () => {
 		if (pageInfo.is["routes/user/overview"]) return UserTab.Profile;
 		if (pageInfo.is["routes/user/preference"]) return UserTab.Preference;
+		if (pageInfo.is["routes/user/api-keys"]) return UserTab.ApiKeys;
 		if (
 			pageInfo.is["routes/user/modules"] ||
 			pageInfo.is["routes/user/module/new"] ||
@@ -119,6 +121,13 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 			case UserTab.Preference:
 				navigate(
 					getRouteUrl("/user/preference/:id?", {
+						params: userIdParam ? { id: userIdParam } : undefined,
+					}),
+				);
+				break;
+			case UserTab.ApiKeys:
+				navigate(
+					getRouteUrl("/user/api-keys/:id?", {
 						params: userIdParam ? { id: userIdParam } : undefined,
 					}),
 				);
@@ -194,6 +203,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 							<Tabs.List>
 								<Tabs.Tab value={UserTab.Profile}>Profile</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Preference}>Preference</Tabs.Tab>
+								<Tabs.Tab value={UserTab.ApiKeys}>API Keys</Tabs.Tab>
 								{canSeeModules && (
 									<Tabs.Tab value={UserTab.Modules}>Modules</Tabs.Tab>
 								)}

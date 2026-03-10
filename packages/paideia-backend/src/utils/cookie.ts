@@ -1,4 +1,4 @@
-import { generateCookie, type Payload } from "@paideia/paideia-backend/payload";
+import { generateCookie } from "payload";
 
 /**
  * Extract the cookie domain from the request.
@@ -86,24 +86,29 @@ function shouldUseSecureCookie(domainUrl: string, headers: Headers): boolean {
 	return isHttps;
 }
 
+export interface CookieOptions {
+	cookiePrefix: string;
+	domainUrl: string;
+	headers: Headers;
+}
+
 /**
  * Set a secure cookie for Payload authentication token.
  * - Secure: Ensures the cookie is only sent over HTTPS (when applicable).
  * - HttpOnly: Not accessible to JavaScript.
  * - SameSite=Strict: Prevents CSRF.
  */
-export function setCookie(
+export function setAuthCookie(
 	token: string,
 	exp: number,
-	domainUrl: string,
-	headers: Headers,
-	payload: Payload,
-) {
+	opts: CookieOptions,
+): string {
+	const { cookiePrefix, domainUrl, headers } = opts;
 	const cookieDomain = getCookieDomain(domainUrl, headers);
 	const secure = shouldUseSecureCookie(domainUrl, headers);
 
 	return generateCookie({
-		name: `${payload.config.cookiePrefix}-token`,
+		name: `${cookiePrefix}-token`,
 		value: token,
 		// ! When working on localhost, the cookie domain must be omitted entirely. You should not set it to "" or NULL or FALSE instead of "localhost". It is not enough. see https://stackoverflow.com/a/1188145
 		domain: cookieDomain || undefined, // Omit domain property entirely if empty string
@@ -118,16 +123,13 @@ export function setCookie(
 /**
  * Remove the Payload authentication cookie securely.
  */
-export function removeCookie(
-	domainUrl: string,
-	headers: Headers,
-	payload: Payload,
-) {
+export function removeAuthCookie(opts: CookieOptions): string {
+	const { cookiePrefix, domainUrl, headers } = opts;
 	const cookieDomain = getCookieDomain(domainUrl, headers);
 	const secure = shouldUseSecureCookie(domainUrl, headers);
 
 	return generateCookie({
-		name: `${payload.config.cookiePrefix}-token`,
+		name: `${cookiePrefix}-token`,
 		value: "",
 		// ! When working on localhost, the cookie domain must be omitted entirely. You should not set it to "" or NULL or FALSE instead of "localhost". It is not enough. see https://stackoverflow.com/a/1188145
 		domain: cookieDomain || undefined, // Omit domain property entirely if empty string
@@ -147,15 +149,14 @@ export function removeCookie(
  */
 export function setImpersonationCookie(
 	userId: number,
-	domainUrl: string,
-	headers: Headers,
-	payload: Payload,
-) {
+	opts: CookieOptions,
+): string {
+	const { cookiePrefix, domainUrl, headers } = opts;
 	const cookieDomain = getCookieDomain(domainUrl, headers);
 	const secure = shouldUseSecureCookie(domainUrl, headers);
 
 	return generateCookie({
-		name: `${payload.config.cookiePrefix}-impersonate`,
+		name: `${cookiePrefix}-impersonate`,
 		value: String(userId),
 		// ! When working on localhost, the cookie domain must be omitted entirely. You should not set it to "" or NULL or FALSE instead of "localhost". It is not enough. see https://stackoverflow.com/a/1188145
 		domain: cookieDomain || undefined, // Omit domain property entirely if empty string
@@ -171,16 +172,13 @@ export function setImpersonationCookie(
 /**
  * Remove the impersonation cookie securely.
  */
-export function removeImpersonationCookie(
-	domainUrl: string,
-	headers: Headers,
-	payload: Payload,
-) {
+export function removeImpersonationCookie(opts: CookieOptions): string {
+	const { cookiePrefix, domainUrl, headers } = opts;
 	const cookieDomain = getCookieDomain(domainUrl, headers);
 	const secure = shouldUseSecureCookie(domainUrl, headers);
 
 	return generateCookie({
-		name: `${payload.config.cookiePrefix}-impersonate`,
+		name: `${cookiePrefix}-impersonate`,
 		value: "",
 		// ! When working on localhost, the cookie domain must be omitted entirely. You should not set it to "" or NULL or FALSE instead of "localhost". It is not enough. see https://stackoverflow.com/a/1188145
 		domain: cookieDomain || undefined, // Omit domain property entirely if empty string

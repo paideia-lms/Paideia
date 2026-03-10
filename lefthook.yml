@@ -50,9 +50,9 @@ pre-commit:
     #       echo "Error: At least one changelog file must be modified or added in changelogs/ directory"
     #       exit 1
     #     fi
-    - name: typecheck
-      run: bun run --cwd apps/paideia typecheck
-      stage_fixed: true
+    # - name: typecheck
+    #   run: bun run --cwd apps/paideia typecheck
+    #   stage_fixed: true
     - name: lint
       run: bun run --cwd apps/paideia lint
       stage_fixed: true

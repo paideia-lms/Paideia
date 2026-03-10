@@ -3,7 +3,6 @@ import { href, redirect } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryDeleteSection } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -26,18 +25,16 @@ const deleteSectionRpc = createActionRpc({
 
 const deleteSectionAction = deleteSectionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "User not found" });
 		}
 
-		// Call tryDeleteSection with the parsed parameters
-		const result = await tryDeleteSection({
-			payload,
+		const result = await paideia.tryDeleteSection({
 			sectionId: formData.sectionId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

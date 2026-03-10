@@ -6,12 +6,7 @@
 	"type": "module",
 	"main": "./src/index.ts",
 	"exports": {
-		".": "./src/index.ts",
-		"./server": "./src/server.ts",
-		"./payload-types": "./src/payload-types.ts",
-		"./payload": "./src/payload-exports.ts",
-		"./json/raw-quiz-config/v2": "./src/json/raw-quiz-config/v2.ts",
-		"./payload-generated-schema": "./src/payload-generated-schema.ts"
+		".": "./src/index.ts"
 	},
 	"scripts": {
 		"migrate:create": "bun scripts/clean-s3.ts && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:create",
@@ -21,16 +16,19 @@
 		"migrate:refresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:refresh --force-accept-warning && bun scripts/clean-s3.ts",
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:reset",
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts",
-		"typegen": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:db-schema", 
+		"typegen": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:db-schema",
 		"typecheck": "tsgo --noEmit --project tsconfig.v7.json",
 		"knip": "knip",
 		"dedupe": "bunx nypm dedupe",
 		"lint:project": "bun scripts/lint-project.ts",
-		"test:all": "mkdir -p tests/reports && LOG_FILE=tests/reports/$(date +%Y-%m-%d).log && (bun test $(find . -type f -name '*.test.ts' -not -path './node_modules/*') 2>&1 | tee \"$LOG_FILE\") && bun scripts/process-test-log.ts \"$LOG_FILE\"",
 		"ensure-bucket": "bun scripts/ensure-s3-bucket.ts",
-		"fix-types": "bun scripts/fix-types.ts"
+		"fix-types": "bun scripts/fix-types.ts",
+		"visualize:relationships": "bun scripts/visualize-relationships.ts"
 	},
 	"dependencies": {
+		"@orpc/openapi": "^1.2.0",
+		"@orpc/server": "^1.2.0",
+		"@orpc/zod": "^1.2.0",
 		"@payloadcms/db-postgres": "^3.76.1",
 		"@payloadcms/email-nodemailer": "^3.76.1",
 		"@payloadcms/email-resend": "^3.76.1",
@@ -38,7 +36,6 @@
 		"@payloadcms/storage-s3": "^3.76.1",
 		"@payloadcms/translations": "^3.76.1",
 		"cheerio": "^1.2.0",
-		"commander": "^14.0.3",
 		"console-table-printer": "^2.15.0",
 		"dayjs": "^1.11.19",
 		"drizzle-orm": "^0.45.1",
@@ -57,6 +54,7 @@
 		"request-ip": "^3.3.0",
 		"search-query-parser": "^1.6.0",
 		"semver": "^7.7.4",
+		"trpc-cli": "^0.12.4",
 		"typescript-result": "^3.5.2",
 		"ua-parser-js": "^2.0.9",
 		"type-fest": "^5.4.4",
@@ -66,6 +64,7 @@
 		"@aws-sdk/client-s3": "^3.991.0",
 		"@faker-js/faker": "^10.3.0",
 		"@types/prompts": "^2.4.9",
-		"@types/semver": "^7.7.1"
+		"@types/semver": "^7.7.1",
+		"beautiful-mermaid": "^1.1.3"
 	}
 }

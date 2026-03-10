@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
@@ -16,7 +17,6 @@ export interface CreateUserArgs extends BaseInternalFunctionArgs {
 		lastName?: string;
 		role?: User["role"];
 		bio?: string;
-		avatar?: File | null;
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
@@ -29,7 +29,7 @@ export interface UpdateUserArgs extends BaseInternalFunctionArgs {
 		lastName?: string;
 		role?: User["role"];
 		bio?: string;
-		avatar?: File | null;
+		avatar?: number | null;
 		_verified?: boolean;
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
@@ -79,6 +79,110 @@ export interface HandleImpersonationArgs extends BaseInternalFunctionArgs {
 	impersonateUserId: string;
 }
 
+export interface GenerateApiKeyArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface RevokeApiKeyArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface GetApiKeyStatusArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+/**
+ * Generates a new API key for a user. The key is returned once and cannot be retrieved again.
+ * Uses Payload's built-in encryption; the key is stored encrypted in the database.
+ */
+export function tryGenerateApiKey(args: GenerateApiKeyArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			const plainKey = `pld_${crypto.randomBytes(32).toString("hex")}`;
+
+			await payload.update({
+				collection: "users",
+				id: userId,
+				data: {
+					enableAPIKey: true,
+					apiKey: plainKey,
+				},
+				req,
+				overrideAccess,
+			});
+
+			return { apiKey: plainKey };
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to generate API key", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Revokes the API key for a user. The key will no longer authenticate.
+ */
+export function tryRevokeApiKey(args: RevokeApiKeyArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			await payload.update({
+				collection: "users",
+				id: userId,
+				data: {
+					enableAPIKey: false,
+					apiKey: null,
+				},
+				req,
+				overrideAccess,
+			});
+
+			return { revoked: true };
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to revoke API key", {
+				cause: error,
+			}),
+	);
+}
+
+/**
+ * Returns whether the user has an API key enabled. Does not expose the key value.
+ */
+export function tryGetApiKeyStatus(args: GetApiKeyStatusArgs) {
+	return Result.try(
+		async () => {
+			const { payload, userId, req, overrideAccess = false } = args;
+
+			const user = await payload
+				.findByID({
+					collection: "users",
+					id: userId,
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findByID">());
+
+			return {
+				hasApiKey: Boolean(user.enableAPIKey),
+				apiKey: user.apiKey,
+			};
+		},
+		(error) =>
+			transformError(error) ??
+			new UnknownError("Failed to get API key status", {
+				cause: error,
+			}),
+	);
+}
+
 /**
  * Creates a new user using Payload local API
  * When user is provided, access control is enforced based on that user
@@ -96,7 +200,6 @@ export function tryCreateUser(args: CreateUserArgs) {
 					lastName,
 					role = "student",
 					bio,
-					avatar,
 					theme,
 					direction,
 				},
@@ -147,33 +250,6 @@ export function tryCreateUser(args: CreateUserArgs) {
 					})
 					.then(stripDepth<0, "create">());
 
-				if (avatar) {
-					const mediaId = await tryCreateMedia({
-						payload,
-						file: await avatar.arrayBuffer().then(Buffer.from),
-						filename: avatar.name,
-						mimeType: avatar.type,
-						userId: user.id,
-						req: reqWithTransaction,
-						overrideAccess,
-					})
-						.getOrThrow()
-						.then((r) => r.media.id);
-
-					user = await payload
-						.update({
-							collection: "users",
-							id: user.id,
-							data: {
-								avatar: mediaId,
-							},
-							req: reqWithTransaction,
-							depth: 0,
-							overrideAccess,
-						})
-						.then(stripDepth<0, "update">());
-				}
-
 				return user;
 			});
 
@@ -204,24 +280,7 @@ export function tryUpdateUser(args: UpdateUserArgs) {
 					.update({
 						collection: "users",
 						id: userId,
-						data: {
-							...data,
-							avatar: data.avatar
-								? await tryCreateMedia({
-										payload,
-										file: await data.avatar.arrayBuffer().then(Buffer.from),
-										filename: data.avatar.name,
-										mimeType: data.avatar.type,
-										alt: "User avatar",
-										caption: "User avatar",
-										req: reqWithTransaction,
-										overrideAccess,
-										userId,
-									})
-										.getOrThrow()
-										.then((r) => r.media.id)
-								: undefined,
-						},
+						data: data,
 						req: reqWithTransaction,
 						overrideAccess,
 					})

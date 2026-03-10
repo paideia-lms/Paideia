@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* tslint:disable */
 /* eslint-disable */
 /**
@@ -196,6 +195,9 @@ export const users = pgTable(
     })
       .defaultNow()
       .notNull(),
+    enableAPIKey: boolean("enable_a_p_i_key"),
+    apiKey: varchar("api_key"),
+    apiKeyIndex: varchar("api_key_index"),
     email: varchar("email").notNull(),
     resetPasswordToken: varchar("reset_password_token"),
     resetPasswordExpiration: timestamp("reset_password_expiration", {
@@ -1062,7 +1064,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references((): AnyPgColumn => users.id, {
+      .references((): AnyPgColumn=> users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {

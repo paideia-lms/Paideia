@@ -22,6 +22,140 @@ export function richTextContent<T extends TextareaField>(o: T) {
 	] as const;
 }
 
+export interface RichTextFieldConfig {
+	key: string;
+	alt: string;
+}
+
+export interface RichTextHookConfig {
+	fields: RichTextFieldConfig[];
+}
+
+interface UserIdAndPayload {
+	userId: number;
+	payload: Payload;
+}
+
+export function extractUserIdAndPayload(args: {
+	data: any;
+	req?: any;
+	operation?: string;
+	originalDoc?: any;
+}): UserIdAndPayload | undefined {
+	const { data, req, operation, originalDoc } = args;
+
+	if (req?.user?.id && req?.payload) {
+		return { userId: req.user.id, payload: req.payload };
+	}
+
+	if (data.createdBy && typeof data.createdBy === "number" && req?.payload) {
+		return { userId: data.createdBy, payload: req.payload };
+	}
+
+	if (
+		operation === "update" &&
+		originalDoc?.createdBy &&
+		typeof originalDoc.createdBy === "number" &&
+		req?.payload
+	) {
+		return { userId: originalDoc.createdBy, payload: req.payload };
+	}
+
+	return undefined;
+}
+
+export interface RichTextHookHandlerArgs {
+	data: any;
+	req?: any;
+	operation?: string;
+	originalDoc?: any;
+	fields: RichTextFieldConfig[];
+}
+
+export async function createRichTextHookHandler(
+	args: RichTextHookHandlerArgs,
+): Promise<any> {
+	const { data, req, operation, originalDoc, fields } = args;
+
+	if (!data) {
+		return data;
+	}
+
+	const userAndPayload = extractUserIdAndPayload({
+		data,
+		req,
+		operation,
+		originalDoc,
+	});
+
+	if (!userAndPayload) {
+		return data;
+	}
+
+	const { userId, payload } = userAndPayload;
+
+	const fieldsToProcess = fields.filter((field) => {
+		return field.key in data && typeof data[field.key] === "string";
+	});
+
+	if (fieldsToProcess.length === 0) {
+		return data;
+	}
+
+	const dataToProcess: Record<string, string> = {};
+	for (const field of fieldsToProcess) {
+		dataToProcess[field.key] = data[field.key];
+	}
+
+	const processedData = await processRichTextMediaV2({
+		payload,
+		userId,
+		req,
+		overrideAccess: true,
+		data: dataToProcess,
+		fields: fieldsToProcess,
+	});
+
+	return {
+		...data,
+		...processedData,
+	};
+}
+
+/**
+ * Collection-level beforeChange hook for rich text fields.
+ * Use with richTextContent() in collection fields.
+ *
+ * @example
+ * ```typescript
+ * hooks: {
+ *   beforeChange: [
+ *     createRichTextBeforeChangeHook({
+ *       fields: [
+ *         { key: 'description', alt: 'Course description image' },
+ *         { key: 'summary', alt: 'Course summary image' }
+ *       ]
+ *     })
+ *   ]
+ * },
+ * fields: [
+ *   ...richTextContent({ name: 'description', type: 'textarea' }),
+ *   ...richTextContent({ name: 'summary', type: 'textarea' }),
+ * ]
+ * ```
+ */
+export function createRichTextBeforeChangeHook(config: RichTextHookConfig) {
+	return async ({ data, req, operation, originalDoc }: any) => {
+		return createRichTextHookHandler({
+			data,
+			req,
+			operation,
+			originalDoc,
+			fields: config.fields,
+		});
+	};
+}
+
 export interface ExtractMediaIdsFromRichTextArgs
 	extends BaseInternalFunctionArgs {
 	payload: Payload;
@@ -140,7 +274,7 @@ export interface ProcessRichTextMediaV2Args<T extends Record<string, string>> {
  * - Processed field values (e.g., `description: string`)
  * - Media relationship arrays (e.g., `descriptionMedia: number[]`)
  */
-export const processRichTextMediaV2 = async <T extends Record<string, string>>(
+const processRichTextMediaV2 = async <T extends Record<string, string>>(
 	args: ProcessRichTextMediaV2Args<T>,
 ): Promise<ProcessRichTextMediaV2Result<T>> => {
 	const { payload, userId, req, overrideAccess = false, data, fields } = args;

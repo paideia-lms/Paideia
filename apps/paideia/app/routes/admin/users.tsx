@@ -22,7 +22,6 @@ import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindAllUsers } from "@paideia/paideia-backend";
 import { badRequest, ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/users";
 import {
@@ -42,7 +41,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: usersSearchParams,
 })(async ({ context, searchParams }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -57,13 +56,12 @@ export const loader = createRouteLoader({
 	const { query, page } = searchParams;
 
 	// Fetch users with search and pagination
-	const usersResult = await tryFindAllUsers({
-		payload,
+	const usersResult = await paideia.tryFindAllUsers({
 		query: query || undefined,
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		req: payloadRequest,
+		req: requestContext,
 		overrideAccess: false,
 	});
 

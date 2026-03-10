@@ -2,6 +2,7 @@ import {
 	Button,
 	Container,
 	Group,
+	Image,
 	Input,
 	Paper,
 	Select,
@@ -10,11 +11,14 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { useId, useRef, useState } from "react";
+import { IconPhoto, IconX } from "@tabler/icons-react";
+import { useId, useRef } from "react";
+import {
+	MediaPickerModal,
+	type MediaPickerModalHandle,
+} from "app/components/media-picker";
 import { CourseScheduleManager } from "app/components/course-schedule-manager";
 import {
 	recurringScheduleItemSchema,
@@ -29,17 +33,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	type CategoryTreeNode,
-	tryGetCategoryTree,
-} from "@paideia/paideia-backend";
-import {
-	tryAddRecurringSchedule,
-	tryAddSpecificDate,
-	tryRemoveRecurringSchedule,
-	tryRemoveSpecificDate,
-	tryUpdateCourse,
-} from "@paideia/paideia-backend";
+import type { CategoryTreeNode } from "@paideia/paideia-backend";
 
 import type { RichTextEditorRef } from "app/components/rich-text/rich-text-editor";
 import { RichTextEditor } from "app/components/rich-text/rich-text-editor";
@@ -80,7 +74,7 @@ const updateCourseRpc = createActionRpc({
 				"Slug must contain only lowercase letters, numbers, and hyphens",
 			)
 			.optional(),
-		thumbnail: z.file().nullish(),
+		thumbnail: z.coerce.number().nullish(),
 		description: z.string().min(1, "Description is required").optional(),
 		status: z.enum(["draft", "published", "archived"]).optional(),
 		category: z.coerce.number().nullish(),
@@ -111,7 +105,7 @@ const updateCourseRpc = createActionRpc({
 
 const updateCourseAction = updateCourseRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -136,14 +130,13 @@ const updateCourseAction = updateCourseRpc.createAction(
 			});
 		}
 
-		// Update course using the internal function
-		const updateResult = await tryUpdateCourse({
-			payload,
+		// Update course using the internal function (thumbnail is media ID from MediaPicker)
+		const updateResult = await paideia.tryUpdateCourse({
 			courseId: Number(courseId),
 			data: {
 				...formData,
 			},
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -173,7 +166,7 @@ const addRecurringScheduleRpc = createActionRpc({
 
 const addRecurringScheduleAction = addRecurringScheduleRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -198,11 +191,10 @@ const addRecurringScheduleAction = addRecurringScheduleRpc.createAction(
 			});
 		}
 
-		const result = await tryAddRecurringSchedule({
-			payload,
+		const result = await paideia.tryAddRecurringSchedule({
 			courseId: Number(courseId),
 			data: formData.data,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -231,7 +223,7 @@ const addSpecificDateRpc = createActionRpc({
 
 const addSpecificDateAction = addSpecificDateRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -256,11 +248,10 @@ const addSpecificDateAction = addSpecificDateRpc.createAction(
 			});
 		}
 
-		const result = await tryAddSpecificDate({
-			payload,
+		const result = await paideia.tryAddSpecificDate({
 			courseId: Number(courseId),
 			data: formData.data,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -289,7 +280,7 @@ const removeRecurringScheduleRpc = createActionRpc({
 
 const removeRecurringScheduleAction = removeRecurringScheduleRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -314,11 +305,10 @@ const removeRecurringScheduleAction = removeRecurringScheduleRpc.createAction(
 			});
 		}
 
-		const result = await tryRemoveRecurringSchedule({
-			payload,
+		const result = await paideia.tryRemoveRecurringSchedule({
 			courseId: Number(courseId),
 			index: formData.index,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -347,7 +337,7 @@ const removeSpecificDateRpc = createActionRpc({
 
 const removeSpecificDateAction = removeSpecificDateRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (!userSession?.isAuthenticated) {
@@ -372,11 +362,10 @@ const removeSpecificDateAction = removeSpecificDateRpc.createAction(
 			});
 		}
 
-		const result = await tryRemoveSpecificDate({
-			payload,
+		const result = await paideia.tryRemoveSpecificDate({
 			courseId: Number(courseId),
 			index: formData.index,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -416,7 +405,7 @@ export {
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 
@@ -438,10 +427,8 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	}
 
 	// Fetch categories via internal functions and flatten
-	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
-	const categoriesResult = await tryGetCategoryTree({
-		payload,
-		req: payloadRequest,
+	const categoriesResult = await paideia.tryGetCategoryTree({
+		req: requestContext,
 	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
@@ -456,10 +443,14 @@ export const loader = createRouteLoader()(async ({ context }) => {
 	};
 	visit(categories, "");
 
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
 	return {
 		success: true,
 		course: course,
 		categories: flatCategories,
+		currentUserId: currentUser.id,
 	};
 });
 
@@ -522,33 +513,24 @@ export async function clientAction({
 }
 
 // ============================================================================
-// THUMBNAIL DROPZONE COMPONENT
+// THUMBNAIL PICKER (MediaPicker pattern)
 // ============================================================================
 
-export interface ThumbnailDropzoneProps {
+interface ThumbnailPickerProps {
 	form: EditCourseForm;
-	initialPreviewUrl?: string | null;
+	userId: number;
 }
 
-export function ThumbnailDropzone({
-	form,
-	initialPreviewUrl,
-}: ThumbnailDropzoneProps) {
-	const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
-		initialPreviewUrl ?? null,
-	);
-
-	const handleThumbnailDrop = (files: File[]) => {
-		const file = files[0];
-		if (file) {
-			form.setFieldValue("thumbnail", file);
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				setThumbnailPreview(reader.result as string);
-			};
-			reader.readAsDataURL(file);
-		}
-	};
+export function ThumbnailPicker({ form, userId }: ThumbnailPickerProps) {
+	const mediaPickerRef = useRef<MediaPickerModalHandle>(null);
+	const thumbnailId = form.values.thumbnail;
+	const thumbnailUrl =
+		thumbnailId != null
+			? getRouteUrl("/api/media/file/:mediaId", {
+					params: { mediaId: thumbnailId.toString() },
+					searchParams: {},
+				})
+			: null;
 
 	return (
 		<div>
@@ -556,7 +538,7 @@ export function ThumbnailDropzone({
 				Thumbnail
 			</Text>
 			<Stack align="center" gap="md">
-				{thumbnailPreview && (
+				{thumbnailUrl && (
 					<div
 						style={{
 							width: "100%",
@@ -564,76 +546,51 @@ export function ThumbnailDropzone({
 							height: 200,
 							borderRadius: 8,
 							overflow: "hidden",
-							backgroundColor: "#f8f9fa",
+							backgroundColor: "var(--mantine-color-gray-0)",
 							display: "flex",
 							alignItems: "center",
 							justifyContent: "center",
 						}}
 					>
-						<img
-							src={thumbnailPreview}
+						<Image
+							src={thumbnailUrl}
 							alt="Course thumbnail"
-							style={{
-								width: "100%",
-								height: "100%",
-								objectFit: "cover",
-							}}
+							fit="cover"
+							w="100%"
+							h={200}
 						/>
 					</div>
 				)}
-				<Dropzone
-					onDrop={handleThumbnailDrop}
-					onReject={() => {
-						notifications.show({
-							title: "Upload failed",
-							message: "File must be an image under 5MB",
-							color: "red",
-						});
-					}}
-					maxSize={5 * 1024 ** 2}
-					accept={IMAGE_MIME_TYPE}
-					multiple={false}
-					style={{ width: "100%" }}
-				>
-					<Group
-						justify="center"
-						gap="xl"
-						mih={100}
-						style={{ pointerEvents: "none" }}
+				<Group gap="xs">
+					<Button
+						type="button"
+						variant="light"
+						size="sm"
+						leftSection={<IconPhoto size={16} />}
+						onClick={() => mediaPickerRef.current?.open()}
 					>
-						<Dropzone.Accept>
-							<IconUpload
-								size={32}
-								color="var(--mantine-color-blue-6)"
-								stroke={1.5}
-							/>
-						</Dropzone.Accept>
-						<Dropzone.Reject>
-							<IconX
-								size={32}
-								color="var(--mantine-color-red-6)"
-								stroke={1.5}
-							/>
-						</Dropzone.Reject>
-						<Dropzone.Idle>
-							<IconPhoto
-								size={32}
-								color="var(--mantine-color-dimmed)"
-								stroke={1.5}
-							/>
-						</Dropzone.Idle>
-
-						<div>
-							<Text size="sm" inline>
-								Drag image here or click to select
-							</Text>
-							<Text size="xs" c="dimmed" inline mt={7}>
-								Image should not exceed 5MB
-							</Text>
-						</div>
-					</Group>
-				</Dropzone>
+						Choose thumbnail
+					</Button>
+					{thumbnailId != null && (
+						<Button
+							type="button"
+							variant="subtle"
+							size="sm"
+							leftSection={<IconX size={16} />}
+							color="red"
+							onClick={() => form.setFieldValue("thumbnail", null)}
+						>
+							Remove
+						</Button>
+					)}
+				</Group>
 			</Stack>
+			<MediaPickerModal
+				ref={mediaPickerRef}
+				userId={userId}
+				onSelect={(mediaId) => form.setFieldValue("thumbnail", mediaId)}
+				imagesOnly
+			/>
 		</div>
 	);
 }
@@ -651,7 +608,12 @@ const useEditCourseForm = (
 			status: course.status as Course["status"],
 			category: course.category?.id ?? null,
 			description: course.description,
-			thumbnail: null as File | null,
+			thumbnail: (typeof course.thumbnail === "object" &&
+			course.thumbnail != null
+				? course.thumbnail.id
+				: typeof course.thumbnail === "number"
+					? course.thumbnail
+					: null) as number | null,
 		},
 		validate: {
 			title: (value) => (!value ? "Title is required" : null),
@@ -673,7 +635,7 @@ const useEditCourseForm = (
 type EditCourseForm = ReturnType<typeof useEditCourseForm>;
 
 export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
-	const { course, categories } = loaderData;
+	const { course, categories, currentUserId } = loaderData;
 	const { submit: editCourse, isLoading } = useEditCourse();
 	const descriptionId = useId();
 	const richTextEditorRef = useRef<RichTextEditorRef>(null);
@@ -734,17 +696,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							disabled
 						/>
 
-						<ThumbnailDropzone
-							form={form}
-							initialPreviewUrl={
-								course.thumbnail
-									? getRouteUrl("/api/media/file/:mediaId", {
-											params: { mediaId: course.thumbnail.id.toString() },
-											searchParams: {},
-										})
-									: null
-							}
-						/>
+						<ThumbnailPicker form={form} userId={currentUserId} />
 
 						<Input.Wrapper label="Description" required>
 							<div id={descriptionId}>
@@ -753,6 +705,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 									content={form.getValues().description}
 									onChange={(v) => form.setFieldValue("description", v)}
 									placeholder="Enter course description"
+									userId={currentUserId}
 								/>
 							</div>
 							{!form.getValues().description && (

@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { JobQueue } from "../utils/job-queue";
 import {
@@ -35,9 +34,15 @@ import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
 import { autoSubmitQuiz } from "../tasks/auto-submit-quiz";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Quiz Management - Full Workflow", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Quiz Management - Full Workflow", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let teacher: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
@@ -54,15 +59,11 @@ describe("Quiz Management - Full Workflow", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -305,8 +306,8 @@ describe("Quiz Management - Full Workflow", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

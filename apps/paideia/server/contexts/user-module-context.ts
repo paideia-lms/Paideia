@@ -1,116 +1,53 @@
 import { createContext } from "react-router";
-import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "../../app/utils/error";
-import {
-	tryFindGrantsByActivityModule,
-	tryFindInstructorsForActivityModule,
-	type ActivityModuleResult,
-	tryGetActivityModuleById,
-	tryFindLinksByActivityModule,
-} from "@paideia/paideia-backend";
-import type { Course } from "../payload-types";
+import type { PaideiaContextArgs } from "./global-context";
 
-export interface UserModuleUser {
-	id: number;
-	email: string;
-	firstName?: string | null;
-	lastName?: string | null;
-	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string;
-		  }
-		| null;
-}
-
-export interface UserModuleGrant {
-	id: number;
-	grantedTo: UserModuleUser;
-	grantedBy: UserModuleUser;
-	grantedAt: string;
-}
-
-export interface Instructor {
-	id: number;
-	email: string;
-	firstName: string | null;
-	lastName: string | null;
-	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string;
-		  }
-		| null;
-	enrollments: {
-		courseId: number;
-		role: "teacher" | "ta";
-	}[];
-}
-
-export interface UserModuleContext {
-	module: ActivityModuleResult;
-	accessType: "owned" | "granted" | "readonly";
-	linkedCourses: {
-		id: number;
-		title: string;
-		slug: string;
-		description: string | null;
-		status: Course["status"];
-		createdAt: string;
-		updatedAt: string;
-	}[];
-	grants: UserModuleGrant[];
-	instructors: Instructor[];
-	links: ReturnType<typeof tryFindLinksByActivityModule>["$inferValue"];
-}
+export type Instructor = NonNullable<UserModuleContext>["instructors"][number];
 
 export const userModuleContext = createContext<UserModuleContext | null>();
 
 export { userModuleContextKey } from "./utils/context-keys";
 
-interface TryGetUserModuleContextArgs extends BaseInternalFunctionArgs {
+interface TryGetUserModuleContextArgs extends PaideiaContextArgs {
 	moduleId: number;
 }
-/**
- * Get user module context for a given module ID
- * This includes the module data, linked courses, grants, and instructors
- */
+
 export function tryGetUserModuleContext(args: TryGetUserModuleContextArgs) {
 	return Result.try(
 		async () => {
-			const { payload, req, overrideAccess = false, moduleId } = args;
+			const { paideia, req, overrideAccess = false, moduleId } = args;
 			const currentUser = req?.user;
 
-			// Fetch linked courses with enrollments
-
 			const [module, links, grants, instructors] = await Promise.all([
-				tryGetActivityModuleById({
-					payload,
-					id: moduleId,
-					req,
-					overrideAccess,
-				}).getOrThrow(),
-				tryFindLinksByActivityModule({
-					payload,
-					activityModuleId: moduleId,
-					req,
-					overrideAccess,
-				}).getOrThrow(),
-				tryFindGrantsByActivityModule({
-					payload,
-					activityModuleId: moduleId,
-					req,
-					overrideAccess,
-				}).getOrThrow(),
-				tryFindInstructorsForActivityModule({
-					payload,
-					activityModuleId: moduleId,
-					req,
-					overrideAccess,
-				}).getOrThrow(),
+				paideia
+					.tryGetActivityModuleById({
+						id: moduleId,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow(),
+				paideia
+					.tryFindLinksByActivityModule({
+						activityModuleId: moduleId,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow(),
+				paideia
+					.tryFindGrantsByActivityModule({
+						activityModuleId: moduleId,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow(),
+				paideia
+					.tryFindInstructorsForActivityModule({
+						activityModuleId: moduleId,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow(),
 			]);
 
 			// unique by course id
@@ -157,10 +94,14 @@ export function tryGetUserModuleContext(args: TryGetUserModuleContextArgs) {
 				grants,
 				instructors,
 				links,
-			} satisfies UserModuleContext;
+			};
 		},
 		(error) =>
 			transformError(error) ??
 			new UnknownError("Failed to get user module context", { cause: error }),
 	);
 }
+
+type UserModuleContext = Awaited<
+	ReturnType<typeof tryGetUserModuleContext>
+>["value"];

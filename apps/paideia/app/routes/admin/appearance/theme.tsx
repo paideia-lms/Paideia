@@ -9,10 +9,6 @@ import {
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryGetAppearanceSettings,
-	tryUpdateAppearanceSettings,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -55,7 +51,7 @@ enum Action {
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -67,14 +63,15 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const settings = await tryGetAppearanceSettings({
-		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to get appearance settings");
-	});
+	const settings = await paideia
+		.tryGetAppearanceSettings({
+			// ! this is a system request, we don't care about access control
+			overrideAccess: true,
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to get appearance settings");
+		});
 
 	return { settings };
 });
@@ -94,7 +91,7 @@ const updateThemeRpc = createActionRpc({
 
 const updateThemeAction = updateThemeRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -123,9 +120,8 @@ const updateThemeAction = updateThemeRpc.createAction(
 
 		const { color, radius } = formData;
 
-		const updateResult = await tryUpdateAppearanceSettings({
-			payload,
-			req: payloadRequest,
+		const updateResult = await paideia.tryUpdateAppearanceSettings({
+			req: requestContext,
 			data: {
 				color,
 				radius: radius as "xs" | "sm" | "md" | "lg" | "xl" | undefined,

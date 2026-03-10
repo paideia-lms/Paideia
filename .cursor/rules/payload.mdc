@@ -2,6 +2,10 @@
 alwaysApply: true
 ---
 
+## Rich text fields (textarea with images)
+
+For textarea fields that support embedded images (base64 or media URLs), use `richTextContent()` and `createRichTextBeforeChangeHook()` at the collection level. See `.cursor/skills/rich-text-content/SKILL.md`.
+
 ## Depth
 
 Documents in Payload can have relationships to other Documents. This is true for both Collections as well as Globals. When you query a Document, you can specify the depth at which to populate any of its related Documents either as full objects, or only their IDs.

@@ -15,6 +15,7 @@ export const routes = [
 	route("api/user/:id/avatar", "routes/api/user.$id.avatar.tsx"),
 	route("api/d2-render", "routes/api/d2-render.tsx"),
 	route("api/media-usage/:mediaId", "routes/api/media-usage.tsx"),
+	route("api/media-picker/:id", "routes/api/media-picker.$id.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/batch-update-courses", "routes/api/batch-update-courses.tsx"),
 	route("api/category-reorder", "routes/api/category-reorder.tsx"),
@@ -31,6 +32,7 @@ export const routes = [
 		layout("layouts/user-layout.tsx", [
 			route("user/overview/:id?", "routes/user/overview.tsx"),
 			route("user/preference/:id?", "routes/user/preference.tsx"),
+			route("user/api-keys/:id?", "routes/user/api-keys.tsx"),
 			route("user/grades/:id?", "routes/user/grades.tsx"),
 			route("user/notes/:id?", "routes/user/notes.tsx"),
 			route("user/note/create", "routes/user/note-create.tsx"),

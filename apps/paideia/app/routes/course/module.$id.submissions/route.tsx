@@ -7,23 +7,6 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	tryDeleteAssignmentSubmission,
-	tryGradeAssignmentSubmission,
-	tryRemoveAssignmentSubmissionGrade,
-} from "@paideia/paideia-backend";
-import { tryGradeDiscussionSubmission } from "@paideia/paideia-backend";
-import { tryFindGradebookItemByCourseModuleLink } from "@paideia/paideia-backend";
-import {
-	tryGetQuizSubmissionById,
-	tryGradeQuizSubmission,
-} from "@paideia/paideia-backend";
-import {
-	tryReleaseAssignmentGrade,
-	tryReleaseDiscussionGrade,
-	tryReleaseQuizGrade,
-} from "@paideia/paideia-backend";
-import { handleTransactionId } from "@paideia/paideia-backend";
-import {
 	typeCreateActionRpc,
 	createActionMap,
 } from "app/utils/router/action-utils";
@@ -100,7 +83,7 @@ const removeGradeRpc = createActionRpc({
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context }) => {
-	const { payloadRequest, payload } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -131,11 +114,11 @@ export const loader = createRouteLoader({
 	);
 
 	// Fetch gradebook item to get maxGrade for all submissions
-	const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
-		payload,
-		req: payloadRequest,
-		courseModuleLinkId: courseModuleContext.id,
-	});
+	const gradebookItemResult =
+		await paideia.tryFindGradebookItemByCourseModuleLink({
+			req: requestContext,
+			courseModuleLinkId: courseModuleContext.id,
+		});
 
 	const maxGrade = gradebookItemResult.ok
 		? (gradebookItemResult.value.maxGrade ?? null)
@@ -267,7 +250,7 @@ export const loader = createRouteLoader({
 
 const deleteSubmissionAction = deleteSubmissionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 
@@ -287,13 +270,12 @@ const deleteSubmissionAction = deleteSubmissionRpc.createAction(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const id = formData.submissionId;
 			// Delete the submission
-			const deleteResult = await tryDeleteAssignmentSubmission({
-				payload,
+			const deleteResult = await paideia.tryDeleteAssignmentSubmission({
 				id,
 				req: reqWithTransaction,
 			});
@@ -317,7 +299,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 	async ({ context, formData, params }) => {
 		// params is used in the action option for URL generation
 		void params;
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 
@@ -342,7 +324,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 		const moduleType = courseModuleContext.type;
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		return transactionInfo.tx(
 			async ({ reqWithTransaction }) => {
@@ -350,8 +332,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 
 				// Grade the submission based on module type
 				if (moduleType === "assignment") {
-					const gradeResult = await tryGradeAssignmentSubmission({
-						payload,
+					const gradeResult = await paideia.tryGradeAssignmentSubmission({
 						req: reqWithTransaction,
 						id,
 						grade: formData.score,
@@ -371,8 +352,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 					});
 				} else if (moduleType === "quiz") {
 					// For quiz, we need to get the submission first to get enrollment and gradebook item
-					const submissionResult = await tryGetQuizSubmissionById({
-						payload,
+					const submissionResult = await paideia.tryGetQuizSubmissionById({
 						id,
 						req: reqWithTransaction,
 					});
@@ -386,8 +366,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 
 					// Get gradebook item
 					const gradebookItemResult =
-						await tryFindGradebookItemByCourseModuleLink({
-							payload,
+						await paideia.tryFindGradebookItemByCourseModuleLink({
 							req: reqWithTransaction,
 							courseModuleLinkId: courseModuleContext.id,
 						});
@@ -399,8 +378,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 					const gradebookItemId = gradebookItemResult.value.id;
 
 					// Grade the quiz submission
-					const gradeResult = await tryGradeQuizSubmission({
-						payload,
+					const gradeResult = await paideia.tryGradeQuizSubmission({
 						req: reqWithTransaction,
 						id,
 						enrollmentId,
@@ -420,8 +398,7 @@ const gradeSubmissionAction = gradeSubmissionRpc.createAction(
 					});
 				} else if (moduleType === "discussion") {
 					// Grade the discussion submission
-					const gradeResult = await tryGradeDiscussionSubmission({
-						payload,
+					const gradeResult = await paideia.tryGradeDiscussionSubmission({
 						req: reqWithTransaction,
 						id,
 						grade: formData.score,
@@ -456,7 +433,7 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 	async ({ context, formData, params }) => {
 		// params is used in the action option for URL generation
 		void params;
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 
@@ -478,7 +455,7 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 		const moduleType = courseModuleContext.type;
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const courseModuleLinkIdValue = formData.courseModuleLinkId;
@@ -487,22 +464,19 @@ const releaseGradeAction = releaseGradeRpc.createAction(
 			// Release the grade based on module type using const instead of let for type inference
 			const releaseResult =
 				moduleType === "assignment"
-					? await tryReleaseAssignmentGrade({
-							payload,
+					? await paideia.tryReleaseAssignmentGrade({
 							req: reqWithTransaction,
 							courseActivityModuleLinkId: courseModuleLinkIdValue,
 							enrollmentId: enrollmentIdValue,
 						})
 					: moduleType === "discussion"
-						? await tryReleaseDiscussionGrade({
-								payload,
+						? await paideia.tryReleaseDiscussionGrade({
 								req: reqWithTransaction,
 								courseActivityModuleLinkId: courseModuleLinkIdValue,
 								enrollmentId: enrollmentIdValue,
 							})
 						: moduleType === "quiz"
-							? await tryReleaseQuizGrade({
-									payload,
+							? await paideia.tryReleaseQuizGrade({
 									req: reqWithTransaction,
 									courseActivityModuleLinkId: courseModuleLinkIdValue,
 									enrollmentId: enrollmentIdValue,
@@ -534,7 +508,7 @@ const removeGradeAction = removeGradeRpc.createAction(
 	async ({ context, formData, params }) => {
 		// params is used in the action option for URL generation
 		void params;
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 
@@ -556,18 +530,18 @@ const removeGradeAction = removeGradeRpc.createAction(
 		const moduleType = courseModuleContext.type;
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const id = formData.submissionId;
 
 			// Remove grade based on module type
 			if (moduleType === "assignment") {
-				const removeGradeResult = await tryRemoveAssignmentSubmissionGrade({
-					payload,
-					req: reqWithTransaction,
-					id,
-				});
+				const removeGradeResult =
+					await paideia.tryRemoveAssignmentSubmissionGrade({
+						req: reqWithTransaction,
+						id,
+					});
 
 				if (!removeGradeResult.ok) {
 					const errorMessage = String(removeGradeResult.error);

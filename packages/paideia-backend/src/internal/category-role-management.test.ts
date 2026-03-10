@@ -1,6 +1,5 @@
-import { beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryAssignCategoryRole,
@@ -19,9 +18,15 @@ import { tryCreateCourse } from "./course-management";
 import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
+import { migrations } from "server/migrations";
 
-describe("Category Role Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Category Role Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let adminUser: TryResultValue<typeof tryCreateUser>;
 	let user1: TryResultValue<typeof tryCreateUser>;
@@ -31,14 +36,12 @@ describe("Category Role Management Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+				await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		mockRequest = new Request("http://localhost:3000/test");
 
@@ -103,6 +106,11 @@ describe("Category Role Management Functions", () => {
 		user1 = user1Result.getOrThrow();
 		user2 = user2Result.getOrThrow();
 		_user3 = user3Result.getOrThrow();
+	});
+
+	afterAll(async () => {
+		await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+		await deleteEverythingInBucket({ logger: payload.logger})
 	});
 
 	test("should assign category role to user", async () => {

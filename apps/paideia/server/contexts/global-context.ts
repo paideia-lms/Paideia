@@ -1,16 +1,20 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type {
-	BasePayload,
-	PayloadRequest,
-} from "@paideia/paideia-backend/payload";
+import type { Paideia, RequestContext } from "@paideia/paideia-backend";
+
+/** Args for context functions that use Paideia instead of raw payload */
+export interface PaideiaContextArgs {
+	paideia: Paideia;
+	req: Partial<RequestContext> | undefined;
+	overrideAccess?: boolean;
+}
 import { createContext } from "react-router";
-import type { Media } from "@paideia/paideia-backend";
+import type { ServerBuild } from "react-router";
+import type { Media } from "../types/frontend-types";
 import type { Storage } from "unstorage";
 import type { RouteId, MyRouteInfo } from "../../app/utils/router/routes-utils";
 import type { TypeSafeRouteParams } from "../../app/utils/router/route-params-schema";
 import type { TypeSafeRouteSearchParams } from "../../app/utils/router/search-params-utils";
 import type { envVars } from "@paideia/paideia-backend";
-import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
 import type { ParamsType } from "../../app/utils/router/route-params-schema";
@@ -85,10 +89,10 @@ export type SystemGlobals = {
 };
 
 export type GlobalContext = {
+	/** Server-only: not serialized to client */
+	serverBuild?: ServerBuild;
 	environment: "development" | "production" | "test";
-	payload: BasePayload;
-	elysia: Backend;
-	api: Api;
+	paideia: Paideia;
 	requestInfo: RequestInfo;
 	s3Client: S3Client;
 	unstorage: Storage;
@@ -101,7 +105,7 @@ export type GlobalContext = {
 	packageVersion: string;
 	hints: { timeZone?: string };
 	systemGlobals: SystemGlobals;
-	payloadRequest: Partial<PayloadRequest>;
+	requestContext: Partial<RequestContext>;
 };
 
 export const globalContext = createContext<GlobalContext>();

@@ -10,14 +10,9 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryGetSitePolicies,
-	tryUpdateSitePolicies,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	ForbiddenResponse,
@@ -34,7 +29,7 @@ type SitePoliciesGlobal = {
 };
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -46,9 +41,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const settings = await tryGetSitePolicies({
-		payload,
-		req: payloadRequest,
+	const settings = await paideia.tryGetSitePolicies({
+		req: requestContext,
 	});
 
 	if (!settings.ok) {
@@ -92,7 +86,7 @@ const updateSitePoliciesRpc = createActionRpc({
 
 const updateSitePoliciesAction = updateSitePoliciesRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		if (!userSession?.isAuthenticated) {
 			return unauthorized({ error: "Unauthorized" });
@@ -103,9 +97,8 @@ const updateSitePoliciesAction = updateSitePoliciesRpc.createAction(
 			return forbidden({ error: "Only admins can access this area" });
 		}
 
-		const updateResult = await tryUpdateSitePolicies({
-			payload,
-			req: payloadRequest,
+		const updateResult = await paideia.tryUpdateSitePolicies({
+			req: requestContext,
 			data: {
 				userMediaStorageTotal: formData.userMediaStorageTotal,
 				siteUploadLimit: formData.siteUploadLimit,

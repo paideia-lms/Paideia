@@ -7,25 +7,6 @@ import { courseModuleContextKey } from "server/contexts/utils/context-keys";
 import { enrolmentContextKey } from "server/contexts/utils/context-keys";
 import { globalContextKey } from "server/contexts/utils/context-keys";
 import { userContextKey } from "server/contexts/utils/context-keys";
-import { tryCreateAssignmentSubmission } from "@paideia/paideia-backend";
-import {
-	tryCreateDiscussionSubmission,
-	tryRemoveUpvoteDiscussionSubmission,
-	tryUpvoteDiscussionSubmission,
-} from "@paideia/paideia-backend";
-import {
-	tryAnswerQuizQuestion,
-	tryCheckInProgressSubmission,
-	tryGetNextAttemptNumber,
-	tryStartQuizAttempt,
-	tryMarkQuizAttemptAsComplete,
-	tryRemoveAnswerFromQuizQuestion,
-	tryFlagQuizQuestion,
-	tryUnflagQuizQuestion,
-	tryStartNestedQuiz,
-	tryMarkNestedQuizAsComplete,
-	tryStartPreviewQuizAttempt,
-} from "@paideia/paideia-backend";
 import type { TypedQuestionAnswer } from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import z from "zod";
@@ -390,7 +371,7 @@ const submitAssignmentRpc = createActionRpc({
 // Individual action functions
 const createThreadAction = createThreadRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -432,8 +413,7 @@ const createThreadAction = createThreadRpc.createAction(
 			return unauthorized({ error: canParticipate.reason });
 		}
 
-		const createResult = await tryCreateDiscussionSubmission({
-			payload,
+		const createResult = await paideia.tryCreateDiscussionSubmission({
 			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
@@ -441,7 +421,7 @@ const createThreadAction = createThreadRpc.createAction(
 			title: title.trim(),
 			content: content.trim(),
 			overrideAccess: false,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -463,7 +443,7 @@ const useCreateThread = createThreadRpc.createHook<typeof createThreadAction>();
 
 const upvoteThreadAction = upvoteThreadRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -477,11 +457,10 @@ const upvoteThreadAction = upvoteThreadRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const upvoteResult = await tryUpvoteDiscussionSubmission({
-			payload,
+		const upvoteResult = await paideia.tryUpvoteDiscussionSubmission({
 			submissionId: formData.submissionId,
 			userId: currentUser.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!upvoteResult.ok) {
@@ -496,7 +475,7 @@ const useUpvoteThread = upvoteThreadRpc.createHook<typeof upvoteThreadAction>();
 
 const removeUpvoteThreadAction = removeUpvoteThreadRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -510,12 +489,12 @@ const removeUpvoteThreadAction = removeUpvoteThreadRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
-			payload,
-			submissionId: formData.submissionId,
-			userId: currentUser.id,
-			req: payloadRequest,
-		});
+		const removeUpvoteResult =
+			await paideia.tryRemoveUpvoteDiscussionSubmission({
+				submissionId: formData.submissionId,
+				userId: currentUser.id,
+				req: requestContext,
+			});
 
 		if (!removeUpvoteResult.ok) {
 			return badRequest({ error: removeUpvoteResult.error.message });
@@ -533,7 +512,7 @@ const useRemoveUpvoteThread =
 
 const upvoteReplyAction = upvoteReplyRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -547,11 +526,10 @@ const upvoteReplyAction = upvoteReplyRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const upvoteResult = await tryUpvoteDiscussionSubmission({
-			payload,
+		const upvoteResult = await paideia.tryUpvoteDiscussionSubmission({
 			submissionId: formData.submissionId,
 			userId: currentUser.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!upvoteResult.ok) {
@@ -566,7 +544,7 @@ const useUpvoteReply = upvoteReplyRpc.createHook<typeof upvoteReplyAction>();
 
 const removeUpvoteReplyAction = removeUpvoteReplyRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -580,12 +558,12 @@ const removeUpvoteReplyAction = removeUpvoteReplyRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
-			payload,
-			req: payloadRequest,
-			submissionId: formData.submissionId,
-			userId: currentUser.id,
-		});
+		const removeUpvoteResult =
+			await paideia.tryRemoveUpvoteDiscussionSubmission({
+				req: requestContext,
+				submissionId: formData.submissionId,
+				userId: currentUser.id,
+			});
 
 		if (!removeUpvoteResult.ok) {
 			return badRequest({ error: removeUpvoteResult.error.message });
@@ -603,7 +581,7 @@ const useRemoveUpvoteReply =
 
 const createReplyAction = createReplyRpc.createAction(
 	async ({ context, formData, params, searchParams }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -646,15 +624,14 @@ const createReplyAction = createReplyRpc.createAction(
 				? formData.parentThread
 				: searchParams.replyTo;
 
-		const createResult = await tryCreateDiscussionSubmission({
-			payload,
+		const createResult = await paideia.tryCreateDiscussionSubmission({
 			courseModuleLinkId: moduleLinkId,
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
 			postType,
 			content: formData.content.trim(),
 			parentThread: actualParentThread,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -684,7 +661,7 @@ const useCreateReply = createReplyRpc.createHook<typeof createReplyAction>();
 const markQuizAttemptAsCompleteAction =
 	markQuizAttemptAsCompleteRpc.createAction(
 		async ({ context, formData, params }) => {
-			const { payload, payloadRequest } = context.get(globalContextKey);
+			const { paideia, requestContext } = context.get(globalContextKey);
 			const userSession = context.get(userContextKey);
 			const enrolmentContext = context.get(enrolmentContextKey);
 			const { moduleLinkId } = params;
@@ -719,12 +696,11 @@ const markQuizAttemptAsCompleteAction =
 				});
 			}
 
-			const submitResult = await tryMarkQuizAttemptAsComplete({
-				payload,
+			const submitResult = await paideia.tryMarkQuizAttemptAsComplete({
 				submissionId: formData.submissionId,
 				// answers,
 				// timeSpent,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!submitResult.ok) {
@@ -754,7 +730,7 @@ const useMarkQuizAttemptAsComplete =
 
 const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 	async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 		const { moduleLinkId } = params;
@@ -790,11 +766,10 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 		}
 
 		// Check if there's already an in_progress submission
-		const checkResult = await tryCheckInProgressSubmission({
-			payload,
+		const checkResult = await paideia.tryCheckInProgressSubmission({
 			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -820,11 +795,10 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 
 		// No in_progress attempt exists, create a new one
 		// Get next attempt number
-		const nextAttemptResult = await tryGetNextAttemptNumber({
-			payload,
+		const nextAttemptResult = await paideia.tryGetNextAttemptNumber({
 			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -832,13 +806,12 @@ const startQuizAttemptAction = startQuizAttemptRpc.createAction(
 			return badRequest({ error: nextAttemptResult.error.message });
 		}
 
-		const startResult = await tryStartQuizAttempt({
-			payload,
+		const startResult = await paideia.tryStartQuizAttempt({
 			courseModuleLinkId: moduleLinkId,
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
 			attemptNumber: nextAttemptResult.value,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!startResult.ok) {
@@ -866,7 +839,7 @@ const useStartQuizAttempt =
 
 const answerQuizQuestionAction = answerQuizQuestionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 
@@ -921,12 +894,11 @@ const answerQuizQuestionAction = answerQuizQuestionRpc.createAction(
 			? `${formData.nestedQuizId}:${formData.questionId}`
 			: formData.questionId;
 
-		const result = await tryAnswerQuizQuestion({
-			payload,
+		const result = await paideia.tryAnswerQuizQuestion({
 			submissionId: formData.submissionId,
 			questionId: fullQuestionId,
 			answer,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -942,7 +914,7 @@ const useAnswerQuizQuestion =
 
 const unanswerQuizQuestionAction = unanswerQuizQuestionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 
@@ -981,11 +953,10 @@ const unanswerQuizQuestionAction = unanswerQuizQuestionRpc.createAction(
 			? `${formData.nestedQuizId}:${formData.questionId}`
 			: formData.questionId;
 
-		const result = await tryRemoveAnswerFromQuizQuestion({
-			payload,
+		const result = await paideia.tryRemoveAnswerFromQuizQuestion({
 			submissionId: formData.submissionId,
 			questionId: fullQuestionId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1004,7 +975,7 @@ const useUnanswerQuizQuestion =
 
 const flagQuizQuestionAction = flagQuizQuestionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 
@@ -1043,11 +1014,10 @@ const flagQuizQuestionAction = flagQuizQuestionRpc.createAction(
 			? `${formData.nestedQuizId}:${formData.questionId}`
 			: formData.questionId;
 
-		const result = await tryFlagQuizQuestion({
-			payload,
+		const result = await paideia.tryFlagQuizQuestion({
 			submissionId: formData.submissionId,
 			questionId: fullQuestionId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1063,7 +1033,7 @@ const useFlagQuizQuestion =
 
 const unflagQuizQuestionAction = unflagQuizQuestionRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 
@@ -1102,11 +1072,10 @@ const unflagQuizQuestionAction = unflagQuizQuestionRpc.createAction(
 			? `${formData.nestedQuizId}:${formData.questionId}`
 			: formData.questionId;
 
-		const result = await tryUnflagQuizQuestion({
-			payload,
+		const result = await paideia.tryUnflagQuizQuestion({
 			submissionId: formData.submissionId,
 			questionId: fullQuestionId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1122,7 +1091,7 @@ const useUnflagQuizQuestion =
 
 const startNestedQuizAction = startNestedQuizRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 
@@ -1156,11 +1125,10 @@ const startNestedQuizAction = startNestedQuizRpc.createAction(
 			});
 		}
 
-		const result = await tryStartNestedQuiz({
-			payload,
+		const result = await paideia.tryStartNestedQuiz({
 			submissionId: formData.submissionId,
 			nestedQuizId: formData.nestedQuizId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1188,7 +1156,7 @@ const useStartNestedQuiz =
 
 const markNestedQuizAsCompleteAction = markNestedQuizAsCompleteRpc.createAction(
 	async ({ context, formData, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 
@@ -1222,12 +1190,11 @@ const markNestedQuizAsCompleteAction = markNestedQuizAsCompleteRpc.createAction(
 			});
 		}
 
-		const result = await tryMarkNestedQuizAsComplete({
-			payload,
+		const result = await paideia.tryMarkNestedQuizAsComplete({
 			submissionId: formData.submissionId,
 			nestedQuizId: formData.nestedQuizId,
 			bypassTimeLimit: formData.bypassTimeLimit,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -1257,7 +1224,7 @@ const useMarkNestedQuizAsComplete =
 
 const previewQuizAction = previewQuizRpc.createAction(
 	async ({ context, params }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -1295,12 +1262,11 @@ const previewQuizAction = previewQuizRpc.createAction(
 		}
 
 		// Start preview quiz attempt
-		const previewResult = await tryStartPreviewQuizAttempt({
-			payload,
+		const previewResult = await paideia.tryStartPreviewQuizAttempt({
 			courseModuleLinkId: Number(moduleLinkId),
 			userId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 
@@ -1328,7 +1294,7 @@ const usePreviewQuiz = previewQuizRpc.createHook<typeof previewQuizAction>();
 
 const submitAssignmentAction = submitAssignmentRpc.createAction(
 	async ({ context, formData, params, request }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseModuleContext = context.get(courseModuleContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
@@ -1381,15 +1347,14 @@ const submitAssignmentAction = submitAssignmentRpc.createAction(
 		const nextAttemptNumber = maxAttemptNumber + 1;
 
 		// Create new submission (status will be "submitted" automatically)
-		const createResult = await tryCreateAssignmentSubmission({
-			payload,
+		const createResult = await paideia.tryCreateAssignmentSubmission({
 			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
 			content: formData.textContent ?? "",
 			attachments: formData.files,
 			attemptNumber: nextAttemptNumber,
-			req: payloadRequest,
+			req: requestContext,
 			overrideAccess: false,
 		});
 

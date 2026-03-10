@@ -9,7 +9,6 @@ import {
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import type { Migration as MigrationType } from "@paideia/paideia-backend/server";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
@@ -39,10 +38,7 @@ const dumpRpc = createActionRpc({
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { getMigrationStatus, migrations } = await import(
-		"@paideia/paideia-backend/server"
-	);
-	const { payload } = context.get(globalContextKey);
+	const { paideia } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -56,10 +52,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Only admins can view migrations");
 	}
 
-	const statuses = await getMigrationStatus({
-		payload,
-		migrations: migrations as MigrationType[],
-	});
+	const statuses = await paideia.getMigrationStatus();
 
 	return {
 		statuses: statuses || [],
@@ -67,8 +60,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 });
 
 const dumpAction = dumpRpc.createAction(async ({ context }) => {
-	const { dumpDatabase } = await import("@paideia/paideia-backend/server");
-	const { payload } = context.get(globalContextKey);
+	const { paideia } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -82,7 +74,7 @@ const dumpAction = dumpRpc.createAction(async ({ context }) => {
 		return unauthorized({ error: "Only admins can dump database" });
 	}
 
-	const result = await dumpDatabase({ payload });
+	const result = await paideia.dumpDatabase();
 
 	if (!result.success) {
 		return badRequest({ error: result.error || "Failed to dump database" });

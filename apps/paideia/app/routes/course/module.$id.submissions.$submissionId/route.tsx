@@ -8,9 +8,6 @@ import {
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetAssignmentSubmissionById } from "@paideia/paideia-backend";
-import { tryFindGradebookItemByCourseModuleLink } from "@paideia/paideia-backend";
-import { tryGetQuizSubmissionById } from "@paideia/paideia-backend";
 import {
 	badRequest,
 	BadRequestResponse,
@@ -28,7 +25,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader({})(async ({ context, params }) => {
 	const { submissionId } = params;
-	const { payloadRequest, payload } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -59,11 +56,11 @@ export const loader = createRouteLoader({})(async ({ context, params }) => {
 	);
 
 	// Fetch gradebook item to get maxGrade for all submissions
-	const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
-		payload,
-		req: payloadRequest,
-		courseModuleLinkId: courseModuleContext.id,
-	});
+	const gradebookItemResult =
+		await paideia.tryFindGradebookItemByCourseModuleLink({
+			req: requestContext,
+			courseModuleLinkId: courseModuleContext.id,
+		});
 
 	const maxGrade = gradebookItemResult.ok
 		? (gradebookItemResult.value.maxGrade ?? null)
@@ -71,13 +68,14 @@ export const loader = createRouteLoader({})(async ({ context, params }) => {
 
 	// Handle grading view based on module type
 	if (courseModuleContext.type === "assignment") {
-		const submission = await tryGetAssignmentSubmissionById({
-			payload,
-			id: submissionId,
-			req: payloadRequest,
-		}).getOrElse((error) => {
-			throw new BadRequestResponse(error.message);
-		});
+		const submission = await paideia
+			.tryGetAssignmentSubmissionById({
+				id: submissionId,
+				req: requestContext,
+			})
+			.getOrElse((error) => {
+				throw new BadRequestResponse(error.message);
+			});
 
 		const gradingGrade = isNotNil(submission.grade)
 			? {
@@ -110,13 +108,14 @@ export const loader = createRouteLoader({})(async ({ context, params }) => {
 	}
 
 	if (courseModuleContext.type === "quiz") {
-		const submission = await tryGetQuizSubmissionById({
-			payload,
-			id: submissionId,
-			req: payloadRequest,
-		}).getOrElse((error) => {
-			throw new BadRequestResponse(error.message);
-		});
+		const submission = await paideia
+			.tryGetQuizSubmissionById({
+				id: submissionId,
+				req: requestContext,
+			})
+			.getOrElse((error) => {
+				throw new BadRequestResponse(error.message);
+			});
 
 		// Verify the submission belongs to this module
 		if (submission.courseModuleLink !== courseModuleContext.id) {

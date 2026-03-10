@@ -9,10 +9,6 @@ import {
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryGetMaintenanceSettings,
-	tryUpdateMaintenanceSettings,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -31,14 +27,15 @@ enum Action {
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 
-	const settings = await tryGetMaintenanceSettings({
-		payload,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to get maintenance settings");
-	});
+	const settings = await paideia
+		.tryGetMaintenanceSettings({
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to get maintenance settings");
+		});
 
 	return { settings };
 });
@@ -57,7 +54,7 @@ const updateMaintenanceRpc = createActionRpc({
 
 const updateMaintenanceAction = updateMaintenanceRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -86,9 +83,8 @@ const updateMaintenanceAction = updateMaintenanceRpc.createAction(
 
 		const { maintenanceMode } = formData;
 
-		const updateResult = await tryUpdateMaintenanceSettings({
-			payload,
-			req: payloadRequest,
+		const updateResult = await paideia.tryUpdateMaintenanceSettings({
+			req: requestContext,
 			data: {
 				maintenanceMode,
 			},

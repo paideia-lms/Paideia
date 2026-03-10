@@ -8,10 +8,6 @@ import {
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryGetRegistrationSettings,
-	tryUpdateRegistrationSettings,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -30,7 +26,7 @@ enum Action {
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -42,12 +38,13 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const settings = await tryGetRegistrationSettings({
-		payload,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to get registration settings");
-	});
+	const settings = await paideia
+		.tryGetRegistrationSettings({
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to get registration settings");
+		});
 
 	return { settings };
 });
@@ -67,7 +64,7 @@ const updateRegistrationRpc = createActionRpc({
 
 const updateRegistrationAction = updateRegistrationRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -96,9 +93,8 @@ const updateRegistrationAction = updateRegistrationRpc.createAction(
 
 		const { disableRegistration, showRegistrationButton } = formData;
 
-		const updateResult = await tryUpdateRegistrationSettings({
-			payload,
-			req: payloadRequest,
+		const updateResult = await paideia.tryUpdateRegistrationSettings({
+			req: requestContext,
 			data: {
 				disableRegistration,
 				showRegistrationButton,

@@ -17,15 +17,8 @@ import { href, Link, redirect } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetRegistrationSettings } from "@paideia/paideia-backend";
-import {
-	tryGetUserCount,
-	tryRegisterFirstUser,
-	tryRegisterUser,
-} from "@paideia/paideia-backend";
-import { devConstants } from "@paideia/paideia-backend";
+import { devConstants, setAuthCookie } from "@paideia/paideia-backend";
 import { z } from "zod";
-import { setCookie } from "~/utils/cookie";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -34,17 +27,17 @@ import {
 import type { Route } from "./+types/registration";
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload, envVars, payloadRequest } = context.get(globalContextKey);
+	const { paideia, envVars, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
-	const userCount = await tryGetUserCount({
-		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new InternalServerErrorResponse("Failed to get user count");
-	});
+	const userCount = await paideia
+		.tryGetUserCount({
+			overrideAccess: true,
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get user count");
+		});
 
 	const isFirstUser = userCount === 0;
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
@@ -56,14 +49,14 @@ export async function loader({ context }: Route.LoaderArgs) {
 		return redirect(href("/"));
 	}
 
-	const settingsResult = await tryGetRegistrationSettings({
-		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to get registration settings");
-	});
+	const settingsResult = await paideia
+		.tryGetRegistrationSettings({
+			overrideAccess: true,
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to get registration settings");
+		});
 
 	const registrationDisabled = settingsResult.disableRegistration;
 
@@ -98,15 +91,13 @@ const registerRpc = createActionRpc({
 
 const registerAction = registerRpc.createAction(
 	async ({ context, formData, request }) => {
-		const { payload, requestInfo, envVars, payloadRequest } =
+		const { paideia, requestInfo, envVars, requestContext } =
 			context.get(globalContextKey);
 
 		// Determine if first user
-		const userCountResult = await tryGetUserCount({
-			payload,
-			// ! this is a system request, we don't care about access control
+		const userCountResult = await paideia.tryGetUserCount({
 			overrideAccess: true,
-			req: payloadRequest,
+			req: requestContext,
 		});
 		if (!userCountResult.ok) {
 			return badRequest({
@@ -119,11 +110,9 @@ const registerAction = registerRpc.createAction(
 		const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 		// Respect registration settings unless creating the first user
-		const settingsResult = await tryGetRegistrationSettings({
-			payload,
-			// ! this has override access because it is a system request, we don't care about access control
+		const settingsResult = await paideia.tryGetRegistrationSettings({
 			overrideAccess: true,
-			req: payloadRequest,
+			req: requestContext,
 		});
 		if (
 			settingsResult.ok &&
@@ -138,15 +127,13 @@ const registerAction = registerRpc.createAction(
 
 		// For first user, register as admin; otherwise regular registration
 		if (isFirstUser) {
-			const result = await tryRegisterFirstUser({
-				payload,
+			const result = await paideia.tryRegisterFirstUser({
 				email: formData.email,
 				password: formData.password,
 				firstName: formData.firstName,
 				lastName: formData.lastName,
-				// ! this is a system request, we don't care about access control
 				overrideAccess: true,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {
@@ -156,13 +143,11 @@ const registerAction = registerRpc.createAction(
 			const { token, exp } = result.value;
 			return redirect(href("/"), {
 				headers: {
-					"Set-Cookie": setCookie(
-						token,
-						exp,
-						requestInfo.domainUrl,
-						request.headers,
-						payload,
-					),
+					"Set-Cookie": setAuthCookie(token, exp, {
+						cookiePrefix: paideia.getCookiePrefix(),
+						domainUrl: requestInfo.domainUrl,
+						headers: request.headers,
+					}),
 				},
 			});
 		}
@@ -170,16 +155,14 @@ const registerAction = registerRpc.createAction(
 		// In sandbox mode, all registrations get admin role
 		const registrationRole = isSandboxMode ? "admin" : "student";
 
-		const result = await tryRegisterUser({
-			payload,
+		const result = await paideia.tryRegisterUser({
 			email: formData.email,
 			password: formData.password,
 			firstName: formData.firstName,
 			lastName: formData.lastName,
 			role: registrationRole,
-			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -189,13 +172,11 @@ const registerAction = registerRpc.createAction(
 		const { token, exp } = result.value;
 		return redirect(href("/"), {
 			headers: {
-				"Set-Cookie": setCookie(
-					token,
-					exp,
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
+				"Set-Cookie": setAuthCookie(token, exp, {
+					cookiePrefix: paideia.getCookiePrefix(),
+					domainUrl: requestInfo.domainUrl,
+					headers: request.headers,
+				}),
 			},
 		});
 	},

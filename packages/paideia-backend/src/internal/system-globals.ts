@@ -46,7 +46,7 @@ export function tryGetSystemGlobals(args: GetSystemGlobalsArgs) {
 				})
 					.getOrDefault({
 						additionalCssStylesheets: undefined,
-						color: "blue",
+						color: "blue" as string,
 						radius: "sm",
 						logoLight: undefined,
 						logoDark: undefined,

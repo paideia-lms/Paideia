@@ -27,7 +27,6 @@ import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryDeleteNote } from "@paideia/paideia-backend";
 import { RichTextRenderer } from "app/components/rich-text/rich-text-renderer";
 import { formatDateInTimeZone, parseDateString } from "~/utils/date-utils";
 import {
@@ -134,7 +133,7 @@ const createDeleteNoteActionRpc = createActionRpc({
 
 const deleteNoteAction = createDeleteNoteActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -148,10 +147,9 @@ const deleteNoteAction = createDeleteNoteActionRpc.createAction(
 			return unauthorized({ error: "Unauthorized" });
 		}
 
-		const result = await tryDeleteNote({
-			payload,
+		const result = await paideia.tryDeleteNote({
 			noteId: formData.noteId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

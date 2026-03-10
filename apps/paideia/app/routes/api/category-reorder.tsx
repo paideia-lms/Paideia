@@ -1,9 +1,7 @@
 import { notifications } from "@mantine/notifications";
-import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateCategory } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -33,7 +31,7 @@ const reorderCategoriesRpc = createActionRpc({
 
 const reorderCategoriesAction = reorderCategoriesRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -54,11 +52,10 @@ const reorderCategoriesAction = reorderCategoriesRpc.createAction(
 			return badRequest({ error: "Invalid target parent" });
 		}
 
-		const result = await tryUpdateCategory({
-			payload,
+		const result = await paideia.tryUpdateCategory({
 			categoryId: sourceId,
 			parent: newParentId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 		if (!result.ok) {
 			return badRequest({ error: result.error.message });

@@ -1,22 +1,15 @@
 import { createContext } from "react-router";
-import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
 import type { LatestCourseQuizSettings } from "@paideia/paideia-backend";
 import type { LatestQuizConfig } from "@paideia/paideia-backend";
-import { calculateTotalPoints } from "@paideia/paideia-backend";
-import { Result } from "typescript-result";
-import { transformError, UnknownError } from "../../app/utils/error";
 import {
-	tryListAssignmentSubmissions,
-	tryFindCourseActivityModuleLinkById,
-	tryGetPreviousNextModule,
-	tryGetDiscussionThreadWithReplies,
-	tryGetDiscussionThreadsWithAllReplies,
-	tryListDiscussionSubmissions,
-	tryListQuizSubmissions,
+	calculateTotalPoints,
 	convertDatabaseAnswersToQuizAnswers,
 	permissions,
 } from "@paideia/paideia-backend";
 import type { QuizAnswers } from "@paideia/paideia-backend";
+import { Result } from "typescript-result";
+import { transformError, UnknownError } from "../../app/utils/error";
+import type { PaideiaContextArgs } from "./global-context";
 export { courseModuleContextKey } from "./utils/context-keys";
 
 export interface ModuleDateInfo {
@@ -107,8 +100,7 @@ export interface QuizSubmissionData {
 	attemptNumber: number;
 }
 
-export interface TryGetCourseModuleContextArgs
-	extends BaseInternalFunctionArgs {
+export interface TryGetCourseModuleContextArgs extends PaideiaContextArgs {
 	moduleLinkId: number;
 	courseId: number;
 	enrolment: { role?: "student" | "teacher" | "ta" | "manager" } | null;
@@ -124,20 +116,18 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 	return Result.try(
 		async () => {
 			const {
-				payload,
+				paideia,
 				moduleLinkId,
 				courseId,
 				enrolment,
 				threadId,
 				submissionId,
-
 				req,
 				overrideAccess = false,
 			} = args;
 
 			const user = req?.user;
 
-			// Calculate base permissions for all module types
 			const basePermissions = {
 				canSeeSettings: permissions.course.module.canSeeSettings(
 					user ?? undefined,
@@ -153,28 +143,15 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				),
 			};
 
-			// Fetch the module link
-			const moduleLink = await tryFindCourseActivityModuleLinkById({
-				payload,
-				linkId: moduleLinkId,
-				req,
-				overrideAccess,
-			}).getOrThrow();
+			const moduleLink = await paideia
+				.tryFindCourseActivityModuleLinkById({
+					linkId: moduleLinkId,
+					req,
+					overrideAccess,
+				})
+				.getOrThrow();
 
-			// Get module link settings
-			// const moduleLinkSettings =
-			// 	moduleLink.settings as unknown as LatestCourseModuleSettings | null;
-
-			// // console.log(moduleLinkSettings, moduleLink);
-
-			// // Format module settings for display (using function from utils.ts)
-			// const formattedModuleSettings = formatModuleSettingsForDisplay(
-			// 	moduleLinkSettings,
-			// ) as FormattedModuleSettings;
-
-			// Get previous and next modules for navigation
-			const previousNextResult = await tryGetPreviousNextModule({
-				payload,
+			const previousNextResult = await paideia.tryGetPreviousNextModule({
 				courseId,
 				moduleLinkId,
 				req,
@@ -189,13 +166,14 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 			const nextModule = previousNextResult.value.nextModule;
 
 			if (moduleLink.type === "assignment") {
-				const submissionsResult = await tryListAssignmentSubmissions({
-					payload,
-					courseModuleLinkId: moduleLinkId,
-					limit: 1000,
-					req,
-					overrideAccess,
-				}).getOrThrow();
+				const submissionsResult = await paideia
+					.tryListAssignmentSubmissions({
+						courseModuleLinkId: moduleLinkId,
+						limit: 1000,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow();
 				const allSubmissions = submissionsResult.docs;
 
 				// Filter user-specific submissions
@@ -320,15 +298,16 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 				// Teachers/admins should see all submissions in the submissions table
 				// Include preview submissions so they can be retrieved when needed (e.g., via viewSubmission param)
 				const isStudent = enrolment?.role === "student";
-				const submissionsResult = await tryListQuizSubmissions({
-					payload,
-					courseModuleLinkId: moduleLinkId,
-					studentId: isStudent ? req?.user?.id : undefined,
-					limit: 1000,
-					includePreview: true, // Include previews so they can be retrieved when viewing
-					req,
-					overrideAccess,
-				}).getOrThrow();
+				const submissionsResult = await paideia
+					.tryListQuizSubmissions({
+						courseModuleLinkId: moduleLinkId,
+						studentId: isStudent ? req?.user?.id : undefined,
+						limit: 1000,
+						includePreview: true,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow();
 
 				const allSubmissions = submissionsResult.docs;
 
@@ -503,8 +482,7 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 			} else if (moduleLink.type === "discussion") {
 				// Fetch discussion submissions
 
-				const submissionsResult = await tryListDiscussionSubmissions({
-					payload,
+				const submissionsResult = await paideia.tryListDiscussionSubmissions({
 					courseModuleLinkId: moduleLinkId,
 					limit: 1000,
 					req,
@@ -521,12 +499,13 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 
 				// Fetch discussion threads
 
-				const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
-					payload,
-					courseModuleLinkId: moduleLinkId,
-					req,
-					overrideAccess,
-				}).getOrThrow();
+				const threadsResult = await paideia
+					.tryGetDiscussionThreadsWithAllReplies({
+						courseModuleLinkId: moduleLinkId,
+						req,
+						overrideAccess,
+					})
+					.getOrThrow();
 
 				const threads = threadsResult.threads.map((threadData) => {
 					const thread = threadData.thread;
@@ -577,13 +556,14 @@ export function tryGetCourseModuleContext(args: TryGetCourseModuleContextArgs) {
 
 				// Fetch thread and replies if threadId is provided
 				const threadData = threadId
-					? await tryGetDiscussionThreadWithReplies({
-							payload,
-							threadId,
-							courseModuleLinkId: moduleLinkId,
-							req,
-							overrideAccess,
-						}).getOrNull()
+					? await paideia
+							.tryGetDiscussionThreadWithReplies({
+								threadId,
+								courseModuleLinkId: moduleLinkId,
+								req,
+								overrideAccess,
+							})
+							.getOrNull()
 					: null;
 
 				const thread = threadData?.thread ?? null;

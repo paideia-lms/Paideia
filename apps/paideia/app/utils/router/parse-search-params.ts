@@ -1,5 +1,6 @@
 import type { ParserMap } from "nuqs";
 import { createLoader } from "nuqs/server";
+import type { ServerBuild } from "react-router";
 import type { RouteId } from "app/utils/router/routes-utils";
 import type { TypeSafeRouteSearchParams } from "app/utils/router/search-params-utils";
 import { tryGetSearchParamsParsers } from "app/utils/router/route-module-loader";
@@ -11,13 +12,15 @@ import { debugLog } from "@paideia/paideia-backend";
  *
  * @param routeId - The route ID to parse search params for
  * @param url - The URL object containing the query string
+ * @param routes - The routes from ServerBuild
  * @returns Parsed search params or undefined if route has no search params
  */
 export async function parseSearchParamsForRoute<T extends RouteId>(
 	routeId: T,
 	url: URL,
+	routes: ServerBuild["routes"],
 ): Promise<TypeSafeRouteSearchParams<T> | undefined> {
-	const parsers = await tryGetSearchParamsParsers(routeId);
+	const parsers = await tryGetSearchParamsParsers(routeId, routes);
 
 	if (!parsers) {
 		debugLog(`parseSearchParamsForRoute: no parsers for ${routeId}`);

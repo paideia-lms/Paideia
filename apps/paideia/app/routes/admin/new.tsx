@@ -1,5 +1,4 @@
 import {
-	Avatar,
 	Button,
 	Container,
 	Group,
@@ -7,29 +6,23 @@ import {
 	PasswordInput,
 	Select,
 	Stack,
-	Text,
 	Textarea,
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { parseAsStringEnum } from "nuqs/server";
-import { useState } from "react";
 import { redirect } from "react-router";
 import {
 	createActionMap,
 	typeCreateActionRpc,
 } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import type { Users } from "@paideia/paideia-backend";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateUser } from "@paideia/paideia-backend";
-import type { User } from "@paideia/paideia-backend";
-import { enum_users_role } from "@paideia/paideia-backend/payload-generated-schema";
+import { USER_ROLES } from "@paideia/paideia-backend";
+import type { User } from "server/types/frontend-types";
 import { z } from "zod";
 import {
 	badRequest,
@@ -89,8 +82,7 @@ const createUserRpc = createActionRpc({
 		firstName: z.string().min(1),
 		lastName: z.string().min(1),
 		bio: z.string().optional(),
-		role: z.enum(enum_users_role.enumValues),
-		avatar: z.file().nullish(),
+		role: z.enum(USER_ROLES),
 	}),
 	method: "POST",
 	action: Action.Create,
@@ -98,7 +90,7 @@ const createUserRpc = createActionRpc({
 
 const createAction = createUserRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -126,8 +118,7 @@ const createAction = createUserRpc.createAction(
 		}
 
 		// Create user
-		const createResult = await tryCreateUser({
-			payload,
+		const createResult = await paideia.tryCreateUser({
 			data: {
 				email: formData.email,
 				password: formData.password,
@@ -135,10 +126,9 @@ const createAction = createUserRpc.createAction(
 				lastName: formData.lastName,
 				bio: formData.bio,
 				role: formData.role,
-				avatar: formData.avatar ?? undefined,
 			},
 			overrideAccess: false,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -197,8 +187,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function NewUserPage() {
 	const { submit: createUser, isLoading } = useCreateUser();
-	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -230,18 +218,6 @@ export default function NewUserPage() {
 		},
 	});
 
-	const handleDrop = (files: File[]) => {
-		const file = files[0];
-		if (file) {
-			setSelectedFile(file);
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				setAvatarPreview(reader.result as string);
-			};
-			reader.readAsDataURL(file);
-		}
-	};
-
 	const handleSubmit = async (values: typeof form.values) => {
 		await createUser({
 			values: {
@@ -251,7 +227,6 @@ export default function NewUserPage() {
 				lastName: values.lastName,
 				bio: values.bio || undefined,
 				role: (values.role ?? "student") as NonNullable<User["role"]>,
-				avatar: selectedFile || null,
 			},
 		});
 	};
@@ -279,73 +254,6 @@ export default function NewUserPage() {
 
 				<form onSubmit={form.onSubmit(handleSubmit)}>
 					<Stack gap="lg">
-						<div>
-							<Text size="sm" fw={500} mb="xs">
-								Avatar
-							</Text>
-							<Stack align="center" gap="md">
-								<Avatar
-									src={avatarPreview}
-									alt="Profile"
-									size={120}
-									radius={120}
-								/>
-								<Dropzone
-									onDrop={handleDrop}
-									onReject={() => {
-										notifications.show({
-											title: "Upload failed",
-											message: "File must be an image under 5MB",
-											color: "red",
-										});
-									}}
-									// 5MB
-									maxSize={5 * 1024 ** 2}
-									accept={IMAGE_MIME_TYPE}
-									multiple={false}
-									style={{ width: "100%" }}
-								>
-									<Group
-										justify="center"
-										gap="xl"
-										mih={100}
-										style={{ pointerEvents: "none" }}
-									>
-										<Dropzone.Accept>
-											<IconUpload
-												size={32}
-												color="var(--mantine-color-blue-6)"
-												stroke={1.5}
-											/>
-										</Dropzone.Accept>
-										<Dropzone.Reject>
-											<IconX
-												size={32}
-												color="var(--mantine-color-red-6)"
-												stroke={1.5}
-											/>
-										</Dropzone.Reject>
-										<Dropzone.Idle>
-											<IconPhoto
-												size={32}
-												color="var(--mantine-color-dimmed)"
-												stroke={1.5}
-											/>
-										</Dropzone.Idle>
-
-										<div>
-											<Text size="sm" inline>
-												Drag image here or click to select
-											</Text>
-											<Text size="xs" c="dimmed" inline mt={7}>
-												Image should not exceed 5MB
-											</Text>
-										</div>
-									</Group>
-								</Dropzone>
-							</Stack>
-						</div>
-
 						<TextInput
 							{...form.getInputProps("email")}
 							key={form.key("email")}
@@ -393,7 +301,10 @@ export default function NewUserPage() {
 									{ value: "analytics-viewer", label: "Analytics Viewer" },
 									{ value: "instructor", label: "Instructor" },
 									{ value: "student", label: "Student" },
-								] satisfies (typeof Users)["fields"][3]["options"]
+								] satisfies {
+									value: (typeof USER_ROLES)[number];
+									label: string;
+								}[]
 							}
 						/>
 

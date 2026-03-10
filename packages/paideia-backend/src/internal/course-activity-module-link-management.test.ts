@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import type { LatestCourseModuleSettings } from "server/json/course-module-settings/version-resolver";
 import sanitizedConfig from "../payload.config";
 import {
@@ -32,9 +31,15 @@ import {
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
+import { migrations } from "server/migrations";
 
-describe("Course Activity Module Link Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Course Activity Module Link Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let testUser: { id: number };
 	let testCourse: { id: number };
@@ -44,14 +49,12 @@ describe("Course Activity Module Link Management Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -135,7 +138,8 @@ describe("Course Activity Module Link Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

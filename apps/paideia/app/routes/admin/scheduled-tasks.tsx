@@ -14,7 +14,6 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetScheduledTasks } from "@paideia/paideia-backend";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
@@ -25,7 +24,7 @@ import type { Route } from "./+types/scheduled-tasks";
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload } = context.get(globalContextKey);
+	const { paideia } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -39,7 +38,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Only admins can view scheduled tasks");
 	}
 
-	const scheduledTasksResult = await tryGetScheduledTasks(payload);
+	const scheduledTasksResult = await paideia.tryGetScheduledTasks();
 
 	if (!scheduledTasksResult.ok) {
 		throw new InternalServerErrorResponse(

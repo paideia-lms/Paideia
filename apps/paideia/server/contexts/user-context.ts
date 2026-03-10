@@ -6,20 +6,9 @@
  * it stores all the notes created by this user with heatmap data
  */
 
-import {
-	executeAuthStrategies,
-	parseCookies,
-} from "@paideia/paideia-backend/payload";
+import type { Paideia } from "@paideia/paideia-backend";
+import { stripDepth } from "@paideia/paideia-backend";
 import { createContext, type RouterContextProvider } from "react-router";
-import { tryGetUserActivityModules } from "@paideia/paideia-backend";
-import { tryFindEnrollmentsByUser } from "@paideia/paideia-backend";
-import { tryGenerateNoteHeatmap } from "@paideia/paideia-backend";
-import { tryHandleImpersonation } from "@paideia/paideia-backend";
-import {
-	createLocalReq,
-	stripDepth,
-	type BaseInternalFunctionArgs,
-} from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 
 export type UserContextResult = Awaited<ReturnType<typeof tryGetUserContext>>;
@@ -30,47 +19,53 @@ export const userContext = createContext<UserSession | null>(null);
 
 export { userContextKey } from "./utils/context-keys";
 
-interface TryGetUserContextArgs
-	extends Pick<BaseInternalFunctionArgs, "payload" | "req"> {
+interface TryGetUserContextArgs {
+	paideia: Paideia;
 	request: Request;
 	routerContext: Readonly<RouterContextProvider>;
 }
 
 export const tryGetUserContext = async (args: TryGetUserContextArgs) => {
-	const { payload, req, request, routerContext } = args;
-	const headers = req?.headers ?? new Headers();
+	const { paideia, request, routerContext } = args;
+	const headers = request.headers;
 	// Get the authenticated user
-	const { user: authenticatedUser } = await executeAuthStrategies({
-		headers,
-		canSetHeaders: true,
-		payload,
-	}).then(stripDepth<1, "find">());
+	const { user: authenticatedUser } = await paideia
+		.executeAuthStrategies({
+			headers,
+			canSetHeaders: true,
+		})
+		.then(stripDepth<1, "find">());
 
 	if (!authenticatedUser) {
-		// No authenticated user - create unauthenticated payload request
-		const payloadRequest = createLocalReq({
+		// No authenticated user - create unauthenticated request context
+		const requestContext = paideia.createRequestContext({
 			request,
 			user: null,
 			context: { routerContext },
 		});
 		return {
 			userSession: null,
-			payloadRequest,
+			requestContext,
 		};
 	}
 
 	// Check for impersonation cookie
-	const cookies = parseCookies(headers);
+	const cookies = paideia.parseCookies(headers);
 	const impersonateUserId = cookies.get(
-		`${payload.config.cookiePrefix}-impersonate`,
+		`${paideia.getCookiePrefix()}-impersonate`,
 	);
+
+	const initialReq = paideia.createRequestContext({
+		request,
+		user: null,
+		context: { routerContext },
+	});
 
 	const impersonationResult =
 		impersonateUserId && authenticatedUser.role === "admin"
-			? await tryHandleImpersonation({
-					payload,
+			? await paideia.tryHandleImpersonation({
 					impersonateUserId,
-					req,
+					req: initialReq,
 				})
 			: null;
 
@@ -90,27 +85,27 @@ export const tryGetUserContext = async (args: TryGetUserContextArgs) => {
 
 	const currentUser = effectiveUser || authenticatedUser;
 
-	// Create authenticated payload request with the current user
-	const payloadRequest = createLocalReq({
+	// Create authenticated request context with the current user
+	const requestContext = paideia.createRequestContext({
 		request,
 		user: currentUser,
 		context: { routerContext },
 	});
 
 	// Fetch user access data (activity modules, enrollments, notes)
-	// Using the authenticated payloadRequest
-	const { modulesOwnedOrGranted, autoGrantedModules } =
-		await tryGetUserActivityModules({
-			payload,
+	const { modulesOwnedOrGranted, autoGrantedModules } = await paideia
+		.tryGetUserActivityModules({
 			userId: currentUser.id,
-			req: payloadRequest,
-		}).getOrThrow();
+			req: requestContext,
+		})
+		.getOrThrow();
 
-	const enrollments = await tryFindEnrollmentsByUser({
-		payload,
-		userId: currentUser.id,
-		req: payloadRequest,
-	}).getOrThrow();
+	const enrollments = await paideia
+		.tryFindEnrollmentsByUser({
+			userId: currentUser.id,
+			req: requestContext,
+		})
+		.getOrThrow();
 
 	const enrollmentsData = enrollments.map((enrollment) => ({
 		id: enrollment.id,
@@ -160,11 +155,12 @@ export const tryGetUserContext = async (args: TryGetUserContextArgs) => {
 	];
 
 	// Fetch notes and heatmap data
-	const heatmapResult = await tryGenerateNoteHeatmap({
-		payload,
-		userId: currentUser.id,
-		req: payloadRequest,
-	}).getOrThrow();
+	const heatmapResult = await paideia
+		.tryGenerateNoteHeatmap({
+			userId: currentUser.id,
+			req: requestContext,
+		})
+		.getOrThrow();
 
 	const { notes, heatmapData, availableYears } = heatmapResult;
 
@@ -192,6 +188,6 @@ export const tryGetUserContext = async (args: TryGetUserContextArgs) => {
 			heatmapData,
 			availableYears,
 		},
-		payloadRequest,
+		requestContext,
 	};
 };

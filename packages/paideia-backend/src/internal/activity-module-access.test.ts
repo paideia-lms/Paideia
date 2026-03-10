@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryFindAutoGrantedModulesForInstructor,
@@ -14,9 +13,15 @@ import {
 	tryCreateSection,
 } from "./course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { migrations } from "server/migrations";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Activity Module Access Control", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Activity Module Access Control", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let testUser1: { id: number };
 	let testUser2: { id: number };
 	let testUser3: { id: number };
@@ -171,14 +176,11 @@ describe("Activity Module Access Control", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create test users
 		const user1Args: CreateUserArgs = {
@@ -322,7 +324,8 @@ describe("Activity Module Access Control", () => {
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

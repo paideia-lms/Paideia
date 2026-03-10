@@ -201,6 +201,17 @@ const backendPathResolver: import("bun").BunPlugin = {
 	},
 };
 
+/** Stub node:sqlite - Bun doesn't implement it; we use PostgreSQL only. Prevents tree-shaking failures from transitive deps. */
+const nodeSqliteStub = resolve(process.cwd(), "scripts/stubs/node-sqlite-stub.ts");
+const nodeSqliteStubPlugin: import("bun").BunPlugin = {
+	name: "node-sqlite-stub",
+	setup(build) {
+		build.onResolve({ filter: /^node:sqlite$/ }, () => ({
+			path: nodeSqliteStub,
+		}));
+	},
+};
+
 // Build binaries for all target platforms
 const entrypoint = resolve(process.cwd(), "./server/index.ts");
 
@@ -213,7 +224,7 @@ for (const buildConfig of buildTargets) {
 		outdir: "./dist",
 		root: process.cwd(),
 		tsconfig: resolve(process.cwd(), "tsconfig.build.json"),
-		plugins: [backendPathResolver],
+		plugins: [backendPathResolver, nodeSqliteStubPlugin],
 		// minify: true,
 		sourcemap: true,
 		define: {

@@ -3,31 +3,29 @@ import { href, redirect } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
-import { removeCookie, removeImpersonationCookie } from "~/utils/cookie";
+import {
+	removeAuthCookie,
+	removeImpersonationCookie,
+} from "@paideia/paideia-backend";
 import { UnauthorizedResponse } from "app/utils/router/responses";
 
 const createRouteLoader = typeCreateLoader<LoaderFunctionArgs>();
 
 export const loader = createRouteLoader()(async ({ context, request }) => {
-	const payload = context.get(globalContextKey).payload;
-	const requestInfo = context.get(globalContextKey).requestInfo;
+	const { paideia, requestInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
 		throw new UnauthorizedResponse("Unauthorized");
 	}
 
+	const cookieOpts = {
+		cookiePrefix: paideia.getCookiePrefix(),
+		domainUrl: requestInfo.domainUrl,
+		headers: request.headers,
+	};
 	// Remove both the login cookie and impersonation cookie
-	const loginCookieRemoval = removeCookie(
-		requestInfo.domainUrl,
-		request.headers,
-		payload,
-	);
-
-	const impersonationCookieRemoval = removeImpersonationCookie(
-		requestInfo.domainUrl,
-		request.headers,
-		payload,
-	);
+	const loginCookieRemoval = removeAuthCookie(cookieOpts);
+	const impersonationCookieRemoval = removeImpersonationCookie(cookieOpts);
 
 	// Redirect to login with both cookies removed
 	return redirect(href("/login"), {

@@ -1,0 +1,667 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5827.793330898269 1542.9" width="5827.793330898269" height="1542.9" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Collections" data-label="Collections">
+  <rect x="40" y="265.20000000000005" width="5747.793330898269" height="1237.7" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="265.20000000000005" width="5747.793330898269" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="279.20000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Collections</text>
+</g>
+<g class="subgraph" data-id="Globals" data-label="Globals">
+  <rect x="3890.6309672077923" y="40" width="1073.557" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="3890.6309672077923" y="40" width="1073.557" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="3902.6309672077923" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Globals</text>
+</g>
+<polyline class="edge" data-from="appearance_settings" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="logoLight" points="4408.104681493507,120.9 4408.104681493506,154.9 4630.779967207793,154.9 4630.779967207793,247.20000000000002 4663.573467207792,247.20000000000002 4663.573467207792,1128.8000000000002 4262.678854707792,1128.8000000000002 4262.678854707792,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="appearance_settings" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="logoDark" points="4337.72682435065,120.9 4337.72682435065,178.9 4313.153467207792,178.9 4313.153467207792,247.20000000000002 4342.956467207792,247.20000000000002 4342.956467207792,1080.8000000000002 4240.954283279221,1080.8000000000002 4240.954283279221,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="appearance_settings" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="compactLogoLight" points="4384.645395779221,120.9 4384.645395779221,166.9 4536.998967207792,166.9 4536.998967207792,247.20000000000002 4563.573467207792,247.20000000000002 4563.573467207792,1116.8000000000002 4257.2477118506495,1116.8000000000002 4257.2477118506495,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="appearance_settings" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="compactLogoDark" points="4314.2675386363635,120.9 4314.2675386363635,166.9 4221.353467207792,166.9 4221.353467207792,247.20000000000002 4165.056467207793,247.20000000000002 4165.056467207793,1092.8000000000002 4219.229711850649,1092.8000000000002 4219.229711850649,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="appearance_settings" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="faviconLight" points="4290.808252922078,120.9 4290.808252922077,154.9 4126.491467207792,154.9 4126.491467207792,247.20000000000002 4152.056467207793,247.20000000000002 4152.056467207793,1104.8000000000002 4213.798568993507,1104.8000000000002 4213.798568993507,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="appearance_settings" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="faviconDark" points="4361.186110064935,120.9 4361.186110064935,178.9 4385.759467207792,178.9 4385.759467207792,247.20000000000002 4355.956467207792,247.20000000000002 4355.956467207792,1092.8000000000002 4246.385426136364,1092.8000000000002 4246.385426136364,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="users" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="avatar" points="4061.366848139648,1450 4061.366848139648,1282 4204.809094642858,1282 4204.809094642858,1201.7 4217.4193308982685,1201.7 4217.4193308982685,1189.7" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="descriptionMedia" points="1317.116718398268,736.5000000000001 1317.116718398268,808.5000000000001 3996.0164672077926,808.5000000000001 3996.0164672077926,1140.8000000000002 4197.505140422078,1140.8000000000002 4197.505140422078,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="thumbnail" points="1322.8878433982673,736.5000000000001 1322.8878433982673,784.5000000000001 4080.7324672077925,784.5000000000001 4080.7324672077925,1128.8000000000002 4202.936283279221,1128.8000000000002 4202.936283279221,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="1299.8033433982673,736.5000000000001 1299.8033433982673,844.5000000000001 2791.121645779221,844.5000000000001 2791.121645779221,1438 4023.944365381027,1438 4023.944365381027,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="course_grade_tables" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradeTable (join)" points="1311.3455933982677,736.5000000000001 1311.3455933982677,820.5000000000001 2969.705645779221,820.5000000000001 2969.705645779221,1068.8000000000002 2957.6503124458877,1068.8000000000002 2957.6503124458877,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="enrollments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="enrollments (join)" points="1282.4899683982676,736.5000000000001 1282.4899683982676,892.5000000000001 1413.241532142857,892.5000000000001 1413.241532142857,1080.8000000000002 1519.6472464285707,1080.8000000000002 1519.6472464285707,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="groups" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="groups (join)" points="1247.8632183982681,736.5000000000001 1247.8632183982681,772.5000000000001 678.3229999999994,772.5000000000001 678.3229999999994,1294 824.5189291666666,1294 824.5189291666666,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="course_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="category" points="1270.947718398268,736.5000000000001 1270.947718398268,976.5000000000001 1226.1527999999998,976.5000000000001 1226.1527999999998,1068.8000000000002 1220.6637999999994,1068.8000000000002 1220.6637999999994,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="courses" data-to="course_sections" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="sections (join)" points="1259.4054683982677,736.5000000000001 1259.4054683982677,796.5000000000001 910.1423000000004,796.5000000000001 910.1423000000004,1237.7 1393.125207738095,1237.7 1393.125207738095,1282 1385.7231077380948,1282 1385.7231077380948,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_sections" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="course" points="1413.5273077380953,1450 1413.5273077380953,1282 1623.7070827380953,1282 1623.7070827380953,1213.7 1352.8246749999998,1213.7 1352.8246749999998,976.5000000000001 1276.7188433982674,976.5000000000001 1276.7188433982674,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_sections" data-to="course_sections" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="parentSection" points="1357.9189077380952,1464.76 1347.9189077380952,1464.76 1347.9189077380952,1472.14 1357.9189077380952,1472.14" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_sections" data-to="course_activity_module_links" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="activityModules (join)" points="1469.1357077380953,1450 1469.1357077380953,1306 2203.8804128246757,1306 2203.8804128246757,1213.7 2184.8427461580086,1213.7 2184.8427461580086,1189.7" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_sections" data-to="course_sections" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="childSections (join)" points="1357.9189077380952,1457.38 1257.7409077380953,1457.38 1257.7409077380953,1479.52 1357.9189077380952,1479.52" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_categories" data-to="course_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="parent" points="1144.4842999999992,1167.56 1134.4842999999992,1167.56 1134.4842999999992,1174.94 1144.4842999999992,1174.94" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_categories" data-to="course_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="subcategories (join)" points="1144.4842999999992,1160.18 1079.9462999999987,1160.18 1079.9462999999987,1182.3200000000002 1144.4842999999992,1182.3200000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_categories" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="courses (join)" points="1182.5740499999993,1152.8000000000002 1182.5740499999993,1068.8000000000002 1066.9903541666663,1068.8000000000002 1066.9903541666663,808.5000000000001 1265.1765933982679,808.5000000000001 1265.1765933982679,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="category_role_assignments" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="user" points="1624.6982291666668,736.5000000000001 1624.6982291666668,796.5000000000001 3056.641645779221,796.5000000000001 3056.641645779221,1426 4026.617399863786,1426 4026.617399863786,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="category_role_assignments" data-to="course_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="category" points="1574.5672291666665,736.5000000000001 1574.5672291666665,880.5000000000001 1290.5708000000004,880.5000000000001 1290.5708000000004,1068.8000000000002 1258.7535499999994,1068.8000000000002 1258.7535499999994,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="category_role_assignments" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="assignedBy" points="1674.8292291666667,736.5000000000001 1674.8292291666667,772.5000000000001 3117.8636457792213,772.5000000000001 3117.8636457792213,1414 4029.2904343465443,1414 4029.2904343465443,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="enrollments" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="user" points="1586.5070321428561,1189.7 1586.5070321428561,1201.7 3152.5896457792214,1201.7 3152.5896457792214,1402 4031.963468829303,1402 4031.963468829303,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="enrollments" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="course" points="1535.3789607142849,1152.8000000000002 1535.3789607142849,1068.8000000000002 1491.893532142857,1068.8000000000002 1491.893532142857,868.5000000000001 1288.2610933982678,868.5000000000001 1288.2610933982678,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="enrollments" data-to="groups" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="groups" points="1558.9765321428563,1189.7 1558.9765321428563,1225.7 1221.826857142857,1225.7 1221.826857142857,1294 875.4757291666665,1294 875.4757291666665,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="owner" points="5208.023999404762,346.1 5208.023999404762,418.1 5120.298664231602,418.1 5120.298664231602,784.5000000000001 4917.679038636364,784.5000000000001 4917.679038636364,1354 4077.4050550362,1354 4077.4050550362,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="5218.489922481685,346.1 5218.489922481685,430.1 5181.648664231602,430.1 5181.648664231602,796.5000000000001 4954.854038636364,796.5000000000001 4954.854038636364,1366 4080.078089518958,1366 4080.078089518958,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="pages" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="page" points="5197.558076327839,346.1 5197.558076327839,406.1 4614.073467207792,406.1 4614.073467207792,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="whiteboards" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="whiteboard" points="5249.887691712454,346.1 5249.887691712454,382.1 5453.085330898269,382.1 5453.085330898269,510.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="assignments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="assignment" points="5260.353614789378,346.1 5260.353614789378,370.1 5596.394330898269,370.1 5596.394330898269,510.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="quizzes" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="quiz" points="5270.819537866301,346.1 5270.819537866301,358.1 5727.106330898269,358.1 5727.106330898269,510.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="discussions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="discussion" points="5187.092153250916,346.1 5187.092153250916,394.1 4496.289467207792,394.1 4496.289467207793,510.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="files" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="file" points="5176.6262301739935,346.1 5176.6262301739935,382.1 4399.787467207792,382.1 4399.787467207792,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="activity_module_grants" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="grants (join)" points="5239.421768635531,346.1 5239.421768635531,394.1 5324.089330898269,394.1 5324.089330898269,474.4000000000001 5310.839997564935,474.4000000000001 5310.839997564935,510.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_modules" data-to="course_activity_module_links" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="linkedCourses (join)" points="5155.6943840201475,346.1 5155.6943840201475,358.1 2371.036718398268,358.1 2371.036718398268,619.3000000000001 2643.6077821428576,619.3000000000001 2643.6077821428576,1116.8000000000002 2216.2356249458876,1116.8000000000002 2216.2356249458876,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_module_grants" data-to="activity_modules" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="activityModule" points="5253.878664231602,510.4000000000001 5253.878664231602,474.4000000000001 5240.6293308982695,474.4000000000001 5240.6293308982695,406.1 5228.955845558608,406.1 5228.955845558608,346.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_module_grants" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="grantedTo" points="5253.878664231602,547.3000000000001 5253.878664231603,808.5000000000001 5006.311038636364,808.5000000000001 5006.311038636364,1378 4082.751124001717,1378 4082.751124001717,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="activity_module_grants" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="grantedBy" points="5310.839997564935,547.3000000000001 5310.839997564935,559.3000000000001 5318.132330898269,559.3000000000001 5318.132330898269,820.5000000000001 5077.857038636364,820.5000000000001 5077.857038636364,1390 4085.424158484476,1390 4085.424158484476,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_activity_module_links" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="course" points="2065.549806764069,1152.8000000000002 2065.549806764069,1104.8000000000002 1768.069532142857,1104.8000000000002 1768.069532142857,856.5000000000001 1294.032218398268,856.5000000000001 1294.032218398268,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_activity_module_links" data-to="activity_modules" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="activityModule" points="2235.0713522186147,1152.8000000000002 2235.0713522186147,1128.8000000000002 2746.2037821428576,1128.8000000000002 2746.2037821428576,559.3000000000001 2473.632718398268,559.3000000000001 2473.632718398268,370.1 5166.1603070970705,370.1 5166.1603070970705,346.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_activity_module_links" data-to="course_sections" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="section" points="2115.7784128246753,1189.7 2115.778412824676,1294 1441.3315077380948,1294 1441.3315077380948,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_activity_module_links" data-to="assignment_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="assignmentSubmissions ..." points="2140.8927158549786,1152.8000000000002 2140.8927158549786,1068.8000000000002 2199.015782142857,1068.8000000000002 2199.015782142857,916.5000000000001 3329.2725005411257,916.5000000000001 3329.2725005411257,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_activity_module_links" data-to="quiz_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="quizSubmissions (join)" points="2103.221261309524,1152.8000000000002 2103.221261309524,1080.8000000000002 1949.1315321428574,1080.8000000000002 1949.1315321428574,952.5000000000001 1829.758729166666,952.5000000000001 1829.758729166666,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_activity_module_links" data-to="discussion_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="discussionSubmissions ..." points="2197.39989767316,1152.8000000000002 2197.39989767316,1104.8000000000002 2568.1877821428575,1104.8000000000002 2568.1877821428575,964.5000000000001 3729.2546255411257,964.5000000000001 3729.2546255411257,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="pages" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="4627.240133874459,736.5000000000001 4627.240133874459,748.5000000000001 4878.133038636364,748.5000000000001 4878.133038636364,1342 4074.732020553441,1342 4074.732020553441,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="pages" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="contentMedia" points="4600.906800541125,736.5000000000001 4600.906800541125,760.5000000000001 4296.748467207793,760.5000000000001 4296.748467207793,1068.8000000000002 4235.523140422078,1068.8000000000002 4235.523140422078,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="whiteboards" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="5453.085330898269,547.3000000000001 5453.085330898269,832.5000000000001 5184.752705303031,832.5000000000001 5184.752705303031,1402 4088.097192967234,1402 4088.097192967234,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="assignments" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="5596.394330898269,547.3000000000001 5596.394330898269,844.5000000000001 5292.1802053030315,844.5000000000001 5292.1802053030315,1414 4090.7702274499925,1414 4090.7702274499925,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="quizzes" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="5727.106330898269,547.3000000000001 5727.106330898269,856.5000000000001 5393.309205303031,856.5000000000001 5393.309205303031,1426 4093.4432619327517,1426 4093.4432619327517,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussions" data-to="discussion_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="thread" points="4467.647467207792,547.3000000000001 4467.647467207792,595.3000000000001 3784.180000541126,595.3000000000001 3784.180000541126,663.6000000000001 3783.2021672077926,663.6000000000001 3783.2021672077926,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="pinnedBy" points="4496.289467207793,547.3000000000001 4496.289467207793,571.3000000000001 4741.335038636364,571.3000000000001 4741.335038636364,1318 4069.385951587924,1318 4069.385951587924,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="4524.931467207793,547.3000000000001 4524.931467207793,559.3000000000001 4810.6290386363635,559.3000000000001 4810.6290386363635,1330 4072.0589860706823,1330 4072.0589860706823,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="media" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="4242.764664231601,1189.7 4242.764664231601,1201.7 4266.847094642858,1201.7 4266.847094642858,1294 4064.0398826224064,1294 4064.0398826224064,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="notes" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="5047.447330898269,736.5000000000001 5047.447330898269,868.5000000000001 5434.309205303031,868.5000000000001 5434.309205303031,1438 4096.11629641551,1438 4096.11629641551,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="notes" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="contentMedia" points="5022.595997564935,736.5000000000001 5022.595997564935,772.5000000000001 4460.660967207792,772.5000000000001 4460.660967207792,1104.8000000000002 4251.816568993507,1104.8000000000002 4251.816568993507,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebooks" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="course" points="248.12806249999994,1450 248.12806249999994,1306 78.5,1306 78.5,760.5000000000001 1242.092093398268,760.5000000000001 1242.092093398268,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebooks" data-to="gradebook_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="categories (join)" points="305.4120624999996,1450 305.4120624999996,1282 485.98449999999957,1282 485.98449999999957,1201.7 499.4303333333328,1201.7 499.4303333333328,1189.7" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebooks" data-to="gradebook_items" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="items (join)" points="286.31739583333274,1450 286.31739583333274,1282 215.02400000000034,1282 215.02400000000034,772.5000000000001 471.65233333333344,772.5000000000001 471.65233333333344,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_categories" data-to="gradebooks" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradebook" points="557.6266666666661,1189.7 557.6266666666661,1201.7 571.0724999999993,1201.7 571.0724999999993,1294 324.50672916666645,1294 324.50672916666645,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_categories" data-to="gradebook_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="parent" points="441.23399999999947,1167.56 431.23399999999947,1167.56 431.23399999999947,1174.94 441.23399999999947,1174.94" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_categories" data-to="gradebook_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="subcategories (join)" points="441.23399999999947,1160.18 376.695999999999,1160.18 376.695999999999,1182.3200000000002 441.23399999999947,1182.3200000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_categories" data-to="gradebook_items" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="items (join)" points="557.6266666666661,1152.8000000000002 557.6266666666661,1068.8000000000002 561.9875000000002,1068.8000000000002 561.9875000000002,976.5000000000001 518.4866666666667,976.5000000000001 518.4866666666667,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_items" data-to="gradebooks" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradebook" points="448.2351666666673,736.5000000000001 448.2351666666673,748.5000000000001 143.10199999999986,748.5000000000001 143.10199999999986,1294 267.2227291666668,1294 267.2227291666668,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_items" data-to="gradebook_categories" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="category" points="495.0695000000005,736.5000000000001 495.0695000000005,1068.8000000000002 499.4303333333328,1068.8000000000002 499.4303333333328,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_items" data-to="course_activity_module_links" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="activityModule" points="541.9038333333338,736.5000000000001 541.9038333333338,964.5000000000001 1840.6715321428574,964.5000000000001 1840.6715321428574,1092.8000000000002 2084.385534036797,1092.8000000000002 2084.385534036797,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="gradebook_items" data-to="user_grades" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="userGrades (join)" points="518.4866666666667,699.6000000000001 518.4866666666667,663.6000000000001 544.1904999999997,663.6000000000001 544.1904999999997,583.3000000000001 3262.454845779221,583.3000000000001 3262.454845779221,547.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="assignment_submissions" data-to="course_activity_module_links" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="courseModuleLink" points="3355.907500541126,736.5000000000001 3355.907500541126,940.5000000000001 2327.623782142857,940.5000000000001 2327.623782142857,1080.8000000000002 2159.7284431277058,1080.8000000000002 2159.7284431277058,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="assignment_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="student" points="3382.5425005411257,736.5000000000001 3382.5425005411257,976.5000000000001 3310.8096457792212,976.5000000000001 3310.8096457792212,1366 4039.982572277579,1366 4039.982572277579,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="assignment_submissions" data-to="enrollments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="enrollment" points="3302.637500541126,736.5000000000001 3302.637500541126,904.5000000000001 1634.3535321428571,904.5000000000001 1634.3535321428571,1080.8000000000002 1582.5741035714277,1080.8000000000002 1582.5741035714277,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="assignment_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradedBy" points="3409.177500541126,736.5000000000001 3409.177500541126,976.5000000000001 3461.9545113095246,976.5000000000001 3461.9545113095246,1354 4042.655606760338,1354 4042.655606760338,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="assignment_submissions" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="file" points="3435.8125005411257,736.5000000000001 3435.8125005411257,760.5000000000001 4130.838467207793,760.5000000000001 4130.838467207793,1116.8000000000002 4208.367426136364,1116.8000000000002 4208.367426136364,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="quiz_submissions" data-to="course_activity_module_links" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="courseModuleLink" points="1853.9168958333325,736.5000000000001 1853.9168958333325,940.5000000000001 2070.483782142857,940.5000000000001 2070.483782142857,1068.8000000000002 2122.056988582251,1068.8000000000002 2122.056988582251,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="quiz_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="student" points="1878.0750624999996,736.5000000000001 1878.0750624999996,760.5000000000001 3185.5376457792213,760.5000000000001 3185.5376457792213,1390 4034.636503312062,1390 4034.636503312062,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="quiz_submissions" data-to="enrollments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="enrollment" points="1805.6005624999993,736.5000000000001 1805.6005624999993,892.5000000000001 1554.995532142857,892.5000000000001 1554.995532142857,1068.8000000000002 1551.110674999999,1068.8000000000002 1551.110674999999,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="quiz_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradedBy" points="1902.2332291666662,736.5000000000001 1902.2332291666662,748.5000000000001 3248.139645779221,748.5000000000001 3248.139645779221,1378 4037.3095377948202,1378 4037.3095377948202,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="course_activity_module_links" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="courseModuleLink" points="3706.1342505411258,736.5000000000001 3706.1342505411258,952.5000000000001 2440.1557821428573,952.5000000000001 2440.1557821428573,1092.8000000000002 2178.564170400433,1092.8000000000002 2178.564170400433,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="student" points="3752.3750005411257,736.5000000000001 3752.3750005411257,1024.5 3829.641895779221,1024.5 3829.641895779221,1306 4053.347744691372,1306 4053.347744691372,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="enrollments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="enrollment" points="3683.013875541126,736.5000000000001 3683.013875541126,928.5000000000001 1704.7115321428573,928.5000000000001 1704.7115321428573,1092.8000000000002 1598.3058178571418,1092.8000000000002 1598.3058178571418,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="discussion_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="parentThread" points="3659.893500541126,714.3600000000001 3649.893500541126,714.3600000000001 3649.893500541126,721.74 3659.893500541126,721.74" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="file" points="3821.736125541126,736.5000000000001 3821.736125541126,748.5000000000001 4187.556467207793,748.5000000000001 4187.556467207793,1080.8000000000002 4224.660854707792,1080.8000000000002 4224.660854707792,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="discussion_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="replies (join)" points="3659.893500541126,706.98 3559.715500541126,706.98 3559.715500541126,729.1200000000001 3659.893500541126,729.1200000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="user" points="3775.495375541126,736.5000000000001 3775.495375541126,1012.5000000000001 3879.743895779221,1012.5000000000001 3879.743895779221,1294 4056.0207791741304,1294 4056.0207791741304,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discussion_submissions" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradedBy" points="3798.6157505411256,736.5000000000001 3798.6157505411256,772.5000000000001 3936.4658957792212,772.5000000000001 3936.4658957792212,1282 4058.6938136568892,1282 4058.6938136568892,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="course_grade_tables" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="course" points="2903.1589791125543,1152.8000000000002 2903.1589791125543,1068.8000000000002 2891.103645779221,1068.8000000000002 2891.103645779221,832.5000000000001 1305.5744683982675,832.5000000000001 1305.5744683982675,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="groups" data-to="courses" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="course" points="841.5045291666665,1450 841.5045291666665,1282 746.7789999999995,1282 746.7789999999995,784.5000000000001 1253.6343433982674,784.5000000000001 1253.6343433982674,736.5000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="groups" data-to="groups" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="parent" points="807.5333291666666,1462.3 797.5333291666666,1462.3 797.5333291666666,1474.6 807.5333291666666,1474.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="groups" data-to="enrollments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="enrollments (join)" points="858.4901291666665,1450 858.4901291666665,1282 1143.174857142857,1282 1143.174857142857,1201.7 1531.446032142856,1201.7 1531.446032142856,1189.7" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="enrollments" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="enrollment" points="3274.133945779221,547.3000000000001 3274.133945779221,595.3000000000001 1179.4629683982675,595.3000000000001 1179.4629683982675,988.5000000000001 1593.8535321428571,988.5000000000001 1593.8535321428571,1068.8000000000002 1566.8423892857131,1068.8000000000002 1566.8423892857131,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="gradebook_items" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradebookItem" points="3250.775745779221,547.3000000000001 3250.775745779221,571.3000000000001 445.9484999999995,571.3000000000001 445.9484999999995,663.6000000000001 471.65233333333344,663.6000000000001 471.65233333333344,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="assignment_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="submission" points="3297.492145779221,547.3000000000001 3297.492145779221,607.3000000000001 3369.2250005411256,607.3000000000001 3369.2250005411256,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="quiz_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="submission" points="3285.813045779221,547.3000000000001 3285.813045779221,607.3000000000001 1853.916895833333,607.3000000000001 1853.9168958333325,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="discussion_submissions" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="submission" points="3309.171245779221,547.3000000000001 3309.171245779221,595.3000000000001 3720.5700005411263,595.3000000000001 3720.5700005411263,663.6000000000001 3721.5478338744592,663.6000000000001 3721.5478338744592,699.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="appliedBy" points="3320.8503457792212,547.3000000000001 3320.8503457792212,583.3000000000001 3854.856500541126,583.3000000000001 3854.856500541126,976.5000000000001 3598.2676457792213,976.5000000000001 3598.2676457792213,1342 4045.328641243096,1342 4045.328641243096,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="overriddenBy" points="3332.529445779221,547.3000000000001 3332.529445779221,571.3000000000001 3867.856500541126,571.3000000000001 3867.856500541126,988.5000000000001 3676.9376457792214,988.5000000000001 3676.9376457792214,1330 4048.0016757258545,1330 4048.0016757258545,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="user_grades" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="gradedBy" points="3344.208545779221,547.3000000000001 3344.208545779221,559.3000000000001 3880.856500541126,559.3000000000001 3880.856500541126,1000.5000000000001 3755.6156457792213,1000.5000000000001 3755.6156457792213,1318 4050.6747102086138,1318 4050.6747102086138,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="files" data-to="media" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="media" points="4388.843800541125,736.5000000000001 4388.843800541125,748.5000000000001 4229.274467207792,748.5000000000001 4229.274467207792,1068.8000000000002 4230.091997564935,1068.8000000000002 4230.091997564935,1152.8000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="files" data-to="users" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="createdBy" points="4410.7311338744585,736.5000000000001 4410.7311338744585,784.5000000000001 4701.789038636363,784.5000000000001 4701.789038636363,1306 4066.712917105165,1306 4066.712917105165,1450" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="appearance_settings" data-to="media" data-label="logoLight">
+  <rect x="4599.779967207793" y="185.9" width="61.606" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4630.5829672077925" y="201.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">logoLight</text>
+</g>
+<g class="edge-label" data-from="appearance_settings" data-to="media" data-label="logoDark">
+  <rect x="4282.153467207792" y="185.9" width="61.605999999999995" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4312.956467207792" y="201.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">logoDark</text>
+</g>
+<g class="edge-label" data-from="appearance_settings" data-to="media" data-label="compactLogoLight">
+  <rect x="4483.998967207792" y="185.9" width="105.56200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4536.779967207792" y="201.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">compactLogoLight</text>
+</g>
+<g class="edge-label" data-from="appearance_settings" data-to="media" data-label="compactLogoDark">
+  <rect x="4168.353467207792" y="185.9" width="105.56200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4221.134467207792" y="201.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">compactLogoDark</text>
+</g>
+<g class="edge-label" data-from="appearance_settings" data-to="media" data-label="faviconLight">
+  <rect x="4088.4914672077925" y="185.9" width="75.86200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4126.422467207793" y="201.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">faviconLight</text>
+</g>
+<g class="edge-label" data-from="appearance_settings" data-to="media" data-label="faviconDark">
+  <rect x="4347.759467207792" y="185.9" width="75.86200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4385.690467207792" y="201.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">faviconDark</text>
+</g>
+<g class="edge-label" data-from="users" data-to="media" data-label="avatar">
+  <rect x="4180.309094642858" y="1244.6999999999998" width="48.538000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4204.578094642859" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">avatar</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="media" data-label="descriptionMedia">
+  <rect x="3945.5164672077926" y="1031.5" width="100.21600000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3995.624467207793" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">descriptionMedia</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="media" data-label="thumbnail">
+  <rect x="4049.7324672077925" y="1031.5" width="61.606" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4080.5354672077924" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">thumbnail</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="users" data-label="createdBy">
+  <rect x="2757.121645779221" y="1156.1" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2790.8946457792213" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="course_grade_tables" data-label="gradeTable (join)">
+  <rect x="2920.705645779221" y="1031.5" width="97.84000000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2969.625645779221" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradeTable (join)</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="enrollments" data-label="enrollments (join)">
+  <rect x="1364.741532142857" y="1031.5" width="96.65200000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1413.067532142857" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">enrollments (join)</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="groups" data-label="groups (join)">
+  <rect x="639.8229999999994" y="1156.1" width="76.456" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="678.0509999999994" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">groups (join)</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="course_categories" data-label="category">
+  <rect x="1195.6527999999998" y="1031.5" width="60.418000000000006" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1225.8618" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">category</text>
+</g>
+<g class="edge-label" data-from="courses" data-to="course_sections" data-label="sections (join)">
+  <rect x="868.6423000000004" y="1156.1" width="82.39600000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="909.8403000000004" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">sections (join)</text>
+</g>
+<g class="edge-label" data-from="course_sections" data-to="courses" data-label="course">
+  <rect x="1326.3246749999998" y="1156.1" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1352.3756749999998" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">course</text>
+</g>
+<g class="edge-label" data-from="course_sections" data-to="course_sections" data-label="parentSection">
+  <rect x="1265.7409077380953" y="1453.3" width="84.17800000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1307.8299077380952" y="1468.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">parentSection</text>
+</g>
+<g class="edge-label" data-from="course_sections" data-to="course_activity_module_links" data-label="activityModules (join)">
+  <rect x="2145.3804128246757" y="1244.6999999999998" width="116.25400000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2203.5074128246756" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">activityModules (join)</text>
+</g>
+<g class="edge-label" data-from="course_sections" data-to="course_sections" data-label="childSections (join)">
+  <rect x="1153.5849077380954" y="1453.3" width="106.15600000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1206.6629077380953" y="1468.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">childSections (join)</text>
+</g>
+<g class="edge-label" data-from="course_categories" data-to="course_categories" data-label="parent">
+  <rect x="1087.9462999999996" y="1156.1" width="48.538000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1112.2152999999996" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">parent</text>
+</g>
+<g class="edge-label" data-from="course_categories" data-to="course_categories" data-label="subcategories (join)">
+  <rect x="971.0382999999994" y="1156.1" width="110.90800000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1026.4922999999994" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">subcategories (join)</text>
+</g>
+<g class="edge-label" data-from="course_categories" data-to="courses" data-label="courses (join)">
+  <rect x="1025.4903541666663" y="1031.5" width="82.39600000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1066.6883541666664" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">courses (join)</text>
+</g>
+<g class="edge-label" data-from="category_role_assignments" data-to="users" data-label="user">
+  <rect x="3036.141645779221" y="1156.1" width="40.221999999999994" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3056.252645779221" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">user</text>
+</g>
+<g class="edge-label" data-from="category_role_assignments" data-to="course_categories" data-label="category">
+  <rect x="1260.0708000000004" y="1031.5" width="60.418000000000006" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1290.2798000000005" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">category</text>
+</g>
+<g class="edge-label" data-from="category_role_assignments" data-to="users" data-label="assignedBy">
+  <rect x="3080.3636457792213" y="1156.1" width="74.674" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3117.7006457792213" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">assignedBy</text>
+</g>
+<g class="edge-label" data-from="enrollments" data-to="users" data-label="user">
+  <rect x="3132.0896457792214" y="1244.6999999999998" width="40.221999999999994" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3152.2006457792213" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">user</text>
+</g>
+<g class="edge-label" data-from="enrollments" data-to="courses" data-label="course">
+  <rect x="1465.393532142857" y="1031.5" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1491.444532142857" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">course</text>
+</g>
+<g class="edge-label" data-from="enrollments" data-to="groups" data-label="groups">
+  <rect x="1195.326857142857" y="1244.6999999999998" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1221.377857142857" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">groups</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="users" data-label="owner">
+  <rect x="5096.298664231602" y="702.9000000000001" width="47.35" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5119.973664231602" y="718.0500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">owner</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="users" data-label="createdBy">
+  <rect x="5147.648664231602" y="702.9000000000001" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5181.421664231602" y="718.0500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="pages" data-label="page">
+  <rect x="4593.073467207792" y="513.7000000000002" width="41.41" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4613.778467207792" y="528.8500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">page</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="whiteboards" data-label="whiteboard">
+  <rect x="5418.085330898269" y="437.1000000000001" width="69.92200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5453.046330898269" y="452.25000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">whiteboard</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="assignments" data-label="assignment">
+  <rect x="5560.394330898269" y="437.1000000000001" width="71.11000000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5595.949330898269" y="452.25000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">assignment</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="quizzes" data-label="quiz">
+  <rect x="5708.106330898269" y="437.1000000000001" width="37.846000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5727.029330898269" y="452.25000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">quiz</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="discussions" data-label="discussion">
+  <rect x="4461.289467207792" y="437.1000000000001" width="69.92200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4496.250467207792" y="452.25000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">discussion</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="files" data-label="file">
+  <rect x="4384.287467207792" y="513.7000000000002" width="30.718000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4399.646467207793" y="528.8500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">file</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="activity_module_grants" data-label="grants (join)">
+  <rect x="5287.589330898269" y="437.1000000000001" width="72.89200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5324.0353308982685" y="452.25000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">grants (join)</text>
+</g>
+<g class="edge-label" data-from="activity_modules" data-to="course_activity_module_links" data-label="linkedCourses (join)">
+  <rect x="2587.1077821428576" y="626.3000000000001" width="112.09600000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2643.155782142858" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">linkedCourses (join)</text>
+</g>
+<g class="edge-label" data-from="activity_module_grants" data-to="activity_modules" data-label="activityModule">
+  <rect x="5197.6293308982695" y="437.1000000000001" width="85.96000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5240.609330898269" y="452.25000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">activityModule</text>
+</g>
+<g class="edge-label" data-from="activity_module_grants" data-to="users" data-label="grantedTo">
+  <rect x="4972.311038636364" y="1031.5" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5006.084038636364" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">grantedTo</text>
+</g>
+<g class="edge-label" data-from="activity_module_grants" data-to="users" data-label="grantedBy">
+  <rect x="5043.857038636364" y="1031.5" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5077.630038636365" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">grantedBy</text>
+</g>
+<g class="edge-label" data-from="course_activity_module_links" data-to="courses" data-label="course">
+  <rect x="1741.569532142857" y="1031.5" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1767.620532142857" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">course</text>
+</g>
+<g class="edge-label" data-from="course_activity_module_links" data-to="activity_modules" data-label="activityModule">
+  <rect x="2703.2037821428576" y="626.3000000000001" width="85.96000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2746.1837821428576" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">activityModule</text>
+</g>
+<g class="edge-label" data-from="course_activity_module_links" data-to="course_sections" data-label="section">
+  <rect x="2089.278412824676" y="1244.6999999999998" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2115.3294128246757" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">section</text>
+</g>
+<g class="edge-label" data-from="course_activity_module_links" data-to="assignment_submissions" data-label="assignmentSubmissions ...">
+  <rect x="2128.515782142857" y="1031.5" width="140.608" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2198.819782142857" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">assignmentSubmissions ...</text>
+</g>
+<g class="edge-label" data-from="course_activity_module_links" data-to="quiz_submissions" data-label="quizSubmissions (join)">
+  <rect x="1887.6315321428574" y="1031.5" width="122.78800000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1949.0255321428574" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">quizSubmissions (join)</text>
+</g>
+<g class="edge-label" data-from="course_activity_module_links" data-to="discussion_submissions" data-label="discussionSubmissions ...">
+  <rect x="2498.1877821428575" y="1031.5" width="139.42000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2567.8977821428575" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">discussionSubmissions ...</text>
+</g>
+<g class="edge-label" data-from="pages" data-to="users" data-label="createdBy">
+  <rect x="4844.133038636364" y="1156.1" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4877.906038636364" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="pages" data-to="media" data-label="contentMedia">
+  <rect x="4255.748467207793" y="1031.5" width="81.20800000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4296.352467207793" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">contentMedia</text>
+</g>
+<g class="edge-label" data-from="whiteboards" data-to="users" data-label="createdBy">
+  <rect x="5150.752705303031" y="1031.5" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5184.525705303031" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="assignments" data-to="users" data-label="createdBy">
+  <rect x="5258.1802053030315" y="1031.5" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5291.953205303032" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="quizzes" data-to="users" data-label="createdBy">
+  <rect x="5359.309205303031" y="1031.5" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5393.0822053030315" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="discussions" data-to="discussion_submissions" data-label="thread">
+  <rect x="3759.680000541126" y="626.3000000000001" width="48.538000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3783.9490005411258" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">thread</text>
+</g>
+<g class="edge-label" data-from="discussions" data-to="users" data-label="pinnedBy">
+  <rect x="4709.835038636364" y="1031.5" width="62.794000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4741.2320386363635" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">pinnedBy</text>
+</g>
+<g class="edge-label" data-from="discussions" data-to="users" data-label="createdBy">
+  <rect x="4776.6290386363635" y="1031.5" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4810.402038636364" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="media" data-to="users" data-label="createdBy">
+  <rect x="4232.847094642858" y="1244.6999999999998" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4266.620094642858" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="notes" data-to="users" data-label="createdBy">
+  <rect x="5400.309205303031" y="1156.1" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="5434.0822053030315" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="edge-label" data-from="notes" data-to="media" data-label="contentMedia">
+  <rect x="4419.660967207792" y="1031.5" width="81.20800000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4460.264967207792" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">contentMedia</text>
+</g>
+<g class="edge-label" data-from="gradebooks" data-to="courses" data-label="course">
+  <rect x="52" y="1156.1" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="78.051" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">course</text>
+</g>
+<g class="edge-label" data-from="gradebooks" data-to="gradebook_categories" data-label="categories (join)">
+  <rect x="438.98449999999957" y="1244.6999999999998" width="93.08800000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="485.5284999999996" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">categories (join)</text>
+</g>
+<g class="edge-label" data-from="gradebooks" data-to="gradebook_items" data-label="items (join)">
+  <rect x="182.02400000000034" y="1156.1" width="65.76400000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="214.90600000000035" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">items (join)</text>
+</g>
+<g class="edge-label" data-from="gradebook_categories" data-to="gradebooks" data-label="gradebook">
+  <rect x="536.0724999999993" y="1244.6999999999998" width="69.92200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="571.0334999999993" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradebook</text>
+</g>
+<g class="edge-label" data-from="gradebook_categories" data-to="gradebook_categories" data-label="parent">
+  <rect x="384.6959999999999" y="1156.1" width="48.538000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="408.9649999999999" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">parent</text>
+</g>
+<g class="edge-label" data-from="gradebook_categories" data-to="gradebook_categories" data-label="subcategories (join)">
+  <rect x="267.78799999999956" y="1156.1" width="110.90800000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="323.24199999999956" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">subcategories (join)</text>
+</g>
+<g class="edge-label" data-from="gradebook_categories" data-to="gradebook_items" data-label="items (join)">
+  <rect x="528.9875000000002" y="1031.5" width="65.76400000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="561.8695000000002" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">items (join)</text>
+</g>
+<g class="edge-label" data-from="gradebook_items" data-to="gradebooks" data-label="gradebook">
+  <rect x="108.10199999999986" y="1156.1" width="69.92200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="143.06299999999987" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradebook</text>
+</g>
+<g class="edge-label" data-from="gradebook_items" data-to="gradebook_categories" data-label="category">
+  <rect x="464.5695000000005" y="1031.5" width="60.418000000000006" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="494.7785000000005" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">category</text>
+</g>
+<g class="edge-label" data-from="gradebook_items" data-to="course_activity_module_links" data-label="activityModule">
+  <rect x="1797.6715321428574" y="1031.5" width="85.96000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1840.6515321428574" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">activityModule</text>
+</g>
+<g class="edge-label" data-from="gradebook_items" data-to="user_grades" data-label="userGrades (join)">
+  <rect x="493.69049999999964" y="626.3000000000001" width="100.21600000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="543.7984999999996" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">userGrades (join)</text>
+</g>
+<g class="edge-label" data-from="assignment_submissions" data-to="course_activity_module_links" data-label="courseModuleLink">
+  <rect x="2273.123782142857" y="1031.5" width="108.53200000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2327.3897821428573" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">courseModuleLink</text>
+</g>
+<g class="edge-label" data-from="assignment_submissions" data-to="users" data-label="student">
+  <rect x="3284.3096457792212" y="1156.1" width="52.102000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3310.360645779221" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">student</text>
+</g>
+<g class="edge-label" data-from="assignment_submissions" data-to="enrollments" data-label="enrollment">
+  <rect x="1600.8535321428571" y="1031.5" width="66.358" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1634.0325321428572" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">enrollment</text>
+</g>
+<g class="edge-label" data-from="assignment_submissions" data-to="users" data-label="gradedBy">
+  <rect x="3428.9545113095246" y="1156.1" width="65.17" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3461.5395113095246" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradedBy</text>
+</g>
+<g class="edge-label" data-from="assignment_submissions" data-to="media" data-label="file">
+  <rect x="4115.338467207792" y="1031.5" width="30.718000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4130.697467207792" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">file</text>
+</g>
+<g class="edge-label" data-from="quiz_submissions" data-to="course_activity_module_links" data-label="courseModuleLink">
+  <rect x="2015.9837821428569" y="1031.5" width="108.53200000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2070.249782142857" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">courseModuleLink</text>
+</g>
+<g class="edge-label" data-from="quiz_submissions" data-to="users" data-label="student">
+  <rect x="3159.0376457792213" y="1156.1" width="52.102000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3185.088645779221" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">student</text>
+</g>
+<g class="edge-label" data-from="quiz_submissions" data-to="enrollments" data-label="enrollment">
+  <rect x="1521.495532142857" y="1031.5" width="66.358" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1554.674532142857" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">enrollment</text>
+</g>
+<g class="edge-label" data-from="quiz_submissions" data-to="users" data-label="gradedBy">
+  <rect x="3215.139645779221" y="1156.1" width="65.17" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3247.724645779221" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradedBy</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="course_activity_module_links" data-label="courseModuleLink">
+  <rect x="2385.6557821428573" y="1031.5" width="108.53200000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2439.9217821428574" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">courseModuleLink</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="users" data-label="student">
+  <rect x="3803.141895779221" y="1156.1" width="52.102000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3829.192895779221" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">student</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="enrollments" data-label="enrollment">
+  <rect x="1671.2115321428573" y="1031.5" width="66.358" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1704.3905321428574" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">enrollment</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="discussion_submissions" data-label="parentThread">
+  <rect x="3567.715500541126" y="702.9000000000001" width="84.17800000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3609.804500541126" y="718.0500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">parentThread</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="media" data-label="file">
+  <rect x="4172.056467207793" y="1031.5" width="30.718000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4187.415467207793" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">file</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="discussion_submissions" data-label="replies (join)">
+  <rect x="3486.447500541126" y="702.9000000000001" width="75.268" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3524.081500541126" y="718.0500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">replies (join)</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="users" data-label="user">
+  <rect x="3859.243895779221" y="1156.1" width="40.221999999999994" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3879.354895779221" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">user</text>
+</g>
+<g class="edge-label" data-from="discussion_submissions" data-to="users" data-label="gradedBy">
+  <rect x="3903.4658957792212" y="1156.1" width="65.17" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3936.0508957792213" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradedBy</text>
+</g>
+<g class="edge-label" data-from="course_grade_tables" data-to="courses" data-label="course">
+  <rect x="2864.603645779221" y="1031.5" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2890.654645779221" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">course</text>
+</g>
+<g class="edge-label" data-from="groups" data-to="courses" data-label="course">
+  <rect x="720.2789999999995" y="1156.1" width="52.102" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="746.3299999999996" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">course</text>
+</g>
+<g class="edge-label" data-from="groups" data-to="groups" data-label="parent">
+  <rect x="750.995329166667" y="1453.3" width="48.538000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="775.264329166667" y="1468.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">parent</text>
+</g>
+<g class="edge-label" data-from="groups" data-to="enrollments" data-label="enrollments (join)">
+  <rect x="1094.674857142857" y="1244.6999999999998" width="96.65200000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1143.000857142857" y="1259.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">enrollments (join)</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="enrollments" data-label="enrollment">
+  <rect x="1145.9629683982675" y="702.9000000000001" width="66.358" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1179.1419683982676" y="718.0500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">enrollment</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="gradebook_items" data-label="gradebookItem">
+  <rect x="401.9484999999995" y="626.3000000000001" width="87.74200000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="445.8194999999995" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradebookItem</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="assignment_submissions" data-label="submission">
+  <rect x="3333.2250005411256" y="626.3000000000001" width="71.11" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3368.7800005411254" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">submission</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="quiz_submissions" data-label="submission">
+  <rect x="1817.916895833333" y="626.3000000000001" width="71.11" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1853.471895833333" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">submission</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="discussion_submissions" data-label="submission">
+  <rect x="3684.5700005411263" y="626.3000000000001" width="71.11" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3720.125000541126" y="641.45" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">submission</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="users" data-label="appliedBy">
+  <rect x="3565.2676457792213" y="1031.5" width="65.17" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3597.8526457792213" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">appliedBy</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="users" data-label="overriddenBy">
+  <rect x="3634.4376457792214" y="1031.5" width="84.178" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3676.5266457792213" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">overriddenBy</text>
+</g>
+<g class="edge-label" data-from="user_grades" data-to="users" data-label="gradedBy">
+  <rect x="3722.6156457792213" y="1031.5" width="65.17" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="3755.2006457792213" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">gradedBy</text>
+</g>
+<g class="edge-label" data-from="files" data-to="media" data-label="media">
+  <rect x="4206.774467207792" y="1031.5" width="44.974" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4229.2614672077925" y="1046.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">media</text>
+</g>
+<g class="edge-label" data-from="files" data-to="users" data-label="createdBy">
+  <rect x="4667.789038636363" y="1156.1" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="4701.5620386363635" y="1171.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">createdBy</text>
+</g>
+<g class="node" data-id="activity_module_grants" data-label="activity-module-grants" data-shape="rectangle">
+  <rect x="5196.917330898269" y="510.4000000000001" width="170.88399999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="5282.359330898269" y="528.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">activity-module-grants</text>
+</g>
+<g class="node" data-id="activity_modules" data-label="activity-modules" data-shape="rectangle">
+  <rect x="5145.2284609432245" y="309.20000000000005" width="136.05700000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="5213.256960943225" y="327.65000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">activity-modules</text>
+</g>
+<g class="node" data-id="assignment_submissions" data-label="assignment-submissions" data-shape="rectangle">
+  <rect x="3276.0025005411258" y="699.6000000000001" width="186.44499999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="3369.2250005411256" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">assignment-submissions</text>
+</g>
+<g class="node" data-id="assignments" data-label="assignments" data-shape="rectangle">
+  <rect x="5538.369330898269" y="510.4000000000001" width="116.05000000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="5596.394330898269" y="528.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">assignments</text>
+</g>
+<g class="node" data-id="category_role_assignments" data-label="category-role-assignments" data-shape="rectangle">
+  <rect x="1524.4362291666666" y="699.6000000000001" width="200.52399999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1624.6982291666666" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">category-role-assignments</text>
+</g>
+<g class="node" data-id="course_activity_module_links" data-label="course-activity-module-links" data-shape="rectangle">
+  <rect x="2046.714079491342" y="1152.8000000000002" width="207.19299999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="2150.310579491342" y="1171.2500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">course-activity-module-links</text>
+</g>
+<g class="node" data-id="course_categories" data-label="course-categories" data-shape="rectangle">
+  <rect x="1144.4842999999992" y="1152.8000000000002" width="152.359" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1220.6637999999991" y="1171.2500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">course-categories</text>
+</g>
+<g class="node" data-id="course_grade_tables" data-label="course-grade-tables" data-shape="rectangle">
+  <rect x="2848.667645779221" y="1152.8000000000002" width="163.474" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="2930.404645779221" y="1171.2500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">course-grade-tables</text>
+</g>
+<g class="node" data-id="course_sections" data-label="course-sections" data-shape="rectangle">
+  <rect x="1357.9189077380952" y="1450" width="139.02100000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1427.4294077380953" y="1468.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">course-sections</text>
+</g>
+<g class="node" data-id="courses" data-label="courses" data-shape="rectangle">
+  <rect x="1236.3209683982677" y="699.6000000000001" width="92.338" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1282.4899683982678" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">courses</text>
+</g>
+<g class="node" data-id="discussion_submissions" data-label="discussion-submissions" data-shape="rectangle">
+  <rect x="3659.893500541126" y="699.6000000000001" width="184.96299999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="3752.3750005411257" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">discussion-submissions</text>
+</g>
+<g class="node" data-id="discussions" data-label="discussions" data-shape="rectangle">
+  <rect x="4439.005467207792" y="510.4000000000001" width="114.568" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4496.289467207792" y="528.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">discussions</text>
+</g>
+<g class="node" data-id="enrollments" data-label="enrollments" data-shape="rectangle">
+  <rect x="1503.9155321428561" y="1152.8000000000002" width="110.122" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1558.976532142856" y="1171.2500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">enrollments</text>
+</g>
+<g class="node" data-id="files" data-label="files" data-shape="rectangle">
+  <rect x="4366.956467207792" y="699.6000000000001" width="65.662" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4399.787467207792" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">files</text>
+</g>
+<g class="node" data-id="gradebook_categories" data-label="gradebook-categories" data-shape="rectangle">
+  <rect x="441.23399999999947" y="1152.8000000000002" width="174.589" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="528.5284999999994" y="1171.2500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">gradebook-categories</text>
+</g>
+<g class="node" data-id="gradebook_items" data-label="gradebook-items" data-shape="rectangle">
+  <rect x="424.8180000000002" y="699.6000000000001" width="140.503" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="495.0695000000002" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">gradebook-items</text>
+</g>
+<g class="node" data-id="gradebooks" data-label="gradebooks" data-shape="rectangle">
+  <rect x="229.0333958333331" y="1450" width="114.568" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="286.3173958333331" y="1468.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">gradebooks</text>
+</g>
+<g class="node" data-id="groups" data-label="groups" data-shape="rectangle">
+  <rect x="807.5333291666666" y="1450" width="84.928" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="849.9973291666665" y="1468.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">groups</text>
+</g>
+<g class="node" data-id="media" data-label="media" data-shape="rectangle">
+  <rect x="4192.073997564935" y="1152.8000000000002" width="76.036" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4230.091997564935" y="1171.2500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">media</text>
+</g>
+<g class="node" data-id="notes" data-label="notes" data-shape="rectangle">
+  <rect x="4997.744664231602" y="699.6000000000001" width="74.554" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="5035.021664231602" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">notes</text>
+</g>
+<g class="node" data-id="pages" data-label="pages" data-shape="rectangle">
+  <rect x="4574.573467207792" y="699.6000000000001" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4614.073467207792" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">pages</text>
+</g>
+<g class="node" data-id="quiz_submissions" data-label="quiz-submissions" data-shape="rectangle">
+  <rect x="1781.4423958333327" y="699.6000000000001" width="144.949" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1853.9168958333328" y="718.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">quiz-submissions</text>
+</g>
+<g class="node" data-id="quizzes" data-label="quizzes" data-shape="rectangle">
+  <rect x="5682.419330898269" y="510.4000000000001" width="89.374" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="5727.106330898269" y="528.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">quizzes</text>
+</g>
+<g class="node" data-id="user_grades" data-label="user-grades" data-shape="rectangle">
+  <rect x="3239.096645779221" y="510.4000000000001" width="116.79099999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="3297.492145779221" y="528.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">user-grades</text>
+</g>
+<g class="node" data-id="users" data-label="users" data-shape="rectangle">
+  <rect x="4021.2713308982684" y="1450" width="77.518" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4060.0303308982684" y="1468.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">users</text>
+</g>
+<g class="node" data-id="whiteboards" data-label="whiteboards" data-shape="rectangle">
+  <rect x="5395.801330898269" y="510.4000000000001" width="114.568" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="5453.085330898269" y="528.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">whiteboards</text>
+</g>
+<g class="node" data-id="analytics_settings" data-label="analytics-settings" data-shape="rectangle">
+  <rect x="4094.3999672077925" y="84" width="144.949" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4166.874467207793" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">analytics-settings</text>
+</g>
+<g class="node" data-id="appearance_settings" data-label="appearance-settings" data-shape="rectangle">
+  <rect x="4267.348967207792" y="84" width="164.21499999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4349.456467207792" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">appearance-settings</text>
+</g>
+<g class="node" data-id="maintenance_settings" data-label="maintenance-settings" data-shape="rectangle">
+  <rect x="4459.563967207792" y="84" width="165.697" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4542.412467207792" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">maintenance-settings</text>
+</g>
+<g class="node" data-id="registration_settings" data-label="registration-settings" data-shape="rectangle">
+  <rect x="3906.6309672077923" y="84" width="159.769" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="3986.5154672077924" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">registration-settings</text>
+</g>
+<g class="node" data-id="site_policies" data-label="site-policies" data-shape="rectangle">
+  <rect x="4653.260967207792" y="84" width="112.345" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4709.433467207792" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">site-policies</text>
+</g>
+<g class="node" data-id="system_grade_table" data-label="system-grade-table" data-shape="rectangle">
+  <rect x="4793.605967207793" y="84" width="154.582" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="4870.896967207793" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">system-grade-table</text>
+</g>
+</svg>

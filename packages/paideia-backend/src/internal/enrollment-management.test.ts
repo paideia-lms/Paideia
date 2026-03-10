@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryCreateGroup,
@@ -22,23 +21,27 @@ import {
 	tryUpdateEnrollment,
 	type UpdateEnrollmentArgs,
 } from "./enrollment-management";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Enrollment Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Enrollment Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let testUserId: number;
 	let testCourseId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create test user
 		const testUser = await payload.create({
@@ -86,7 +89,8 @@ describe("Enrollment Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -981,8 +985,11 @@ describe("Enrollment Management Functions", () => {
 	});
 });
 
-describe("Enrollment Management Functions with Authentication", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Enrollment Management Functions with Authentication", async  () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let adminUser: TypedUser | null;
 	let testUserId: number;
 	let testCourseId: number;
@@ -990,14 +997,11 @@ describe("Enrollment Management Functions with Authentication", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create admin user for testing
 		const testUser = await payload.create({
@@ -1071,7 +1075,8 @@ describe("Enrollment Management Functions with Authentication", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

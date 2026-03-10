@@ -40,17 +40,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	type FlatNode,
-	flattenCategories,
-	tryDeleteCategory,
-	tryFindCategoryById,
-	tryFindSubcategories,
-	tryGetCategoryAncestors,
-	tryGetCategoryTree,
-	tryGetTotalNestedCoursesCount,
-	tryUpdateCategory,
-} from "@paideia/paideia-backend";
+import { type FlatNode, flattenCategories } from "@paideia/paideia-backend";
 import { useReorderCategories } from "~/routes/api/category-reorder";
 import {
 	badRequest,
@@ -107,7 +97,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -120,21 +110,22 @@ export const loader = createRouteLoader({
 		throw new ForbiddenResponse("Only admins can manage categories");
 	}
 
-	const treeResult = await tryGetCategoryTree({
-		payload,
-		overrideAccess: true,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to get categories");
-	});
+	const treeResult = await paideia
+		.tryGetCategoryTree({
+			overrideAccess: true,
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to get categories");
+		});
 
 	const flat = flattenCategories(treeResult);
 	// count courses without category (uncategorized)
-	const uncategorizedCountRes = await payload.count({
+	const uncategorizedCountRes = await paideia.count({
 		collection: "courses",
 		where: { category: { exists: false } },
 		overrideAccess: true,
-		req: payloadRequest,
+		req: requestContext,
 	});
 	const uncategorizedCount = uncategorizedCountRes.totalDocs;
 	// selected category details
@@ -151,36 +142,33 @@ export const loader = createRouteLoader({
 	if (categoryIdParam) {
 		const idNum = Number(categoryIdParam);
 		if (!Number.isNaN(idNum)) {
-			const catRes = await tryFindCategoryById({
-				payload,
+			const catRes = await paideia.tryFindCategoryById({
 				categoryId: idNum,
 				overrideAccess: true,
-				req: payloadRequest,
+				req: requestContext,
 			});
 			if (catRes.ok) {
-				const directCoursesCountRes = await payload.count({
+				const directCoursesCountRes = await paideia.count({
 					collection: "courses",
 					where: { category: { equals: idNum } },
 					overrideAccess: true,
+					req: requestContext,
 				});
 				const [subRes, totalRes, ancestorsRes] = await Promise.all([
-					tryFindSubcategories({
-						payload,
+					paideia.tryFindSubcategories({
 						parentId: idNum,
 						overrideAccess: true,
-						req: payloadRequest,
+						req: requestContext,
 					}),
-					tryGetTotalNestedCoursesCount({
-						payload,
+					paideia.tryGetTotalNestedCoursesCount({
 						categoryId: idNum,
 						overrideAccess: true,
-						req: payloadRequest,
+						req: requestContext,
 					}),
-					tryGetCategoryAncestors({
-						payload,
+					paideia.tryGetCategoryAncestors({
 						categoryId: idNum,
 						overrideAccess: true,
-						req: payloadRequest,
+						req: requestContext,
 					}),
 				]);
 				const parentField = catRes.value.parent;
@@ -223,8 +211,8 @@ const checkAuthorization = (context: Route.ActionArgs["context"]) => {
 };
 
 const editCategoryAction = editCategoryRpc.createAction(
-	async ({ context, formData, request }) => {
-		const { payload } = context.get(globalContextKey);
+	async ({ context, formData }) => {
+		const { paideia, requestContext } = context.get(globalContextKey);
 
 		const authError = checkAuthorization(context);
 		if (authError) return authError;
@@ -236,10 +224,9 @@ const editCategoryAction = editCategoryRpc.createAction(
 
 		const parentValue = formData.parent === null ? undefined : formData.parent;
 
-		const updateRes = await tryUpdateCategory({
-			payload,
+		const updateRes = await paideia.tryUpdateCategory({
 			categoryId,
-			req: request,
+			req: requestContext,
 			name: formData.name,
 			parent: parentValue,
 		});
@@ -256,7 +243,7 @@ const useEditCategory = editCategoryRpc.createHook<typeof editCategoryAction>();
 
 const deleteCategoryAction = deleteCategoryRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
 		const authError = checkAuthorization(context);
 		if (authError) return authError;
@@ -268,10 +255,9 @@ const deleteCategoryAction = deleteCategoryRpc.createAction(
 
 		// Wrap multi-mutation ops in a transaction
 
-		const delRes = await tryDeleteCategory({
-			payload,
+		const delRes = await paideia.tryDeleteCategory({
 			categoryId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 		if (!delRes.ok) {
 			return badRequest({ error: delRes.error.message });

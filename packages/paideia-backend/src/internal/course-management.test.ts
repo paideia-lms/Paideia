@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCategory } from "./course-category-management";
 import {
@@ -26,23 +25,26 @@ import type {
 	RecurringScheduleItem,
 	SpecificDateItem,
 } from "../utils/schedule-types";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Course Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Course Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testMediaId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create test instructor
 		instructor = await tryCreateUser({
@@ -84,7 +86,8 @@ describe("Course Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -319,23 +322,20 @@ describe("Course Management Functions", () => {
 					throw new Error("Failed to create course");
 				}
 
-				// Create File objects from fixture
+				// Create thumbnail media from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 				const timestamp = Date.now();
-				const thumbnailFile = new File(
-					[fileBuffer],
-					`thumbnail-${timestamp}.png`,
-					{
-						type: "image/png",
-					},
-				);
-				const _descriptionImageFile = new File(
-					[fileBuffer],
-					`description-image-0-${timestamp}.png`,
-					{
-						type: "image/png",
-					},
-				);
+				const createThumbnailResult = await tryCreateMedia({
+					payload,
+					file: Buffer.from(fileBuffer),
+					filename: `thumbnail-${timestamp}.png`,
+					mimeType: "image/png",
+					userId: instructor.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+				expect(createThumbnailResult.ok).toBe(true);
+				if (!createThumbnailResult.ok) throw new Error("Failed to create thumbnail media");
 
 				// Create base64 preview for description image
 				const base64Preview = `data:image/png;base64,${Buffer.from(fileBuffer).toString("base64")}`;
@@ -350,15 +350,14 @@ describe("Course Management Functions", () => {
 					request: new Request("http://localhost:3000/api/courses"),
 				});
 
-				// Update course with files
-
+				// Update course with thumbnail (media ID) and description
 				const updateResult = await tryUpdateCourse({
 					payload,
 					courseId: createResult.value.id,
 					data: {
 						title: "Updated Course Title",
 						description: descriptionWithBase64,
-						thumbnail: thumbnailFile,
+						thumbnail: createThumbnailResult.value.media.id,
 					},
 					req,
 					overrideAccess: true,
@@ -507,16 +506,20 @@ describe("Course Management Functions", () => {
 					throw new Error("Failed to create course");
 				}
 
-				// Create File object from fixture
+				// Create thumbnail media from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 				const timestamp = Date.now();
-				const thumbnailFile = new File(
-					[fileBuffer],
-					`thumbnail-${timestamp}.png`,
-					{
-						type: "image/png",
-					},
-				);
+				const createThumbnailResult = await tryCreateMedia({
+					payload,
+					file: Buffer.from(fileBuffer),
+					filename: `thumbnail-${timestamp}.png`,
+					mimeType: "image/png",
+					userId: instructor.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+				expect(createThumbnailResult.ok).toBe(true);
+				if (!createThumbnailResult.ok) throw new Error("Failed to create thumbnail media");
 
 				// Create request with user
 				const req = createLocalReq({
@@ -527,12 +530,13 @@ describe("Course Management Functions", () => {
 					request: new Request("http://localhost:3000/api/courses"),
 				});
 
-				// Update course with thumbnail only
+				// Update course with thumbnail only (media ID). Include description to avoid overwriting with empty string.
 				const updateArgs: UpdateCourseArgs = {
 					payload,
 					courseId: createResult.value.id,
 					data: {
-						thumbnail: thumbnailFile,
+						thumbnail: createThumbnailResult.value.media.id,
+						description: "Original description",
 					},
 					req,
 					overrideAccess: true,
@@ -577,23 +581,27 @@ describe("Course Management Functions", () => {
 					throw new Error("Failed to create course");
 				}
 
-				// Create File object from fixture
+				// Create thumbnail media from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 				const timestamp = Date.now();
-				const thumbnailFile = new File(
-					[fileBuffer],
-					`thumbnail-${timestamp}.png`,
-					{
-						type: "image/png",
-					},
-				);
+				const createThumbnailResult = await tryCreateMedia({
+					payload,
+					file: Buffer.from(fileBuffer),
+					filename: `thumbnail-${timestamp}.png`,
+					mimeType: "image/png",
+					userId: instructor.id,
+					overrideAccess: true,
+					req: undefined,
+				});
+				expect(createThumbnailResult.ok).toBe(true);
+				if (!createThumbnailResult.ok) throw new Error("Failed to create thumbnail media");
 
-				// Update course without user in request
+				// Update course without user in request (tryUpdateCourse requires user)
 				const updateArgs: UpdateCourseArgs = {
 					payload,
 					courseId: createResult.value.id,
 					data: {
-						thumbnail: thumbnailFile,
+						thumbnail: createThumbnailResult.value.media.id,
 					},
 					// No req provided, so no user
 					overrideAccess: false,
@@ -635,12 +643,13 @@ describe("Course Management Functions", () => {
 			expect(catResult.ok).toBe(true);
 			if (!catResult.ok) throw new Error("Failed to create category");
 
-			// update course with category id
+			// update course with category id. Include description to avoid overwriting with empty string.
 			const updateResult = await tryUpdateCourse({
 				payload,
 				courseId: createResult.value.id,
 				data: {
 					category: catResult.value.id,
+					description: "Original description",
 				},
 				req: {
 					user: instructor as TypedUser,
@@ -925,12 +934,13 @@ describe("Course Management Functions", () => {
 				});
 				expect(findResult.ok).toBe(true);
 
-				// Update course
+				// Update course. Include description to avoid overwriting with empty string.
 				const updateResult = await tryUpdateCourse({
 					payload,
 					courseId,
 					data: {
 						status: "published",
+						description: "Testing complete lifecycle",
 					},
 					req: {
 						user: instructor as TypedUser,
@@ -1412,7 +1422,8 @@ describe("Course Management Functions", () => {
 		beforeAll(async () => {
 			// Refresh environment and database for clean test state
 			try {
-				await $`bun run migrate:fresh --force-accept-warning`;
+				await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+				await deleteEverythingInBucket({ logger: payload.logger})
 			} catch (error) {
 				console.warn(
 					"Migration failed, continuing with existing state:",
@@ -1512,7 +1523,8 @@ describe("Course Management Functions", () => {
 		afterAll(async () => {
 			// Clean up any test data
 			try {
-				await $`bun run migrate:fresh --force-accept-warning`;
+				await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+				await deleteEverythingInBucket({ logger: payload.logger})
 			} catch (error) {
 				console.warn("Cleanup failed:", error);
 			}

@@ -64,10 +64,6 @@ import {
 	getUserProfileContext,
 	userProfileContextKey,
 } from "server/contexts/user-profile-context";
-import { tryGetUserCount } from "@paideia/paideia-backend";
-import { tryFindCourseActivityModuleLinkById } from "@paideia/paideia-backend";
-import { tryFindSectionById } from "@paideia/paideia-backend";
-import { tryGetSystemGlobals } from "@paideia/paideia-backend";
 import { DevTool } from "./root.components/dev-tool";
 import { RootErrorBoundary } from "./root.components/root-mode-error-boundary";
 import { SandboxCountdown } from "./root.components/sandbox-countdown";
@@ -83,7 +79,6 @@ import {
 	tryGetRouteHierarchy,
 } from "./utils/router/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
-import { createLocalReq } from "@paideia/paideia-backend";
 import { parseParams } from "app/utils/router/route-params-schema";
 import { parseSearchParamsForRoute } from "app/utils/router/parse-search-params";
 import { isNotNil } from "es-toolkit";
@@ -99,13 +94,22 @@ export const middleware = [
 	 */
 	async ({ request, context, params }) => {
 		const url = new URL(request.url);
-		const routeHierarchy = tryGetRouteHierarchy(url.pathname);
+		const { serverBuild } = context.get(globalContextKey);
+		if (!serverBuild) {
+			throw new Error("serverBuild is required in load context");
+		}
+		const routes = serverBuild.routes;
+		const routeHierarchy = tryGetRouteHierarchy(url.pathname, routes);
 		const parsedParams = parseParams(params);
 
 		// Parse search params for each route in the hierarchy
 		const isEntries = await Promise.all(
 			routeHierarchy.map(async (route) => {
-				const searchParams = await parseSearchParamsForRoute(route.id, url);
+				const searchParams = await parseSearchParamsForRoute(
+					route.id,
+					url,
+					routes,
+				);
 				return [
 					route.id,
 					{
@@ -143,15 +147,13 @@ export const middleware = [
 		});
 	},
 	/**
-	 * set the user context and payload request to the global context
+	 * set the user context and request context to the global context
 	 */
 	async ({ request, context }) => {
-		const { payload } = context.get(globalContextKey);
+		const { paideia } = context.get(globalContextKey);
 
 		const result = await tryGetUserContext({
-			payload,
-			// ! we need to create local request here because user is not set
-			req: createLocalReq({ request, context: { routerContext: context } }),
+			paideia,
 			request,
 			routerContext: context,
 		});
@@ -159,50 +161,52 @@ export const middleware = [
 		// Set the user context
 		context.set(userContextKey, result.userSession);
 
-		// Set the payload request in global context
+		// Set the request context in global context
 		context.set(globalContextKey, {
 			...context.get(globalContextKey),
-			payloadRequest: result.payloadRequest,
+			requestContext: result.requestContext,
 		});
 	},
 	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
 	async ({ context, request }) => {
-		const { payload, pageInfo } = context.get(globalContextKey);
+		const { paideia, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		// Fetch all system globals in one call
-		const systemGlobals = await tryGetSystemGlobals({
-			payload,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-			req: request,
-		}).getOrDefault({
-			maintenanceSettings: { maintenanceMode: false },
-			sitePolicies: {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			},
-			appearanceSettings: {
-				additionalCssStylesheets: [],
-				color: "blue",
-				radius: "sm" as const,
-				logoLight: null,
-				logoDark: null,
-				compactLogoLight: null,
-				compactLogoDark: null,
-				faviconLight: null,
-				faviconDark: null,
-			},
-			analyticsSettings: {
-				additionalJsScripts: [],
-			},
-		});
+		const systemGlobals = await paideia
+			.tryGetSystemGlobals({
+				// ! this is a system request, we don't care about access control
+				overrideAccess: true,
+				req: undefined,
+			})
+			.getOrDefault({
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue" as string,
+					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			});
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
 			...context.get(globalContextKey),
+			// @ts-ignore
 			systemGlobals,
 		});
 
@@ -238,28 +242,27 @@ export const middleware = [
 	 * set the course context
 	 */
 	async ({ context, params, request }) => {
-		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
+		const { paideia, pageInfo, requestContext } = context.get(globalContextKey);
 
 		// check if the user is in a course
 		if (pageInfo.is["layouts/course-layout"]) {
-			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
 			let courseId =
 				pageInfo.is["layouts/course-layout"].params.courseId ?? null;
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.is["layouts/course-module-layout"]) {
 				const { moduleLinkId } =
 					pageInfo.is["layouts/course-module-layout"].params;
-				const moduleContext = await tryFindCourseActivityModuleLinkById({
-					payload,
-					linkId: moduleLinkId,
-					req: payloadRequest,
-				});
+				const moduleContext = await paideia.tryFindCourseActivityModuleLinkById(
+					{
+						linkId: moduleLinkId,
+						req: requestContext,
+					},
+				);
 
 				if (!moduleContext.ok) return;
 
 				const module = moduleContext.value;
 				const { course } = module;
-				// update the course id to the course id from the module
 				courseId = course.id;
 			}
 
@@ -268,49 +271,43 @@ export const middleware = [
 				const { sectionId } =
 					pageInfo.is["layouts/course-section-layout"].params;
 
-				const sectionContext = await tryFindSectionById({
-					payload,
+				const sectionContext = await paideia.tryFindSectionById({
 					sectionId: sectionId,
-					req: payloadRequest,
+					req: requestContext,
 				});
 
 				if (!sectionContext.ok) return;
 
 				const section = sectionContext.value;
-				// update the course id to the course id from the section
 				courseId = section.course.id;
 			}
 
-			// if course id is not set, something is wrong, log it and leave context unset
 			if (!courseId) {
-				payload.logger.error("Course ID is not set, something is wrong");
+				paideia.getLogger().error("Course ID is not set, something is wrong");
 				return;
 			}
 
 			const courseContextResult = await tryGetCourseContext({
-				payload,
-				req: payloadRequest,
+				paideia,
+				req: requestContext,
 				courseId: courseId,
 			}).getOrElse((_error) => {
 				throw new InternalServerErrorResponse("Failed to get course context");
 			});
-			// FIXME: fix this type error
 			context.set(courseContextKey, courseContextResult);
 		}
 	},
 	// set the course section context
 	async ({ context, params, request }) => {
-		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
+		const { paideia, pageInfo, requestContext } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
 
-		// Check if we're in a course section layout
 		if (pageInfo.is["layouts/course-section-layout"]) {
-			// Get section ID from params
 			const { sectionId } = pageInfo.is["layouts/course-section-layout"].params;
 			if (courseContext) {
 				const courseSectionContextResult = await tryGetCourseSectionContext({
-					payload,
-					req: payloadRequest,
+					paideia,
+					req: requestContext,
 					sectionId: Number(sectionId),
 				});
 
@@ -376,13 +373,11 @@ export const middleware = [
 	},
 	// set the course module context
 	async ({ context, params, request }) => {
-		// get the enrolment context
-		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
+		const { paideia, pageInfo, requestContext } = context.get(globalContextKey);
 		const enrolmentContext = context.get(enrolmentContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 
-		// Check if user is authenticated, in a course module, and has course context
 		if (
 			userSession?.isAuthenticated &&
 			pageInfo.is["layouts/course-module-layout"] &&
@@ -394,15 +389,14 @@ export const middleware = [
 			const { threadId } =
 				pageInfo.is["routes/course/module.$id/route"]?.searchParams ?? {};
 
-			// Get module link ID from params
 			const courseModuleContext = await tryGetCourseModuleContext({
-				payload,
+				paideia,
 				moduleLinkId: moduleLinkId,
 				courseId: courseContext.courseId,
 				enrolment: enrolmentContext?.enrolment ?? null,
 				threadId: isNotNil(threadId) ? threadId : null,
 				submissionId: submissionId !== null ? submissionId : null,
-				req: payloadRequest,
+				req: requestContext,
 			}).getOrNull();
 
 			if (courseModuleContext) {
@@ -412,25 +406,23 @@ export const middleware = [
 	},
 	// set the user module context
 	async ({ context, params, request }) => {
-		const { payload, routeHierarchy, payloadRequest } =
+		const { paideia, routeHierarchy, requestContext } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
-		// Check if we're in a user module edit layout
 		if (
 			userSession?.isAuthenticated &&
 			routeHierarchy.some(
 				(route) => route.id === "layouts/user-module-edit-layout",
 			)
 		) {
-			// Get module ID from params
 			const moduleId = params.moduleId ? Number(params.moduleId) : null;
 
 			if (moduleId && !Number.isNaN(moduleId)) {
 				const userModuleContext = await tryGetUserModuleContext({
-					payload,
+					paideia,
 					moduleId,
-					req: payloadRequest,
+					req: requestContext,
 				}).getOrNull();
 
 				if (userModuleContext) {
@@ -444,25 +436,24 @@ export const middleware = [
 export async function loader({ context }: Route.LoaderArgs) {
 	const {
 		environment,
-		payload,
+		paideia,
 		requestInfo,
 		pageInfo,
 		systemGlobals,
 		envVars,
-		payloadRequest,
+		requestContext,
 	} = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
-	// console.log(routes)
-	// ! we can get elysia from context!!!
-	// console.log(payload, elysia);
-	const userCount = await tryGetUserCount({
-		payload,
-		overrideAccess: true,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new InternalServerErrorResponse("Failed to get user count");
-	});
+
+	const userCount = await paideia
+		.tryGetUserCount({
+			overrideAccess: true,
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get user count");
+		});
 
 	// Get current user's theme and direction preference
 	const currentUser =

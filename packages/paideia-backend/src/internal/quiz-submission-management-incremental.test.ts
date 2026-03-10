@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	type CreateActivityModuleArgs,
 	tryCreateQuizModule,
 } from "./activity-module-management";
 import {
@@ -14,7 +12,6 @@ import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import {
-	type AnswerQuizQuestionArgs,
 	tryAnswerQuizQuestion,
 	tryMarkQuizAttemptAsComplete,
 	tryStartQuizAttempt,
@@ -23,9 +20,15 @@ import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/types";
 import type { TypedQuestionAnswer } from "server/json/raw-quiz-config/v2";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Quiz Submission Management - Incremental Answer Saving", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Quiz Submission Management - Incremental Answer Saving", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let teacher: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
@@ -41,15 +44,11 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -215,8 +214,8 @@ describe("Quiz Submission Management - Incremental Answer Saving", () => {
 	afterAll(async () => {
 		// Clean up
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

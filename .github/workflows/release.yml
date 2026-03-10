@@ -84,7 +84,7 @@ jobs:
           PAYLOAD_SECRET: ci-test-secret-change-in-production
 
       - name: Run tests
-        run: bun run --cwd packages/paideia-backend test:all
+        run: bun test --cwd packages/paideia-backend
         env:
           DATABASE_URL: postgresql://paideia:paideia_password@localhost:5432/paideia_db
           S3_URL: http://localhost:9000

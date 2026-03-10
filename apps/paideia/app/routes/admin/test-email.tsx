@@ -18,12 +18,10 @@ import {
 	IconInfoCircle,
 	IconMail,
 } from "@tabler/icons-react";
-import { href } from "react-router";
 import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { trySendEmail } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -107,7 +105,7 @@ export const loader = createRouteLoader()(async ({ context }) => {
 
 const sendTestEmailAction = sendTestEmailRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, platformInfo, payloadRequest } =
+		const { paideia, platformInfo, requestContext } =
 			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -165,12 +163,11 @@ const sendTestEmailAction = sendTestEmailRpc.createAction(
 		`;
 		}
 
-		const result = await trySendEmail({
-			payload,
+		const result = await paideia.trySendEmail({
 			to: formData.recipient,
 			subject,
 			html: body,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

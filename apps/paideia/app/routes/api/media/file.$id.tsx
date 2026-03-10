@@ -1,5 +1,4 @@
 import { globalContextKey } from "server/contexts/global-context";
-import { tryGetMediaStreamFromId } from "@paideia/paideia-backend";
 import type { Route } from "./+types/file.$id";
 import { NotFoundResponse } from "app/utils/router/responses";
 import {
@@ -20,7 +19,7 @@ export const loader = createRouteLoader({
 })(async ({ searchParams, params, context, request }) => {
 	const id = params.mediaId;
 
-	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+	const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 
 	// Check if download is requested via query parameter
 	const isDownload = searchParams.download;
@@ -30,11 +29,10 @@ export const loader = createRouteLoader({
 
 	// Get media stream (without range first to get file size, or with range if we can parse it)
 	// For efficiency, we'll make one call and handle range parsing after getting media metadata
-	let result = await tryGetMediaStreamFromId({
-		payload,
+	let result = await paideia.tryGetMediaStreamFromId({
 		s3Client,
 		id,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!result.ok) {
@@ -50,12 +48,11 @@ export const loader = createRouteLoader({
 
 	// If range is requested and different from full file, fetch with range
 	if (range && (range.start > 0 || range.end < fileSize - 1)) {
-		result = await tryGetMediaStreamFromId({
-			payload,
+		result = await paideia.tryGetMediaStreamFromId({
 			s3Client,
 			id,
 			range,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {

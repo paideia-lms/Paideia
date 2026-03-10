@@ -1,10 +1,7 @@
 import type { UseFormReturnType } from "@mantine/form";
 import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import { RichTextEditor } from "../rich-text/rich-text-editor";
-import type {
-	FormPathValue,
-	Path,
-} from "@mantine/form/lib/paths.types";
+import type { FormPathValue, Path } from "@mantine/form/lib/paths.types";
 import { Input } from "@mantine/core";
 
 interface FormableRichTextEditorProps<T> {
@@ -12,6 +9,7 @@ interface FormableRichTextEditorProps<T> {
 	formKey: Path<T>;
 	label: string;
 	placeholder?: string;
+	userId?: number;
 }
 
 /**
@@ -28,6 +26,7 @@ export function FormableRichTextEditor<T>({
 	formKey,
 	label,
 	placeholder,
+	userId,
 }: FormableRichTextEditorProps<T>) {
 	const content = useFormWatchForceUpdate(form, formKey);
 
@@ -36,9 +35,12 @@ export function FormableRichTextEditor<T>({
 			<RichTextEditor
 				content={(content as string) || ""}
 				onChange={(html) => {
-					form.setFieldValue(formKey, html as FormPathValue<T, string>);
+					form.setFieldValue(formKey, html as FormPathValue<T, string>, {
+						forceUpdate: false,
+					});
 				}}
 				placeholder={placeholder}
+				userId={userId}
 			/>
 		</Input.Wrapper>
 	);

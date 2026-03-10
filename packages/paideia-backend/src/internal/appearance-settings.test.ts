@@ -1,18 +1,23 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload } from "payload";
-import config from "../payload.config";
+import { getPayload, Migration } from "payload";
 import {
 	tryGetAppearanceSettings,
 	tryUpdateAppearanceSettings,
 } from "./appearance-settings";
-import { tryFindMediaUsages } from "./media-management";
+import { tryCreateMedia, tryFindMediaUsages } from "./media-management";
 import { tryCreateUser } from "./user-management";
 import { stripDepth, type Depth } from "./utils/internal-function-utils";
 import type { User } from "server/payload-types";
+import sanitizedConfig from "../payload.config";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Appearance Settings Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Appearance Settings Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let testUser: Depth<
 		User & {
 			collection: "users";
@@ -24,14 +29,11 @@ describe("Appearance Settings Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: config,
-		});
 
 		// Create test user
 		const userResult = await tryCreateUser({
@@ -61,18 +63,28 @@ describe("Appearance Settings Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
 	});
 
 	test("should upload logo and track media usage", async () => {
-		// Create a File object from the fixture
+		// Create media from fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const logoFile = new File([fileBuffer], "test-logo-light.png", {
-			type: "image/png",
+		const createMediaResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-logo-light.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
 		});
+		expect(createMediaResult.ok).toBe(true);
+		if (!createMediaResult.ok) throw new Error("Failed to create media");
+		const logoMediaId = createMediaResult.value.media.id;
 
 		// Fetch the actual user from database
 		const testUser = await payload
@@ -84,12 +96,12 @@ describe("Appearance Settings Functions", () => {
 			})
 			.then(stripDepth<0, "findByID">());
 
-		// Update appearance settings with logoLight
+		// Update appearance settings with logoLight (media ID)
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				logoLight: logoFile,
+				logoLight: logoMediaId,
 			},
 			overrideAccess: false,
 		});
@@ -99,14 +111,13 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to update appearance settings");
 		}
 
-		// Get the created media ID from the result
-		const logoMediaId = updateResult.value.logoLight?.id;
-		expect(logoMediaId).toBeDefined();
+		// Verify logo was linked
+		expect(updateResult.value.logoLight?.id).toBe(logoMediaId);
 
 		// Verify the logo is tracked in media usage
 		const findUsagesResult = await tryFindMediaUsages({
 			payload,
-			mediaId: logoMediaId!,
+			mediaId: logoMediaId,
 			overrideAccess: true,
 			req: undefined,
 		});
@@ -132,24 +143,44 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should upload multiple logos and track all media usages", async () => {
-		// Create multiple File objects from the fixture
+		// Create media from fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-
-		const logoLightFile = new File([fileBuffer], "test-logo-light-2.png", {
-			type: "image/png",
+		const createLogoLightResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-logo-light-2.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
 		});
-
-		const logoDarkFile = new File([fileBuffer], "test-logo-dark.png", {
-			type: "image/png",
+		const createLogoDarkResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-logo-dark.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
 		});
-
-		const compactLogoLightFile = new File(
-			[fileBuffer],
-			"test-compact-logo-light.png",
-			{
-				type: "image/png",
-			},
-		);
+		const createCompactLogoLightResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-compact-logo-light.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
+		});
+		expect(createLogoLightResult.ok).toBe(true);
+		expect(createLogoDarkResult.ok).toBe(true);
+		expect(createCompactLogoLightResult.ok).toBe(true);
+		if (
+			!createLogoLightResult.ok ||
+			!createLogoDarkResult.ok ||
+			!createCompactLogoLightResult.ok
+		)
+			throw new Error("Failed to create media");
 
 		// Fetch the actual user from database
 		const testUser = await payload.findByID({
@@ -158,14 +189,14 @@ describe("Appearance Settings Functions", () => {
 			overrideAccess: true,
 		});
 
-		// Update appearance settings with multiple logos
+		// Update appearance settings with multiple logos (media IDs)
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				logoLight: logoLightFile,
-				logoDark: logoDarkFile,
-				compactLogoLight: compactLogoLightFile,
+				logoLight: createLogoLightResult.value.media.id,
+				logoDark: createLogoDarkResult.value.media.id,
+				compactLogoLight: createCompactLogoLightResult.value.media.id,
 			},
 			overrideAccess: false,
 		});
@@ -244,16 +275,30 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should handle favicon uploads and track media usage", async () => {
-		// Create favicon File objects from the fixture
+		// Create favicon media from fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-
-		const faviconLightFile = new File([fileBuffer], "test-favicon-light.png", {
-			type: "image/png",
+		const createFaviconLightResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-favicon-light.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
 		});
-
-		const faviconDarkFile = new File([fileBuffer], "test-favicon-dark.png", {
-			type: "image/png",
+		const createFaviconDarkResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-favicon-dark.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
 		});
+		expect(createFaviconLightResult.ok).toBe(true);
+		expect(createFaviconDarkResult.ok).toBe(true);
+		if (!createFaviconLightResult.ok || !createFaviconDarkResult.ok)
+			throw new Error("Failed to create media");
 
 		// Fetch the actual user from database
 		const testUser = await payload.findByID({
@@ -262,13 +307,13 @@ describe("Appearance Settings Functions", () => {
 			overrideAccess: true,
 		});
 
-		// Update appearance settings with favicons
+		// Update appearance settings with favicons (media IDs)
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				faviconLight: faviconLightFile,
-				faviconDark: faviconDarkFile,
+				faviconLight: createFaviconLightResult.value.media.id,
+				faviconDark: createFaviconDarkResult.value.media.id,
 			},
 			overrideAccess: false,
 		});
@@ -326,11 +371,20 @@ describe("Appearance Settings Functions", () => {
 	});
 
 	test("should get appearance settings with logo fields", async () => {
-		// Create a File object from the fixture
+		// Create media from fixture
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const logoFile = new File([fileBuffer], "test-logo-get.png", {
-			type: "image/png",
+		const createMediaResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-logo-get.png",
+			mimeType: "image/png",
+			userId: testUserId,
+			overrideAccess: true,
+			req: undefined,
 		});
+		expect(createMediaResult.ok).toBe(true);
+		if (!createMediaResult.ok) throw new Error("Failed to create media");
+		const logoMediaId = createMediaResult.value.media.id;
 
 		// Fetch the actual user from database
 		const testUser = await payload.findByID({
@@ -339,12 +393,12 @@ describe("Appearance Settings Functions", () => {
 			overrideAccess: true,
 		});
 
-		// Set the logo
+		// Set the logo (media ID)
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
 			req: { user: { ...testUser, collection: "users" } },
 			data: {
-				logoLight: logoFile,
+				logoLight: logoMediaId,
 			},
 			overrideAccess: false,
 		});
@@ -354,8 +408,7 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to update appearance settings");
 		}
 
-		const logoMediaId = updateResult.value.logoLight?.id;
-		expect(logoMediaId).toBeDefined();
+		expect(updateResult.value.logoLight?.id).toBe(logoMediaId);
 
 		// Get settings and verify logo is returned
 		const getSettingsResult = await tryGetAppearanceSettings({

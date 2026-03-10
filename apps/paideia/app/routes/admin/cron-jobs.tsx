@@ -6,7 +6,6 @@ import { useRevalidator } from "react-router";
 import { formatDateTimeForDisplay } from "app/utils/date-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetCronJobs } from "@paideia/paideia-backend";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
@@ -17,7 +16,7 @@ import type { Route } from "./+types/cron-jobs";
 const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 
 export const loader = createRouteLoader()(async ({ context }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -31,7 +30,9 @@ export const loader = createRouteLoader()(async ({ context }) => {
 		throw new ForbiddenResponse("Only admins can view cron jobs");
 	}
 
-	const cronJobsResult = await tryGetCronJobs({ payload, req: payloadRequest });
+	const cronJobsResult = await paideia.tryGetCronJobs({
+		req: requestContext,
+	});
 
 	if (!cronJobsResult.ok) {
 		throw new InternalServerErrorResponse(

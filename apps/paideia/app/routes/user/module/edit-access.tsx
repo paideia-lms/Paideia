@@ -19,10 +19,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import type { Instructor } from "server/contexts/user-module-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
-import {
-	tryGrantAccessToActivityModule,
-	tryRevokeAccessFromActivityModule,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";
@@ -100,7 +96,7 @@ const revokeAccessRpc = createActionRpc({
 
 const grantAccessAction = grantAccessRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -113,12 +109,11 @@ const grantAccessAction = grantAccessRpc.createAction(
 		const currentUser =
 			userSession.effectiveUser || userSession.authenticatedUser;
 
-		const grantResult = await tryGrantAccessToActivityModule({
-			payload,
+		const grantResult = await paideia.tryGrantAccessToActivityModule({
 			activityModuleId: params.moduleId,
 			grantedToUserId: formData.userId,
 			grantedByUserId: currentUser.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!grantResult.ok) {
@@ -136,13 +131,12 @@ const useGrantAccess = grantAccessRpc.createHook<typeof grantAccessAction>();
 
 const revokeAccessAction = revokeAccessRpc.createAction(
 	async ({ context, params, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const revokeResult = await tryRevokeAccessFromActivityModule({
-			payload,
+		const revokeResult = await paideia.tryRevokeAccessFromActivityModule({
 			activityModuleId: params.moduleId,
 			userId: formData.userId,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!revokeResult.ok) {

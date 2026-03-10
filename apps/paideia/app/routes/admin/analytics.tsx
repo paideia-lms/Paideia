@@ -20,10 +20,6 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryGetAnalyticsSettings,
-	tryUpdateAnalyticsSettings,
-} from "@paideia/paideia-backend";
 import { z } from "zod";
 import { useFormWatchForceUpdate } from "app/utils/ui/form-utils";
 import {
@@ -50,7 +46,7 @@ type AnalyticsGlobal = {
 };
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -62,11 +58,10 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const settings = await tryGetAnalyticsSettings({
-		payload,
+	const settings = await paideia.tryGetAnalyticsSettings({
 		// ! this is a system request, we don't care about access control
 		overrideAccess: true,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!settings.ok) {
@@ -112,7 +107,7 @@ const updateAnalyticsSettingsRpc = createActionRpc({
 
 const updateAnalyticsSettingsAction = updateAnalyticsSettingsRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -124,12 +119,11 @@ const updateAnalyticsSettingsAction = updateAnalyticsSettingsRpc.createAction(
 			return forbidden({ error: "Only admins can access this area" });
 		}
 
-		const updateResult = await tryUpdateAnalyticsSettings({
-			payload,
+		const updateResult = await paideia.tryUpdateAnalyticsSettings({
 			data: {
 				additionalJsScripts: formData.additionalJsScripts,
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {

@@ -1,6 +1,4 @@
 import { globalContextKey } from "server/contexts/global-context";
-import { tryGetMediaStreamFromId } from "@paideia/paideia-backend";
-import { tryFindUserById } from "@paideia/paideia-backend";
 import type { Route } from "./+types/user.$id.avatar";
 import { badRequest, notFound } from "app/utils/router/responses";
 import {
@@ -23,13 +21,11 @@ export const loader = createRouteLoader(
 			return badRequest({ error: "User ID is required" });
 		}
 
-		const { payload, payloadRequest, s3Client } = context.get(globalContextKey);
+		const { paideia, requestContext, s3Client } = context.get(globalContextKey);
 
-		// Fetch user with avatar populated (depth 1 to get avatar object)
-		const userResult = await tryFindUserById({
-			payload,
+		const userResult = await paideia.tryFindUserById({
 			userId: params.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!userResult.ok) {
@@ -47,12 +43,10 @@ export const loader = createRouteLoader(
 		// Parse Range header if present (we'll get file size from the media record)
 		const rangeHeader = request.headers.get("Range");
 
-		// Get media stream (without range first to get file size)
-		let result = await tryGetMediaStreamFromId({
-			payload,
+		let result = await paideia.tryGetMediaStreamFromId({
 			s3Client,
 			id: user.avatar,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!result.ok) {
@@ -68,12 +62,11 @@ export const loader = createRouteLoader(
 
 		// If range is requested and different from full file, fetch with range
 		if (range && (range.start > 0 || range.end < fileSize - 1)) {
-			result = await tryGetMediaStreamFromId({
-				payload,
+			result = await paideia.tryGetMediaStreamFromId({
 				s3Client,
 				id: user.avatar,
 				range,
-				req: payloadRequest,
+				req: requestContext,
 			});
 
 			if (!result.ok) {

@@ -36,7 +36,7 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
-import type { Media } from "@paideia/paideia-backend";
+import type { Media } from "server/types/frontend-types";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
 import { typeCreateLoader } from "app/utils/router/loader-utils";

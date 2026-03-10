@@ -38,11 +38,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	type CategoryTreeNode,
-	tryGetCategoryTree,
-} from "@paideia/paideia-backend";
-import { tryFindAllCourses } from "@paideia/paideia-backend";
+import type { CategoryTreeNode } from "@paideia/paideia-backend";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
@@ -66,7 +62,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams, params }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -84,21 +80,21 @@ export const loader = createRouteLoader({
 	const { query, page } = searchParams;
 
 	// Fetch courses with search and pagination
-	const coursesResult = await tryFindAllCourses({
-		payload,
-		query: query || undefined,
-		limit: 10,
-		page,
-		sort: "-createdAt",
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to get courses");
-	});
+	const coursesResult = await paideia
+		.tryFindAllCourses({
+			query: query || undefined,
+			limit: 10,
+			page,
+			sort: "-createdAt",
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to get courses");
+		});
 
 	// categories for batch update select
-	const categoriesResult = await tryGetCategoryTree({
-		payload,
-		req: payloadRequest,
+	const categoriesResult = await paideia.tryGetCategoryTree({
+		req: requestContext,
 	});
 	const flatCategories: { value: string; label: string }[] = [];
 	if (categoriesResult.ok) {

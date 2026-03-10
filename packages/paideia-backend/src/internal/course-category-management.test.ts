@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryCreateCategory,
@@ -16,23 +15,26 @@ import {
 } from "./course-category-management";
 import { tryCreateCourse } from "./course-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Course Category Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Course Category Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 	let testUser: { id: number };
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		mockRequest = new Request("http://localhost:3000/test");
 

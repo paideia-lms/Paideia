@@ -1,25 +1,25 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import sanitizedConfig from "../payload.config";
 import { trySendEmail } from "./email";
+import { migrations } from "server/migrations";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("Email Management", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Email Management", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 
 	beforeAll(async () => {
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
-
-		await payload.db.migrateFresh({
-			forceAcceptWarning: true,
-		});
+		await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+		await deleteEverythingInBucket({ logger: payload.logger})
 	});
 
 	afterAll(async () => {
-		if (payload.db && typeof payload.db.destroy === "function") {
-			await payload.db.destroy();
-		}
+		await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+		await deleteEverythingInBucket({ logger: payload.logger})
 	});
 
 	test("should fail when recipient email is missing", async () => {

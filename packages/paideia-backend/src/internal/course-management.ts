@@ -22,7 +22,6 @@ import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
-import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
 import { tryCreateMedia } from "./media-management";
 import type {
 	RecurringScheduleItem,
@@ -102,18 +101,7 @@ export function tryCreateCourse(args: CreateCourseArgs) {
 						collection: Courses.slug,
 						data: {
 							title,
-							...(await processRichTextMediaV2({
-								payload,
-								userId: createdBy,
-								req: txInfo.reqWithTransaction,
-								overrideAccess,
-								data: {
-									description,
-								},
-								fields: [
-									{ key: "description", alt: "Course description image" },
-								],
-							})),
+							description,
 							slug,
 							createdBy,
 							status,
@@ -195,7 +183,7 @@ export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
 		title?: string;
 		status?: "draft" | "published" | "archived";
 		description?: string;
-		thumbnail?: File | null;
+		thumbnail?: number | null;
 		tags?: { tag?: string }[];
 		category?: number | null;
 	};
@@ -229,34 +217,8 @@ export function tryUpdateCourse(args: UpdateCourseArgs) {
 					id: courseId,
 					data: {
 						...data,
-						thumbnail: !data.thumbnail
-							? data.thumbnail
-							: await tryCreateMedia({
-									payload,
-									file: await data.thumbnail.arrayBuffer().then(Buffer.from),
-									filename: data.thumbnail.name || "thumbnail",
-									mimeType: data.thumbnail.type || "image/png",
-									alt: "Course thumbnail",
-									userId,
-									req,
-									overrideAccess,
-								})
-									.getOrThrow()
-									.then((r) => r.media.id),
-						...(data.description
-							? await processRichTextMediaV2({
-									payload,
-									userId,
-									req,
-									overrideAccess,
-									data: {
-										description: data.description,
-									},
-									fields: [
-										{ key: "description", alt: "Course description image" },
-									],
-								})
-							: {}),
+						thumbnail: data.thumbnail  ,
+						description: data.description?.trim() || "",
 					},
 					req,
 					overrideAccess,

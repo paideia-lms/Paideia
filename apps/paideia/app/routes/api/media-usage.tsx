@@ -1,6 +1,5 @@
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindMediaUsages } from "@paideia/paideia-backend";
 import { badRequest, ok, unauthorized } from "app/utils/router/responses";
 import { typeCreateLoaderRpc } from "app/utils/router/loader-utils";
 import type { Route } from "./+types/media-usage";
@@ -12,11 +11,10 @@ const createLoaderRpc = typeCreateLoaderRpc<Route.LoaderArgs>({
 const loaderRpc = createLoaderRpc({});
 
 export const loader = loaderRpc.createLoader(async ({ context, params }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		// throw new NotFoundResponse("Unauthorized");
 		return unauthorized("Unauthorized");
 	}
 
@@ -29,10 +27,9 @@ export const loader = loaderRpc.createLoader(async ({ context, params }) => {
 
 	const { mediaId } = params;
 
-	const result = await tryFindMediaUsages({
-		payload,
+	const result = await paideia.tryFindMediaUsages({
 		mediaId,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!result.ok) {

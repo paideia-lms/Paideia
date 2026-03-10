@@ -5,16 +5,9 @@
  */
 
 import { createContext } from "react-router";
-import { tryFindLinksByCourse } from "@paideia/paideia-backend";
-import { tryFindCourseById } from "@paideia/paideia-backend";
-import { tryGetCourseStructure } from "@paideia/paideia-backend";
-import {
-	type GradebookSetupItemWithCalculations,
-	tryGetGradebookAllRepresentations,
-	tryGetGradebookByCourseWithDetails,
-} from "@paideia/paideia-backend";
 import { permissions } from "@paideia/paideia-backend";
 import { Result } from "typescript-result";
+import type { PaideiaContextArgs } from "./global-context";
 import {
 	CourseAccessDeniedError,
 	InvalidArgumentError,
@@ -22,10 +15,10 @@ import {
 	UnknownError,
 } from "../../app/utils/error";
 import {
+	flattenGradebookCategories,
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
 } from "@paideia/paideia-backend";
-import type { BaseInternalFunctionArgs } from "@paideia/paideia-backend";
 export { courseContextKey } from "./utils/context-keys";
 
 // interface Group {
@@ -142,13 +135,7 @@ export { courseContextKey } from "./utils/context-keys";
 // 	moduleLinks: CourseActivityModuleLink[];
 // }
 
-export interface FlattenedCategory {
-	id: number;
-	name: string;
-	parentId: number | null;
-	depth: number;
-	path: string; // Full path like "Parent > Child > Grandchild"
-}
+export type { FlattenedCategory } from "@paideia/paideia-backend";
 
 // export interface CourseContext {
 // 	course: Course;
@@ -169,7 +156,7 @@ export type CourseContext = NonNullable<
 >;
 export const courseContext = createContext<CourseContext | null>(null);
 
-export interface TryGetCourseContextArgs extends BaseInternalFunctionArgs {
+export interface TryGetCourseContextArgs extends PaideiaContextArgs {
 	courseId: number;
 }
 
@@ -179,26 +166,24 @@ export interface TryGetCourseContextArgs extends BaseInternalFunctionArgs {
 export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 	return Result.try(
 		async () => {
-			const { payload, req, courseId } = args;
+			const { paideia, req, courseId } = args;
 			const user = req?.user;
 			if (Number.isNaN(courseId)) {
 				throw new InvalidArgumentError("Course ID is required");
 			}
-			// Get course
-			const course = await tryFindCourseById({
-				payload,
-				courseId,
-				req,
-			}).getOrThrow();
+			const course = await paideia
+				.tryFindCourseById({
+					courseId,
+					req,
+				})
+				.getOrThrow();
 
-			// Check if user exists
 			if (!user) {
 				throw new CourseAccessDeniedError(
 					"User must be authenticated to access course",
 				);
 			}
 
-			// Check access
 			const hasAccess = permissions.course.canAccess(
 				{
 					id: user.id,
@@ -217,9 +202,7 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 				);
 			}
 
-			// Fetch existing course-activity-module links and populate moduleLinks
-			const linksResult = await tryFindLinksByCourse({
-				payload,
+			const linksResult = await paideia.tryFindLinksByCourse({
 				courseId,
 				req,
 			});
@@ -258,25 +241,27 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 				moduleLinks,
 			};
 
-			// Fetch course structure
 			const [courseStructure, gradebook, allReps] = await Promise.all([
-				tryGetCourseStructure({
-					payload,
-					courseId: course.id,
-					req,
-					overrideAccess: false,
-				}).then((r) => r.getOrThrow()),
-				tryGetGradebookByCourseWithDetails({
-					payload,
-					courseId,
-					req,
-				}).then((r) => r.getOrThrow()),
-				tryGetGradebookAllRepresentations({
-					payload,
-					courseId,
-					req,
-					overrideAccess: false,
-				}).then((r) => r.getOrThrow()),
+				paideia
+					.tryGetCourseStructure({
+						courseId: course.id,
+						req,
+						overrideAccess: false,
+					})
+					.then((r) => r.getOrThrow()),
+				paideia
+					.tryGetGradebookByCourseWithDetails({
+						courseId,
+						req,
+					})
+					.then((r) => r.getOrThrow()),
+				paideia
+					.tryGetGradebookAllRepresentations({
+						courseId,
+						req,
+						overrideAccess: false,
+					})
+					.then((r) => r.getOrThrow()),
 			]);
 			const courseStructureTree = generateCourseStructureTree(
 				courseStructure,
@@ -359,45 +344,4 @@ export function tryGetCourseContext(args: TryGetCourseContextArgs) {
 			);
 		},
 	);
-}
-/**
- * Flattens the gradebook category structure recursively to get all categories
- * including nested ones, with their hierarchy information
- */
-function flattenGradebookCategories(
-	items: GradebookSetupItemWithCalculations[],
-	parentId: number | null = null,
-	depth: number = 0,
-	parentPath: string = "",
-): FlattenedCategory[] {
-	const result: FlattenedCategory[] = [];
-
-	for (const item of items) {
-		if (item.type === "category") {
-			const currentPath = parentPath
-				? `${parentPath} > ${item.name}`
-				: item.name;
-
-			result.push({
-				id: item.id,
-				name: item.name,
-				parentId,
-				depth,
-				path: currentPath,
-			});
-
-			// Recursively process nested categories
-			if (item.grade_items) {
-				const nestedCategories = flattenGradebookCategories(
-					item.grade_items,
-					item.id,
-					depth + 1,
-					currentPath,
-				);
-				result.push(...nestedCategories);
-			}
-		}
-	}
-
-	return result;
 }

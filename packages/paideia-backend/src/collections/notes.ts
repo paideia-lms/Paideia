@@ -1,5 +1,8 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { richTextContent } from "./utils/rich-text-content";
+import {
+	createRichTextBeforeChangeHook,
+	richTextContent,
+} from "./utils/rich-text-content";
 
 /**
  * notes are like journals and tweets
@@ -10,6 +13,13 @@ import { richTextContent } from "./utils/rich-text-content";
 export const Notes = {
 	slug: "notes" as const,
 	defaultSort: "-createdAt",
+	hooks: {
+		beforeChange: [
+			createRichTextBeforeChangeHook({
+				fields: [{ key: "content", alt: "Note content image" }],
+			}),
+		],
+	},
 	access: {
 		read: ({ req }): AccessResult => {
 			// require login to read notes

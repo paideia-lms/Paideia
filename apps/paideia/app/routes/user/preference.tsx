@@ -15,7 +15,6 @@ import { typeCreateActionRpc } from "app/utils/router/action-utils";
 import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindUserById, tryUpdateUser } from "@paideia/paideia-backend";
 import { z } from "zod";
 import {
 	badRequest,
@@ -29,7 +28,7 @@ const createLoaderInstance = typeCreateLoader<Route.LoaderArgs>();
 const createRouteLoader = createLoaderInstance({});
 
 export const loader = createRouteLoader(async ({ context, params }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
 
@@ -55,13 +54,14 @@ export const loader = createRouteLoader(async ({ context, params }) => {
 	}
 
 	// Fetch the target user
-	const targetUser = await tryFindUserById({
-		payload,
-		userId: targetUserId,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new NotFoundResponse("User not found");
-	});
+	const targetUser = await paideia
+		.tryFindUserById({
+			userId: targetUserId,
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new NotFoundResponse("User not found");
+		});
 
 	return {
 		user: pick(targetUser, [
@@ -90,7 +90,7 @@ const createUpdatePreferenceActionRpc = createActionRpc({
 
 const updatePreferenceAction = createUpdatePreferenceActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -102,14 +102,13 @@ const updatePreferenceAction = createUpdatePreferenceActionRpc.createAction(
 			userSession.effectiveUser || userSession.authenticatedUser;
 
 		// Update user theme and direction
-		const updateResult = await tryUpdateUser({
-			payload,
+		const updateResult = await paideia.tryUpdateUser({
 			userId: currentUser.id,
 			data: {
 				theme: formData.theme,
 				direction: formData.direction,
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!updateResult.ok) {

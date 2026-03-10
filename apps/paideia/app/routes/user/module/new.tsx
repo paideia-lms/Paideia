@@ -13,14 +13,6 @@ import { parseAsStringEnum } from "nuqs";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryCreateAssignmentModule,
-	tryCreateDiscussionModule,
-	tryCreateFileModule,
-	tryCreatePageModule,
-	tryCreateQuizModule,
-	tryCreateWhiteboardModule,
-} from "@paideia/paideia-backend";
 import { DiscussionForm } from "~/components/activity-module-forms/discussion-form";
 import { FileForm } from "~/components/activity-module-forms/file-form";
 import { PageForm } from "~/components/activity-module-forms/page-form";
@@ -42,7 +34,7 @@ import { typeCreateLoader } from "app/utils/router/loader-utils";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { presetValuesToFileTypes } from "~/utils/file-types";
 import { redirect } from "react-router";
-import type { ActivityModule } from "@paideia/paideia-backend";
+import type { ActivityModule } from "server/types/frontend-types";
 import { useForm } from "@mantine/form";
 
 // Define search params for module creation
@@ -122,7 +114,7 @@ const createCreateFileActionRpc = createActionRpc({
 	formDataSchema: z.object({
 		title: z.string().min(1),
 		description: z.string().optional(),
-		fileMedia: z.array(z.file()).optional(),
+		fileMedia: z.array(z.coerce.number()).optional(),
 	}),
 	method: "POST",
 	action: Action.CreateFile,
@@ -168,14 +160,13 @@ const createCreateDiscussionActionRpc = createActionRpc({
 
 const createPageAction = createCreatePageActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const createResult = await tryCreatePageModule({
-			payload,
+		const createResult = await paideia.tryCreatePageModule({
 			title: formData.title,
 			description: formData.description,
 			content: formData.content,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -197,14 +188,13 @@ const useCreatePage =
 
 const createWhiteboardAction = createCreateWhiteboardActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const createResult = await tryCreateWhiteboardModule({
-			payload,
+		const createResult = await paideia.tryCreateWhiteboardModule({
 			title: formData.title,
 			description: formData.description,
 			content: formData.whiteboardContent,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -226,14 +216,13 @@ const useCreateWhiteboard =
 
 const createFileAction = createCreateFileActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const createResult = await tryCreateFileModule({
-			payload,
+		const createResult = await paideia.tryCreateFileModule({
 			title: formData.title,
 			description: formData.description,
 			media: formData.fileMedia,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -255,7 +244,7 @@ const useCreateFile =
 
 const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
 		const allowedFileTypes =
 			formData.assignmentAllowedFileTypes &&
@@ -263,8 +252,7 @@ const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
 				? presetValuesToFileTypes(formData.assignmentAllowedFileTypes)
 				: undefined;
 
-		const createResult = await tryCreateAssignmentModule({
-			payload,
+		const createResult = await paideia.tryCreateAssignmentModule({
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.assignmentInstructions,
@@ -273,7 +261,7 @@ const createAssignmentAction = createCreateAssignmentActionRpc.createAction(
 			allowedFileTypes,
 			maxFileSize: formData.assignmentMaxFileSize,
 			maxFiles: formData.assignmentMaxFiles,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -295,13 +283,12 @@ const useCreateAssignment =
 
 const createQuizAction = createCreateQuizActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const createResult = await tryCreateQuizModule({
-			payload,
+		const createResult = await paideia.tryCreateQuizModule({
 			title: formData.title,
 			description: formData.description,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -323,10 +310,9 @@ const useCreateQuiz =
 
 const createDiscussionAction = createCreateDiscussionActionRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 
-		const createResult = await tryCreateDiscussionModule({
-			payload,
+		const createResult = await paideia.tryCreateDiscussionModule({
 			title: formData.title,
 			description: formData.description,
 			instructions: formData.discussionInstructions,
@@ -334,7 +320,7 @@ const createDiscussionAction = createCreateDiscussionActionRpc.createAction(
 			requireThread: formData.discussionRequireThread,
 			requireReplies: formData.discussionRequireReplies,
 			minReplies: formData.discussionMinReplies,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!createResult.ok) {
@@ -458,7 +444,6 @@ function getFileFormInitialValues() {
 		title: "",
 		description: "",
 		files: {
-			files: [] as File[],
 			mediaIds: [] as number[],
 		},
 	};
@@ -466,24 +451,22 @@ function getFileFormInitialValues() {
 
 export type FileFormInitialValues = ReturnType<typeof getFileFormInitialValues>;
 
-function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
+function FileFormWrapper({ userId }: { userId: number }) {
 	const { submit: createFile, isLoading } = useCreateFile();
 	const initialValues = getFileFormInitialValues();
 	return (
 		<FileForm
 			initialValues={initialValues}
 			onSubmit={(values) => {
-				console.log(values);
 				createFile({
 					values: {
 						title: values.title,
 						description: values.description,
-						// we don't care about mediaIds here, because the create Form is all new files
-						fileMedia: values.files.files,
+						fileMedia: values.files.mediaIds,
 					},
 				});
 			}}
-			uploadLimit={uploadLimit}
+			userId={userId}
 			isLoading={isLoading}
 		/>
 	);
@@ -621,7 +604,7 @@ function DiscussionFormWrapper() {
 }
 
 export default function NewModulePage({ loaderData }: Route.ComponentProps) {
-	const { uploadLimit, searchParams } = loaderData;
+	const { searchParams } = loaderData;
 	const setQueryParams = useNuqsSearchParams(loaderSearchParams);
 	const selectedType = searchParams.type;
 
@@ -671,7 +654,7 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 					{selectedType === "page" && <PageFormWrapper />}
 					{selectedType === "whiteboard" && <WhiteboardFormWrapper />}
 					{selectedType === "file" && (
-						<FileFormWrapper uploadLimit={uploadLimit} />
+						<FileFormWrapper userId={loaderData.user.id} />
 					)}
 					{selectedType === "assignment" && <AssignmentFormWrapper />}
 					{selectedType === "quiz" && <CreateQuizForm />}

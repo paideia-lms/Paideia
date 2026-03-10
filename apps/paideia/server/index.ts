@@ -3,22 +3,12 @@ import {
 	asciiLogo,
 	displayHelp,
 	envVars,
-	getMigrationStatus,
-	migrations,
 	s3Client,
-	tryResetSandbox,
-	tryRunSeed,
-	S3BucketNotFoundError,
-	type Migration as MigrationType,
-} from "@paideia/paideia-backend/server";
+} from "@paideia/paideia-backend";
 
-import { treaty } from "@elysiajs/eden";
-import { openapi } from "@elysiajs/openapi";
-import { Elysia } from "elysia";
 import { RouterContextProvider } from "react-router";
+import { createRequestHandler } from "react-router";
 import { createStorage } from "unstorage";
-// biome-ignore lint/suspicious/noTsIgnore: unstorage driver types
-// @ts-ignore
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
 import packageJson from "../package.json";
@@ -30,29 +20,32 @@ import { globalContextKey } from "./contexts/global-context";
 import { userContextKey } from "./contexts/user-context";
 import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
-import { reactRouter } from "./elysia-react-router";
 import { parseParams } from "../app/utils/router/route-params-schema";
+import { createDevServer } from "./dev-server";
+import { getServerBuild, setVite } from "./server-build-access";
+import { serveFromVfs } from "./static/serve-vfs";
 import prompts from "prompts";
+import type { Command } from "commander";
+import type { PackageJson } from "type-fest";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import vfs from "./vfs";
 
 const paideia = new Paideia();
-const payload = await paideia.init();
+await paideia.init();
+
+const logger = paideia.getPayload().logger;
 
 // Server startup function
 async function startServer() {
 	console.log(asciiLogo);
-	console.log(
+	logger.info(
 		`You are starting the Paideia server (${packageJson.version}). Paideia binary can be used as a CLI application.`,
 	);
 	displayHelp();
 
 	// Check for pending migrations before any DB-dependent operations
-	const migrationStatuses = await getMigrationStatus({
-		payload,
-		migrations: migrations as MigrationType[],
-	});
+	const migrationStatuses = await paideia.getMigrationStatus();
 	const pendingCount = (migrationStatuses ?? []).filter(
 		(s) => s.Ran === "No",
 	).length;
@@ -69,19 +62,17 @@ async function startServer() {
 				{ onCancel: () => process.exit(0) },
 			);
 			if (!runNow) {
-				console.log(
+				logger.info(
 					"Run `bun run migrate:up` to apply migrations, then start the server.",
 				);
 				process.exit(0);
 			}
 		} else {
-			console.log(
+			logger.info(
 				`Non-interactive mode: applying ${pendingCount} pending migration(s)...`,
 			);
 		}
-		await payload.db.migrate({
-			migrations: migrations as MigrationType[],
-		});
+		await paideia.migrate();
 	}
 
 	const unstorage = createStorage({
@@ -92,51 +83,46 @@ async function startServer() {
 		}),
 	});
 
-	console.log("Mode: ", process.env.NODE_ENV);
+	logger.info(`Mode: ${process.env.NODE_ENV}`);
 
-	if (process.env.NODE_ENV === "development") {
-		// ! a system request, so we don't need to provide a request
-		const seedResult = await tryRunSeed({
-			payload,
-			req: undefined,
-			overrideAccess: true,
-			vfs: vfs as Record<string, string>,
-		});
-		if (!seedResult.ok) {
-			const err = seedResult.error;
-			if (err instanceof S3BucketNotFoundError) {
-				console.error("\n❌ S3 bucket not found. Cannot proceed with seed.\n");
-				console.error(err.message);
-				console.error("\nCreate the bucket and try again.\n");
-				process.exit(1);
-			}
-			console.error(`❌ Seed failed: ${err.message}`);
-			process.exit(1);
-		}
-	}
+	// TODO: we are not running seed in the program anymore , seed should be done outside the program
+	// if (process.env.NODE_ENV === "development") {
+	// 	// ! a system request, so we don't need to provide a request
+	// 	const seedResult = await tryRunSeed({
+	// 		pa: paideia.getPayload(),
+	// 		req: undefined,
+	// 		overrideAccess: true,
+	// 		vfs: vfs as Record<string, string>,
+	// 	});
+	// 	if (!seedResult.ok) {
+	// 		const err = seedResult.error;
+	// 		if (err instanceof S3BucketNotFoundError) {
+	// 			console.error("\n❌ S3 bucket not found. Cannot proceed with seed.\n");
+	// 			console.error(err.message);
+	// 			console.error("\nCreate the bucket and try again.\n");
+	// 			process.exit(1);
+	// 		}
+	// 		console.error(`❌ Seed failed: ${err.message}`);
+	// 		process.exit(1);
+	// 	}
+	// }
 	// Check if sandbox mode is enabled and reset database
-	else if (envVars.SANDBOX_MODE.enabled) {
-		console.log("🔄 Sandbox mode enabled, resetting database on startup...");
-		const resetResult = await tryResetSandbox({
-			payload,
-			req: undefined,
-			overrideAccess: true,
-			vfs: vfs as Record<string, string>,
-		});
-		if (!resetResult.ok) {
-			// crash the server
-			console.error(
-				`❌ Failed to reset sandbox database: ${resetResult.error.message}. There can be bugs with this version. Please turn off sandbox mode and try the normal mode.`,
-			);
-			process.exit(1);
-		}
-	} else {
-		await payload.db.migrate({
-			migrations: migrations as MigrationType[],
-		});
-	}
+	// else if (envVars.SANDBOX_MODE.enabled) {
+	// 	console.log("🔄 Sandbox mode enabled, resetting database on startup...");
+	// 	const resetResult = await paideia.tryResetSandbox({
+	// 		vfs: vfs as Record<string, string>,
+	// 	});
+	// 	if (!resetResult.ok) {
+	// 		// crash the server
+	// 		console.error(
+	// 			`❌ Failed to reset sandbox database: ${resetResult.error.message}. There can be bugs with this version. Please turn off sandbox mode and try the normal mode.`,
+	// 		);
+	// 		process.exit(1);
+	// 	}
+	// } else {
+	await paideia.migrate();
+	// }
 
-	const port = Number(envVars.PORT.value) || envVars.PORT.default;
 	const frontendPort =
 		Number(envVars.FRONTEND_PORT.value) || envVars.FRONTEND_PORT.default;
 
@@ -148,113 +134,127 @@ async function startServer() {
 	const bunRevision = typeof Bun !== "undefined" ? Bun.revision : "unknown";
 	const packageVersion = packageJson.version;
 
-	const backend = new Elysia()
-		.state("payload", payload)
-		.use(openapi())
-		.listen(port, () => {
-			console.log(`🚀 Paideia backend is running at http://localhost:${port}`);
+	function buildLoadContext(
+		request: Request,
+		serverBuild: Awaited<ReturnType<typeof getServerBuild>>,
+	): RouterContextProvider {
+		const c = new RouterContextProvider();
+		// ! patch the request
+		(request as Request & { _c?: RouterContextProvider })._c = c;
+		const requestInfo = getRequestInfo(request);
+		const hints = getHints(request);
+
+		const requestContext = paideia.createRequestContext({
+			request,
+			user: null,
+			context: { routerContext: c },
 		});
+		c.set(globalContextKey, {
+			serverBuild,
+			environment: process.env.NODE_ENV,
+			paideia,
+			requestInfo,
+			s3Client,
+			unstorage,
+			envVars: envVars,
+			platformInfo,
+			bunVersion,
+			bunRevision,
+			packageVersion,
+			hints,
+			routeHierarchy: [],
+			systemGlobals: {
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm",
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			},
+			requestContext,
+			pageInfo: {
+				is: {} as any,
+				params: parseParams({}),
+			},
+		});
+		c.set(userContextKey, null);
+		c.set(courseContextKey, null);
+		c.set(enrolmentContextKey, null);
+		c.set(courseModuleContextKey, null);
+		c.set(courseSectionContextKey, null);
+		c.set(userProfileContextKey, null);
+		c.set(userModuleContextKey, null);
+		return c;
+	}
 
-	const frontend = new Elysia()
-		.use(
-			async (e) =>
-				await reactRouter(e, {
-					getLoadContext: ({ request, params }) => {
-						const c = new RouterContextProvider();
-
-						// ! patch the request
-						request._c = c;
-						const requestInfo = getRequestInfo(request);
-						const hints = getHints(request);
-
-						c.set(globalContextKey, {
-							environment: process.env.NODE_ENV,
-							payload: payload,
-							elysia: backend,
-							api,
-							requestInfo,
-							s3Client,
-							unstorage,
-							envVars: envVars,
-							platformInfo,
-							bunVersion,
-							bunRevision,
-							packageVersion,
-							hints,
-							// some fake data for now
-							routeHierarchy: [],
-							systemGlobals: {
-								maintenanceSettings: { maintenanceMode: false },
-								sitePolicies: {
-									userMediaStorageTotal: null,
-									siteUploadLimit: null,
-								},
-								appearanceSettings: {
-									additionalCssStylesheets: [],
-									color: "blue",
-									radius: "sm",
-									logoLight: null,
-									logoDark: null,
-									compactLogoLight: null,
-									compactLogoDark: null,
-									faviconLight: null,
-									faviconDark: null,
-								},
-								analyticsSettings: {
-									additionalJsScripts: [],
-								},
-							},
-							// ! for now the payload request does not exist because it only exists after the user middleware is passed. we use a temp value here
-							payloadRequest: {},
-							pageInfo: {
-								is: {} as any,
-								params: parseParams(params),
-							},
-						});
-						// set all the contexts to be null in the beginning??
-						c.set(userContextKey, null);
-						c.set(courseContextKey, null);
-						c.set(enrolmentContextKey, null);
-						c.set(courseModuleContextKey, null);
-						c.set(courseSectionContextKey, null);
-						c.set(userProfileContextKey, null);
-						c.set(userModuleContextKey, null);
-						return c;
+	if (process.env.ENV === "production") {
+		setVite(undefined);
+		const server = Bun.serve({
+			port: frontendPort,
+			async fetch(request: Request) {
+				const pathname = new URL(request.url).pathname;
+				if (pathname.startsWith("/openapi")) {
+					return paideia.handleOpenApiRequest(request);
+				}
+				const vfsResponse = await serveFromVfs(
+					request,
+					vfs as Record<string, string>,
+					{
+						maxAge: 31536000,
 					},
-				}),
-		)
-		.listen(frontendPort, () => {
-			console.log(
-				`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
-			);
+				);
+				if (vfsResponse) return vfsResponse;
+				const serverBuild = await getServerBuild();
+				const handler = createRequestHandler(serverBuild, "production");
+				const loadContext = buildLoadContext(request, serverBuild);
+				return handler(request, loadContext);
+			},
 		});
+		paideia
+			.getPayload()
+			.logger.info(`🚀 Paideia frontend is running at ${server.url}`);
+	} else {
+		await createDevServer({
+			port: frontendPort,
+			handleOpenApiRequest: (request) => paideia.handleOpenApiRequest(request),
+			buildLoadContext,
+			logger: paideia.getPayload().logger,
+		});
+	}
 
-	const api = treaty(backend);
-
-	return { backend, frontend, api };
+	await new Promise(() => {}); // keep process alive
 }
 
-// Configure Commander.js program with all CLI commands
-const program = await paideia.configureCommands();
+// Configure CLI with trpc-cli (oRPC-based)
+const cli = await paideia.createCli({
+	name: "paideia",
+	version: packageJson.version,
+	description: packageJson.description,
+	packageJson: packageJson as PackageJson,
+});
+const program = cli.buildProgram() as Command;
 
-// Server command
+// Server command - never resolves so process stays alive
 program
 	.command("server")
 	.description("Start the Paideia server")
-	.action(async () => {
-		await startServer();
-	});
+	.action(startServer);
 
 // Default action: run server if no command provided
-// This will run when no subcommand is given
-program.action(async () => {
-	await startServer();
-});
-
-// Export types - will be properly typed when server runs
-// Using type inference from actual instances
-export type Backend = Awaited<ReturnType<typeof startServer>>["backend"];
-export type Frontend = Awaited<ReturnType<typeof startServer>>["frontend"];
-export type Api = Awaited<ReturnType<typeof startServer>>["api"];
+program.action(startServer);
 
 await program.parseAsync();
+process.exit(0);

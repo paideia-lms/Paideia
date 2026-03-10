@@ -1,19 +1,18 @@
 import { Button, Stack, Textarea, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { FormableFileUploader } from "~/components/form-components/formable-file-uploader";
-import type { FileFormInitialValues as EditFileFormInitialValues } from "app/routes/user/module/edit-setting/route";
-import type { FileFormInitialValues as NewFileFormInitialValues } from "app/routes/user/module/new";
-import type { Simplify, UnionToIntersection } from "type-fest";
 import { useSyncFormWithInitialValues } from "./use-sync-form-with-initial-values";
 
-type FileFormData = Simplify<
-	UnionToIntersection<NewFileFormInitialValues | EditFileFormInitialValues>
->;
+interface FileFormData {
+	title: string;
+	description: string;
+	files: { mediaIds: number[] };
+}
 
 interface FileFormProps {
 	initialValues?: Partial<FileFormData>;
 	onSubmit: (values: FileFormData) => void;
-	uploadLimit?: number;
+	userId: number;
 	existingMedia?: Array<{
 		id: number;
 		filename?: string | null;
@@ -26,7 +25,7 @@ interface FileFormProps {
 export function FileForm({
 	initialValues,
 	onSubmit,
-	uploadLimit,
+	userId,
 	existingMedia = [],
 	isLoading,
 }: FileFormProps) {
@@ -36,7 +35,7 @@ export function FileForm({
 		initialValues: {
 			title: initialValues?.title ?? "",
 			description: initialValues?.description ?? "",
-			files: initialValues?.files ?? { files: [], mediaIds: [] },
+			files: initialValues?.files ?? { mediaIds: [] },
 		},
 		validate: {
 			title: (value) =>
@@ -72,8 +71,8 @@ export function FileForm({
 					formKey={"files"}
 					key={form.key("files")}
 					label="Files"
+					userId={userId}
 					existingMedia={existingMedia}
-					uploadLimit={uploadLimit}
 					allowDeleteUploaded={true}
 				/>
 

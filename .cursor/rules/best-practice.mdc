@@ -25,6 +25,8 @@ in `clientAction`, we should use `notifications` from `@mantine/notifications` t
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
 
+when an action returns data the UI needs (e.g. one-time API key), use the hook's `data` property and `useEffect` to sync it to local state. `submit()` does not return the action response. see `.cursor/skills/react-router-action-hook-data/SKILL.md`.
+
 use interface but not type for component props except for `createRouteComponent` where we can use type.
 
 in the loader, we should always throw ErrorResponse if fail, unless it is a non component route. in action, we return error response from `utils/responses` instead of throwing error.
@@ -38,6 +40,8 @@ we should break down the components so that each component only use one action h
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.
+
+`user/profile/:id?` is a public page (viewable by anyone). `user/overview/:id?` is private (requires auth, user or admin). do not put sensitive links (e.g. API keys, preferences) on the public profile; put them on overview or in the user layout tabs.
 
 in the `routes.ts`, we use `:id` to define the user id parameter. when it is not userId or in special case, we should always specify the type of `:noteId` or `:moduleId`. 
 
@@ -121,6 +125,8 @@ use `then(stripDepth<depth, operation>())` to strip the depth from the payload r
 should not accept `depth` as an arg for internal functions but we should always use explicit `depth` for the payload function call.
 
 use interface but not type for Args type.
+
+when app routes need to call internal try* functions, use `paideia.tryX`. if the method does not exist on Paideia, add it. see `.cursor/skills/paideia-expose-internal-functions/SKILL.md`.
 
 ## Changelog
 

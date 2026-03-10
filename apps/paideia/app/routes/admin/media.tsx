@@ -57,22 +57,9 @@ import { constate } from "app/utils/ui/constate";
 import { useNuqsSearchParams } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryDeleteMedia,
-	tryDeleteOrphanedMedia,
-	tryFindMediaByUser,
-	tryGetAllMedia,
-	tryGetMediaByIds,
-	tryGetOrphanedMedia,
-	tryGetSystemMediaStats,
-	tryGetUserMediaStats,
-	tryPruneAllOrphanedMedia,
-	tryRenameMedia,
-} from "@paideia/paideia-backend";
-import { handleTransactionId } from "@paideia/paideia-backend";
-import { tryFindAllUsers } from "@paideia/paideia-backend";
-import type { Media } from "@paideia/paideia-backend";
+import type { Media } from "server/types/frontend-types";
 import { useMediaUsageData } from "~/routes/api/media-usage";
+import { MediaPreviewText } from "~/components/media-preview-text";
 import {
 	canPreview,
 	getFileIcon,
@@ -80,6 +67,7 @@ import {
 	isAudio,
 	isImage,
 	isPdf,
+	isText,
 	isVideo,
 } from "~/utils/media-helpers";
 import {
@@ -160,7 +148,7 @@ export const loader = createRouteLoader({
 	searchParams: loaderSearchParams,
 })(async ({ context, searchParams }) => {
 	const globalContext = context.get(globalContextKey);
-	const { payload, s3Client, payloadRequest } = globalContext;
+	const { paideia, s3Client, requestContext } = globalContext;
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -179,60 +167,65 @@ export const loader = createRouteLoader({
 	const limit = 20;
 
 	const mediaResult = userId
-		? await tryFindMediaByUser({
-				payload,
-				userId,
-				limit,
-				page,
-				depth: 1, // Include createdBy user info
-				req: payloadRequest,
-				overrideAccess: true,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch media");
-			})
-		: await tryGetAllMedia({
-				payload,
-				limit,
-				page,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch media");
-			});
+		? await paideia
+				.tryFindMediaByUser({
+					userId,
+					limit,
+					page,
+					depth: 1, // Include createdBy user info
+					req: requestContext,
+					overrideAccess: true,
+				})
+				.getOrElse(() => {
+					throw new ForbiddenResponse("Failed to fetch media");
+				})
+		: await paideia
+				.tryGetAllMedia({
+					limit,
+					page,
+					req: requestContext,
+				})
+				.getOrElse(() => {
+					throw new ForbiddenResponse("Failed to fetch media");
+				});
 	const mediaWithPermissions = mediaResult.docs.map((file) => ({
 		...file,
 		deletePermission: { allowed: true, reason: "" },
 	}));
 
 	const stats = userId
-		? await tryGetUserMediaStats({
-				payload,
-				userId,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch user media stats");
-			})
-		: await tryGetSystemMediaStats({
-				payload,
-				req: payloadRequest,
-			}).getOrElse(() => {
-				throw new ForbiddenResponse("Failed to fetch system media stats");
-			});
+		? await paideia
+				.tryGetUserMediaStats({
+					userId,
+					req: requestContext,
+				})
+				.getOrElse(() => {
+					throw new ForbiddenResponse("Failed to fetch user media stats");
+				})
+		: await paideia
+				.tryGetSystemMediaStats({
+					req: requestContext,
+				})
+				.getOrElse(() => {
+					throw new ForbiddenResponse("Failed to fetch system media stats");
+				});
 
-	const systemStats = await tryGetSystemMediaStats({
-		payload,
-		req: payloadRequest,
-	}).getOrElse(() => {
-		throw new ForbiddenResponse("Failed to fetch system media stats");
-	});
+	const systemStats = await paideia
+		.tryGetSystemMediaStats({
+			req: requestContext,
+		})
+		.getOrElse(() => {
+			throw new ForbiddenResponse("Failed to fetch system media stats");
+		});
 
 	// Fetch users for the filter dropdown
-	const userOptions = await tryFindAllUsers({
-		payload,
-		limit: 100,
-		page: 1,
-		sort: "-createdAt",
-		req: payloadRequest,
-	})
+	const userOptions = await paideia
+		.tryFindAllUsers({
+			limit: 100,
+			page: 1,
+			sort: "-createdAt",
+			req: requestContext,
+		})
 		.getOrElse(() => {
 			throw new InternalServerErrorResponse("Failed to get users");
 		})
@@ -245,12 +238,11 @@ export const loader = createRouteLoader({
 		});
 
 	// Fetch orphaned media files
-	const orphanedMediaResult = await tryGetOrphanedMedia({
-		payload,
+	const orphanedMediaResult = await paideia.tryGetOrphanedMedia({
 		s3Client,
 		limit,
 		page: orphanedPage,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	const orphanedMedia = orphanedMediaResult.ok
@@ -280,7 +272,7 @@ export const loader = createRouteLoader({
 
 const renameMediaAction = renameMediaRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -294,15 +286,12 @@ const renameMediaAction = renameMediaRpc.createAction(
 			return unauthorized({ error: "Only admins can perform this action" });
 		}
 
-		// Handle transaction ID
-
-		const renameResult = await tryRenameMedia({
-			payload,
+		const renameResult = await paideia.tryRenameMedia({
 			s3Client,
 			id: formData.mediaId,
 			newFilename: formData.newFilename,
 			userId: currentUser.id,
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		if (!renameResult.ok) {
@@ -319,7 +308,7 @@ const useRenameMedia = renameMediaRpc.createHook<typeof renameMediaAction>();
 
 const updateMediaAction = updateMediaRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, payloadRequest } = context.get(globalContextKey);
+		const { paideia, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -333,14 +322,14 @@ const updateMediaAction = updateMediaRpc.createAction(
 			return unauthorized({ error: "Only admins can perform this action" });
 		}
 
-		await payload.update({
+		await paideia.update({
 			collection: "media",
 			id: formData.mediaId,
 			data: {
 				alt: formData.alt,
 				caption: formData.caption,
 			},
-			req: payloadRequest,
+			req: requestContext,
 		});
 
 		return ok({
@@ -353,7 +342,7 @@ const useUpdateMedia = updateMediaRpc.createHook<typeof updateMediaAction>();
 
 const deleteMediaAction = deleteMediaRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -367,8 +356,7 @@ const deleteMediaAction = deleteMediaRpc.createAction(
 			return unauthorized({ error: "Only admins can perform this action" });
 		}
 
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		return transactionInfo.tx(
 			async ({ reqWithTransaction }) => {
@@ -383,8 +371,7 @@ const deleteMediaAction = deleteMediaRpc.createAction(
 				}
 
 				// Verify all media records exist
-				const mediaRecordsResult = await tryGetMediaByIds({
-					payload,
+				const mediaRecordsResult = await paideia.tryGetMediaByIds({
 					ids: mediaIds,
 					req: reqWithTransaction,
 				});
@@ -403,8 +390,7 @@ const deleteMediaAction = deleteMediaRpc.createAction(
 					});
 				}
 
-				const result = await tryDeleteMedia({
-					payload,
+				const result = await paideia.tryDeleteMedia({
 					s3Client,
 					id: mediaIds,
 					req: reqWithTransaction,
@@ -432,7 +418,7 @@ const useDeleteMedia = deleteMediaRpc.createHook<typeof deleteMediaAction>();
 
 const deleteOrphanedMediaAction = deleteOrphanedMediaRpc.createAction(
 	async ({ context, formData }) => {
-		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -446,8 +432,7 @@ const deleteOrphanedMediaAction = deleteOrphanedMediaRpc.createAction(
 			return unauthorized({ error: "Only admins can perform this action" });
 		}
 
-		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+		const transactionInfo = await paideia.handleTransactionId(requestContext);
 
 		return transactionInfo.tx(
 			async ({ reqWithTransaction }) => {
@@ -461,8 +446,7 @@ const deleteOrphanedMediaAction = deleteOrphanedMediaRpc.createAction(
 					return badRequest({ error: "At least one filename is required" });
 				}
 
-				const result = await tryDeleteOrphanedMedia({
-					payload,
+				const result = await paideia.tryDeleteOrphanedMedia({
 					s3Client,
 					filenames,
 					req: reqWithTransaction,
@@ -492,7 +476,7 @@ const useDeleteOrphanedMedia =
 
 const pruneAllOrphanedMediaAction = pruneAllOrphanedMediaRpc.createAction(
 	async ({ context }) => {
-		const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
+		const { paideia, s3Client, requestContext } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -506,10 +490,9 @@ const pruneAllOrphanedMediaAction = pruneAllOrphanedMediaRpc.createAction(
 			return unauthorized({ error: "Only admins can perform this action" });
 		}
 
-		const result = await tryPruneAllOrphanedMedia({
-			payload,
+		const result = await paideia.tryPruneAllOrphanedMedia({
 			s3Client,
-			req: payloadRequest,
+			req: requestContext,
 			// ! we can override access because we are admin
 			overrideAccess: true,
 		});
@@ -1050,6 +1033,17 @@ export const MediaPreviewModal = forwardRef<
 						border: "none",
 					}}
 					title={file.filename ?? "PDF Preview"}
+				/>
+			);
+		}
+
+		if (file.mimeType && isText(file.mimeType)) {
+			return (
+				<MediaPreviewText
+					fileUrl={mediaUrl}
+					filename={file.filename}
+					fileSize={file.filesize}
+					active={opened}
 				/>
 			);
 		}

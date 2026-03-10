@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, Migration, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateUserArgs,
@@ -18,12 +17,21 @@ import {
 	type UpdateUserArgs,
 	tryRegisterFirstUser,
 	tryGetUserCount,
+	tryGenerateApiKey,
+	tryRevokeApiKey,
+	tryGetApiKeyStatus,
 } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { User } from "../payload-types";
+import { migrateFresh } from "server/utils/db/migrate-fresh";
+import { migrations } from "server/migrations";
+import { deleteEverythingInBucket } from "server/utils/s3-client";
 
-describe("User Management Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("User Management Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let adminToken: string;
 	const mockRequest = new Request("http://localhost:3000/test");
 
@@ -42,14 +50,11 @@ describe("User Management Functions", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create admin user for testing
 		const adminArgs: CreateUserArgs = {
@@ -100,7 +105,8 @@ describe("User Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
+			await migrateFresh( { payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -591,6 +597,175 @@ describe("User Management Functions", () => {
 			const result = await tryDeleteUser(deleteArgs);
 
 			expect(result.ok).toBe(false);
+		});
+	});
+
+	describe("API Key Management", () => {
+		test("tryGenerateApiKey should create API key and return it once", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "apikey-user@example.com",
+					password: "testpassword123",
+					firstName: "ApiKey",
+					lastName: "User",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateUser(userArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) return;
+
+			const userId = createResult.value.id;
+
+			const generateResult = await tryGenerateApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+
+			expect(generateResult.ok).toBe(true);
+			if (!generateResult.ok) return;
+
+			expect(generateResult.value.apiKey).toBeDefined();
+			expect(generateResult.value.apiKey).toMatch(/^pld_[a-f0-9]{64}$/);
+
+			// Verify API key authenticates
+			const authResult = await executeAuthStrategies({
+				headers: new Headers({
+					Authorization: `users API-Key ${generateResult.value.apiKey}`,
+				}),
+				canSetHeaders: true,
+				payload,
+			});
+			expect(authResult.user).toBeDefined();
+			expect(authResult.user?.id).toBe(userId);
+		});
+
+		test("tryRevokeApiKey should revoke API key", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "apikey-revoke@example.com",
+					password: "testpassword123",
+					firstName: "ApiKey",
+					lastName: "Revoke",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateUser(userArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) return;
+
+			const userId = createResult.value.id;
+
+			const generateResult = await tryGenerateApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(generateResult.ok).toBe(true);
+			if (!generateResult.ok) return;
+
+			const apiKey = generateResult.value.apiKey;
+
+			const revokeResult = await tryRevokeApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(revokeResult.ok).toBe(true);
+			if (!revokeResult.ok) return;
+			expect(revokeResult.value.revoked).toBe(true);
+
+			// Verify API key no longer authenticates
+			const authResult = await executeAuthStrategies({
+				headers: new Headers({
+					Authorization: `users API-Key ${apiKey}`,
+				}),
+				canSetHeaders: true,
+				payload,
+			});
+			expect(authResult.user).toBeNull();
+		});
+
+		test("tryGetApiKeyStatus should return hasApiKey correctly", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "apikey-status@example.com",
+					password: "testpassword123",
+					firstName: "ApiKey",
+					lastName: "Status",
+				},
+				overrideAccess: true,
+				req: undefined,
+			};
+
+			const createResult = await tryCreateUser(userArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) return;
+
+			const userId = createResult.value.id;
+
+			// Initially no API key
+			const statusBefore = await tryGetApiKeyStatus({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(statusBefore.ok).toBe(true);
+			if (statusBefore.ok) {
+				expect(statusBefore.value.hasApiKey).toBe(false);
+			}
+
+			// Generate API key
+			await tryGenerateApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+
+			// Now has API key
+			const statusAfter = await tryGetApiKeyStatus({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(statusAfter.ok).toBe(true);
+			if (statusAfter.ok) {
+				expect(statusAfter.value.hasApiKey).toBe(true);
+			}
+
+			// Revoke API key
+			await tryRevokeApiKey({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+
+			// No longer has API key
+			const statusRevoked = await tryGetApiKeyStatus({
+				payload,
+				userId,
+				overrideAccess: true,
+				req: undefined,
+			});
+			expect(statusRevoked.ok).toBe(true);
+			if (statusRevoked.ok) {
+				expect(statusRevoked.value.hasApiKey).toBe(false);
+			}
 		});
 	});
 
@@ -1114,29 +1289,28 @@ describe("User Management Functions", () => {
 	});
 });
 
-describe("First User Check Functions - With overrideAccess", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("First User Check Functions - With overrideAccess", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			// Run fresh migration to ensure clean database state
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
 
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 	});
 
 	afterAll(async () => {
 		// Clean up any test data if needed
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -1180,8 +1354,11 @@ describe("First User Check Functions - With overrideAccess", () => {
 	});
 });
 
-describe("First User Check Functions - With Access Control", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("First User Check Functions - With Access Control", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let adminToken: string;
 	let userToken: string;
 
@@ -1200,15 +1377,11 @@ describe("First User Check Functions - With Access Control", () => {
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create admin user
 		const adminArgs: CreateUserArgs = {
@@ -1298,8 +1471,8 @@ describe("First User Check Functions - With Access Control", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -1346,22 +1519,21 @@ describe("First User Check Functions - With Access Control", () => {
 	});
 });
 
-describe("Authentication Functions", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
+describe("Authentication Functions", async () => {
+	const payload = await getPayload({
+		key: crypto.randomUUID(),
+		config: sanitizedConfig,
+	});
 	let mockRequest: Request;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh({ payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
 
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
@@ -1370,8 +1542,8 @@ describe("Authentication Functions", () => {
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
+			await migrateFresh( { payload, migrations : migrations as Migration[] , forceAcceptWarning: true })
+			await deleteEverythingInBucket({ logger: payload.logger})
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

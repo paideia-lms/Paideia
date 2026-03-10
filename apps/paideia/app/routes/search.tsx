@@ -22,7 +22,6 @@ import {
 } from "app/utils/router/search-params-utils";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGlobalSearch } from "@paideia/paideia-backend";
 import { ForbiddenResponse } from "app/utils/router/responses";
 import type { Route } from "./+types/search";
 
@@ -39,7 +38,7 @@ const createRouteLoader = typeCreateLoader<Route.LoaderArgs>();
 export const loader = createRouteLoader({
 	searchParams: searchSearchParams,
 })(async ({ context, searchParams }) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { paideia, requestContext } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -48,12 +47,11 @@ export const loader = createRouteLoader({
 
 	const { query, page } = searchParams;
 
-	const searchResult = await tryGlobalSearch({
-		payload,
+	const searchResult = await paideia.tryGlobalSearch({
 		query: query || undefined,
 		page,
 		limit: 10,
-		req: payloadRequest,
+		req: requestContext,
 	});
 
 	if (!searchResult.ok) {
