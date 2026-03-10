@@ -1,10 +1,20 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
-import { richTextContent } from "./utils/rich-text-content";
+import {
+	createRichTextBeforeChangeHook,
+	richTextContent,
+} from "./utils/rich-text-content";
 
 // Courses collection - core LMS content
 export const Courses = {
 	slug: "courses" as const,
 	defaultSort: "-createdAt",
+	hooks: {
+		beforeChange: [
+			createRichTextBeforeChangeHook({
+				fields: [{ key: "description", alt: "Course description image" }],
+			}),
+		],
+	},
 	access: {
 		create: ({ req }) => {
 			// must be logged in to create a course

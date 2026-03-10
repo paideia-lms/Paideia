@@ -12,11 +12,6 @@ import {
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import { handleTransactionId } from "./utils/handle-transaction-id";
-import {
-	processRichTextMediaV2,
-	tryExtractMediaIdsFromRichText,
-} from "server/collections/utils/rich-text-content";
-
 export interface CreateNoteArgs extends BaseInternalFunctionArgs {
 	data: {
 		content: string;
@@ -89,21 +84,7 @@ export function tryCreateNote(args: CreateNoteArgs) {
 					.create({
 						collection: "notes",
 						data: {
-							...(await processRichTextMediaV2({
-								payload,
-								userId: createdBy,
-								req: txInfo.reqWithTransaction,
-								overrideAccess,
-								data: {
-									content: content.trim(),
-								},
-								fields: [
-									{
-										key: "content",
-										alt: "Note content image",
-									},
-								],
-							})),
+							content: content.trim(),
 							createdBy,
 							isPublic,
 						},
@@ -147,23 +128,7 @@ export function tryUpdateNote(args: UpdateNoteArgs) {
 						id: noteId,
 						data: {
 							isPublic: data.isPublic,
-							...(data.content
-								? await processRichTextMediaV2({
-										payload,
-										userId: currentUser.id,
-										req: txInfo.reqWithTransaction,
-										overrideAccess,
-										data: {
-											content: data.content.trim(),
-										},
-										fields: [
-											{
-												key: "content",
-												alt: "Note content image",
-											},
-										],
-									})
-								: {}),
+							content: data.content?.trim() || "",
 						},
 						req: txInfo.reqWithTransaction,
 						overrideAccess,

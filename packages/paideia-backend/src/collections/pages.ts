@@ -1,9 +1,19 @@
 import type { CollectionConfig } from "payload";
-import { richTextContent } from "./utils/rich-text-content";
+import {
+	createRichTextBeforeChangeHook,
+	richTextContent,
+} from "./utils/rich-text-content";
 
 // Pages collection - for page-type activity modules
 export const Pages = {
 	slug: "pages",
+	hooks: {
+		beforeChange: [
+			createRichTextBeforeChangeHook({
+				fields: [{ key: "content", alt: "Page content image" }],
+			}),
+		],
+	},
 	access: {
 		read: () => true,
 		create: () => true,

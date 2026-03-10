@@ -18,7 +18,6 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
-import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
 
 // Base args that are common to all module types
 interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
@@ -602,16 +601,7 @@ export function tryCreatePageModule(args: CreatePageModuleArgs) {
 					.create({
 						collection: "pages",
 						data: {
-							...(await processRichTextMediaV2({
-								payload,
-								userId,
-								req: reqWithTransaction,
-								overrideAccess,
-								data: {
-									content: content?.trim() || "",
-								},
-								fields: [{ key: "content", alt: "Page content image" }],
-							})),
+							content: content?.trim() || "",
 							createdBy: userId,
 						},
 						req: reqWithTransaction,
