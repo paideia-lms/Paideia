@@ -11,7 +11,7 @@ import {
 	tryFindAllCourses,
 } from "../../internal/course-management";
 import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+import { run } from "../utils/handler";
 
 const courseIdSchema = z.object({
 	courseId: z.coerce.number().int().min(1),
@@ -69,9 +69,6 @@ const findAllSchema = z.object({
 });
 
 const outputSchema = z.any();
-
-const run = <T>(fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>, args: object) =>
-	handleResult(() => fn({ ...args, req: undefined, overrideAccess: true }));
 
 export const createCourse = os
 	.$context<OrpcContext>()

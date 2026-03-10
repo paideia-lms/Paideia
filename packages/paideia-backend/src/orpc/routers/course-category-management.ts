@@ -14,7 +14,7 @@ import {
 	tryFindAllCategories,
 } from "../../internal/course-category-management";
 import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+import { run } from "../utils/handler";
 
 const outputSchema = z.any();
 
@@ -41,9 +41,6 @@ const searchSchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).optional(),
 	page: z.coerce.number().int().min(1).optional(),
 });
-
-const run = <T>(fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>, args: object) =>
-	handleResult(() => fn({ ...args, req: undefined, overrideAccess: true }));
 
 export const createCategory = os
 	.$context<OrpcContext>()

@@ -6,12 +6,9 @@ import { tryGetMaintenanceSettings, tryUpdateMaintenanceSettings } from "../../i
 import { tryGetRegistrationSettings, tryUpdateRegistrationSettings } from "../../internal/registration-settings";
 import { tryGetSitePolicies, tryUpdateSitePolicies } from "../../internal/site-policies";
 import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+import { run } from "../utils/handler";
 
 const outputSchema = z.any();
-
-const run = <T>(fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>, args: object) =>
-	handleResult(() => fn({ ...args, req: undefined, overrideAccess: true }));
 
 const analyticsUpdateSchema = z.object({
 	data: z.object({

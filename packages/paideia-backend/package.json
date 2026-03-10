@@ -16,14 +16,15 @@
 		"migrate:refresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:refresh --force-accept-warning && bun scripts/clean-s3.ts",
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:reset",
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts",
-		"typegen": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:db-schema", 
+		"typegen": "PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:types && PAYLOAD_CONFIG_PATH=src/payload.config.ts bun payload  generate:db-schema",
 		"typecheck": "tsgo --noEmit --project tsconfig.v7.json",
 		"knip": "knip",
 		"dedupe": "bunx nypm dedupe",
 		"lint:project": "bun scripts/lint-project.ts",
 		"test:all": "mkdir -p tests/reports && LOG_FILE=tests/reports/$(date +%Y-%m-%d).log && (bun test $(find . -type f -name '*.test.ts' -not -path './node_modules/*') 2>&1 | tee \"$LOG_FILE\") && bun scripts/process-test-log.ts \"$LOG_FILE\"",
 		"ensure-bucket": "bun scripts/ensure-s3-bucket.ts",
-		"fix-types": "bun scripts/fix-types.ts"
+		"fix-types": "bun scripts/fix-types.ts",
+		"visualize:relationships": "bun scripts/visualize-relationships.ts"
 	},
 	"dependencies": {
 		"@orpc/openapi": "^1.2.0",
@@ -64,6 +65,7 @@
 		"@aws-sdk/client-s3": "^3.991.0",
 		"@faker-js/faker": "^10.3.0",
 		"@types/prompts": "^2.4.9",
-		"@types/semver": "^7.7.1"
+		"@types/semver": "^7.7.1",
+		"beautiful-mermaid": "^1.1.3"
 	}
 }

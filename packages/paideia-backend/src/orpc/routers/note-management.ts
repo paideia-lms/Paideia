@@ -1,4 +1,4 @@
-import { ORPCError, os } from "@orpc/server";
+import { os } from "@orpc/server";
 import { z } from "zod";
 import {
 	tryCreateNote,
@@ -10,6 +10,7 @@ import {
 	tryGenerateNoteHeatmap,
 } from "../../internal/note-management";
 import type { OrpcContext } from "../context";
+import { run } from "../utils/handler";
 
 const outputSchema = z.any();
 
@@ -53,30 +54,13 @@ const heatmapSchema = z.object({
 	userId: z.coerce.number().int().min(1),
 });
 
-const handler = async <T>(
-	fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>,
-	args: object,
-): Promise<T> => {
-	const result = await fn({
-		...args,
-		req: undefined,
-		overrideAccess: true,
-	});
-	if (!result.ok) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: result.error?.message ?? "Unknown error",
-		});
-	}
-	return result.value as T;
-};
-
 export const createNote = os
 	.$context<OrpcContext>()
 	.route({ method: "POST", path: "/notes" })
 	.input(createNoteSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryCreateNote, { payload: context.payload, ...input }),
+		run(tryCreateNote, { payload: context.payload, ...input }),
 	);
 
 export const updateNote = os
@@ -85,7 +69,7 @@ export const updateNote = os
 	.input(updateNoteSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryUpdateNote, { payload: context.payload, ...input }),
+		run(tryUpdateNote, { payload: context.payload, ...input }),
 	);
 
 export const findNoteById = os
@@ -94,7 +78,7 @@ export const findNoteById = os
 	.input(noteIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindNoteById, { payload: context.payload, ...input }),
+		run(tryFindNoteById, { payload: context.payload, ...input }),
 	);
 
 export const searchNotes = os
@@ -103,7 +87,7 @@ export const searchNotes = os
 	.input(searchNotesSchema.optional())
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(trySearchNotes, { payload: context.payload, ...input }),
+		run(trySearchNotes, { payload: context.payload, ...input }),
 	);
 
 export const deleteNote = os
@@ -112,7 +96,7 @@ export const deleteNote = os
 	.input(noteIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryDeleteNote, { payload: context.payload, ...input }),
+		run(tryDeleteNote, { payload: context.payload, ...input }),
 	);
 
 export const findNotesByUser = os
@@ -121,7 +105,7 @@ export const findNotesByUser = os
 	.input(userIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindNotesByUser, { payload: context.payload, ...input }),
+		run(tryFindNotesByUser, { payload: context.payload, ...input }),
 	);
 
 export const generateNoteHeatmap = os
@@ -130,5 +114,5 @@ export const generateNoteHeatmap = os
 	.input(heatmapSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryGenerateNoteHeatmap, { payload: context.payload, ...input }),
+		run(tryGenerateNoteHeatmap, { payload: context.payload, ...input }),
 	);

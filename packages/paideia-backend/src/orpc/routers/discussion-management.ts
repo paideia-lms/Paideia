@@ -13,12 +13,9 @@ import {
 	tryGetDiscussionThreadWithReplies,
 } from "../../internal/discussion-management";
 import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+import { run } from "../utils/handler";
 
 const outputSchema = z.any();
-
-const run = <T>(fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>, args: object) =>
-	handleResult(() => fn({ ...args, req: undefined, overrideAccess: true }));
 
 const createSchema = z.object({
 	courseModuleLinkId: z.coerce.number().int().min(1),

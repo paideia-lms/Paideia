@@ -16,12 +16,9 @@ import {
 	tryFindMediaUsages,
 } from "../../internal/media-management";
 import type { OrpcContext } from "../context";
-import { handleResult } from "../utils/handler";
+import { run } from "../utils/handler";
 
 const outputSchema = z.any();
-
-const run = <T>(fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>, args: object) =>
-	handleResult(() => fn({ ...args, req: undefined, overrideAccess: true }));
 
 const idSchema = z.object({ id: z.coerce.number().int().min(1) });
 const filenamesSchema = z.object({ filenames: z.array(z.string()).min(1) });

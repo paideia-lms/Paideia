@@ -1,4 +1,4 @@
-import { ORPCError, os } from "@orpc/server";
+import { os } from "@orpc/server";
 import { z } from "zod";
 import {
 	tryCreateEnrollment,
@@ -16,6 +16,7 @@ import {
 	tryFindEnrollmentsByGroup,
 } from "../../internal/enrollment-management";
 import type { OrpcContext } from "../context";
+import { run } from "../utils/handler";
 
 const outputSchema = z.any();
 const roleSchema = z.enum(["student", "teacher", "ta", "manager"]);
@@ -93,30 +94,13 @@ const limitPageSchema = z.object({
 	page: z.coerce.number().int().min(1).optional(),
 });
 
-const handler = async <T>(
-	fn: (args: object) => Promise<{ ok: boolean; value?: T; error?: { message: string } }>,
-	args: object,
-): Promise<T> => {
-	const result = await fn({
-		...args,
-		req: undefined,
-		overrideAccess: true,
-	});
-	if (!result.ok) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: result.error?.message ?? "Unknown error",
-		});
-	}
-	return result.value as T;
-};
-
 export const createEnrollment = os
 	.$context<OrpcContext>()
 	.route({ method: "POST", path: "/enrollments" })
 	.input(createEnrollmentSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryCreateEnrollment, {
+		run(tryCreateEnrollment, {
 			payload: context.payload,
 			...input,
 		}),
@@ -128,7 +112,7 @@ export const updateEnrollment = os
 	.input(updateEnrollmentSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryUpdateEnrollment, {
+		run(tryUpdateEnrollment, {
 			payload: context.payload,
 			...input,
 		}),
@@ -140,7 +124,7 @@ export const findEnrollmentById = os
 	.input(enrollmentIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentById, {
+		run(tryFindEnrollmentById, {
 			payload: context.payload,
 			...input,
 		}),
@@ -152,7 +136,7 @@ export const searchEnrollments = os
 	.input(searchSchema.optional())
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(trySearchEnrollments, {
+		run(trySearchEnrollments, {
 			payload: context.payload,
 			...input,
 		}),
@@ -164,7 +148,7 @@ export const deleteEnrollment = os
 	.input(enrollmentIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryDeleteEnrollment, {
+		run(tryDeleteEnrollment, {
 			payload: context.payload,
 			...input,
 		}),
@@ -176,7 +160,7 @@ export const findEnrollmentsByUser = os
 	.input(userIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentsByUser, {
+		run(tryFindEnrollmentsByUser, {
 			payload: context.payload,
 			...input,
 		}),
@@ -188,7 +172,7 @@ export const findEnrollmentsByCourse = os
 	.input(courseIdSchema.extend({ limit: z.coerce.number().int().min(1).max(100).optional() }))
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentsByCourse, {
+		run(tryFindEnrollmentsByCourse, {
 			payload: context.payload,
 			...input,
 		}),
@@ -200,7 +184,7 @@ export const findUserEnrollmentInCourse = os
 	.input(userCourseSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindUserEnrollmentInCourse, {
+		run(tryFindUserEnrollmentInCourse, {
 			payload: context.payload,
 			...input,
 		}),
@@ -212,7 +196,7 @@ export const findActiveEnrollments = os
 	.input(limitPageSchema.optional())
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindActiveEnrollments, {
+		run(tryFindActiveEnrollments, {
 			payload: context.payload,
 			...input,
 		}),
@@ -224,7 +208,7 @@ export const updateEnrollmentStatus = os
 	.input(updateStatusSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryUpdateEnrollmentStatus, {
+		run(tryUpdateEnrollmentStatus, {
 			payload: context.payload,
 			...input,
 		}),
@@ -236,7 +220,7 @@ export const addGroupsToEnrollment = os
 	.input(addGroupsSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryAddGroupsToEnrollment, {
+		run(tryAddGroupsToEnrollment, {
 			payload: context.payload,
 			...input,
 		}),
@@ -248,7 +232,7 @@ export const removeGroupsFromEnrollment = os
 	.input(removeGroupsSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryRemoveGroupsFromEnrollment, {
+		run(tryRemoveGroupsFromEnrollment, {
 			payload: context.payload,
 			...input,
 		}),
@@ -260,7 +244,7 @@ export const findEnrollmentsByGroup = os
 	.input(groupIdSchema)
 	.output(outputSchema)
 	.handler(async ({ input, context }) =>
-		handler(tryFindEnrollmentsByGroup, {
+		run(tryFindEnrollmentsByGroup, {
 			payload: context.payload,
 			...input,
 		}),
