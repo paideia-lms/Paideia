@@ -25,6 +25,8 @@ import { createDevServer } from "./dev-server";
 import { getServerBuild, setVite } from "./server-build-access";
 import { serveFromVfs } from "./static/serve-vfs";
 import prompts from "prompts";
+import type { Command } from "commander";
+import type { PackageJson } from "type-fest";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import vfs from "./vfs";
@@ -32,10 +34,12 @@ import vfs from "./vfs";
 const paideia = new Paideia();
 await paideia.init();
 
+const logger = paideia.getPayload().logger;
+
 // Server startup function
 async function startServer() {
 	console.log(asciiLogo);
-	console.log(
+	logger.info(
 		`You are starting the Paideia server (${packageJson.version}). Paideia binary can be used as a CLI application.`,
 	);
 	displayHelp();
@@ -58,13 +62,13 @@ async function startServer() {
 				{ onCancel: () => process.exit(0) },
 			);
 			if (!runNow) {
-				console.log(
+				logger.info(
 					"Run `bun run migrate:up` to apply migrations, then start the server.",
 				);
 				process.exit(0);
 			}
 		} else {
-			console.log(
+			logger.info(
 				`Non-interactive mode: applying ${pendingCount} pending migration(s)...`,
 			);
 		}
@@ -79,7 +83,7 @@ async function startServer() {
 		}),
 	});
 
-	console.log("Mode: ", process.env.NODE_ENV);
+	logger.info(`Mode: ${process.env.NODE_ENV}`);
 
 	// TODO: we are not running seed in the program anymore , seed should be done outside the program
 	// if (process.env.NODE_ENV === "development") {
@@ -196,16 +200,9 @@ async function startServer() {
 		return c;
 	}
 
-	let frontend:
-		| {
-				server?: ReturnType<typeof import("node:http").createServer>;
-				vite?: unknown;
-		  }
-		| ReturnType<typeof Bun.serve>;
-
 	if (process.env.ENV === "production") {
 		setVite(undefined);
-		frontend = Bun.serve({
+		const server = Bun.serve({
 			port: frontendPort,
 			async fetch(request: Request) {
 				const pathname = new URL(request.url).pathname;
@@ -226,39 +223,38 @@ async function startServer() {
 				return handler(request, loadContext);
 			},
 		});
-		console.log(
-			`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
-		);
+		paideia
+			.getPayload()
+			.logger.info(`🚀 Paideia frontend is running at ${server.url}`);
 	} else {
-		const dev = await createDevServer({
+		await createDevServer({
 			port: frontendPort,
 			handleOpenApiRequest: (request) => paideia.handleOpenApiRequest(request),
 			buildLoadContext,
+			logger: paideia.getPayload().logger,
 		});
-		frontend = { server: dev.server, vite: dev.vite };
 	}
 
-	return { frontend };
+	await new Promise(() => {}); // keep process alive
 }
 
-// Configure Commander.js program with all CLI commands
-const program = await paideia.configureCommands();
+// Configure CLI with trpc-cli (oRPC-based)
+const cli = await paideia.createCli({
+	name: "paideia",
+	version: packageJson.version,
+	description: packageJson.description,
+	packageJson: packageJson as PackageJson,
+});
+const program = cli.buildProgram() as Command;
 
-// Server command
+// Server command - never resolves so process stays alive
 program
 	.command("server")
 	.description("Start the Paideia server")
-	.action(async () => {
-		await startServer();
-	});
+	.action(startServer);
 
 // Default action: run server if no command provided
-program.action(async () => {
-	await startServer();
-});
-
-// Export types - will be properly typed when server runs
-// Using type inference from actual instances
-export type Frontend = Awaited<ReturnType<typeof startServer>>["frontend"];
+program.action(startServer);
 
 await program.parseAsync();
+process.exit(0);

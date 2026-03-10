@@ -6,6 +6,7 @@ import { createRequestHandler } from "react-router";
 import type { RouterContextProvider } from "react-router";
 import serveStatic from "serve-static";
 import type { ViteDevServer } from "vite";
+import type { Payload } from "@paideia/paideia-backend";
 import { getServerBuild, setVite } from "./server-build-access";
 
 export interface DevServerOptions {
@@ -15,13 +16,14 @@ export interface DevServerOptions {
 		request: Request,
 		serverBuild: Awaited<ReturnType<typeof getServerBuild>>,
 	) => RouterContextProvider | Promise<RouterContextProvider>;
+	logger: Payload["logger"];
 }
 
 export async function createDevServer(options: DevServerOptions): Promise<{
 	server: ReturnType<typeof createServer>;
 	vite: ViteDevServer;
 }> {
-	const { port, handleOpenApiRequest, buildLoadContext } = options;
+	const { port, handleOpenApiRequest, buildLoadContext, logger } = options;
 
 	const vite = await import("vite").then((v) =>
 		v.createServer({
@@ -31,7 +33,7 @@ export async function createDevServer(options: DevServerOptions): Promise<{
 		}),
 	);
 	setVite(vite);
-	console.log("vite is running as middleware");
+	logger.info("vite is running as middleware");
 
 	const app = connect();
 
@@ -42,10 +44,8 @@ export async function createDevServer(options: DevServerOptions): Promise<{
 			res: ServerResponse,
 			next: connect.NextFunction,
 		) => {
-			const pathname = new URL(
-				req.url ?? "/",
-				`http://${req.headers.host}`,
-			).pathname;
+			const pathname = new URL(req.url ?? "/", `http://${req.headers.host}`)
+				.pathname;
 			if (!pathname.startsWith("/openapi")) {
 				next();
 				return;
@@ -79,7 +79,7 @@ export async function createDevServer(options: DevServerOptions): Promise<{
 
 	const server = createServer(app);
 	server.listen(port, () => {
-		console.log(`🚀 Paideia frontend is running at http://localhost:${port}`);
+		logger.info(`🚀 Paideia frontend is running at http://localhost:${port}`);
 	});
 
 	return { server, vite };

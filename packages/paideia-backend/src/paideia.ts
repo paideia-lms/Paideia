@@ -53,6 +53,9 @@ import { tryResolveCourseModuleSettingsToLatest } from "./json/course-module-set
 import { getMigrationStatus } from "./utils/db/migration-status";
 import { dumpDatabase } from "./utils/db/dump";
 import { tryResetSandbox as tryResetSandboxFn } from "./utils/db/sandbox-reset";
+import { createCli } from "trpc-cli";
+import { createCliRouter } from "./cli/commands";
+import type { PackageJson } from "type-fest";
 
 export type { Payload, Migration };
 
@@ -135,9 +138,22 @@ export class Paideia {
 		});
 	}
 
-	async configureCommands(): Promise<import("commander").Command> {
-		const { configureCommands } = await import("./cli/commands");
-		return configureCommands(this.getPayload());
+	async createCli(opts: {
+		name: string;
+		version: string;
+		description: string;
+		packageJson: PackageJson;
+	}) {
+		return createCli({
+			router: createCliRouter(),
+			context: {
+				payload: this.getPayload(),
+				packageJson: opts.packageJson,
+			},
+			name: opts.name,
+			version: opts.version,
+			description: opts.description,
+		});
 	}
 
 	getOpenApiHandler() {
