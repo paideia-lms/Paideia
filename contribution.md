@@ -351,7 +351,7 @@ Release notes are written in `release-notes/` folder with format: `VERSION-YYYY-
    ```sh
    bun typecheck
    bun lint
-   bun test:all
+   bun test
    ```
 
 3. **Ensure changelog is created**:

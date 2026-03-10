@@ -21,7 +21,6 @@
 		"knip": "knip",
 		"dedupe": "bunx nypm dedupe",
 		"lint:project": "bun scripts/lint-project.ts",
-		"test:all": "mkdir -p tests/reports && LOG_FILE=tests/reports/$(date +%Y-%m-%d).log && (bun test $(find . -type f -name '*.test.ts' -not -path './node_modules/*') 2>&1 | tee \"$LOG_FILE\") && bun scripts/process-test-log.ts \"$LOG_FILE\"",
 		"ensure-bucket": "bun scripts/ensure-s3-bucket.ts",
 		"fix-types": "bun scripts/fix-types.ts",
 		"visualize:relationships": "bun scripts/visualize-relationships.ts"
